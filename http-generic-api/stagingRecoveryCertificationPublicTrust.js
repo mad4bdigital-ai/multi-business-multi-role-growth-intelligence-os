@@ -41,12 +41,37 @@ export function loadStagingRecoveryCertificationPublicTrust(env = process.env) {
   if (!issuer) fail("RECOVERY_CERTIFICATION_ISSUER_INVALID", "Recovery certification issuer is invalid.");
 
   const publicKey = normalizePublicKey(publicKeyPem, "RECOVERY_CERTIFICATION_PUBLIC_KEY_INVALID");
+  const recoveryFingerprint = fingerprint(publicKey);
   const ingressPem = normalizePem(env.REMOTE_MCP_TRUSTED_INGRESS_PUBLIC_KEY);
-  if (!ingressPem) {
-    fail("RECOVERY_CERTIFICATION_INGRESS_TRUST_UNAVAILABLE", "Activation Gateway ingress public trust is required before Phase B certification trust can be enabled.");
+  const configuredIngressFingerprint = String(
+    env.ACTIVATION_GATEWAY_INGRESS_PUBLIC_KEY_SHA256 || "",
+  ).trim().toLowerCase();
+  let ingressFingerprint = "";
+  let ingressTrustSource = null;
+
+  if (ingressPem) {
+    const ingressKey = normalizePublicKey(ingressPem, "RECOVERY_CERTIFICATION_INGRESS_KEY_INVALID");
+    ingressFingerprint = fingerprint(ingressKey);
+    ingressTrustSource = "public_key";
+    if (configuredIngressFingerprint
+      && (!SHA256.test(configuredIngressFingerprint)
+        || configuredIngressFingerprint !== ingressFingerprint)) {
+      fail(
+        "RECOVERY_CERTIFICATION_INGRESS_TRUST_MISMATCH",
+        "Activation Gateway ingress public key and governed fingerprint disagree.",
+      );
+    }
+  } else if (SHA256.test(configuredIngressFingerprint)) {
+    ingressFingerprint = configuredIngressFingerprint;
+    ingressTrustSource = "governed_fingerprint";
+  } else {
+    fail(
+      "RECOVERY_CERTIFICATION_INGRESS_TRUST_UNAVAILABLE",
+      "Activation Gateway ingress public trust or governed fingerprint is required before Phase B certification trust can be enabled.",
+    );
   }
-  const ingressKey = normalizePublicKey(ingressPem, "RECOVERY_CERTIFICATION_INGRESS_KEY_INVALID");
-  if (fingerprint(ingressKey) === fingerprint(publicKey)) {
+
+  if (ingressFingerprint === recoveryFingerprint) {
     fail("RECOVERY_CERTIFICATION_KEY_REUSE_FORBIDDEN", "Recovery certification public trust must be distinct from Activation Gateway ingress trust.");
   }
 
@@ -55,8 +80,9 @@ export function loadStagingRecoveryCertificationPublicTrust(env = process.env) {
     publicKey: publicKeyPem,
     keyId,
     issuer,
-    public_key_sha256: fingerprint(publicKey),
-    activation_gateway_ingress_public_key_sha256: fingerprint(ingressKey),
+    public_key_sha256: recoveryFingerprint,
+    activation_gateway_ingress_public_key_sha256: ingressFingerprint,
+    activation_gateway_ingress_trust_source: ingressTrustSource,
     separate_from_activation_gateway_ingress: true,
     separation_verified: true,
     secrets_included: false,
