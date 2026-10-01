@@ -244,4 +244,24 @@ assert.equal(/CREATE\s+TABLE/iu.test(source), false);
 assert.equal(/activation_run/iu.test(source), false);
 assert.equal(/INSERT\s+INTO\s+(?!\\?`?execution_log)/iu.test(source), false);
 
+const liveSources = {
+  auth: readFileSync(new URL("./routes/authRoutes.js", import.meta.url), "utf8"),
+  token: readFileSync(new URL("./routes/tenantGptOAuthTokenExchangeRoutes.js", import.meta.url), "utf8"),
+  verifier: readFileSync(new URL("./tenantGptAccessTokenVerifier.js", import.meta.url), "utf8"),
+  gateway: readFileSync(new URL("./routes/activationHostGatewayRoutes.js", import.meta.url), "utf8"),
+};
+assert.equal(liveSources.auth.includes('event: "authorize_received"'), true);
+assert.equal(liveSources.auth.includes('event: "login_consent_completed"'), true);
+assert.equal(liveSources.auth.includes('event: "authorization_code_issued"'), true);
+assert.equal(liveSources.token.includes('event: "token_exchange_completed"'), true);
+assert.equal(liveSources.verifier.includes('event: "resource_request_verified"'), true);
+assert.equal(liveSources.gateway.includes("effectiveOAuthRecoveryEvidenceRecorder"), true);
+for (const [name, sourceText] of Object.entries(liveSources)) {
+  assert.equal(
+    sourceText.includes('event: "callback_received"'),
+    false,
+    `${name} must not synthesize callback_received`,
+  );
+}
+
 console.log("tenant GPT OAuth Recovery evidence sink tests passed");
