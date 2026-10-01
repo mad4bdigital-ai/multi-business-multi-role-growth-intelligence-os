@@ -407,7 +407,9 @@ export async function readTenantGptOAuthRecoveryServerEvidence({
       deploymentSha,
     ],
   );
-  const byEvent = new Map();
+  const byEvent = new Map(
+    TENANT_GPT_OAUTH_RECOVERY_SERVER_EVENTS.map((event) => [event, []]),
+  );
   for (const row of rowsFromQueryResult(result)) {
     const evidence = verifyTenantGptOAuthRecoveryServerEvidence(parseEvidenceRow(row), {
       expectedOperationId: operationId,
@@ -415,26 +417,84 @@ export async function readTenantGptOAuthRecoveryServerEvidence({
       expectedDeploymentSha: deploymentSha,
       nowMs,
     });
-    const prior = byEvent.get(evidence.event);
-    if (prior && prior.canonical_sha256 !== evidence.canonical_sha256) {
+    byEvent.get(evidence.event).push({
+      row_id: Number(row?.id || 0),
+      evidence,
+    });
+  }
+
+  function matchingNext(prefix, event) {
+    const prior = prefix[prefix.length - 1]?.evidence || null;
+    return (byEvent.get(event) || []).filter((candidate) =>
+      !prior
+        || candidate.evidence.previous_envelope_sha256 === prior.correlation_envelope_sha256);
+  }
+
+  function completeChains(prefix = [], index = 0) {
+    if (index >= TENANT_GPT_OAUTH_RECOVERY_SERVER_EVENTS.length) return [prefix];
+    const event = TENANT_GPT_OAUTH_RECOVERY_SERVER_EVENTS[index];
+    const candidates = matchingNext(prefix, event);
+    if (!candidates.length) return [];
+    return candidates.flatMap((candidate) =>
+      completeChains([...prefix, candidate], index + 1));
+  }
+
+  const chains = completeChains();
+  let selected = null;
+  if (chains.length) {
+    const prefixHashes = new Set(
+      chains.map((chain) =>
+        chain
+          .slice(0, -1)
+          .map((item) => item.evidence.canonical_sha256)
+          .join(":")),
+    );
+    if (prefixHashes.size > 1) {
       fail(
-        "oauth_recovery_evidence_duplicate_event_conflict",
-        `Conflicting recovery evidence exists for ${evidence.event}.`,
+        "oauth_recovery_evidence_multiple_chain_conflict",
+        "More than one complete server-owned OAuth Recovery chain exists for this operation.",
         409,
       );
     }
-    if (!prior) byEvent.set(evidence.event, evidence);
+    selected = [...chains].sort(
+      (left, right) =>
+        Number(left[left.length - 1]?.row_id || 0)
+        - Number(right[right.length - 1]?.row_id || 0),
+    )[0];
   }
-  const events = TENANT_GPT_OAUTH_RECOVERY_SERVER_EVENTS
-    .map((event) => byEvent.get(event))
-    .filter(Boolean);
+
+  const presentEvents = new Set(
+    [...byEvent.entries()]
+      .filter(([, candidates]) => candidates.length > 0)
+      .map(([event]) => event),
+  );
+  if (!selected && presentEvents.size === TENANT_GPT_OAUTH_RECOVERY_SERVER_EVENTS.length) {
+    fail(
+      "oauth_recovery_evidence_chain_mismatch",
+      "All Recovery stages are present but they do not form one continuous signed OAuth correlation chain.",
+      409,
+    );
+  }
+
+  const events = selected
+    ? selected.map((item) => item.evidence)
+    : [];
   return Object.freeze({
     contract: TENANT_GPT_OAUTH_RECOVERY_SERVER_READBACK_CONTRACT,
     operation_id: operationId,
     correlation_id: correlationId,
     deployment_sha: deploymentSha,
-    complete: events.length === TENANT_GPT_OAUTH_RECOVERY_SERVER_EVENTS.length,
-    missing_events: TENANT_GPT_OAUTH_RECOVERY_SERVER_EVENTS.filter((event) => !byEvent.has(event)),
+    complete: Boolean(selected),
+    chain_verified: Boolean(selected),
+    missing_events: TENANT_GPT_OAUTH_RECOVERY_SERVER_EVENTS.filter(
+      (event) => !presentEvents.has(event),
+    ),
+    duplicate_observation_counts: Object.fromEntries(
+      TENANT_GPT_OAUTH_RECOVERY_SERVER_EVENTS.map((event) => [
+        event,
+        Math.max(0, (byEvent.get(event) || []).length - 1),
+      ]),
+    ),
     events,
     production_mutation_performed: false,
     secrets_included: false,
