@@ -95,7 +95,7 @@ function validCertification({ deploymentSha = SHA, expiresAt = new Date(Date.now
       durable: true,
       evidence_hash: "e".repeat(64),
     },
-    artifact_integrity: { valid: true },
+    artifact_integrity: { valid: true, manifest_sha256: "a".repeat(64), app_image_digest: "sha256:" + "b".repeat(64) },
     expires_at: expiresAt,
     safety: {
       production_mutation_performed: false,
