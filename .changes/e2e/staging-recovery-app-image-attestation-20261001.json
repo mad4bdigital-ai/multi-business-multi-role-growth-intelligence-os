@@ -21,7 +21,11 @@
       "http-generic-api/test-staging-recovery-certification-public-trust.mjs",
       "http-generic-api/test-staging-recovery-certification-script-surface.mjs",
       "http-generic-api/test-staging-recovery-certification-signing-authority.mjs",
-      "docs/governance/configuration-drift-baseline-extensions.json"
+      "docs/governance/configuration-drift-baseline-extensions.json",
+      "http-generic-api/recoveryActivationReadiness.js",
+      "http-generic-api/test-production-recovery-canary-readiness.mjs",
+      "http-generic-api/test-recovery-activation-readiness.mjs",
+      "http-generic-api/test-staging-recovery-admin-surface.mjs"
     ]
   },
   "environment_impact": {
@@ -55,7 +59,8 @@
             "Discover only successful main-branch Recovery certification workflow runs whose head SHA equals the exact release cut.",
             "Select only a non-expired signed Recovery artifact for that exact SHA, then derive the target fingerprint from the signed payload rather than trusting the artifact name.",
             "Verify Ed25519 public trust, payload freshness/hash, exact environment/branch/deployment SHA, target binding, artifact-name consistency, and app image digest before exporting STAGING_CERT_APP_IMAGE_ID.",
-            "Register the new non-secret live-certification environment references as permanent configuration-drift baseline extensions with no runtime or Production mutation authority."
+            "Register the new non-secret live-certification environment references as permanent configuration-drift baseline extensions with no runtime or Production mutation authority.",
+            "Require the Recovery readiness consumer itself to reject certifications that lack an exact manifest hash or sha256 Staging app image attestation."
           ],
           "assertions": [
             "The Docker image digest is not sourced from /deployment-info and is not hardcoded.",
@@ -63,7 +68,8 @@
             "Staging Live Certification remains free of backend, JWT, and tunnel secret dependencies.",
             "Artifact naming alone is insufficient; signature, payload hash, freshness, exact deployment SHA, environment, branch, target fingerprint, and producing workflow head are verified.",
             "A different but syntactically valid digest inserted after signing invalidates the signature.",
-            "Production deployment, provider mutation, database mutation, migration apply, grant apply, credential read, and secret persistence remain forbidden."
+            "Production deployment, provider mutation, database mutation, migration apply, grant apply, credential read, and secret persistence remain forbidden.",
+            "Recovery readiness cannot become valid from artifact_integrity.valid alone; exact manifest and app image identities are mandatory."
           ],
           "tests": [
             {
@@ -93,6 +99,27 @@
               "working_directory": "http-generic-api",
               "path": "test-staging-recovery-certification-script-surface.mjs",
               "args": []
+            },
+            {
+              "id": "recovery-activation-readiness",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-recovery-activation-readiness.mjs",
+              "args": []
+            },
+            {
+              "id": "production-recovery-canary-readiness",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-production-recovery-canary-readiness.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-recovery-admin-surface",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-recovery-admin-surface.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
@@ -103,7 +130,11 @@
             "http-generic-api/scripts/staging-recovery-genuine-canary.mjs",
             "http-generic-api/stagingRecoveryCertificationProtocol.js",
             "http-generic-api/stagingRecoveryCertificationPublicTrust.js",
-            "docs/governance/configuration-drift-baseline-extensions.json"
+            "docs/governance/configuration-drift-baseline-extensions.json",
+            "http-generic-api/recoveryActivationReadiness.js",
+            "http-generic-api/test-production-recovery-canary-readiness.mjs",
+            "http-generic-api/test-recovery-activation-readiness.mjs",
+            "http-generic-api/test-staging-recovery-admin-surface.mjs"
           ]
         }
       ]
