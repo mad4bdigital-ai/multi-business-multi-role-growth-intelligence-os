@@ -45,7 +45,10 @@ assert.match(liveWorkflow, /verifyStagingRecoverySignedCertificationRecord/u);
 assert.match(liveWorkflow, /RECOVERY_STAGING_CERTIFICATION_PUBLIC_KEY/u);
 assert.match(liveWorkflow, /artifact_integrity\?\.app_image_digest/u);
 assert.match(liveWorkflow, /STAGING_CERT_APP_IMAGE_ID/u);
-assert.match(liveWorkflow, /admin\/recovery\/staging\/readiness/u);
+assert.match(liveWorkflow, /staging-post-deploy-verification\.yml\/runs/u);
+assert.match(liveWorkflow, /payload\?\.target_fingerprint/u);
+assert.match(liveWorkflow, /Artifact name disagrees with the signed target binding/u);
+assert.doesNotMatch(liveWorkflow, /BACKEND_API_KEY|JWT_SECRET|CLOUDFLARE_TUNNEL_TOKEN/u);
 
 assert.match(verifier, /negativeTestEvidence/u);
 assert.match(verifier, /RECOVERY_STAGING_NEGATIVE_TEST_EVIDENCE_FILE/u);
