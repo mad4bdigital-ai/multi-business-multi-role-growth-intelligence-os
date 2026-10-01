@@ -301,6 +301,15 @@ try {
   assert.equal(ready.report.safety.migration_apply, false);
   assert.equal(ready.report.safety.production_deploy, false);
 
+  const wrongSignedImage = await runLive({
+    STAGING_CERT_REQUIRE_READY: "false",
+    STAGING_CERT_APP_IMAGE_ID: "sha256:" + "9".repeat(64),
+  });
+  assert.equal(wrongSignedImage.run.status, 1);
+  assert.equal(wrongSignedImage.report.outcome, "blocked");
+  assert.equal(wrongSignedImage.report.ready, false);
+  assert.ok(wrongSignedImage.report.blocking_failures.includes("app_image_digest_exact"));
+
   const requestsBeforeRejectedOverride = gatewayHealthRequests;
   const rejectedOverride = await runLive({
     STAGING_CERT_REQUIRE_READY: "false",
