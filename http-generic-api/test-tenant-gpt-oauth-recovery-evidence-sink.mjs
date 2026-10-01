@@ -1,0 +1,247 @@
+import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
+import {
+  advanceTenantGptOAuthOperationCorrelation,
+  createTenantGptOAuthOperationCorrelation,
+} from "./tenantGptOAuthOperationCorrelation.js";
+import {
+  TENANT_GPT_OAUTH_RECOVERY_SERVER_EVENTS,
+  buildTenantGptOAuthRecoveryServerEvidence,
+  readTenantGptOAuthRecoveryServerEvidence,
+  recordTenantGptOAuthRecoveryServerEvidence,
+  verifyTenantGptOAuthRecoveryServerEvidence,
+} from "./tenantGptOAuthRecoveryEvidenceSink.js";
+
+const DEPLOYMENT_SHA = "2b464908bd2639792ff54eafd5f0132612de78b0";
+const OPERATION_ID = "11111111-1111-4111-8111-111111111111";
+const CORRELATION_ID = "22222222-2222-4222-8222-222222222222";
+const OTHER_OPERATION_ID = "33333333-3333-4333-8333-333333333333";
+const CLIENT_ID = "mad4b-tenant-gpt-staging";
+const RESOURCE = "https://activation-dev.mad4b.com";
+const REDIRECT_URI = "https://chatgpt.com/aip/g-test/oauth/callback";
+const REDIRECT_HASH = createHash("sha256").update(REDIRECT_URI).digest("hex");
+const BASE_MS = Date.parse("2026-10-01T15:00:00.000Z");
+const NOW_MS = BASE_MS + 60_000;
+
+function errorCode(fn) {
+  try {
+    fn();
+  } catch (error) {
+    return error?.code;
+  }
+  return null;
+}
+
+const authorize = createTenantGptOAuthOperationCorrelation(
+  {
+    operation_id: OPERATION_ID,
+    correlation_id: CORRELATION_ID,
+    protected_resource: RESOURCE,
+    client_id: CLIENT_ID,
+    request_id: "recovery-authorize-request",
+  },
+  { nowMs: BASE_MS },
+);
+const identity = advanceTenantGptOAuthOperationCorrelation(
+  authorize,
+  {
+    stage: "identity_verify",
+    user_id: "user-123",
+    tenant_id: "tenant-123",
+    request_id: "recovery-identity-request",
+  },
+  { nowMs: BASE_MS + 10_000 },
+);
+const code = advanceTenantGptOAuthOperationCorrelation(
+  identity,
+  {
+    stage: "oauth_code_issue",
+    oauth_code_jti: "code-jti-123",
+    request_id: "recovery-code-request",
+  },
+  { nowMs: BASE_MS + 20_000 },
+);
+const token = advanceTenantGptOAuthOperationCorrelation(
+  code,
+  {
+    stage: "oauth_token_exchange",
+    access_token_jti: "access-jti-123",
+    request_id: "recovery-token-request",
+  },
+  { nowMs: BASE_MS + 30_000 },
+);
+const gateway = advanceTenantGptOAuthOperationCorrelation(
+  token,
+  {
+    stage: "gateway_verify",
+    request_id: "recovery-resource-request",
+  },
+  { nowMs: BASE_MS + 40_000 },
+);
+
+const correlations = new Map([
+  ["authorize_received", authorize],
+  ["login_consent_completed", identity],
+  ["authorization_code_issued", code],
+  ["token_exchange_completed", token],
+  ["resource_request_verified", gateway],
+]);
+
+const stored = [];
+async function query(sql, params = []) {
+  const text = String(sql);
+  if (text.includes("INSERT INTO `execution_log`")) {
+    stored.push({
+      id: stored.length + 1,
+      action_key: params[5],
+      runtime_evidence_json: params[7],
+    });
+    return [{ affectedRows: 1 }];
+  }
+  if (text.includes("SELECT id, runtime_evidence_json")) {
+    const [, operationId, correlationId, deploymentSha] = params;
+    const rows = stored.filter((row) => {
+      const evidence = JSON.parse(row.runtime_evidence_json);
+      return (
+        evidence.operation_id === operationId
+        && evidence.correlation_id === correlationId
+        && evidence.deployment_sha === deploymentSha
+      );
+    });
+    return [rows];
+  }
+  throw new Error(`unexpected query: ${text}`);
+}
+
+for (const event of TENANT_GPT_OAUTH_RECOVERY_SERVER_EVENTS) {
+  const result = await recordTenantGptOAuthRecoveryServerEvidence({
+    query,
+    enabled: true,
+    nowMs: NOW_MS,
+    input: {
+      event,
+      correlation: correlations.get(event),
+      redirect_uri_sha256: REDIRECT_HASH,
+      deployment_sha: DEPLOYMENT_SHA,
+    },
+  });
+  assert.equal(result.recorded, true);
+  assert.equal(result.evidence.event, event);
+  assert.equal(result.evidence.operation_id, OPERATION_ID);
+  assert.equal(result.evidence.correlation_id, CORRELATION_ID);
+  assert.equal(result.evidence.secrets_included, false);
+}
+
+assert.equal(stored.length, 5);
+const readback = await readTenantGptOAuthRecoveryServerEvidence({
+  query,
+  operation_id: OPERATION_ID,
+  correlation_id: CORRELATION_ID,
+  deployment_sha: DEPLOYMENT_SHA,
+  nowMs: NOW_MS,
+});
+assert.equal(readback.complete, true);
+assert.deepEqual(readback.missing_events, []);
+assert.deepEqual(readback.events.map((event) => event.event), TENANT_GPT_OAUTH_RECOVERY_SERVER_EVENTS);
+
+assert.equal(
+  errorCode(() => buildTenantGptOAuthRecoveryServerEvidence({
+    event: "callback_received",
+    correlation: gateway,
+    redirect_uri_sha256: REDIRECT_HASH,
+    deployment_sha: DEPLOYMENT_SHA,
+  }, { nowMs: NOW_MS })),
+  "oauth_recovery_callback_external_authority_required",
+);
+
+assert.equal(
+  errorCode(() => buildTenantGptOAuthRecoveryServerEvidence({
+    event: "authorize_received",
+    correlation: authorize,
+    redirect_uri_sha256: REDIRECT_HASH,
+    deployment_sha: DEPLOYMENT_SHA,
+    raw_code: "must-never-be-persisted",
+  }, { nowMs: NOW_MS })),
+  "oauth_recovery_evidence_sensitive_field_forbidden",
+);
+
+assert.equal(
+  errorCode(() => buildTenantGptOAuthRecoveryServerEvidence({
+    event: "authorize_received",
+    correlation: authorize,
+    redirect_uri_sha256: REDIRECT_HASH,
+    deployment_sha: DEPLOYMENT_SHA,
+    unexpected_field: "nope",
+  }, { nowMs: NOW_MS })),
+  "oauth_recovery_evidence_field_not_allowed",
+);
+
+const valid = buildTenantGptOAuthRecoveryServerEvidence({
+  event: "authorize_received",
+  correlation: authorize,
+  redirect_uri_sha256: REDIRECT_HASH,
+  deployment_sha: DEPLOYMENT_SHA,
+}, { nowMs: NOW_MS });
+assert.equal(
+  errorCode(() => verifyTenantGptOAuthRecoveryServerEvidence(
+    { ...valid, protected_resource: "https://tampered.example" },
+    { nowMs: NOW_MS },
+  )),
+  "oauth_recovery_evidence_canonical_hash_mismatch",
+);
+assert.equal(
+  errorCode(() => verifyTenantGptOAuthRecoveryServerEvidence(valid, {
+    expectedOperationId: OTHER_OPERATION_ID,
+    nowMs: NOW_MS,
+  })),
+  "oauth_recovery_evidence_operation_mismatch",
+);
+
+assert.equal(
+  errorCode(() => buildTenantGptOAuthRecoveryServerEvidence({
+    event: "authorize_received",
+    correlation: authorize,
+    redirect_uri_sha256: REDIRECT_HASH,
+    deployment_sha: DEPLOYMENT_SHA,
+    occurred_at: "2026-10-01T13:00:00.000Z",
+    expires_at: "2026-10-01T13:15:00.000Z",
+  }, { nowMs: NOW_MS })),
+  "oauth_recovery_evidence_freshness_invalid",
+);
+
+let productionQueryCalled = false;
+const skipped = await recordTenantGptOAuthRecoveryServerEvidence({
+  query: async () => {
+    productionQueryCalled = true;
+    throw new Error("must not write");
+  },
+  enabled: false,
+  input: null,
+  nowMs: NOW_MS,
+});
+assert.equal(skipped.recorded, false);
+assert.equal(skipped.production_mutation_performed, false);
+assert.equal(productionQueryCalled, false);
+
+const isolated = await readTenantGptOAuthRecoveryServerEvidence({
+  query,
+  operation_id: OTHER_OPERATION_ID,
+  correlation_id: CORRELATION_ID,
+  deployment_sha: DEPLOYMENT_SHA,
+  nowMs: NOW_MS,
+});
+assert.equal(isolated.complete, false);
+assert.equal(isolated.events.length, 0);
+
+const serialized = JSON.stringify(stored);
+assert.equal(serialized.includes("must-never-be-persisted"), false);
+assert.equal(serialized.includes("code-jti-123"), false);
+assert.equal(serialized.includes("access-jti-123"), false);
+
+const source = readFileSync(new URL("./tenantGptOAuthRecoveryEvidenceSink.js", import.meta.url), "utf8");
+assert.equal(/CREATE\s+TABLE/iu.test(source), false);
+assert.equal(/activation_run/iu.test(source), false);
+assert.equal(/INSERT\s+INTO\s+(?!\\?`?execution_log)/iu.test(source), false);
+
+console.log("tenant GPT OAuth Recovery evidence sink tests passed");
