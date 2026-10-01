@@ -2125,6 +2125,50 @@
       "contains_secret_value": false,
       "grants_runtime_mutation": false,
       "grants_production_activation": false
+    },
+    {
+      "fingerprint": ".github/workflows/staging-live-certification.yml|GITHUB_ENV|environment_reference|github.env",
+      "owner": "staging-recovery-governance",
+      "reason": "GITHUB_ENV is the GitHub Actions runner-owned environment handoff used only after signed Recovery certification verification to pass bounded non-secret target and image identity into the subsequent read-only Staging certification step; it grants no provider, database, protected-ref, or Production mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": ".github/workflows/staging-live-certification.yml|RECOVERY_STAGING_SIGNED_CERTIFICATION_ARTIFACT_NAME|environment_reference|recovery.staging.signed.certification.artifact.name",
+      "owner": "staging-recovery-governance",
+      "reason": "The selected signed-certification artifact name is a non-secret consistency binding checked against the target fingerprint recovered from the cryptographically verified payload; the name is never a trust root and grants no mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": ".github/workflows/staging-live-certification.yml|expectedSha|environment_reference|release.cut.sha",
+      "owner": "staging-recovery-governance",
+      "reason": "The expected release-cut SHA is a read-only exact-identity binding used by the public-trust verifier to reject signed evidence for any other deployment; it cannot authorize deploy, provider, database, protected-ref, or Production mutation.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": ".github/workflows/staging-live-certification.yml|file|environment_reference|recovery.staging.signed.certification.file",
+      "owner": "staging-recovery-governance",
+      "reason": "The signed-certification file path is a runner-local non-secret reference created from an exact-SHA GitHub Actions artifact and consumed only by the public-trust verifier; the file contents remain subject to signature, payload-hash, freshness, environment, branch, deployment, and target checks before use.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
     }
   ],
   "safety": {
