@@ -1,0 +1,80 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-recovery-source-authority-b2-20261001",
+  "title": "Persist bounded server-owned OAuth Recovery evidence while external source authority remains fail-closed",
+  "delivery_mode": "single_pr",
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-recovery-source-authority-b2-20261001.json",
+      ".github/governance/test-authority-registry.json",
+      "http-generic-api/tenantGptOAuthRecoveryEvidenceSink.js",
+      "http-generic-api/routes/authRoutes.js",
+      "http-generic-api/routes/tenantGptOAuthTokenExchangeRoutes.js",
+      "http-generic-api/tenantGptAccessTokenVerifier.js",
+      "http-generic-api/routes/activationHostGatewayRoutes.js",
+      "http-generic-api/test-tenant-gpt-oauth-recovery-evidence-sink.mjs",
+      "http-generic-api/scripts/manifests/test-manifest-spec012.mjs"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Persist the five server-owned OAuth Recovery observations in the existing execution_log with exact operation, correlation and deployment binding, without claiming external callback or registration authority.",
+      "e2e_journeys": [
+        {
+          "id": "staging-recovery-oauth-server-evidence-sink",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Staging Tenant GPT OAuth authorization server and Activation protected-resource gateway",
+          "entrypoint": "GET /auth/oauth/authorize",
+          "terminal_outcome": "Five bounded server-owned Recovery observations can be read back for one exact OAuth operation/correlation/deployment while callback_received remains absent and external Recovery source authority remains unavailable.",
+          "steps": [
+            "Record authorize_received after the server creates and signs oauth_authorize correlation.",
+            "Record login_consent_completed only after identity resolution advances the same correlation to identity_verify.",
+            "Record authorization_code_issued from the same oauth_code_issue correlation after durable code-row binding is established.",
+            "Record token_exchange_completed from the governed token route after exact code consumption and oauth_token_exchange advancement.",
+            "Record resource_request_verified only after bearer verification advances the verified correlation to gateway_verify.",
+            "Persist only bounded no-secret evidence to execution_log.runtime_evidence_json.",
+            "Reject callback_received at the server-owned sink and keep Registration source attestation outside this scope.",
+            "Do not sign an acquisition receipt, run the Recovery canary, apply a migration, create activation_run, mutate a provider, or mutate Production."
+          ],
+          "assertions": [
+            "The sink allows exactly five server-owned Recovery event names and rejects callback_received.",
+            "The sink writes only execution_log and creates no table or parallel OAuth correlation ledger.",
+            "Raw OAuth code, access token, refresh token, credentials, cookies and secrets are not accepted as evidence fields.",
+            "Canonical hash tampering, stale evidence, deployment drift and cross-operation or cross-correlation reads fail closed.",
+            "Production runtime performs no Recovery evidence database mutation.",
+            "Live OAuth handlers contain no callback_received event writer.",
+            "Registration parity does not become provider-backed source authority in this PR.",
+            "Recovery OAuth source verification and acquisition receipt signing remain blocked until genuine external callback authority is implemented."
+          ],
+          "tests": [
+            {
+              "id": "oauth-recovery-server-evidence-sink",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-tenant-gpt-oauth-recovery-evidence-sink.mjs",
+              "args": []
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
