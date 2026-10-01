@@ -124,6 +124,33 @@ jobs:
             .safety.secrets_included == false
           ' "$STAGING_TRUST_REPORT_FILE" >/dev/null
 
+      - name: Resolve current Staging Recovery target fingerprint
+        env:
+          BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
+          RELEASE_CUT_SHA: ${{ steps.identity.outputs.release_cut_sha }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test -n "$BACKEND_API_KEY"
+          response="$RUNNER_TEMP/staging-recovery-current-readiness.json"
+          trap 'rm -f "$response"' EXIT
+          status="$(
+            curl               --silent               --show-error               --output "$response"               --write-out '%{http_code}'               --connect-timeout 10               --max-time 20               --header "Authorization: Bearer $BACKEND_API_KEY"               --header "Accept: application/json"               "https://activation-dev.mad4b.com/admin/recovery/staging/readiness"
+          )"
+          [[ "$status" == "200" ]] || { echo "::error::Staging Recovery readiness returned HTTP $status"; exit 1; }
+          target="$(
+            jq -er --arg sha "$RELEASE_CUT_SHA" '
+              select(
+                .environment == "staging"
+                and .deployment_attestation.sha == $sha
+                and (.target_fingerprint | test("^[0-9a-f]{64}$"))
+                and .secrets_included == false
+              )
+              | .target_fingerprint
+            ' "$response"
+          )"
+          echo "RECOVERY_STAGING_EXPECTED_TARGET_FINGERPRINT=$target" >> "$GITHUB_ENV"
+
       - name: Download exact-SHA signed Recovery certification
         env:
           GH_TOKEN: ${{ github.token }}
@@ -131,14 +158,19 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
-          prefix="staging-recovery-signed-certification-${RELEASE_CUT_SHA}-"
+          artifact_name_expected="staging-recovery-signed-certification-${RELEASE_CUT_SHA}-${RECOVERY_STAGING_EXPECTED_TARGET_FINGERPRINT}"
           runs_json="$(
             gh api               -H "Accept: application/vnd.github+json"               "/repos/${GITHUB_REPOSITORY}/actions/workflows/staging-post-deploy-verification.yml/runs?branch=main&status=success&head_sha=${RELEASE_CUT_SHA}&per_page=100"
           )"
           mapfile -t run_ids < <(
             jq -er --arg sha "$RELEASE_CUT_SHA" '
               .workflow_runs[]
-              | select(.head_sha == $sha and .head_branch == "main" and .conclusion == "success")
+              | select(
+                  .head_sha == $sha
+                  and .head_branch == "main"
+                  and .event == "workflow_dispatch"
+                  and .conclusion == "success"
+                )
               | .id
             ' <<<"$runs_json"
           )
@@ -147,11 +179,11 @@ jobs:
           candidates="$RUNNER_TEMP/staging-recovery-signed-artifacts.jsonl"
           : > "$candidates"
           for run_id in "${run_ids[@]}"; do
-            gh api               -H "Accept: application/vnd.github+json"               "/repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}/artifacts?per_page=100"               | jq -c --arg prefix "$prefix" --arg sha "$RELEASE_CUT_SHA" '
+            gh api               -H "Accept: application/vnd.github+json"               "/repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}/artifacts?per_page=100"               | jq -c --arg expected_name "$artifact_name_expected" --arg sha "$RELEASE_CUT_SHA" '
                   .artifacts[]
                   | select(
                       .expired == false
-                      and (.name | startswith($prefix))
+                      and .name == $expected_name
                       and .workflow_run.head_sha == $sha
                       and .workflow_run.head_branch == "main"
                     )
@@ -206,7 +238,9 @@ jobs:
           const artifactName =
             process.env.RECOVERY_STAGING_SIGNED_CERTIFICATION_ARTIFACT_NAME;
           const expectedSha = process.env.RELEASE_CUT_SHA;
-          if (!file || !artifactName || !expectedSha) {
+          const expectedTargetFingerprint =
+            process.env.RECOVERY_STAGING_EXPECTED_TARGET_FINGERPRINT;
+          if (!file || !artifactName || !expectedSha || !expectedTargetFingerprint) {
             throw new Error("Signed certification verification inputs are incomplete.");
           }
 
@@ -218,6 +252,7 @@ jobs:
             payload?.environment !== "staging"
             || payload?.branch !== "main"
             || payload?.deployment_sha !== expectedSha
+            || signedTargetFingerprint !== expectedTargetFingerprint
             || !/^[0-9a-f]{64}$/u.test(signedTargetFingerprint)
           ) {
             throw new Error("Signed certification is not bound to the exact Staging release cut.");
