@@ -7,6 +7,8 @@ import { resolveActivationGatewayHostProfile } from "../activationGatewayHostPro
 import { resolveTrustedRequestHost } from "../trustedRequestHost.js";
 import { verifyRecoveryGatewayIngress } from "../trustedIngressContract.js";
 import { createFileRecoveryEvidenceStore } from "../recoveryReadinessEvidence.js";
+import { getPool } from "../db.js";
+import { recordTenantGptOAuthRecoveryServerEvidence } from "../tenantGptOAuthRecoveryEvidenceSink.js";
 import stagingPolicy from "../activation-gateway-runtime/generated/route-policy.staging.json" with { type: "json" };
 const DEFAULT_HOST_PROFILE = resolveActivationGatewayHostProfile(process.env);
 export const ACTIVATION_HOST_GATEWAY_HOST = String(
@@ -199,6 +201,7 @@ export function buildActivationHostGatewayRoutes({
   env = process.env,
   ingressReplayStore = null,
   deploymentAttestationReader = null,
+  oauthRecoveryEvidenceRecorder = null,
 } = {}) {
   const config = buildGatewayConfig(env, activationHost);
   const effectiveIngressReplayStore = resolveStagingRecoveryReplayStore(config, env, ingressReplayStore);
@@ -206,6 +209,15 @@ export function buildActivationHostGatewayRoutes({
     ? !config.staging || String(env.ACTIVATION_STAGING_GATEWAY_ENABLED || "").trim().toLowerCase() === "true"
     : enabled === true);
   const router = Router();
+  const effectiveOAuthRecoveryEvidenceRecorder = config.staging
+    ? (typeof oauthRecoveryEvidenceRecorder === "function"
+      ? oauthRecoveryEvidenceRecorder
+      : async (input) => recordTenantGptOAuthRecoveryServerEvidence({
+          query: (sql, params) => getPool().query(sql, params),
+          input,
+          env,
+        }))
+    : null;
 
   async function serveActivationSchema(req, res, schemaFile) {
     delete req.headers.cookie;
@@ -320,7 +332,9 @@ export function buildActivationHostGatewayRoutes({
     };
 
     if (isTenantGptProtectedPath(pathname, req.method, config)) {
-      return requireActivationTenantGptAccessToken(req, res, next);
+      return requireActivationTenantGptAccessToken(req, res, next, {
+        onRecoveryEvidence: effectiveOAuthRecoveryEvidenceRecorder,
+      });
     }
     return next();
   });
