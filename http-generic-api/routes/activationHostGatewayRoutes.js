@@ -209,14 +209,39 @@ export function buildActivationHostGatewayRoutes({
     ? !config.staging || String(env.ACTIVATION_STAGING_GATEWAY_ENABLED || "").trim().toLowerCase() === "true"
     : enabled === true);
   const router = Router();
+  // Performance-only, non-authoritative de-duplication. Durable Recovery
+  // authority remains execution_log + signed correlation-chain readback.
+  const recoveryObservationCache = new Map();
   const effectiveOAuthRecoveryEvidenceRecorder = config.staging
     ? (typeof oauthRecoveryEvidenceRecorder === "function"
       ? oauthRecoveryEvidenceRecorder
-      : async (input) => recordTenantGptOAuthRecoveryServerEvidence({
-          query: (sql, params) => getPool().query(sql, params),
-          input,
-          env,
-        }))
+      : async (input) => {
+          const operationId = String(input?.correlation?.operation_id || "");
+          const correlationId = String(input?.correlation?.correlation_id || "");
+          const event = String(input?.event || "");
+          const cacheKey = `${operationId}:${correlationId}:${event}`;
+          if (recoveryObservationCache.has(cacheKey)) {
+            return recoveryObservationCache.get(cacheKey);
+          }
+          const pending = recordTenantGptOAuthRecoveryServerEvidence({
+            query: (sql, params) => getPool().query(sql, params),
+            input,
+            env,
+          });
+          recoveryObservationCache.set(cacheKey, pending);
+          if (recoveryObservationCache.size > 2048) {
+            const oldest = recoveryObservationCache.keys().next().value;
+            if (oldest && oldest !== cacheKey) recoveryObservationCache.delete(oldest);
+          }
+          try {
+            const result = await pending;
+            if (result?.recorded !== true) recoveryObservationCache.delete(cacheKey);
+            return result;
+          } catch (error) {
+            recoveryObservationCache.delete(cacheKey);
+            throw error;
+          }
+        })
     : null;
 
   async function serveActivationSchema(req, res, schemaFile) {
