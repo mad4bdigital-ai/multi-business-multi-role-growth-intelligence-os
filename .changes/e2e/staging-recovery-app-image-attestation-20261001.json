@@ -45,20 +45,21 @@
           "level": "synthetic_runtime",
           "actor": "Staging Recovery certification authority",
           "entrypoint": "Capture the running Staging app image digest from the Docker host, include it in the canary artifact-integrity envelope, countersign it on GitHub-hosted Actions, and consume only the exact signed record in Staging Live Certification.",
-          "terminal_outcome": "Staging Live Certification receives STAGING_CERT_APP_IMAGE_ID only after exact release-cut, current target-fingerprint, public-trust signature, payload hash, and app-image digest verification.",
+          "terminal_outcome": "Staging Live Certification receives STAGING_CERT_APP_IMAGE_ID only after exact release-cut, non-expired signed target-fingerprint, public-trust signature, payload hash, artifact-name consistency, and app-image digest verification.",
           "steps": [
             "Read the exact running app container image digest from the same host-side Docker identity used by Invoke-StagingCertification.ps1.",
             "Fail closed when the canary artifact-integrity envelope omits or malforms app_image_digest.",
             "Carry artifactIntegrity unchanged into stagingCertification.artifact_integrity before canonical payload hashing and signing.",
             "Reject signing and public-trust verification when the image binding is absent, malformed, or tampered.",
-            "Resolve the current live Staging Recovery target fingerprint before live certification.",
-            "Download only a non-expired signed Recovery artifact whose artifact name and producing workflow head match the exact main release cut and current target fingerprint.",
-            "Verify Ed25519 public trust and exact payload bindings before exporting STAGING_CERT_APP_IMAGE_ID to the live certification process."
+            "Discover only successful main-branch Recovery certification workflow runs whose head SHA equals the exact release cut.",
+            "Select only a non-expired signed Recovery artifact for that exact SHA, then derive the target fingerprint from the signed payload rather than trusting the artifact name.",
+            "Verify Ed25519 public trust, payload freshness/hash, exact environment/branch/deployment SHA, target binding, artifact-name consistency, and app image digest before exporting STAGING_CERT_APP_IMAGE_ID."
           ],
           "assertions": [
             "The Docker image digest is not sourced from /deployment-info and is not hardcoded.",
             "The required digest format is exactly sha256 followed by 64 lowercase hexadecimal characters.",
-            "Artifact naming alone is insufficient; signature, payload hash, exact deployment SHA, environment, branch, and target fingerprint are all verified.",
+            "Staging Live Certification remains free of backend, JWT, and tunnel secret dependencies.",
+            "Artifact naming alone is insufficient; signature, payload hash, freshness, exact deployment SHA, environment, branch, target fingerprint, and producing workflow head are verified.",
             "A different but syntactically valid digest inserted after signing invalidates the signature.",
             "Production deployment, provider mutation, database mutation, migration apply, grant apply, credential read, and secret persistence remain forbidden."
           ],
