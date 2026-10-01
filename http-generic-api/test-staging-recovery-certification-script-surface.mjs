@@ -53,7 +53,7 @@ assert.match(liveWorkflow, /STAGING_CERT_APP_IMAGE_ID=/u);
 assert.match(liveWorkflow, /RECOVERY_STAGING_EXPECTED_TARGET_FINGERPRINT/u);
 assert.match(liveWorkflow, /Resolve current Staging Recovery target fingerprint/u);
 assert.match(liveWorkflow, /BACKEND_API_KEY/u);
-assert.match(liveWorkflow, /admin\\/recovery\\/staging\\/readiness/u);
+assert.match(liveWorkflow, /admin\/recovery\/staging\/readiness/u);
 assert.match(liveWorkflow, /artifact_name_expected/u);
 assert.match(liveWorkflow, /event == "workflow_dispatch"/u);
 
