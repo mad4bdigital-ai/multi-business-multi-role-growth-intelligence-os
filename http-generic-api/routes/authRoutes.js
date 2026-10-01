@@ -1396,11 +1396,6 @@ export function buildAuthRoutes(deps) {
         },
       );
 
-      await persistOAuthRecoveryStage({
-        event: "authorization_code_issued",
-        correlation: codeCorrelation,
-        redirect_uri_sha256: sha256(canonicalRedirectUri),
-      });
       stage = "authorization_code_sign";
       const code = jwt.sign(
         {
@@ -1421,6 +1416,12 @@ export function buildAuthRoutes(deps) {
         jwtSecret,
         { expiresIn: OAUTH_CODE_TTL_SECONDS, jwtid: codeJti }
       );
+
+      await persistOAuthRecoveryStage({
+        event: "authorization_code_issued",
+        correlation: codeCorrelation,
+        redirect_uri_sha256: sha256(canonicalRedirectUri),
+      });
 
       if (payload.tenant_id) {
         const ssoToken = issueTenantGptSsoSession({
