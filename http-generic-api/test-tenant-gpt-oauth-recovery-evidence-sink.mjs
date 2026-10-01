@@ -33,6 +33,15 @@ function errorCode(fn) {
   return null;
 }
 
+async function asyncErrorCode(fn) {
+  try {
+    await fn();
+  } catch (error) {
+    return error?.code;
+  }
+  return null;
+}
+
 const authorize = createTenantGptOAuthOperationCorrelation(
   {
     operation_id: OPERATION_ID,
@@ -145,6 +154,41 @@ assert.equal(readback.complete, true);
 assert.deepEqual(readback.missing_events, []);
 assert.deepEqual(readback.events.map((event) => event.event), TENANT_GPT_OAUTH_RECOVERY_SERVER_EVENTS);
 
+assert.equal(readback.chain_verified, true);
+
+const repeatedGateway = advanceTenantGptOAuthOperationCorrelation(
+  token,
+  {
+    stage: "gateway_verify",
+    request_id: "recovery-resource-request-repeat",
+  },
+  { nowMs: BASE_MS + 50_000 },
+);
+await recordTenantGptOAuthRecoveryServerEvidence({
+  query,
+  enabled: true,
+  nowMs: NOW_MS,
+  input: {
+    event: "resource_request_verified",
+    correlation: repeatedGateway,
+    deployment_sha: DEPLOYMENT_SHA,
+  },
+});
+const duplicateReadback = await readTenantGptOAuthRecoveryServerEvidence({
+  query,
+  operation_id: OPERATION_ID,
+  correlation_id: CORRELATION_ID,
+  deployment_sha: DEPLOYMENT_SHA,
+  nowMs: NOW_MS,
+});
+assert.equal(duplicateReadback.complete, true);
+assert.equal(duplicateReadback.chain_verified, true);
+assert.equal(duplicateReadback.duplicate_observation_counts.resource_request_verified, 1);
+assert.equal(
+  duplicateReadback.events.at(-1).canonical_sha256,
+  readback.events.at(-1).canonical_sha256,
+);
+
 assert.equal(
   errorCode(() => buildTenantGptOAuthRecoveryServerEvidence({
     event: "callback_received",
@@ -233,6 +277,50 @@ const isolated = await readTenantGptOAuthRecoveryServerEvidence({
 });
 assert.equal(isolated.complete, false);
 assert.equal(isolated.events.length, 0);
+
+const alternateToken = advanceTenantGptOAuthOperationCorrelation(
+  code,
+  {
+    stage: "oauth_token_exchange",
+    access_token_jti: "alternate-access-jti",
+    request_id: "alternate-token-request",
+  },
+  { nowMs: BASE_MS + 35_000 },
+);
+const alternateGateway = advanceTenantGptOAuthOperationCorrelation(
+  alternateToken,
+  {
+    stage: "gateway_verify",
+    request_id: "alternate-resource-request",
+  },
+  { nowMs: BASE_MS + 45_000 },
+);
+const alternateResourceEvidence = buildTenantGptOAuthRecoveryServerEvidence({
+  event: "resource_request_verified",
+  correlation: alternateGateway,
+  deployment_sha: DEPLOYMENT_SHA,
+}, { nowMs: NOW_MS });
+const brokenRows = [
+  ...stored.slice(0, 4),
+  {
+    id: 999,
+    runtime_evidence_json: JSON.stringify(alternateResourceEvidence),
+  },
+];
+const brokenQuery = async (sql) => {
+  if (String(sql).includes("SELECT id, runtime_evidence_json")) return [brokenRows];
+  throw new Error("unexpected broken-chain query");
+};
+assert.equal(
+  await asyncErrorCode(() => readTenantGptOAuthRecoveryServerEvidence({
+    query: brokenQuery,
+    operation_id: OPERATION_ID,
+    correlation_id: CORRELATION_ID,
+    deployment_sha: DEPLOYMENT_SHA,
+    nowMs: NOW_MS,
+  })),
+  "oauth_recovery_evidence_chain_mismatch",
+);
 
 const serialized = JSON.stringify(stored);
 assert.equal(serialized.includes("must-never-be-persisted"), false);
