@@ -46,6 +46,7 @@ assert.match(liveWorkflow, /workflow_run\.head_branch/u);
 assert.match(liveWorkflow, /verifyStagingRecoverySignedCertificationRecord/u);
 assert.match(liveWorkflow, /loadStagingRecoveryCertificationPublicTrust/u);
 assert.match(liveWorkflow, /RECOVERY_STAGING_CERTIFICATION_PUBLIC_KEY/u);
+assert.match(liveWorkflow, /ACTIVATION_GATEWAY_INGRESS_PUBLIC_KEY_SHA256/u);
 assert.match(liveWorkflow, /payload\?\.deployment_sha/u);
 assert.match(liveWorkflow, /artifact_integrity\?\.app_image_digest/u);
 assert.match(liveWorkflow, /STAGING_CERT_APP_IMAGE_ID=/u);
