@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
-delete process.env.NODE_ENV;
-delete process.env.REMOTE_MCP_ENVIRONMENT;
-process.env.DEPLOYMENT_ENVIRONMENT = "staging_local_windows_docker";
-process.env.ACTIVATION_STAGING_GATEWAY_ENABLED = "true";
+for (const key of ["NODE_ENV", "REMOTE_MCP_ENVIRONMENT"]) delete process.env[key];
+Object.assign(process.env, {
+  DEPLOYMENT_ENVIRONMENT: "staging_local_windows_docker",
+  ACTIVATION_STAGING_GATEWAY_ENABLED: "true",
+});
 
 const {
   advanceTenantGptOAuthOperationCorrelation,
