@@ -52,8 +52,8 @@ assert.match(liveWorkflow, /artifact_integrity\?\.app_image_digest/u);
 assert.match(liveWorkflow, /STAGING_CERT_APP_IMAGE_ID=/u);
 assert.match(liveWorkflow, /RECOVERY_STAGING_EXPECTED_TARGET_FINGERPRINT/u);
 assert.match(liveWorkflow, /event == "workflow_dispatch"/u);
-assert.match(liveWorkflow, /startswith\\(\\$prefix\\)/u);
-assert.match(liveWorkflow, /ltrimstr\\(\\$prefix\\)/u);
+assert.match(liveWorkflow, /startswith\(\$prefix\)/u);
+assert.match(liveWorkflow, /ltrimstr\(\$prefix\)/u);
 
 assert.match(liveWorkflow, /actions: read/u);
 assert.match(liveWorkflow, /staging-recovery-signed-certification-/u);
