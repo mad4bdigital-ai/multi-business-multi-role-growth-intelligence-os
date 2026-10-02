@@ -480,6 +480,11 @@ assert.equal(liveSources.verifier.includes('event: "resource_request_verified"')
 assert.equal(liveSources.verifier.includes("onRecoveryEvidence"), false);
 assert.equal(liveSources.gateway.includes('event: "resource_request_verified"'), true);
 assert.equal(liveSources.gateway.includes("await effectiveOAuthRecoveryEvidenceRecorder"), true);
+assert.equal(
+  liveSources.gateway.includes("recoveryObservationCache.get(observationIdentity) === pending"),
+  true,
+  "Gateway de-duplication must coalesce only the in-flight write and release successful observations",
+);
 for (const [name, sourceText] of Object.entries(liveSources)) {
   assert.equal(sourceText.includes('event: "callback_received"'), false, name + " must not synthesize callback_received");
 }

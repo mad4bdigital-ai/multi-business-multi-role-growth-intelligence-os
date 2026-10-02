@@ -700,15 +700,23 @@ export function buildTenantGptOAuthTokenExchangeRoutes(deps = {}) {
         secrets_included: false,
       };
 
-      await persistOAuthRecoveryTokenStage(
-        tokenQuery,
-        {
+      if (activationContext?.stored === true) {
+        await persistOAuthRecoveryTokenStage(
+          tokenQuery,
+          {
+            event: "token_exchange_completed",
+            correlation: tokenCorrelation,
+            redirect_uri_sha256: sha256(canonicalizeRedirectUri(codePayload.redirect_uri) || codePayload.redirect_uri),
+          },
+          now(),
+        );
+      } else {
+        console.warn("tenant_gpt_oauth_recovery_evidence_stage_skipped", {
           event: "token_exchange_completed",
-          correlation: tokenCorrelation,
-          redirect_uri_sha256: sha256(canonicalizeRedirectUri(codePayload.redirect_uri) || codePayload.redirect_uri),
-        },
-        now(),
-      );
+          reason: String(activationContext?.reason || "activation_context_not_stored").slice(0, 96),
+          secrets_included: false,
+        });
+      }
 
       const tokenResponse = {
         access_token: accessToken,

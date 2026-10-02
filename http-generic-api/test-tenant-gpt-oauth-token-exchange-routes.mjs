@@ -275,6 +275,29 @@ assert.equal(
   "success evidence must not precede response commitment",
 );
 
+const originalWarn = console.warn;
+console.warn = () => {};
+try {
+  const degradedContextHarness = createHarness({
+    recordActivationContext: async () => ({
+      ok: false,
+      stored: false,
+      reason: "activation_context_store_unavailable",
+      secrets_included: false,
+    }),
+  });
+  const degradedContext = await runScenario(degradedContextHarness);
+  assert.equal(degradedContext.status, 200);
+  assert.deepEqual(degradedContextHarness.recoveryEvents, []);
+  assert.equal(
+    degradedContextHarness.order.includes("recovery"),
+    false,
+    "Recovery token stage must remain absent when activation-context persistence did not succeed",
+  );
+} finally {
+  console.warn = originalWarn;
+}
+
 let replayConsumeCalls = 0;
 const replayHarness = createHarness({
   consumeCode: async () => {

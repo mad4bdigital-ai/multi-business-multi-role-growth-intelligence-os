@@ -235,12 +235,11 @@ export function buildActivationHostGatewayRoutes({
             if (oldest && oldest !== observationIdentity) recoveryObservationCache.delete(oldest);
           }
           try {
-            const result = await pending;
-            if (result?.recorded !== true) recoveryObservationCache.delete(observationIdentity);
-            return result;
-          } catch (error) {
-            recoveryObservationCache.delete(observationIdentity);
-            throw error;
+            return await pending;
+          } finally {
+            if (recoveryObservationCache.get(observationIdentity) === pending) {
+              recoveryObservationCache.delete(observationIdentity);
+            }
           }
         })
     : null;
