@@ -343,6 +343,19 @@ const valid = buildTenantGptOAuthRecoveryServerEvidence({
   redirect_uri_sha256: REDIRECT_HASH,
 }, { nowMs: NOW_MS, env: STAGING_ENV });
 assert.equal(
+  errorCode(() => buildTenantGptOAuthRecoveryServerEvidence({
+    event: "authorize_received",
+    correlation: {
+      ...authorize,
+      stage_request_id_sha256: null,
+      envelope_sha256: createHash("sha256").update(JSON.stringify({})).digest("hex"),
+    },
+    redirect_uri_sha256: REDIRECT_HASH,
+  }, { nowMs: NOW_MS, env: STAGING_ENV })),
+  "oauth_correlation_digest_mismatch",
+  "A caller cannot remove the stage request binding without first invalidating correlation integrity",
+);
+assert.equal(
   errorCode(() => verifyTenantGptOAuthRecoveryServerEvidence(
     { ...valid, protected_resource: "https://tampered.example" },
     { nowMs: NOW_MS },
