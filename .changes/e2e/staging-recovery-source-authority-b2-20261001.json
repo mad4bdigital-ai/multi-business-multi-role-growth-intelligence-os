@@ -53,7 +53,7 @@
             "Record token_exchange_completed only after access-token creation and successful activation-context persistence.",
             "Record resource_request_verified in the Activation Gateway and await persistence before downstream dispatch.",
             "Derive timestamps from verified correlation and deployment SHA from the canonical deployment manifest.",
-            "Persist bounded no-secret integrity evidence only to execution_log.runtime_evidence_json.",
+            "Persist bounded no-secret integrity evidence to execution_log with normalized correlation_id plus runtime_evidence_json, under a bounded write deadline.",
             "Keep callback_received and Registration source attestation outside this server-owned scope."
           ],
           "assertions": [
@@ -63,6 +63,9 @@
             "Canonical digest represents integrity only and source_authenticity remains not_established.",
             "Stage-specific envelope ancestry and subject/code/access bindings are mandatory.",
             "Readback has time, row, event-candidate, and chain-state bounds.",
+            "Recovery evidence persistence has a bounded write deadline so database queue or query stalls cannot indefinitely block OAuth or protected-resource request paths.",
+            "Recovery readback selects candidates through normalized indexed execution_log.correlation_id before verifying operation, deployment and canonical evidence bindings.",
+            "Correlation continuity is hash-linked integrity derived from verified OAuth correlation envelopes; the evidence row itself does not claim a digital signature or external source authenticity.",
             "Production or ambiguous Staging performs no Recovery evidence DB mutation.",
             "authorization_code_issued follows successful signing.",
             "token_exchange_completed is absent when activation-context persistence is not stored, while the valid OAuth response remains non-fatal and Recovery certification stays incomplete.",

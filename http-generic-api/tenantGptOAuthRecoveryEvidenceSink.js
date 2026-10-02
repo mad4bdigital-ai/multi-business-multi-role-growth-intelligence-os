@@ -34,6 +34,7 @@ const SHA256 = /^[a-f0-9]{64}$/u;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 const RECOVERY_EVIDENCE_CEILING_MILLISECONDS = 60 * 60 * 1000;
 const RECOVERY_EVIDENCE_WINDOW_MILLISECONDS = 15 * 60 * 1000;
+const RECOVERY_EVIDENCE_WRITE_BUDGET_MILLISECONDS = 1500;
 const MAX_READBACK_ROWS = 128;
 const MAX_EVENT_CANDIDATES = 32;
 const MAX_CHAIN_STATES = 256;
@@ -136,6 +137,40 @@ function assertFreshness(occurredAt, expiresAt, nowMs) {
     || occurred > Number(nowMs) + 60_000 || expires <= Number(nowMs)
   ) {
     fail("oauth_recovery_evidence_freshness_invalid", "Recovery evidence freshness window is invalid.");
+  }
+}
+
+function normalizeWriteBudgetMs(value) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 10 || parsed > 5000) {
+    fail(
+      "oauth_recovery_evidence_write_budget_invalid",
+      "Recovery evidence write budget must be between 10 and 5000 milliseconds.",
+      500,
+    );
+  }
+  return Math.floor(parsed);
+}
+
+async function queryWithinWriteBudget(query, sql, params, writeBudgetMs) {
+  const budgetMs = normalizeWriteBudgetMs(writeBudgetMs);
+  let timer = null;
+  const deadline = new Promise((_, reject) => {
+    timer = setTimeout(() => {
+      const error = new Error("Recovery evidence persistence exceeded its bounded write deadline.");
+      error.code = "oauth_recovery_evidence_write_deadline_exceeded";
+      error.status = 503;
+      error.secrets_included = false;
+      reject(error);
+    }, budgetMs);
+  });
+  try {
+    return await Promise.race([
+      Promise.resolve().then(() => query(sql, params)),
+      deadline,
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
   }
 }
 
@@ -350,6 +385,7 @@ export async function recordTenantGptOAuthRecoveryServerEvidence({
   env = process.env,
   nowMs = Date.now(),
   deploymentIdentityReader = readCanonicalDeploymentIdentity,
+  writeBudgetMs = RECOVERY_EVIDENCE_WRITE_BUDGET_MILLISECONDS,
 } = {}) {
   const runtime = resolveRuntimeEnvironmentStrict(env);
   if (
@@ -370,14 +406,15 @@ export async function recordTenantGptOAuthRecoveryServerEvidence({
 
   const evidence = buildTenantGptOAuthRecoveryServerEvidence(input, { nowMs, env, deploymentIdentityReader });
   const now = new Date(Number(nowMs));
-  await query(
+  await queryWithinWriteBudget(
+    query,
     [
       "INSERT INTO `execution_log`",
       "  (run_date, start_time, end_time, duration_seconds, entry_type, execution_class, source_layer,",
       "   execution_status, failure_reason, output_summary, action_key, endpoint_key, parent_action_key,",
-      "   runtime_evidence_json, created_at)",
+      "   correlation_id, runtime_evidence_json, created_at)",
       " VALUES (?, ?, ?, ?, 'diagnostic', 'oauth', 'tenant_gpt_oauth_recovery_evidence_sink',",
-      "   'success', NULL, ?, ?, ?, 'tenant_gpt_oauth_recovery', ?, CURRENT_TIMESTAMP)",
+      "   'success', NULL, ?, ?, ?, 'tenant_gpt_oauth_recovery', ?, ?, CURRENT_TIMESTAMP)",
     ].join("\n"),
     [
       now.toISOString().slice(0, 10),
@@ -387,8 +424,10 @@ export async function recordTenantGptOAuthRecoveryServerEvidence({
       JSON.stringify({ ok: true, event: evidence.event, operation_id: evidence.operation_id, correlation_id: evidence.correlation_id, secrets_included: false }),
       TENANT_GPT_OAUTH_RECOVERY_SERVER_EVIDENCE_ACTION_KEY,
       "oauth_recovery_" + evidence.event,
+      evidence.correlation_id,
       JSON.stringify(evidence),
     ],
+    writeBudgetMs,
   );
   return Object.freeze({ recorded: true, evidence, production_mutation_performed: false, secrets_included: false });
 }
@@ -464,14 +503,14 @@ export async function readTenantGptOAuthRecoveryServerEvidence({
       "SELECT id, runtime_evidence_json",
       "  FROM `execution_log`",
       " WHERE action_key = ?",
+      "   AND correlation_id = ?",
       "   AND JSON_UNQUOTE(JSON_EXTRACT(runtime_evidence_json, '$.operation_id')) = ?",
-      "   AND JSON_UNQUOTE(JSON_EXTRACT(runtime_evidence_json, '$.correlation_id')) = ?",
       "   AND JSON_UNQUOTE(JSON_EXTRACT(runtime_evidence_json, '$.deployment_sha')) = ?",
       "   AND created_at >= DATE_SUB(CURRENT_TIMESTAMP, INTERVAL 1 HOUR)",
       " ORDER BY id ASC",
       " LIMIT " + String(MAX_READBACK_ROWS + 1),
     ].join("\n"),
-    [TENANT_GPT_OAUTH_RECOVERY_SERVER_EVIDENCE_ACTION_KEY, operationId, correlationId, observedDeploymentSha],
+    [TENANT_GPT_OAUTH_RECOVERY_SERVER_EVIDENCE_ACTION_KEY, correlationId, operationId, observedDeploymentSha],
   );
 
   const rows = rowsFromQueryResult(result);
@@ -523,7 +562,7 @@ export async function readTenantGptOAuthRecoveryServerEvidence({
 
   const presentEvents = new Set(TENANT_GPT_OAUTH_RECOVERY_SERVER_EVENTS.filter((event) => Number(rawCounts.get(event) || 0) > 0));
   if (!selected && presentEvents.size === TENANT_GPT_OAUTH_RECOVERY_SERVER_EVENTS.length) {
-    fail("oauth_recovery_evidence_chain_mismatch", "All Recovery stages are present but they do not form one continuous signed OAuth correlation chain.", 409);
+    fail("oauth_recovery_evidence_chain_mismatch", "All Recovery stages are present but they do not form one continuous hash-linked OAuth correlation chain.", 409);
   }
 
   return Object.freeze({

@@ -122,21 +122,25 @@ const correlations = new Map([
 ]);
 
 const stored = [];
+const observedQueries = [];
 async function query(sql, params = []) {
   const text = String(sql);
+  observedQueries.push({ text, params: [...params] });
   if (text.includes("INSERT INTO `execution_log`")) {
     stored.push({
       id: stored.length + 1,
       action_key: params[5],
-      runtime_evidence_json: params[7],
+      correlation_id: params[7],
+      runtime_evidence_json: params[8],
     });
     return [{ affectedRows: 1 }];
   }
   if (text.includes("SELECT id, runtime_evidence_json")) {
-    const [, operationId, correlationId, deploymentSha] = params;
+    const [, correlationId, operationId, deploymentSha] = params;
     return [stored.filter((row) => {
       const evidence = JSON.parse(row.runtime_evidence_json);
-      return evidence.operation_id === operationId
+      return row.correlation_id === correlationId
+        && evidence.operation_id === operationId
         && evidence.correlation_id === correlationId
         && evidence.deployment_sha === deploymentSha;
     })];
@@ -167,6 +171,14 @@ for (const event of TENANT_GPT_OAUTH_RECOVERY_SERVER_EVENTS) {
 }
 
 assert.equal(stored.length, 5);
+assert.equal(stored.every((row) => row.correlation_id === CORRELATION_ID), true);
+assert.equal(
+  observedQueries.some(({ text }) =>
+    text.includes("correlation_id, runtime_evidence_json")
+  ),
+  true,
+  "Recovery evidence writer must populate normalized execution_log.correlation_id",
+);
 const readback = await readTenantGptOAuthRecoveryServerEvidence({
   query,
   operation_id: OPERATION_ID,
@@ -182,6 +194,20 @@ assert.equal(readback.source_authenticity, "not_established");
 assert.deepEqual(readback.missing_events, []);
 assert.deepEqual(readback.events.map((event) => event.event), TENANT_GPT_OAUTH_RECOVERY_SERVER_EVENTS);
 assert.equal(readback.events.at(-1).redirect_uri_sha256, null);
+const readbackQuery = observedQueries.find(({ text }) =>
+  text.includes("SELECT id, runtime_evidence_json")
+);
+assert.ok(readbackQuery, "Recovery readback query must be observed");
+assert.equal(
+  readbackQuery.text.includes("AND correlation_id = ?"),
+  true,
+  "Recovery readback must use the indexed normalized correlation_id predicate",
+);
+assert.equal(
+  readbackQuery.text.includes("$.correlation_id"),
+  false,
+  "Recovery readback candidate selection must not require a JSON correlation scan",
+);
 
 const repeatedGateway = advanceTenantGptOAuthOperationCorrelation(token, {
   stage: "gateway_verify",
@@ -283,6 +309,42 @@ assert.equal(
     redirect_uri_sha256: REDIRECT_HASH,
   }, { nowMs: NOW_MS, env: STAGING_ENV })),
   "oauth_recovery_evidence_freshness_invalid",
+);
+
+const writeDeadlineStartedAt = Date.now();
+assert.equal(
+  await asyncErrorCode(() => recordTenantGptOAuthRecoveryServerEvidence({
+    query: async () => new Promise(() => {}),
+    enabled: true,
+    env: STAGING_ENV,
+    nowMs: NOW_MS,
+    writeBudgetMs: 15,
+    input: {
+      event: "authorize_received",
+      correlation: authorize,
+      redirect_uri_sha256: REDIRECT_HASH,
+    },
+  })),
+  "oauth_recovery_evidence_write_deadline_exceeded",
+);
+assert.ok(
+  Date.now() - writeDeadlineStartedAt < 500,
+  "Recovery evidence persistence timeout must bound caller latency",
+);
+assert.equal(
+  await asyncErrorCode(() => recordTenantGptOAuthRecoveryServerEvidence({
+    query: async () => [{ affectedRows: 1 }],
+    enabled: true,
+    env: STAGING_ENV,
+    nowMs: NOW_MS,
+    writeBudgetMs: 5,
+    input: {
+      event: "authorize_received",
+      correlation: authorize,
+      redirect_uri_sha256: REDIRECT_HASH,
+    },
+  })),
+  "oauth_recovery_evidence_write_budget_invalid",
 );
 
 let productionQueryCalled = false;
