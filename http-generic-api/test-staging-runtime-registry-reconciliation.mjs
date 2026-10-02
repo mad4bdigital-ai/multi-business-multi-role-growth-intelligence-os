@@ -182,7 +182,7 @@ const operatorSource=fs.readFileSync(new URL("../autopilot-portable-staging/Repa
 assert.equal(operatorSource.includes('status="access_prerequisites_required"'),true);
 assert.equal(operatorSource.includes('runbook_key="database.access_repair"'),true);
 assert.equal(operatorSource.includes('apply_action="apply_grants"'),true);
-assert.equal((operatorSource.match(/runbook_key="database\\.schema_repair"/gu)||[]).length,2);
+assert.equal((operatorSource.match(/runbook_key="database\.schema_repair"/gu)||[]).length,2);
 assert.equal((operatorSource.match(/apply_action="apply_migration"/gu)||[]).length,2);
 parseStagingRuntimeRegistrySnapshot({snapshot_gzip:gzip,snapshot_metadata:metadata,expected_commit:SHA});
 
