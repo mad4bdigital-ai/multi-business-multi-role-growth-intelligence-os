@@ -1,0 +1,140 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-runtime-registry-reconciliation-20261002",
+  "title": "Repository-owned nonempty Staging runtime registry reconciliation",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "secrets_included": false,
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-runtime-registry-reconciliation-20261002.json",
+      "http-generic-api/config/staging-runtime-registry-reconciliation.json",
+      "http-generic-api/config/staging-database-role-migration-manifest.json",
+      "http-generic-api/config/canonical-semantic-artifacts.json",
+      "http-generic-api/config/runtime-data-lifecycle-contract.json",
+      "http-generic-api/scripts/build-staging-schema-bundle.mjs",
+      "http-generic-api/stagingRuntimeRegistrySnapshot.js",
+      "http-generic-api/stagingRuntimeRegistryReconciliation.js",
+      "http-generic-api/stagingRuntimeRegistryReconciliationLedger.js",
+      "http-generic-api/test-staging-runtime-registry-reconciliation.mjs",
+      "http-generic-api/test-staging-runtime-registry-reconciliation-ledger.mjs",
+      "http-generic-api/test-canonical-semantic-artifact-registry.mjs",
+      "http-generic-api/test-runtime-data-lifecycle-guard.mjs",
+      "http-generic-api/test-staging-schema-bundle-builder.mjs",
+      ".github/governance/test-authority-registry.json",
+      "http-generic-api/config/repository-governance-constitution.json",
+      ".github/derived-state-governance.json"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Repair missing repository-owned Runtime registry metadata in a nonempty local Staging database without cloning Production, replaying a full baseline, overwriting live rows, or promoting execution authority. A same-cycle disposable Git migration projection produces a dedicated insert-only registry artifact; live Staging is classified as missing/exact/conflict/extra, only missing exact artifact statements may execute, and every apply requires immutable exact-head planning, durable outcome state and same-cycle readback.",
+      "e2e_journeys": [
+        {
+          "id": "nonempty-staging-runtime-registry-reconciliation",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Local Windows Docker Staging recovery operator",
+          "entrypoint": "stagingRuntimeRegistryReconciliation.js",
+          "terminal_outcome": "Missing canonical registry rows can be inserted from the exact repository projection while existing drift fails closed, extra live rows are preserved, no Production data is copied, and unknown mutation outcomes cannot be replayed without reconciliation.",
+          "steps": [
+            "Build the dedicated runtime.registry-reconciliation.sql.gz artifact from a clean exact-head disposable Git migration projection.",
+            "Verify the actions schema contract and MCP catalog schema prerequisites separately from semantic row reconciliation.",
+            "Inspect the live Runtime registry through bounded read-only projections using configured semantic identities.",
+            "Classify every canonical identity as missing, exact or conflicting and classify noncanonical live identities as extra.",
+            "Bind missing statement hashes, source artifact digests and the live precondition fingerprint into an immutable exact-head plan.",
+            "Execute only exact INSERT statements resolved from the verified artifact inside one transaction after typed confirmation.",
+            "Preserve extra live rows and refuse UPDATE, DELETE, REPLACE, caller SQL, caller target selection, Production access and provider access.",
+            "Require same-cycle readback to report no missing or conflicting canonical identities.",
+            "Persist known-not-applied, unknown-outcome or succeeded lifecycle in a durable single-consumption ledger; unknown outcomes require reconciliation before any new plan."
+          ],
+          "assertions": [
+            "20260902_staging_actions_runtime_contract_reconciliation.sql is treated only as an additive actions schema contract repair and is never claimed to populate actions rows.",
+            "20260815_custom_gpt_mcp_catalog_levels.sql remains a separately governed schema/catalog prerequisite and is not treated as Production-to-Staging data import.",
+            "Production may be independent read-only parity evidence but is forbidden as the reconciliation source of truth.",
+            "The reconciliation artifact is generated only from the disposable exact Git migration projection and contains one-row INSERT statements only.",
+            "actions projection excludes secret, credential-reference, schema-file and OAuth live-binding fields.",
+            "endpoints projection excludes child_openai_schema_file_id and platform_endpoint_tool_exports excludes numeric source_endpoint_id.",
+            "Existing rows with the same semantic identity but different projected metadata fail closed instead of being overwritten.",
+            "Extra live rows are preserved and reported rather than deleted.",
+            "No UPDATE, DELETE, REPLACE, TRUNCATE, baseline clone, Production database access, provider call, credential payload read, secret output or automatic callable promotion is permitted.",
+            "The endpoint semantic identity is parent_action_key plus endpoint_key; duplicate canonical or live identities fail closed.",
+            "A transaction failure can be classified known-not-applied only after rollback plus semantic non-application readback; otherwise mutation outcome is unknown and automatic retry is forbidden.",
+            "Apply completion requires same-cycle exact registry readback and a durable succeeded receipt."
+          ],
+          "tests": [
+            {
+              "id": "runtime-registry-reconciliation",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-runtime-registry-reconciliation.mjs",
+              "args": []
+            },
+            {
+              "id": "runtime-registry-reconciliation-ledger",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-runtime-registry-reconciliation-ledger.mjs",
+              "args": []
+            },
+            {
+              "id": "canonical-semantic-artifact-registry",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-canonical-semantic-artifact-registry.mjs",
+              "args": []
+            },
+            {
+              "id": "runtime-data-lifecycle-guard",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-runtime-data-lifecycle-guard.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-schema-bundle-builder",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-schema-bundle-builder.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/config/staging-runtime-registry-reconciliation.json",
+            "http-generic-api/config/staging-database-role-migration-manifest.json",
+            "http-generic-api/config/canonical-semantic-artifacts.json",
+            "http-generic-api/config/runtime-data-lifecycle-contract.json",
+            "http-generic-api/stagingRuntimeRegistrySnapshot.js",
+            "http-generic-api/stagingRuntimeRegistryReconciliation.js",
+            "http-generic-api/stagingRuntimeRegistryReconciliationLedger.js"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "production",
+      "status": "blocked",
+      "objective": "Production mutation, Production registry import and provider mutation remain outside this feature.",
+      "blockers": [
+        "This Staging reconciliation path grants no Production database or provider authority.",
+        "Production parity may be inspected independently but cannot become the semantic source artifact."
+      ]
+    }
+  ]
+}

@@ -1000,7 +1000,7 @@ function quoteSqlIdentifier(value) {
   return "`" + name + "`";
 }
 
-function semanticSnapshotColumnPlan(table) {
+function semanticSnapshotColumnPlan(table, projectionConfig = {}) {
   const tableLiteral = "'" + table.replaceAll("'", "''") + "'";
   const columnsResult = dockerExec([containerName, "mariadb", ...dbArgs([
     "--batch", "--raw", "--skip-column-names", "-e",
@@ -1013,7 +1013,8 @@ function semanticSnapshotColumnPlan(table) {
     const [name, dataType = "", defaultValue = "", extra = ""] = line.split("\t");
     const dynamicDefault = /(?:current_timestamp|current_date|current_time|localtimestamp|now\s*\(|uuid\s*\()/iu.test(defaultValue);
     const generated = /(?:auto_increment|generated|on update)/iu.test(extra);
-    return { name, data_type: dataType, default_value: defaultValue, extra, excluded: dynamicDefault || generated };
+    const configuredExclusions = new Set(projectionConfig?.excluded_columns_by_table?.[table] || []);
+    return { name, data_type: dataType, default_value: defaultValue, extra, excluded: dynamicDefault || generated || configuredExclusions.has(name) };
   });
   if (!columns.length) fail(`semantic snapshot table has no columns: ${table}`);
   const included = columns.filter((column) => !column.excluded);
@@ -1033,14 +1034,22 @@ function semanticSnapshotColumnPlan(table) {
     groups.get(indexName).push({ sequence: Number(sequence), column: columnName });
   }
   const includedSet = new Set(included.map((column) => column.name));
+  const configuredIdentity = projectionConfig?.identity_columns_by_table?.[table] || null;
   const candidates = [...groups.entries()]
     .map(([name, parts]) => ({ name, columns: parts.sort((a, b) => a.sequence - b.sequence).map((part) => part.column) }))
     .filter((index) => index.columns.length > 0 && index.columns.every((column) => includedSet.has(column)));
-  if (!candidates.length) fail(`semantic snapshot table has no stable unique ordering key: ${table}`);
-  const primary = candidates.find((index) => index.name === "PRIMARY");
-  if (!primary && candidates.length !== 1) fail(`semantic snapshot table has ambiguous stable unique ordering keys: ${table}`);
-  const order = primary || candidates.find((index) => index.columns.length > 0);
-  if (!order) fail(`semantic snapshot table stable unique ordering key could not be resolved: ${table}`);
+  let order = null;
+  if (Array.isArray(configuredIdentity) && configuredIdentity.length > 0) {
+    const missingIdentityColumns = configuredIdentity.filter((column) => !includedSet.has(column));
+    if (missingIdentityColumns.length) fail("semantic projection identity columns are unavailable for " + table + ": " + missingIdentityColumns.join(","));
+    order = { name: "configured_identity", columns: [...configuredIdentity] };
+  } else {
+    if (!candidates.length) fail("semantic snapshot table has no stable unique ordering key: " + table);
+    const primary = candidates.find((index) => index.name === "PRIMARY");
+    if (!primary && candidates.length !== 1) fail("semantic snapshot table has ambiguous stable unique ordering keys: " + table);
+    order = primary || candidates.find((index) => index.columns.length > 0);
+  }
+  if (!order) fail("semantic snapshot table stable unique ordering key could not be resolved: " + table);
   return {
     table,
     included_columns: included.map((column) => column.name),
@@ -1179,6 +1188,101 @@ function makeCanonicalSemanticDump(manifest, runtimeTables) {
   };
 }
 
+
+function makeCanonicalRegistryReconciliationDump(manifest, runtimeTables) {
+  const config = manifest.canonical_registry_reconciliation_snapshot;
+  if (!config || config.contract !== "mad4b.staging.runtime-registry-reconciliation-snapshot.v1") fail("canonical registry reconciliation snapshot contract is missing");
+  if (config.target_role !== "runtime" || config.source_kind !== "disposable_git_migration_projection" || config.replay_mode !== "in_place_insert_only") fail("canonical registry reconciliation snapshot target/replay policy is invalid");
+  if (config.exact_source_commit_required !== true || config.live_environment_data_copy_forbidden !== true || config.production_access_forbidden !== true || config.provider_access_forbidden !== true || config.same_cycle_sha256_manifest_required !== true || config.secrets_included !== false) fail("canonical registry reconciliation snapshot safety policy is incomplete");
+  const runtimeSet = new Set(runtimeTables.map((table) => table.name));
+  const names = [...config.tables];
+  if (!names.length || new Set(names).size !== names.length) fail("canonical registry reconciliation snapshot table list is empty or duplicated");
+  for (const table of names) {
+    if (!/^[A-Za-z0-9_]+$/u.test(table) || !runtimeSet.has(table)) fail("canonical registry reconciliation table is not owned by Runtime role: " + table);
+    const identity = config.identity_columns_by_table?.[table];
+    if (!Array.isArray(identity) || !identity.length || new Set(identity).size !== identity.length) fail("canonical registry reconciliation identity contract is missing for " + table);
+  }
+
+  const plans = new Map(names.map((table) => [table, semanticSnapshotColumnPlan(table, config)]));
+  const dumpResult = dockerExec([containerName, "mariadb-dump", ...dbConnectionArgs([
+    "--no-create-info", "--complete-insert", "--skip-extended-insert", "--order-by-primary",
+    "--skip-comments", "--compact", "--skip-add-locks", "--skip-lock-tables", "--skip-disable-keys",
+    "--skip-tz-utc", "--hex-blob",
+  ]), buildDatabase, ...names], { timeoutMs: 120000 });
+
+  const parsedRows = [];
+  const identityKeys = new Set();
+  for (const statement of splitStatements(dumpResult.stdout)) {
+    const parsed = parseCompleteInsert(statement);
+    if (!parsed) continue;
+    if (!plans.has(parsed.table)) fail("canonical registry reconciliation dump wrote undeclared table: " + parsed.table);
+    const plan = plans.get(parsed.table);
+    const indexByColumn = new Map(parsed.columnNames.map((column, index) => [column, index]));
+    const missingColumns = plan.included_columns.filter((column) => !indexByColumn.has(column));
+    if (missingColumns.length) fail("canonical registry reconciliation dump is missing stable columns for " + parsed.table + ": " + missingColumns.join(","));
+    const keptColumns = plan.included_columns;
+    const keptValues = keptColumns.map((column) => parsed.values[indexByColumn.get(column)]);
+    const orderValues = plan.order_columns.map((column) => parsed.values[indexByColumn.get(column)]);
+    if (orderValues.some((value) => /^NULL$/iu.test(String(value).trim()))) fail("canonical registry reconciliation identity contains NULL for " + parsed.table);
+    const orderKey = JSON.stringify(orderValues);
+    const identityKey = parsed.table + ":" + orderKey;
+    if (identityKeys.has(identityKey)) fail("canonical registry reconciliation identity is duplicated for " + parsed.table + ": " + orderKey);
+    identityKeys.add(identityKey);
+    parsedRows.push({
+      table: parsed.table,
+      order_key: orderKey,
+      sql: "INSERT INTO " + quoteSqlIdentifier(parsed.table) + " (" + keptColumns.map(quoteSqlIdentifier).join(", ") + ") VALUES (" + keptValues.join(", ") + ");",
+    });
+  }
+
+  const tableOrder = new Map(names.map((name, index) => [name, index]));
+  parsedRows.sort((a, b) => (tableOrder.get(a.table) - tableOrder.get(b.table)) || a.order_key.localeCompare(b.order_key) || a.sql.localeCompare(b.sql));
+  const rowsByTable = Object.fromEntries(names.map((name) => [name, 0]));
+  for (const row of parsedRows) rowsByTable[row.table] += 1;
+  const actualCounts = {};
+  for (const table of names) {
+    const countResult = dockerExec([containerName, "mariadb", ...dbArgs(["--batch", "--skip-column-names", "-e", "SELECT COUNT(*) FROM " + quoteSqlIdentifier(table)])]);
+    const count = Number(text(countResult.stdout));
+    if (!Number.isInteger(count) || count < 0) fail("canonical registry reconciliation row count is invalid for " + table);
+    if (rowsByTable[table] !== count) fail("canonical registry reconciliation row count mismatch for " + table + ": dump=" + rowsByTable[table] + " database=" + count);
+    if ((config.required_nonempty_tables || []).includes(table) && count < 1) fail("canonical registry reconciliation required table is empty: " + table);
+    actualCounts[table] = count;
+  }
+  if (!parsedRows.length) fail("canonical registry reconciliation snapshot contains no rows");
+
+  const sql = Buffer.from(parsedRows.map((row) => row.sql).join("\n") + "\n", "utf8");
+  if (/\b(?:UPDATE|DELETE|REPLACE|TRUNCATE|DROP)\b/iu.test(sql.toString("utf8"))) fail("canonical registry reconciliation snapshot contains a forbidden mutation");
+  const gz = zlib.gzipSync(sql, { level: 9, mtime: 0 });
+  const output = path.join(outputDir, config.bundle_file);
+  fs.mkdirSync(outputDir, { recursive: true });
+  fs.writeFileSync(output, gz);
+  return {
+    contract: config.contract,
+    file: config.bundle_file,
+    sha256: sha256(gz),
+    uncompressed_sha256: sha256(sql),
+    compressed_bytes: gz.length,
+    statement_count: parsedRows.length,
+    table_count: names.length,
+    tables: names,
+    row_counts: actualCounts,
+    projections: Object.fromEntries([...plans.entries()].map(([table, plan]) => [table, {
+      included_columns: plan.included_columns,
+      excluded_columns: plan.excluded_columns,
+      identity_columns: plan.order_columns,
+      order_index: plan.order_index,
+    }])),
+    source_kind: config.source_kind,
+    target_role: config.target_role,
+    replay_mode: config.replay_mode,
+    exact_source_commit: expectedCommit.toLowerCase(),
+    live_environment_data_copied: false,
+    production_accessed: false,
+    provider_accessed: false,
+    secrets_included: false,
+  };
+}
+
 function collationAuditMetadata(audit) {
   return {
     contract: audit.contract,
@@ -1206,7 +1310,7 @@ function collationAuditMetadata(audit) {
   };
 }
 
-function writeOutput(manifest, expected, baseline, migrationPlanRows, canonicalSeeds, orderedAudit, collationAudit, enumSeedAudit, textWidthAudit, indexKeyWidthAudit, requiredInsertColumnAudit, generatedColumnAudit, foreignKeyAudit, bootstrap, tableSets, bundles, canonicalSemanticSnapshot) {
+function writeOutput(manifest, expected, baseline, migrationPlanRows, canonicalSeeds, orderedAudit, collationAudit, enumSeedAudit, textWidthAudit, indexKeyWidthAudit, requiredInsertColumnAudit, generatedColumnAudit, foreignKeyAudit, bootstrap, tableSets, bundles, canonicalSemanticSnapshot, canonicalRegistryReconciliationSnapshot) {
   const output = {
     contract: "mad4b.staging.schema-bundle-output.v1",
     source_commit: expected.toLowerCase(),
@@ -1226,6 +1330,7 @@ function writeOutput(manifest, expected, baseline, migrationPlanRows, canonicalS
     migration_sha256_manifest: migrationPlanRows,
     canonical_seed_lifecycle: canonicalSeeds,
     canonical_semantic_snapshot: canonicalSemanticSnapshot,
+    canonical_registry_reconciliation_snapshot: canonicalRegistryReconciliationSnapshot,
     ordered_preuse_audit: { ...orderedAudit, gaps: undefined },
     ordered_collation_chain: collationAuditMetadata(collationAudit),
     ordered_enum_seed_chain: orderedEnumSeedMetadata(enumSeedAudit),
@@ -1244,6 +1349,9 @@ function writeOutput(manifest, expected, baseline, migrationPlanRows, canonicalS
       canonical_semantic_snapshot_checked: true,
       canonical_semantic_snapshot_same_cycle_sha256: true,
       canonical_semantic_snapshot_live_data_copy_forbidden: true,
+      canonical_registry_reconciliation_snapshot_checked: true,
+      canonical_registry_reconciliation_insert_only: canonicalRegistryReconciliationSnapshot?.replay_mode === "in_place_insert_only",
+      canonical_registry_reconciliation_live_data_copy_forbidden: canonicalRegistryReconciliationSnapshot?.live_environment_data_copied === false,
       three_role_partition_checked: true,
       ordered_preuse_audit_checked: true,
       missing_column_gaps_checked: true,
@@ -1405,9 +1513,10 @@ try {
       runtime_persistence: makeDump("runtime_persistence", sets.runtime_persistence, manifest),
     };
     const canonicalSemanticSnapshot = makeCanonicalSemanticDump(manifest, sets.runtime);
-    const outputPath = writeOutput(manifest, expectedCommit, baseline, rows, canonicalSeeds, orderedAudit, collationAudit, enumSeedAudit, textWidthAudit, indexKeyWidthAudit, requiredInsertColumnAudit, generatedColumnAudit, foreignKeyAudit, tableBootstrap, sets, bundles, canonicalSemanticSnapshot);
+    const canonicalRegistryReconciliationSnapshot = makeCanonicalRegistryReconciliationDump(manifest, sets.runtime);
+    const outputPath = writeOutput(manifest, expectedCommit, baseline, rows, canonicalSeeds, orderedAudit, collationAudit, enumSeedAudit, textWidthAudit, indexKeyWidthAudit, requiredInsertColumnAudit, generatedColumnAudit, foreignKeyAudit, tableBootstrap, sets, bundles, canonicalSemanticSnapshot, canonicalRegistryReconciliationSnapshot);
 
-  console.log(JSON.stringify({ output_path: outputPath, source_commit: expectedCommit.toLowerCase(), roles: bundles, canonical_semantic_snapshot: canonicalSemanticSnapshot, production_accessed: false, live_environment_data_exported: false, repository_semantic_projection_exported: true, secrets_included: false }, null, 2));
+  console.log(JSON.stringify({ output_path: outputPath, source_commit: expectedCommit.toLowerCase(), roles: bundles, canonical_semantic_snapshot: canonicalSemanticSnapshot, canonical_registry_reconciliation_snapshot: canonicalRegistryReconciliationSnapshot, production_accessed: false, live_environment_data_exported: false, repository_semantic_projection_exported: true, secrets_included: false }, null, 2));
 } finally {
   run("docker", ["rm", "--force", containerName], { allowFailure: true });
 }

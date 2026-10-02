@@ -20,7 +20,14 @@ for(const artifact of registry.artifacts){
     assert.match(artifact.bundle_file,/^[a-z0-9._-]+\.sql\.gz$/u);
     assert.ok(Array.isArray(artifact.tables)&&artifact.tables.length>0);
     assert.equal(new Set(artifact.tables).size,artifact.tables.length);
-    assert.equal(artifact.replay_modes.includes("zero_object_rebuild"),true);
+    if(artifact.artifact_key==="runtime_registry_reconciliation_snapshot"){
+      assert.equal(artifact.replay_modes.includes("in_place_registry_reconciliation"),true);
+      assert.equal(artifact.conflict_policy,"insert_missing_fail_closed_on_drift");
+      assert.equal(artifact.caller_sql_forbidden,true);
+      assert.equal(artifact.caller_target_forbidden,true);
+    }else{
+      assert.equal(artifact.replay_modes.includes("zero_object_rebuild"),true);
+    }
     assert.equal("sha256" in artifact,false,"derived artifact hash must come from same-cycle build output");
     assert.equal("statement_count" in artifact,false,"derived artifact statement count must come from same-cycle build output");
   }else{
@@ -64,3 +71,10 @@ function visitArtifact(key){
 for(const key of artifactByKey.keys())visitArtifact(key);
 assert.ok(order.indexOf("runtime_canonical_registry_snapshot")<order.indexOf("platform_admin_workspace"));
 assert.ok(order.indexOf("runtime_canonical_registry_snapshot")<order.indexOf("wordpress_staging_deployment_authority"));
+
+const reconciliationSnapshot=registry.artifacts.find((item)=>item.artifact_key==="runtime_registry_reconciliation_snapshot");
+assert.ok(reconciliationSnapshot);
+assert.deepEqual(reconciliationSnapshot.tables,["actions","endpoints","admin_platform_endpoint_tools","tenant_platform_endpoint_tools","platform_endpoint_tool_exports"]);
+assert.equal(reconciliationSnapshot.bundle_file,"runtime.registry-reconciliation.sql.gz");
+assert.equal(reconciliationSnapshot.production_apply_allowed,false);
+assert.equal(reconciliationSnapshot.provider_apply_allowed,false);

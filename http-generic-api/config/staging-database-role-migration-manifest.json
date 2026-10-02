@@ -510,6 +510,9 @@
     },
     "required_semantic_bundle_files": [
       "runtime.canonical-semantic.sql.gz"
+    ],
+    "required_registry_reconciliation_bundle_files": [
+      "runtime.registry-reconciliation.sql.gz"
     ]
   },
   "canonical_semantic_snapshot": {
@@ -579,5 +582,70 @@
       "activation_response_profile_registry",
       "activation_delivery_policy_registry"
     ]
+  },
+  "canonical_registry_reconciliation_snapshot": {
+    "contract": "mad4b.staging.runtime-registry-reconciliation-snapshot.v1",
+    "target_role": "runtime",
+    "source_kind": "disposable_git_migration_projection",
+    "bundle_file": "runtime.registry-reconciliation.sql.gz",
+    "replay_mode": "in_place_insert_only",
+    "exact_source_commit_required": true,
+    "same_cycle_sha256_manifest_required": true,
+    "live_environment_data_copy_forbidden": true,
+    "production_access_forbidden": true,
+    "provider_access_forbidden": true,
+    "secrets_included": false,
+    "tables": [
+      "actions",
+      "endpoints",
+      "admin_platform_endpoint_tools",
+      "tenant_platform_endpoint_tools",
+      "platform_endpoint_tool_exports"
+    ],
+    "required_nonempty_tables": [
+      "actions",
+      "endpoints",
+      "admin_platform_endpoint_tools",
+      "tenant_platform_endpoint_tools"
+    ],
+    "identity_columns_by_table": {
+      "actions": [
+        "action_key"
+      ],
+      "endpoints": [
+        "parent_action_key",
+        "endpoint_key"
+      ],
+      "admin_platform_endpoint_tools": [
+        "tool_key"
+      ],
+      "tenant_platform_endpoint_tools": [
+        "tool_key"
+      ],
+      "platform_endpoint_tool_exports": [
+        "export_key"
+      ]
+    },
+    "excluded_columns_by_table": {
+      "actions": [
+        "api_key_value",
+        "secret_store_ref",
+        "openai_schema_file_id",
+        "oauth_config_file_id",
+        "oauth_config_ref",
+        "oauth_client_id_ref",
+        "oauth_client_secret_ref",
+        "oauth_binding_status",
+        "oauth_last_validated_at",
+        "import_job_id",
+        "schema_imported_at"
+      ],
+      "endpoints": [
+        "child_openai_schema_file_id"
+      ],
+      "platform_endpoint_tool_exports": [
+        "source_endpoint_id"
+      ]
+    }
   }
 }
