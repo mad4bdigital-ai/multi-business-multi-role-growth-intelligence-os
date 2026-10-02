@@ -342,18 +342,21 @@ const valid = buildTenantGptOAuthRecoveryServerEvidence({
   correlation: authorize,
   redirect_uri_sha256: REDIRECT_HASH,
 }, { nowMs: NOW_MS, env: STAGING_ENV });
+const missingRequestAuthorize = createTenantGptOAuthOperationCorrelation({
+  operation_id: "77777777-7777-4777-8777-777777777777",
+  correlation_id: "88888888-8888-4888-8888-888888888888",
+  protected_resource: RESOURCE,
+  client_id: CLIENT_ID,
+}, { nowMs: BASE_MS });
+assert.equal(missingRequestAuthorize.stage_request_id_sha256, null);
 assert.equal(
   errorCode(() => buildTenantGptOAuthRecoveryServerEvidence({
     event: "authorize_received",
-    correlation: {
-      ...authorize,
-      stage_request_id_sha256: null,
-      envelope_sha256: createHash("sha256").update(JSON.stringify({})).digest("hex"),
-    },
+    correlation: missingRequestAuthorize,
     redirect_uri_sha256: REDIRECT_HASH,
   }, { nowMs: NOW_MS, env: STAGING_ENV })),
-  "oauth_correlation_digest_mismatch",
-  "A caller cannot remove the stage request binding without first invalidating correlation integrity",
+  "oauth_recovery_evidence_hash_required",
+  "Recovery evidence must require a stage request binding even when the correlation envelope itself is otherwise valid",
 );
 assert.equal(
   errorCode(() => verifyTenantGptOAuthRecoveryServerEvidence(
