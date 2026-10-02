@@ -574,6 +574,17 @@ export async function readTenantGptOAuthRecoveryServerEvidence({
     candidates.push({ row_id: Number(row?.id || 0), evidence });
   }
 
+  for (const event of TENANT_GPT_OAUTH_RECOVERY_SERVER_EVENTS.slice(0, -1)) {
+    const candidates = byEvent.get(event) || [];
+    if (candidates.length > 1) {
+      fail(
+        "oauth_recovery_evidence_nonterminal_fork",
+        "More than one distinct non-terminal Recovery observation exists for the same OAuth correlation.",
+        409,
+      );
+    }
+  }
+
   let states = [[]];
   for (const event of TENANT_GPT_OAUTH_RECOVERY_SERVER_EVENTS) {
     const nextStates = [];
