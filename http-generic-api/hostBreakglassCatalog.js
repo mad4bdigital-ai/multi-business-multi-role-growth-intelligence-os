@@ -558,13 +558,7 @@ export async function readHostBreakglassRun(correlationId, { catalog = readHostB
   if (!SAFE_ID_RE.test(String(correlationId || ""))) fail(400, "host_breakglass_correlation_invalid", "correlation_id is invalid.");
   const receipt = RUNS.get(correlationId);
 
-  if (
-    receipt &&
-    (
-      receipt.status === "local_execution_required" ||
-      receipt.status === "host_local_execution_required"
-    )
-  ) {
+  if (receipt?.status === "local_execution_required") {
     return {
       ...receipt,
       durable_github_readback: false,
