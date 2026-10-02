@@ -119,7 +119,7 @@ function executorFor(initial = blankState(), { omitSchema = null, failInsertAt =
       const source=String(sql);
       queries.push({sql:source,params});
       if(source.includes("information_schema.COLUMNS")) return [schemaRows({omit:omitSchema})];
-      const liveMatch=source.match(new RegExp("FROM\\\\s+"+TICK+"([A-Za-z0-9_]+)"+TICK,"iu"));
+      const liveMatch=source.match(new RegExp("FROM\\s+"+TICK+"([A-Za-z0-9_]+)"+TICK,"iu"));
       if(/^SELECT\s/iu.test(source)&&liveMatch) return [state[liveMatch[1]].map((row)=>({...row}))];
       if(source==="START TRANSACTION"){transactionBackup=cloneState(state);return[{ok:1}];}
       if(source==="ROLLBACK"){
