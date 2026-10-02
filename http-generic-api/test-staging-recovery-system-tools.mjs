@@ -310,6 +310,20 @@ test("Staging schema-repair prepare derives the fixed repository migration contr
       );
     }
 
+    const catalogPrepared = await authority.prepare({
+      expected_sha: SHA,
+      migration: "20260815_custom_gpt_mcp_catalog_levels.sql",
+      idempotency_key: "staging-schema-prepare-catalog-001",
+    });
+    assert.equal(catalogPrepared.migration, "20260815_custom_gpt_mcp_catalog_levels.sql");
+    assert.equal(catalogPrepared.migration_sha256, "528143808adac23eb457058c4c34dd95c4c5d462bca9ac4b170b1f19b2006681");
+    assert.equal(catalogPrepared.statement_count, 7);
+    assert.equal(catalogPrepared.target_role, "runtime");
+    assert.equal(
+      catalogPrepared.approval_confirmation,
+      `APPLY_STAGING_RUNTIME_MIGRATION:${SHA}:staging-runtime:20260815_custom_gpt_mcp_catalog_levels.sql`,
+    );
+
     await assert.rejects(
       () => authority.prepare({ expected_sha: SHA, migration: "99999999_unregistered.sql", idempotency_key: "staging-schema-prepare-003" }),
       (error) => error?.code === "RECOVERY_SCHEMA_REPAIR_MIGRATION_NOT_ALLOWLISTED",

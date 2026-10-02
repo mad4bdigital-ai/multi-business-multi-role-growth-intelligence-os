@@ -1054,6 +1054,7 @@ function semanticSnapshotColumnPlan(table, projectionConfig = {}) {
     table,
     included_columns: included.map((column) => column.name),
     excluded_columns: columns.filter((column) => column.excluded).map((column) => column.name),
+    column_types: Object.fromEntries(included.map((column) => [column.name, String(column.data_type || "").toLowerCase()])),
     order_index: order.name,
     order_columns: order.columns,
   };
@@ -1269,6 +1270,7 @@ function makeCanonicalRegistryReconciliationDump(manifest, runtimeTables) {
     projections: Object.fromEntries([...plans.entries()].map(([table, plan]) => [table, {
       included_columns: plan.included_columns,
       excluded_columns: plan.excluded_columns,
+      column_types: plan.column_types,
       identity_columns: plan.order_columns,
       order_index: plan.order_index,
     }])),

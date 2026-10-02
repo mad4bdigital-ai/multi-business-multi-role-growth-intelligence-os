@@ -190,11 +190,43 @@ function parseInsert(statement) {
   if (rawValues.length !== columns.length) fail("STAGING_REGISTRY_RECONCILIATION_INSERT_ARITY", "Snapshot INSERT arity is invalid.");
   return { table, columns, values: rawValues.map(decodeLiteral), statement: source + ";" };
 }
-function normalizeValue(value) {
+function normalizeTemporal(value, dataType) {
+  const type = String(dataType || "").toLowerCase();
+  if (value instanceof Date) {
+    const iso = value.toISOString();
+    if (type === "date") return iso.slice(0, 10);
+    return iso.replace("T", " ").replace(/(?:\.000)?Z$/u, "");
+  }
+  const source = String(value).trim();
+  if (type === "date") return source.slice(0, 10);
+  if (type === "datetime" || type === "timestamp") {
+    return source.replace("T", " ").replace(/Z$/u, "").replace(/\.(\d*?[1-9])0+$/u, ".$1").replace(/\.0+$/u, "");
+  }
+  return source;
+}
+function normalizedJson(value) {
+  if (value && typeof value === "object" && !Buffer.isBuffer(value) && !(value instanceof Date)) return stable(value);
+  if (typeof value !== "string") return null;
+  const source = value.trim();
+  if (!(source.startsWith("{") || source.startsWith("["))) return null;
+  try {
+    const parsed = JSON.parse(source);
+    return parsed && typeof parsed === "object" ? stable(parsed) : null;
+  } catch {
+    return null;
+  }
+}
+function normalizeValue(value, dataType = "", column = "") {
   if (value === null || value === undefined) return "null:";
   if (Buffer.isBuffer(value)) return "hex:" + value.toString("hex").toLowerCase();
-  if (value instanceof Date) return "scalar:" + value.toISOString();
-  if (typeof value === "object") return "json:" + JSON.stringify(stable(value));
+  const type = String(dataType || "").toLowerCase();
+  if (value instanceof Date || new Set(["date","datetime","timestamp","time","year"]).has(type)) {
+    return "temporal:" + normalizeTemporal(value, type);
+  }
+  const json = normalizedJson(value);
+  if (json !== null || type === "json" || /(?:^|_)json$/u.test(String(column || "").toLowerCase())) {
+    if (json !== null) return "json:" + JSON.stringify(json);
+  }
   if (typeof value === "boolean") return "scalar:" + (value ? "1" : "0");
   return "scalar:" + String(value);
 }
@@ -206,8 +238,8 @@ function identityKey(row, columns) {
   });
   return registryFingerprint(values);
 }
-function rowFingerprint(row, columns) {
-  return registryFingerprint(columns.map((column) => [column, normalizeValue(row[column])]));
+function rowFingerprint(row, columns, columnTypes = {}) {
+  return registryFingerprint(columns.map((column) => [column, normalizeValue(row[column], columnTypes[column], column)]));
 }
 function tableConfig(table) {
   const entry = CONFIG.tables.find((item) => item.table === table);
@@ -240,8 +272,10 @@ function validateMetadata(metadata, expectedCommit) {
   for (const entry of CONFIG.tables) {
     const projection = metadata.projections?.[entry.table];
     const columns = projection?.included_columns || [];
+    const columnTypes = projection?.column_types || {};
     if (!projection || JSON.stringify(projection.identity_columns || []) !== JSON.stringify(entry.identity_columns) || !columns.length
-      || new Set(columns).size !== columns.length || entry.identity_columns.some((column) => !columns.includes(column))) {
+      || new Set(columns).size !== columns.length || entry.identity_columns.some((column) => !columns.includes(column))
+      || columns.some((column) => typeof columnTypes[column] !== "string" || !columnTypes[column])) {
       fail("STAGING_REGISTRY_RECONCILIATION_PROJECTION_INVALID", "Snapshot projection is invalid for " + entry.table + ".");
     }
     const leaked = (CONFIG.forbidden_projected_columns_by_table?.[entry.table] || []).filter((column) => columns.includes(column));
@@ -274,7 +308,7 @@ export function parseStagingRuntimeRegistrySnapshot({ snapshot_gzip, snapshot_me
     rowsByTable.get(parsed.table).push(Object.freeze({
       table: parsed.table,
       identity_sha256: identity,
-      canonical_fingerprint: rowFingerprint(row, parsed.columns),
+      canonical_fingerprint: rowFingerprint(row, parsed.columns, projection.column_types),
       statement_sha256: registrySha256(parsed.statement),
       statement: parsed.statement,
       columns: [...parsed.columns],
@@ -314,7 +348,7 @@ async function inspectTable(executor, snapshot, entry) {
   for (const row of liveRows) {
     const identity = identityKey(row, entry.identity_columns);
     if (live.has(identity)) fail("STAGING_REGISTRY_RECONCILIATION_LIVE_IDENTITY_DUPLICATE", "Live registry identity is duplicated.", 409, { table: entry.table, identity_sha256: identity });
-    live.set(identity, { fingerprint: rowFingerprint(row, columns) });
+    live.set(identity, { fingerprint: rowFingerprint(row, columns, projection.column_types) });
   }
   const missing = [], exact = [], conflicts = [], extra = [];
   for (const [identity, canonicalRow] of canonical.entries()) {

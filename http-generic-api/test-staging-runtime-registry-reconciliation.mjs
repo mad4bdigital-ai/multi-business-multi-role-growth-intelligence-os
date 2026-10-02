@@ -24,8 +24,8 @@ const tables = [
 const definitions = {
   actions: {
     identity: ["action_key"],
-    columns: ["action_key","action_title","status"],
-    row: { action_key:"canonical_action", action_title:"Canonical Action", status:"active" }
+    columns: ["action_key","action_title","status","schema_json"],
+    row: { action_key:"canonical_action", action_title:"Canonical Action", status:"active", schema_json:'{"required":["a"],"type":"object"}' }
   },
   endpoints: {
     identity: ["parent_action_key","endpoint_key"],
@@ -73,6 +73,7 @@ function snapshotFixture() {
     projections:Object.fromEntries(tables.map((table)=>[table,{
       included_columns:[...definitions[table].columns],
       excluded_columns:[],
+      column_types:Object.fromEntries(definitions[table].columns.map((column)=>[column,column.endsWith("_json")?"longtext":"varchar"])),
       identity_columns:[...definitions[table].identity],
       order_index:"configured_identity"
     }])),
@@ -203,6 +204,12 @@ assert.equal(exact.status,"already_satisfied");
 assert.equal(exact.missing_count,0);
 assert.equal(exact.repair_allowed,false);
 
+const jsonEquivalentState=cloneState(exactState);
+jsonEquivalentState.actions[0].schema_json={type:"object",required:["a"]};
+const jsonEquivalent=await inspectStagingRuntimeRegistrySnapshot({executor:executorFor(jsonEquivalentState),snapshot_gzip:gzip,snapshot_metadata:metadata,expected_commit:SHA});
+assert.equal(jsonEquivalent.status,"already_satisfied","JSON object/string representations must compare semantically");
+assert.equal(jsonEquivalent.conflict_count,0);
+
 const conflictState=cloneState(exactState);
 conflictState.actions[0].action_title="Locally Changed";
 const conflict=await inspectStagingRuntimeRegistrySnapshot({executor:executorFor(conflictState),snapshot_gzip:gzip,snapshot_metadata:metadata,expected_commit:SHA});
@@ -222,6 +229,7 @@ assert.equal(await code(()=>inspectStagingRuntimeRegistrySnapshot({executor:exec
 
 const forbiddenMetadata=structuredClone(metadata);
 forbiddenMetadata.projections.actions.included_columns.push("api_key_value");
+forbiddenMetadata.projections.actions.column_types.api_key_value="text";
 assert.equal(await code(async()=>parseStagingRuntimeRegistrySnapshot({snapshot_gzip:gzip,snapshot_metadata:forbiddenMetadata,expected_commit:SHA})),"STAGING_REGISTRY_RECONCILIATION_FORBIDDEN_COLUMN_PROJECTED");
 
 const tampered=Buffer.from(gzip);

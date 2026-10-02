@@ -9,22 +9,30 @@
   "scope": {
     "include": [
       ".changes/e2e/staging-runtime-registry-reconciliation-20261002.json",
-      "http-generic-api/config/staging-runtime-registry-reconciliation.json",
-      "http-generic-api/config/staging-database-role-migration-manifest.json",
+      ".github/derived-state-governance.json",
+      ".github/governance/test-authority-registry.json",
+      "autopilot-portable-staging/Repair-StagingRuntimeRegistry.ps1",
       "http-generic-api/config/canonical-semantic-artifacts.json",
+      "http-generic-api/config/host-breakglass-staging-contract.json",
+      "http-generic-api/config/repository-governance-constitution.json",
       "http-generic-api/config/runtime-data-lifecycle-contract.json",
+      "http-generic-api/config/staging-database-role-migration-manifest.json",
+      "http-generic-api/config/staging-runtime-registry-reconciliation.json",
       "http-generic-api/scripts/build-staging-schema-bundle.mjs",
-      "http-generic-api/stagingRuntimeRegistrySnapshot.js",
+      "http-generic-api/scripts/materialize-staging-runtime-registry-reconciliation-sql.mjs",
+      "http-generic-api/scripts/staging-runtime-registry-reconciliation-ledger.mjs",
+      "http-generic-api/scripts/staging-runtime-registry-reconciliation-runtime-check.mjs",
+      "http-generic-api/scripts/validate-staging-runtime-registry-reconciliation-plan.mjs",
       "http-generic-api/stagingRuntimeRegistryReconciliation.js",
       "http-generic-api/stagingRuntimeRegistryReconciliationLedger.js",
-      "http-generic-api/test-staging-runtime-registry-reconciliation.mjs",
-      "http-generic-api/test-staging-runtime-registry-reconciliation-ledger.mjs",
+      "http-generic-api/stagingRuntimeRegistrySnapshot.js",
       "http-generic-api/test-canonical-semantic-artifact-registry.mjs",
       "http-generic-api/test-runtime-data-lifecycle-guard.mjs",
-      "http-generic-api/test-staging-schema-bundle-builder.mjs",
-      ".github/governance/test-authority-registry.json",
-      "http-generic-api/config/repository-governance-constitution.json",
-      ".github/derived-state-governance.json"
+      "http-generic-api/test-staging-recovery-system-tools.mjs",
+      "http-generic-api/test-staging-runtime-registry-reconciliation-ledger.mjs",
+      "http-generic-api/test-staging-runtime-registry-reconciliation-surface.mjs",
+      "http-generic-api/test-staging-runtime-registry-reconciliation.mjs",
+      "http-generic-api/test-staging-schema-bundle-builder.mjs"
     ]
   },
   "environment_impact": {
@@ -62,7 +70,11 @@
             "Execute only exact INSERT statements resolved from the verified artifact inside one transaction after typed confirmation.",
             "Preserve extra live rows and refuse UPDATE, DELETE, REPLACE, caller SQL, caller target selection, Production access and provider access.",
             "Require same-cycle readback to report no missing or conflicting canonical identities.",
-            "Persist known-not-applied, unknown-outcome or succeeded lifecycle in a durable single-consumption ledger; unknown outcomes require reconciliation before any new plan."
+            "Persist known-not-applied, unknown-outcome or succeeded lifecycle in a durable single-consumption ledger; unknown outcomes require reconciliation before any new plan.",
+            "Route both fixed schema prerequisites through the existing server-managed Staging Schema Repair approval/ticket authority before semantic row reconciliation.",
+            "Acquire one exclusive host-local repair lock, revalidate the Runtime-identity precondition, materialize only plan-bound INSERT statements from the verified artifact, and execute them in one SERIALIZABLE Runtime DB root transaction without expanding application grants.",
+            "Keep the Runtime DB root secret container-local; the host orchestrator never reads or returns its value.",
+            "After privileged transport, verify the postcondition through the normal Runtime identity; on transport ambiguity persist unknown_outcome and require explicit Reconcile mode before any new plan."
           ],
           "assertions": [
             "20260902_staging_actions_runtime_contract_reconciliation.sql is treated only as an additive actions schema contract repair and is never claimed to populate actions rows.",
@@ -76,7 +88,12 @@
             "No UPDATE, DELETE, REPLACE, TRUNCATE, baseline clone, Production database access, provider call, credential payload read, secret output or automatic callable promotion is permitted.",
             "The endpoint semantic identity is parent_action_key plus endpoint_key; duplicate canonical or live identities fail closed.",
             "A transaction failure can be classified known-not-applied only after rollback plus semantic non-application readback; otherwise mutation outcome is unknown and automatic retry is forbidden.",
-            "Apply completion requires same-cycle exact registry readback and a durable succeeded receipt."
+            "Apply completion requires same-cycle exact registry readback and a durable succeeded receipt.",
+            "Both 20260902_staging_actions_runtime_contract_reconciliation.sql and 20260815_custom_gpt_mcp_catalog_levels.sql are checksum- and statement-count-pinned under the existing Staging Schema Repair authority; caller DDL is not accepted.",
+            "The local privileged transport does not expand Runtime grants: admin/tenant tool registries remain SELECT-only and endpoints/platform_endpoint_tool_exports receive no new Runtime grant.",
+            "The database root password remains inside the runtime-db container environment and is absent from host plan, ledger, output, and evidence payloads.",
+            "JSON object/string representation differences and temporal driver representation differences are normalized before metadata fingerprints so equivalent values do not create false conflicts.",
+            "Materialized reconciliation SQL is INSERT-only plus transaction/session control; UPDATE, DELETE, REPLACE, TRUNCATE, DROP, ALTER, CREATE, GRANT, and REVOKE remain forbidden."
           ],
           "tests": [
             {
@@ -113,16 +130,37 @@
               "working_directory": "http-generic-api",
               "path": "test-staging-schema-bundle-builder.mjs",
               "args": []
+            },
+            {
+              "id": "runtime-registry-reconciliation-surface",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-runtime-registry-reconciliation-surface.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-recovery-system-tools",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-recovery-system-tools.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
-            "http-generic-api/config/staging-runtime-registry-reconciliation.json",
-            "http-generic-api/config/staging-database-role-migration-manifest.json",
+            "autopilot-portable-staging/Repair-StagingRuntimeRegistry.ps1",
             "http-generic-api/config/canonical-semantic-artifacts.json",
+            "http-generic-api/config/host-breakglass-staging-contract.json",
             "http-generic-api/config/runtime-data-lifecycle-contract.json",
-            "http-generic-api/stagingRuntimeRegistrySnapshot.js",
+            "http-generic-api/config/staging-database-role-migration-manifest.json",
+            "http-generic-api/config/staging-runtime-registry-reconciliation.json",
+            "http-generic-api/scripts/materialize-staging-runtime-registry-reconciliation-sql.mjs",
+            "http-generic-api/scripts/staging-runtime-registry-reconciliation-ledger.mjs",
+            "http-generic-api/scripts/staging-runtime-registry-reconciliation-runtime-check.mjs",
+            "http-generic-api/scripts/validate-staging-runtime-registry-reconciliation-plan.mjs",
             "http-generic-api/stagingRuntimeRegistryReconciliation.js",
-            "http-generic-api/stagingRuntimeRegistryReconciliationLedger.js"
+            "http-generic-api/stagingRuntimeRegistryReconciliationLedger.js",
+            "http-generic-api/stagingRuntimeRegistrySnapshot.js",
+            "http-generic-api/test-staging-runtime-registry-reconciliation-surface.mjs"
           ]
         }
       ]

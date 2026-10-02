@@ -47,6 +47,8 @@ test("registry reconciliation projection is repository-owned, insert-only, and s
   assert.match(generator, /function makeCanonicalRegistryReconciliationDump\(manifest, runtimeTables\)/u);
   assert.match(generator, /canonical_registry_reconciliation_snapshot/u);
   assert.match(generator, /configured_identity/u);
+  assert.match(generator, /column_types: Object\.fromEntries/u);
+  assert.match(generator, /column_types: plan\.column_types/u);
   assert.match(generator, /canonical registry reconciliation snapshot contains a forbidden mutation/u);
 });
 
