@@ -136,14 +136,8 @@ async function query(sql, params = []) {
     return [{ affectedRows: 1 }];
   }
   if (text.includes("SELECT id, runtime_evidence_json")) {
-    const [, correlationId, operationId, deploymentSha] = params;
-    return [stored.filter((row) => {
-      const evidence = JSON.parse(row.runtime_evidence_json);
-      return row.correlation_id === correlationId
-        && evidence.operation_id === operationId
-        && evidence.correlation_id === correlationId
-        && evidence.deployment_sha === deploymentSha;
-    })];
+    const [, correlationId] = params;
+    return [stored.filter((row) => row.correlation_id === correlationId)];
   }
   throw new Error("unexpected query: " + text);
 }
@@ -207,6 +201,21 @@ assert.equal(
   readbackQuery.text.includes("$.correlation_id"),
   false,
   "Recovery readback candidate selection must not require a JSON correlation scan",
+);
+assert.equal(
+  readbackQuery.text.includes("$.operation_id"),
+  false,
+  "Recovery readback must not hide cross-operation drift in SQL pre-filtering",
+);
+assert.equal(
+  readbackQuery.text.includes("$.deployment_sha"),
+  false,
+  "Recovery readback must not hide cross-deployment drift in SQL pre-filtering",
+);
+assert.deepEqual(
+  readbackQuery.params,
+  ["tenant_gpt_oauth_recovery_server_evidence", CORRELATION_ID],
+  "Recovery readback candidate selection must be keyed only by action and indexed correlation identity",
 );
 
 const duplicateCodeRows = [
@@ -526,16 +535,18 @@ for (const manifestPatch of [
   );
 }
 
-const isolated = await readTenantGptOAuthRecoveryServerEvidence({
-  query,
-  operation_id: OTHER_OPERATION_ID,
-  correlation_id: CORRELATION_ID,
-  deployment_sha: DEPLOYMENT_SHA,
-  env: STAGING_ENV,
-  nowMs: NOW_MS,
-});
-assert.equal(isolated.complete, false);
-assert.equal(isolated.events.length, 0);
+assert.equal(
+  await asyncErrorCode(() => readTenantGptOAuthRecoveryServerEvidence({
+    query,
+    operation_id: OTHER_OPERATION_ID,
+    correlation_id: CORRELATION_ID,
+    deployment_sha: DEPLOYMENT_SHA,
+    env: STAGING_ENV,
+    nowMs: NOW_MS,
+  })),
+  "oauth_recovery_evidence_operation_mismatch",
+  "A reused correlation bound to another operation must fail closed instead of looking incomplete",
+);
 
 const alternateToken = advanceTenantGptOAuthOperationCorrelation(code, {
   stage: "oauth_token_exchange",
