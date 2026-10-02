@@ -43,6 +43,12 @@ const AMBIGUOUS_STAGING_ENV = Object.freeze({
   DEPLOYMENT_EXPECTED_COMMIT_SHA: DEPLOYMENT_SHA,
   DEPLOYMENT_MANIFEST_JSON,
 });
+const HOSTED_STAGING_ENV = Object.freeze({
+  DEPLOYMENT_ENVIRONMENT: "staging_hosted",
+  DEPLOYMENT_EXPECTED_COMMIT_SHA: DEPLOYMENT_SHA,
+  DEPLOY_COMMIT: DEPLOYMENT_SHA,
+  DEPLOYMENT_MANIFEST_JSON,
+});
 const PRODUCTION_ENV = Object.freeze({
   DEPLOYMENT_ENVIRONMENT: "production_hostinger_autodeploy",
 });
@@ -310,6 +316,14 @@ assert.equal(
     correlation: authorize,
     redirect_uri_sha256: REDIRECT_HASH,
   }, { nowMs: NOW_MS, env: AMBIGUOUS_STAGING_ENV })),
+  "oauth_recovery_evidence_staging_runtime_required",
+);
+assert.equal(
+  errorCode(() => buildTenantGptOAuthRecoveryServerEvidence({
+    event: "authorize_received",
+    correlation: authorize,
+    redirect_uri_sha256: REDIRECT_HASH,
+  }, { nowMs: NOW_MS, env: HOSTED_STAGING_ENV })),
   "oauth_recovery_evidence_staging_runtime_required",
 );
 

@@ -46,7 +46,7 @@ Do not bypass this hold with manual OAuth events, manually asserted registration
 
 ### B2 server-evidence integrity boundary
 
-The five server-owned OAuth observations are runtime integrity evidence, not external source authenticity. B2 requires an explicit Staging runtime class, derives timestamps only from the verified OAuth correlation, and binds deployment identity to the canonical no-secret deployment manifest for `mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os` on source branch `main`, plus matching expected-SHA signals. The canonical SHA-256 on an execution-log row is a tamper-evident digest, not a signature or acquisition authority.
+The five server-owned OAuth observations are runtime integrity evidence, not external source authenticity. B2 requires the explicit `local_windows_docker` Staging runtime class, derives timestamps only from the verified OAuth correlation, and binds deployment identity to the canonical no-secret deployment manifest for `mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os` on source branch `main`, plus matching expected-SHA signals. The canonical SHA-256 on an execution-log row is a tamper-evident digest, not a signature or acquisition authority.
 
 The protected-resource observation is persisted by the Activation Gateway after bearer verification reaches `gateway_verify`; the Gateway awaits that bounded write before downstream dispatch. Persistence failure remains non-fatal to an otherwise valid OAuth resource request, but the missing event keeps Recovery readback incomplete and certification fail-closed. `callback_received` remains outside this server-owned evidence set and still requires a genuine external observer.
 

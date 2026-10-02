@@ -152,8 +152,17 @@ function eventName(value) {
 
 function strictStagingRuntime(env) {
   const runtime = resolveRuntimeEnvironmentStrict(env);
-  if (runtime?.ok !== true || runtime.environment_key !== "staging" || runtime.runtime_class_explicit !== true) {
-    fail("oauth_recovery_evidence_staging_runtime_required", "Server-owned OAuth Recovery evidence requires an explicit canonical Staging runtime class.", 403);
+  if (
+    runtime?.ok !== true
+    || runtime.environment_key !== "staging"
+    || runtime.runtime_class !== "local_windows_docker"
+    || runtime.runtime_class_explicit !== true
+  ) {
+    fail(
+      "oauth_recovery_evidence_staging_runtime_required",
+      "Server-owned OAuth Recovery evidence requires explicit local Windows/Docker Staging.",
+      403,
+    );
   }
   return runtime;
 }
@@ -343,7 +352,13 @@ export async function recordTenantGptOAuthRecoveryServerEvidence({
   deploymentIdentityReader = readCanonicalDeploymentIdentity,
 } = {}) {
   const runtime = resolveRuntimeEnvironmentStrict(env);
-  if (enabled !== true || runtime?.ok !== true || runtime.environment_key !== "staging" || runtime.runtime_class_explicit !== true) {
+  if (
+    enabled !== true
+    || runtime?.ok !== true
+    || runtime.environment_key !== "staging"
+    || runtime.runtime_class !== "local_windows_docker"
+    || runtime.runtime_class_explicit !== true
+  ) {
     return Object.freeze({
       recorded: false,
       reason: "strict_staging_runtime_required",
