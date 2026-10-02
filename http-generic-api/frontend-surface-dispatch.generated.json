@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "300124bddc90ece258ee95b2e56f8c49b7d3df64d8308dffaf1d9a3be26ef587",
+    "source_digest": "7a34ae5e924a660080a9ff400ff101d50bfaefc35e810e790f3b138b2c144095",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -391,7 +391,7 @@
       },
       {
         "file": "routes/adminHostBreakglassRoutes.js",
-        "sha256": "145cad8fcebcb1b6b5b7f30798733f59d41e6f5e2f2d3144e2c42d1f73ff4fbb",
+        "sha256": "b3720b6ca33b8a4ad22e13e0a652ecf9d7e0be594ee213e76a0483b408cb38c2",
         "present": true
       },
       {
@@ -2786,7 +2786,7 @@
       "family_key": "admin-host-breakglass",
       "label": "admin host breakglass",
       "source_file": "routes/adminHostBreakglassRoutes.js",
-      "source_digest": "145cad8fcebcb1b6b5b7f30798733f59d41e6f5e2f2d3144e2c42d1f73ff4fbb",
+      "source_digest": "b3720b6ca33b8a4ad22e13e0a652ecf9d7e0be594ee213e76a0483b408cb38c2",
       "mount_prefix": "/",
       "mount_order": 13629,
       "split_from_mixed_scope_file": false,
