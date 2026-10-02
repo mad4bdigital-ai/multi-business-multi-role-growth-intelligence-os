@@ -598,28 +598,41 @@
       "id": "staging_database_readiness_repair",
       "test_paths": [
         "autopilot-portable-staging/Repair-StagingDatabaseReadiness.ps1",
+        "autopilot-portable-staging/Repair-StagingRuntimeRegistry.ps1",
+        "http-generic-api/config/staging-runtime-registry-reconciliation.json",
         "http-generic-api/databasePrivilegeContracts.js",
         "http-generic-api/docker-compose.staging.yml",
         "http-generic-api/environmentBranchAuthority.js",
         "http-generic-api/governanceDbPrivilegeReadinessService.js",
+        "http-generic-api/scripts/staging-runtime-registry-reconciliation-materialize-sql.mjs",
         "http-generic-api/scripts/staging-role-grant-plan.mjs",
+        "http-generic-api/scripts/staging-runtime-registry-reconciliation-ledger.mjs",
+        "http-generic-api/scripts/staging-runtime-registry-reconciliation-runtime-check.mjs",
+        "http-generic-api/scripts/staging-runtime-registry-reconciliation-plan-validate.mjs",
+        "http-generic-api/stagingRuntimeRegistryReconciliation.js",
+        "http-generic-api/stagingRuntimeRegistryReconciliationLedger.js",
+        "http-generic-api/stagingRuntimeRegistrySnapshot.js",
         "http-generic-api/test-canonical-semantic-artifact-registry.mjs",
         "http-generic-api/test-runtime-data-lifecycle-guard.mjs",
         "http-generic-api/test-runtime-persistence-operational-readiness.mjs",
         "http-generic-api/test-runtime-verification-contract.mjs",
         "http-generic-api/test-semantic-data-completeness-report.mjs",
+        "http-generic-api/test-staging-canonical-resource-registry-grant.mjs",
         "http-generic-api/test-staging-canonical-semantic-repair-cli.mjs",
         "http-generic-api/test-staging-canonical-semantic-repair-ledger.mjs",
         "http-generic-api/test-staging-canonical-semantic-repair-runner.mjs",
         "http-generic-api/test-staging-canonical-semantic-repair.mjs",
-        "http-generic-api/test-staging-canonical-resource-registry-grant.mjs",
         "http-generic-api/test-staging-database-readiness-repair.mjs",
-        "http-generic-api/test-staging-execution-policies-grant.mjs"
+        "http-generic-api/test-staging-execution-policies-grant.mjs",
+        "http-generic-api/test-staging-runtime-registry-reconciliation-ledger.mjs",
+        "http-generic-api/test-staging-runtime-registry-reconciliation-surface.mjs",
+        "http-generic-api/test-staging-runtime-registry-reconciliation.mjs"
       ]
     },
     {
       "id": "staging_schema_bundle_bootstrap",
       "test_paths": [
+        "http-generic-api/config/staging-runtime-registry-reconciliation.json",
         "http-generic-api/scripts/build-staging-schema-bundle.mjs",
         "http-generic-api/test-approval-hold-identity-collation-alignment.mjs",
         "http-generic-api/test-database-foreign-key-compatibility-policy.mjs",
@@ -632,6 +645,7 @@
         "http-generic-api/test-staging-openapi-mcp-db-boundary.mjs",
         "http-generic-api/test-staging-operations-logging-contract.mjs",
         "http-generic-api/test-staging-rebuild-empty-authority.mjs",
+        "http-generic-api/test-staging-runtime-registry-reconciliation-surface.mjs",
         "http-generic-api/test-staging-schema-bundle-builder.mjs"
       ]
     },

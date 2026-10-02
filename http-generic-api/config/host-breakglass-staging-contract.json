@@ -7,7 +7,10 @@
   "required_runtime": "docker_compose",
   "shell_service": "api",
   "database_bridge_service": "app",
-  "compose_files": ["docker-compose.yml", "docker-compose.staging.yml"],
+  "compose_files": [
+    "docker-compose.yml",
+    "docker-compose.staging.yml"
+  ],
   "compose_env_file": ".env.staging",
   "source_branch": "main",
   "target_environment": "staging",
@@ -45,13 +48,70 @@
         "sha256": "6ca8879ec300b5970f6ddc3d9eeded38eda8dee12abd6bdeb7ba7d2ffa53ee2c",
         "statement_count": 1,
         "role": "runtime",
-        "requires_tables": ["actions"],
-        "allowed_modes": ["dry_run", "apply_migration"],
+        "requires_tables": [
+          "actions"
+        ],
+        "allowed_modes": [
+          "dry_run",
+          "apply_migration"
+        ],
         "postconditions": [
-          {"type": "column", "table": "actions", "column": "allowed_actor_roles"},
-          {"type": "column", "table": "actions", "column": "allowed_governance_levels"},
-          {"type": "column", "table": "actions", "column": "oauth_secret_storage_type"},
-          {"type": "column", "table": "actions", "column": "oauth_last_validated_at"}
+          {
+            "type": "column",
+            "table": "actions",
+            "column": "allowed_actor_roles"
+          },
+          {
+            "type": "column",
+            "table": "actions",
+            "column": "allowed_governance_levels"
+          },
+          {
+            "type": "column",
+            "table": "actions",
+            "column": "oauth_secret_storage_type"
+          },
+          {
+            "type": "column",
+            "table": "actions",
+            "column": "oauth_last_validated_at"
+          }
+        ]
+      },
+      {
+        "file": "20260815_custom_gpt_mcp_catalog_levels.sql",
+        "sha256": "528143808adac23eb457058c4c34dd95c4c5d462bca9ac4b170b1f19b2006681",
+        "statement_count": 7,
+        "role": "runtime",
+        "requires_tables": [
+          "admin_platform_endpoint_tools",
+          "tenant_platform_endpoint_tools"
+        ],
+        "allowed_modes": [
+          "dry_run",
+          "apply_migration"
+        ],
+        "postconditions": [
+          {
+            "type": "column",
+            "table": "admin_platform_endpoint_tools",
+            "column": "mcp_catalog_level"
+          },
+          {
+            "type": "column",
+            "table": "tenant_platform_endpoint_tools",
+            "column": "mcp_catalog_level"
+          },
+          {
+            "type": "index",
+            "table": "admin_platform_endpoint_tools",
+            "index": "idx_enabled_mcp_level_sort"
+          },
+          {
+            "type": "index",
+            "table": "tenant_platform_endpoint_tools",
+            "index": "idx_enabled_mcp_level_sort"
+          }
         ]
       }
     ],
@@ -84,9 +144,23 @@
   },
   "empty_database_reconstruction": {
     "scope": "existing_zero_object_set_only",
-    "object_kinds": ["tables", "views", "triggers", "routines", "events"],
-    "required_roles": ["runtime", "governance", "runtime_persistence"],
-    "selected_role_enum": ["runtime", "governance", "runtime_persistence"],
+    "object_kinds": [
+      "tables",
+      "views",
+      "triggers",
+      "routines",
+      "events"
+    ],
+    "required_roles": [
+      "runtime",
+      "governance",
+      "runtime_persistence"
+    ],
+    "selected_role_enum": [
+      "runtime",
+      "governance",
+      "runtime_persistence"
+    ],
     "selection_source": "durable_full_inspection_record_or_plan_bound_proof",
     "all_roles_must_be_zero_objects": false,
     "partial_role_rebuild_allowed": true,
@@ -95,11 +169,36 @@
     "sequential_role_execution": true,
     "stop_on_role_verification_failure": true,
     "standalone_migration_first_allowed": false,
-    "execution_order": ["full_inspection_durable_record", "selected_zero_object_role_recheck", "selected_role_bundle_baseline", "selected_role_seeds", "selected_role_postconditions", "next_selected_role_or_stop", "separate_least_privilege_grants_approval", "behavioral_probes"],
+    "execution_order": [
+      "full_inspection_durable_record",
+      "selected_zero_object_role_recheck",
+      "selected_role_bundle_baseline",
+      "selected_role_seeds",
+      "selected_role_postconditions",
+      "next_selected_role_or_stop",
+      "separate_least_privilege_grants_approval",
+      "behavioral_probes"
+    ],
     "behavioral_probes": [
-      {"probe": "governance_catalog_readiness", "role": "governance", "mutation": false, "provider_accessed": false},
-      {"probe": "runtime_persistence_response_chunk_readiness", "role": "runtime_persistence", "migration": "1048_transport_response_chunk_schema_recovery.sql", "mutation": false, "provider_accessed": false},
-      {"probe": "runtime_full_inspection_readiness", "role": "runtime", "mutation": false, "provider_accessed": false}
+      {
+        "probe": "governance_catalog_readiness",
+        "role": "governance",
+        "mutation": false,
+        "provider_accessed": false
+      },
+      {
+        "probe": "runtime_persistence_response_chunk_readiness",
+        "role": "runtime_persistence",
+        "migration": "1048_transport_response_chunk_schema_recovery.sql",
+        "mutation": false,
+        "provider_accessed": false
+      },
+      {
+        "probe": "runtime_full_inspection_readiness",
+        "role": "runtime",
+        "mutation": false,
+        "provider_accessed": false
+      }
     ]
   },
   "credential_mapping": {
