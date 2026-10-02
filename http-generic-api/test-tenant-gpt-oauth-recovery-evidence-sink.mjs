@@ -577,6 +577,25 @@ const alternateResourceEvidence = buildTenantGptOAuthRecoveryServerEvidence({
   event: "resource_request_verified",
   correlation: alternateGateway,
 }, { nowMs: NOW_MS, env: STAGING_ENV });
+const mixedTerminalRows = [
+  ...stored,
+  { id: 997, runtime_evidence_json: JSON.stringify(alternateResourceEvidence) },
+];
+assert.equal(
+  await asyncErrorCode(() => readTenantGptOAuthRecoveryServerEvidence({
+    query: async (sql) => {
+      if (String(sql).includes("SELECT id, runtime_evidence_json")) return [mixedTerminalRows];
+      throw new Error("unexpected mixed-terminal query");
+    },
+    operation_id: OPERATION_ID,
+    correlation_id: CORRELATION_ID,
+    deployment_sha: DEPLOYMENT_SHA,
+    env: STAGING_ENV,
+    nowMs: NOW_MS,
+  })),
+  "oauth_recovery_evidence_ancestry_mismatch",
+  "A valid terminal observation cannot hide a conflicting terminal branch",
+);
 const brokenRows = [
   ...stored.slice(0, 4),
   { id: 999, runtime_evidence_json: JSON.stringify(alternateResourceEvidence) },
@@ -593,7 +612,7 @@ assert.equal(
     env: STAGING_ENV,
     nowMs: NOW_MS,
   })),
-  "oauth_recovery_evidence_chain_mismatch",
+  "oauth_recovery_evidence_ancestry_mismatch",
 );
 
 const tokenEvidence = buildTenantGptOAuthRecoveryServerEvidence({
