@@ -27,6 +27,8 @@ const EVENT_STAGE = Object.freeze({
   resource_request_verified: "gateway_verify",
 });
 
+const REPOSITORY = "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os";
+const STAGING_SOURCE_BRANCH = "main";
 const SHA40 = /^[a-f0-9]{40}$/u;
 const SHA256 = /^[a-f0-9]{64}$/u;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
@@ -181,8 +183,12 @@ export function resolveTenantGptOAuthRecoveryDeploymentSha(
   const identity = deploymentIdentityReader({ env, requireManifest: true });
   const deployedSha = String(identity?.commit_sha || identity?.sha || "").trim().toLowerCase();
   if (
-    identity?.ok !== true || identity?.manifest_bound !== true || !identity?.repository || !identity?.branch
-    || identity?.manifest?.secrets_included !== false || !SHA40.test(deployedSha)
+    identity?.ok !== true
+    || identity?.manifest_bound !== true
+    || identity?.repository !== REPOSITORY
+    || identity?.branch !== STAGING_SOURCE_BRANCH
+    || identity?.manifest?.secrets_included !== false
+    || !SHA40.test(deployedSha)
   ) {
     fail("oauth_recovery_evidence_deployment_identity_invalid", "Recovery evidence requires a no-secret, manifest-bound deployed identity.", 503);
   }

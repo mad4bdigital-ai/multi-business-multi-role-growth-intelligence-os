@@ -58,7 +58,7 @@
           ],
           "assertions": [
             "Exactly five server-owned events are accepted and callback_received is rejected.",
-            "An explicit Staging runtime class and manifest-bound exact deployment SHA are required.",
+            "An explicit Staging runtime class and a no-secret manifest-bound deployment identity for mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os on branch main are required, with deployed SHA matching configured exact deployment identity.",
             "Caller-supplied deployment SHA or timestamps are rejected.",
             "Canonical digest represents integrity only and source_authenticity remains not_established.",
             "Stage-specific envelope ancestry and subject/code/access bindings are mandatory.",

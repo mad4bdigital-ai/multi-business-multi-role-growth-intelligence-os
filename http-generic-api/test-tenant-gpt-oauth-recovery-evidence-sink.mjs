@@ -5,7 +5,7 @@ import { readFileSync } from "node:fs";
 const DEPLOYMENT_SHA = "2b464908bd2639792ff54eafd5f0132612de78b0";
 const DEPLOYMENT_MANIFEST_JSON = JSON.stringify({
   repository: "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os",
-  branch: "gpt/staging-recovery-source-authority-b2",
+  branch: "main",
   commit_sha: DEPLOYMENT_SHA,
   secrets_included: false,
 });
@@ -343,6 +343,29 @@ assert.equal(
   })),
   "oauth_recovery_evidence_deployment_identity_invalid",
 );
+
+for (const manifestPatch of [
+  { repository: "other/repository" },
+  { branch: "feature/not-main" },
+]) {
+  assert.equal(
+    errorCode(() => buildTenantGptOAuthRecoveryServerEvidence({
+      event: "authorize_received",
+      correlation: authorize,
+      redirect_uri_sha256: REDIRECT_HASH,
+    }, {
+      nowMs: NOW_MS,
+      env: {
+        ...STAGING_ENV,
+        DEPLOYMENT_MANIFEST_JSON: JSON.stringify({
+          ...JSON.parse(DEPLOYMENT_MANIFEST_JSON),
+          ...manifestPatch,
+        }),
+      },
+    })),
+    "oauth_recovery_evidence_deployment_identity_invalid",
+  );
+}
 
 const isolated = await readTenantGptOAuthRecoveryServerEvidence({
   query,
