@@ -343,6 +343,7 @@
       "id": "tenant_gpt_oauth_server_owned_correlation",
       "test_paths": [
         "http-generic-api/test-spec012-t030-oauth-correlation-foundation.mjs",
+        "http-generic-api/test-tenant-gpt-oauth-recovery-evidence-sink.mjs",
         "http-generic-api/test-tenant-gpt-oauth-authorization-code-store.mjs",
         "http-generic-api/test-tenant-gpt-oauth-operation-correlation.mjs",
         "http-generic-api/test-tenant-gpt-oauth-token-binding-guard.mjs",

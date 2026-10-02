@@ -31,6 +31,7 @@ import {
   safeTenantGptOAuthOperationCorrelationEvidence,
   verifyTenantGptOAuthOperationCorrelation,
 } from "../tenantGptOAuthOperationCorrelation.js";
+import { recordTenantGptOAuthRecoveryServerEvidence } from "../tenantGptOAuthRecoveryEvidenceSink.js";
 
 const CHATGPT_CANONICAL_CALLBACK_HOST = "chatgpt.com";
 const CHATGPT_LEGACY_CALLBACK_HOST = "chat.openai.com";
@@ -304,6 +305,26 @@ export function buildTenantGptOAuthTokenExchangeRoutes(deps = {}) {
   const refreshTokensEnabled = typeof deps.tenantGptRefreshTokensEnabled === "function"
     ? deps.tenantGptRefreshTokensEnabled(deps.env || process.env)
     : tenantGptRefreshTokensEnabled(deps.env || process.env);
+
+  const recordOAuthRecoveryEvidence =
+    deps.recordTenantGptOAuthRecoveryServerEvidence || recordTenantGptOAuthRecoveryServerEvidence;
+
+  async function persistOAuthRecoveryTokenStage(query, input, nowMs) {
+    try {
+      await recordOAuthRecoveryEvidence({
+        query,
+        input,
+        env: deps.env || process.env,
+        nowMs,
+      });
+    } catch (error) {
+      console.warn("tenant_gpt_oauth_recovery_evidence_write_failed", {
+        event: String(input?.event || "").slice(0, 64) || null,
+        code: String(error?.code || "evidence_write_failed").slice(0, 64),
+        secrets_included: false,
+      });
+    }
+  }
 
   router.post("/auth/oauth/token", express.urlencoded({ extended: false }), async (req, res) => {
     const startedAtMs = now();
@@ -638,6 +659,7 @@ export function buildTenantGptOAuthTokenExchangeRoutes(deps = {}) {
         },
         { nowMs: now() },
       );
+
       const accessToken = issueAccessToken(
         { user_id: subject.user.user_id, email: subject.user.email, tenant_id: subject.tenant_id },
         {
@@ -677,6 +699,24 @@ export function buildTenantGptOAuthTokenExchangeRoutes(deps = {}) {
         reason: activationContext?.reason || null,
         secrets_included: false,
       };
+
+      if (activationContext?.stored === true) {
+        await persistOAuthRecoveryTokenStage(
+          tokenQuery,
+          {
+            event: "token_exchange_completed",
+            correlation: tokenCorrelation,
+            redirect_uri_sha256: sha256(canonicalizeRedirectUri(codePayload.redirect_uri) || codePayload.redirect_uri),
+          },
+          now(),
+        );
+      } else {
+        console.warn("tenant_gpt_oauth_recovery_evidence_stage_skipped", {
+          event: "token_exchange_completed",
+          reason: String(activationContext?.reason || "activation_context_not_stored").slice(0, 96),
+          secrets_included: false,
+        });
+      }
 
       const tokenResponse = {
         access_token: accessToken,

@@ -98,6 +98,7 @@ function createHarness(overrides = {}, { metadataMount = false } = {}) {
   const diagnostics = [];
   const issuance = [];
   const activationContexts = [];
+  const recoveryEvents = [];
   let legacyReached = false;
   const pool = {
     async query(sql, params = []) {
@@ -165,6 +166,11 @@ function createHarness(overrides = {}, { metadataMount = false } = {}) {
       activationContexts.push(input);
       return { ok: true, stored: true, source: "test", secrets_included: false };
     },
+    recordTenantGptOAuthRecoveryServerEvidence: async ({ input }) => {
+      order.push("recovery");
+      recoveryEvents.push(structuredClone(input));
+      return { recorded: true, secrets_included: false };
+    },
     ...overrides,
   };
 
@@ -185,6 +191,7 @@ function createHarness(overrides = {}, { metadataMount = false } = {}) {
     diagnostics,
     issuance,
     activationContexts,
+    recoveryEvents,
     legacyReached: () => legacyReached,
   };
 }
@@ -220,6 +227,9 @@ assert.equal(successHarness.legacyReached(), false);
 assert.equal(successHarness.order.indexOf("subject") < successHarness.order.indexOf("consume"), true);
 assert.equal(successHarness.order.indexOf("consume") < successHarness.order.indexOf("issue"), true);
 assert.equal(successHarness.order.indexOf("issue") < successHarness.order.indexOf("context"), true);
+assert.equal(successHarness.order.indexOf("context") < successHarness.order.indexOf("recovery"), true);
+assert.deepEqual(successHarness.recoveryEvents.map((event) => event.event), ["token_exchange_completed"]);
+assert.equal(successHarness.recoveryEvents[0]?.correlation?.stage, "oauth_token_exchange");
 assert.equal(successHarness.issuance.length, 1);
 assert.equal(successHarness.issuance[0].options.expiresIn, 3600);
 assert.equal(successHarness.issuance[0].options.oauthCorrelation?.stage, "oauth_token_exchange");
@@ -264,6 +274,29 @@ assert.equal(
   false,
   "success evidence must not precede response commitment",
 );
+
+const originalWarn = console.warn;
+console.warn = () => {};
+try {
+  const degradedContextHarness = createHarness({
+    recordActivationContext: async () => ({
+      ok: false,
+      stored: false,
+      reason: "activation_context_store_unavailable",
+      secrets_included: false,
+    }),
+  });
+  const degradedContext = await runScenario(degradedContextHarness);
+  assert.equal(degradedContext.status, 200);
+  assert.deepEqual(degradedContextHarness.recoveryEvents, []);
+  assert.equal(
+    degradedContextHarness.order.includes("recovery"),
+    false,
+    "Recovery token stage must remain absent when activation-context persistence did not succeed",
+  );
+} finally {
+  console.warn = originalWarn;
+}
 
 let replayConsumeCalls = 0;
 const replayHarness = createHarness({

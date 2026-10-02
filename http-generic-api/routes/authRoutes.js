@@ -50,6 +50,7 @@ import {
   tenantGptOAuthOperationCorrelationClaim,
   verifyTenantGptOAuthCorrelationTicket,
 } from "../tenantGptOAuthOperationCorrelation.js";
+import { recordTenantGptOAuthRecoveryServerEvidence } from "../tenantGptOAuthRecoveryEvidenceSink.js";
 
 function requireConfiguredJwtSecret(env = process.env) {
   const secret = String(env?.JWT_SECRET || "").trim();
@@ -801,6 +802,25 @@ export function buildAuthRoutes(deps) {
   const revokeSsoSession = deps?.revokeTenantGptSsoSessionBySid || revokeTenantGptSsoSessionBySid;
   const revokeSsoSessionsForUser = deps?.revokeTenantGptSsoSessionsForUser || revokeTenantGptSsoSessionsForUser;
 
+  const recordOAuthRecoveryEvidence =
+    deps?.recordTenantGptOAuthRecoveryServerEvidence || recordTenantGptOAuthRecoveryServerEvidence;
+
+  async function persistOAuthRecoveryStage(input) {
+    try {
+      await recordOAuthRecoveryEvidence({
+        query: (sql, params) => resolvePool().query(sql, params),
+        input,
+        env: authEnv,
+      });
+    } catch (error) {
+      console.warn("tenant_gpt_oauth_recovery_evidence_write_failed", {
+        event: String(input?.event || "").slice(0, 64) || null,
+        code: String(error?.code || "evidence_write_failed").slice(0, 64),
+        secrets_included: false,
+      });
+    }
+  }
+
   async function reusableSsoSession(cookieValue, expectedClientId) {
     const verified = verifyTenantGptSsoSession(cookieValue, { jwtSecret: ssoSigningSecret, expectedClientId });
     if (!verified.ok) return verified;
@@ -1205,6 +1225,12 @@ export function buildAuthRoutes(deps) {
       state,
     });
 
+    await persistOAuthRecoveryStage({
+      event: "authorize_received",
+      correlation: authorizeCorrelation,
+      redirect_uri_sha256: sha256(canonicalizeTenantGptRedirectUri(redirectUri) || redirectUri),
+    });
+
     const authorizeSso = await reusableSsoSession(parseTenantGptSsoCookie(req.headers?.cookie), resourceProfile.client_id);
     const authorizeRequestedScopes = requestedScope ? requestedScope.split(/\s+/u).filter(Boolean) : [];
     const ssoAvailable = req.query.prompt !== "login"
@@ -1339,6 +1365,12 @@ export function buildAuthRoutes(deps) {
           request_id: requestId,
         },
       );
+
+      await persistOAuthRecoveryStage({
+        event: "login_consent_completed",
+        correlation: identityCorrelation,
+        redirect_uri_sha256: sha256(canonicalizeTenantGptRedirectUri(redirect_uri) || redirect_uri),
+      });
       const codeJti = randomUUID();
       const canonicalRedirectUri = canonicalizeTenantGptRedirectUri(redirect_uri) || redirect_uri;
       const codeExpiresAt = new Date(Date.now() + OAUTH_CODE_TTL_SECONDS * 1000);
@@ -1363,6 +1395,7 @@ export function buildAuthRoutes(deps) {
           request_id: requestId,
         },
       );
+
       stage = "authorization_code_sign";
       const code = jwt.sign(
         {
@@ -1383,6 +1416,12 @@ export function buildAuthRoutes(deps) {
         jwtSecret,
         { expiresIn: OAUTH_CODE_TTL_SECONDS, jwtid: codeJti }
       );
+
+      await persistOAuthRecoveryStage({
+        event: "authorization_code_issued",
+        correlation: codeCorrelation,
+        redirect_uri_sha256: sha256(canonicalRedirectUri),
+      });
 
       if (payload.tenant_id) {
         const ssoToken = issueTenantGptSsoSession({
