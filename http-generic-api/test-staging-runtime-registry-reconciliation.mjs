@@ -24,8 +24,8 @@ const tables = [
 const definitions = {
   actions: {
     identity: ["action_key"],
-    columns: ["action_key","action_title","status","schema_json","oauth_last_validated_at"],
-    row: { action_key:"canonical_action", action_title:"Canonical Action", status:"active", schema_json:'{"required":["a"],"type":"object"}', oauth_last_validated_at:"2026-10-02 01:02:03" }
+    columns: ["action_key","action_title","status","schema_json","updated_at"],
+    row: { action_key:"canonical_action", action_title:"Canonical Action", status:"active", schema_json:'{"required":["a"],"type":"object"}', updated_at:"2026-10-02 01:02:03" }
   },
   endpoints: {
     identity: ["parent_action_key","endpoint_key"],
@@ -73,7 +73,7 @@ function snapshotFixture() {
     projections:Object.fromEntries(tables.map((table)=>[table,{
       included_columns:[...definitions[table].columns],
       excluded_columns:[],
-      column_types:Object.fromEntries(definitions[table].columns.map((column)=>[column,column.endsWith("_json")?"longtext":column==="oauth_last_validated_at"?"timestamp":"varchar"])),
+      column_types:Object.fromEntries(definitions[table].columns.map((column)=>[column,column.endsWith("_json")?"longtext":column==="updated_at"?"timestamp":"varchar"])),
       identity_columns:[...definitions[table].identity],
       order_index:"configured_identity"
     }])),
@@ -232,7 +232,7 @@ assert.equal(jsonEquivalent.status,"already_satisfied","JSON object/string repre
 assert.equal(jsonEquivalent.conflict_count,0);
 
 const temporalEquivalentState=cloneState(exactState);
-temporalEquivalentState.actions[0].oauth_last_validated_at=new Date("2026-10-02T01:02:03.000Z");
+temporalEquivalentState.actions[0].updated_at=new Date("2026-10-02T01:02:03.000Z");
 const temporalEquivalent=await inspectStagingRuntimeRegistrySnapshot({executor:executorFor(temporalEquivalentState),snapshot_gzip:gzip,snapshot_metadata:metadata,expected_commit:SHA});
 assert.equal(temporalEquivalent.status,"already_satisfied","Date/string temporal representations must compare semantically");
 assert.equal(temporalEquivalent.conflict_count,0);
