@@ -209,6 +209,59 @@ assert.equal(
   "Recovery readback candidate selection must not require a JSON correlation scan",
 );
 
+const duplicateCodeRows = [
+  ...stored,
+  {
+    id: 998,
+    runtime_evidence_json: stored.find((row) => {
+      const evidence = JSON.parse(row.runtime_evidence_json);
+      return evidence.event === "authorization_code_issued";
+    }).runtime_evidence_json,
+  },
+];
+const duplicateCodeReadback = await readTenantGptOAuthRecoveryServerEvidence({
+  query: async (sql) => {
+    if (String(sql).includes("SELECT id, runtime_evidence_json")) return [duplicateCodeRows];
+    throw new Error("unexpected duplicate-code readback query");
+  },
+  operation_id: OPERATION_ID,
+  correlation_id: CORRELATION_ID,
+  deployment_sha: DEPLOYMENT_SHA,
+  env: STAGING_ENV,
+  nowMs: NOW_MS,
+});
+assert.equal(duplicateCodeReadback.complete, true);
+assert.equal(duplicateCodeReadback.duplicate_observation_counts.authorization_code_issued, 1);
+
+const forkedCode = advanceTenantGptOAuthOperationCorrelation(identity, {
+  stage: "oauth_code_issue",
+  oauth_code_jti: "forked-code-jti",
+  request_id: "recovery-code-request-fork",
+}, { nowMs: BASE_MS + 25_000 });
+const forkedCodeEvidence = buildTenantGptOAuthRecoveryServerEvidence({
+  event: "authorization_code_issued",
+  correlation: forkedCode,
+  redirect_uri_sha256: REDIRECT_HASH,
+}, { nowMs: NOW_MS, env: STAGING_ENV });
+const forkedCodeRows = [
+  ...stored,
+  { id: 999, runtime_evidence_json: JSON.stringify(forkedCodeEvidence) },
+];
+assert.equal(
+  await asyncErrorCode(() => readTenantGptOAuthRecoveryServerEvidence({
+    query: async (sql) => {
+      if (String(sql).includes("SELECT id, runtime_evidence_json")) return [forkedCodeRows];
+      throw new Error("unexpected forked-code readback query");
+    },
+    operation_id: OPERATION_ID,
+    correlation_id: CORRELATION_ID,
+    deployment_sha: DEPLOYMENT_SHA,
+    env: STAGING_ENV,
+    nowMs: NOW_MS,
+  })),
+  "oauth_recovery_evidence_nonterminal_fork",
+);
+
 const repeatedGateway = advanceTenantGptOAuthOperationCorrelation(token, {
   stage: "gateway_verify",
   request_id: "recovery-resource-request-repeat",
