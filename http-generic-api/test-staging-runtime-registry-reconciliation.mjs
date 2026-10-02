@@ -1,11 +1,13 @@
 import assert from "node:assert/strict";
 import crypto from "node:crypto";
+import fs from "node:fs";
 import zlib from "node:zlib";
 import {
   STAGING_RUNTIME_REGISTRY_RECONCILIATION_CONFIG,
   inspectStagingRuntimeRegistrySnapshot,
   parseStagingRuntimeRegistrySnapshot,
-  planStagingRuntimeRegistryReconciliation
+  planStagingRuntimeRegistryReconciliation,
+  classifyStagingRuntimeRegistryReadAccessError
 } from "./stagingRuntimeRegistrySnapshot.js";
 import {
   applyStagingRuntimeRegistryReconciliation,
@@ -106,7 +108,7 @@ function schemaRows({ omit = null } = {}) {
   for(const [table,columns] of Object.entries(required)) for(const column of columns) if(table+"."+column!==omit) rows.push({TABLE_NAME:table,COLUMN_NAME:column});
   return rows;
 }
-function executorFor(initial = blankState(), { omitSchema = null, failInsertAt = null, rollbackFails = false } = {}) {
+function executorFor(initial = blankState(), { omitSchema = null, denySchemaRead = false, denySelectTable = null, failInsertAt = null, rollbackFails = false } = {}) {
   let state = cloneState(initial);
   let transactionBackup = null;
   let insertCount = 0;
@@ -118,9 +120,15 @@ function executorFor(initial = blankState(), { omitSchema = null, failInsertAt =
     async query(sql,params=[]){
       const source=String(sql);
       queries.push({sql:source,params});
-      if(source.includes("information_schema.COLUMNS")) return [schemaRows({omit:omitSchema})];
+      if(source.includes("information_schema.COLUMNS")) {
+        if(denySchemaRead) throw Object.assign(new Error("SELECT command denied to user"),{code:"ER_TABLEACCESS_DENIED_ERROR",errno:1142});
+        return [schemaRows({omit:omitSchema})];
+      }
       const liveMatch=source.match(new RegExp("FROM\\s+"+TICK+"([A-Za-z0-9_]+)"+TICK,"iu"));
-      if(/^SELECT\s/iu.test(source)&&liveMatch) return [state[liveMatch[1]].map((row)=>({...row}))];
+      if(/^SELECT\s/iu.test(source)&&liveMatch) {
+        if(liveMatch[1]===denySelectTable) throw Object.assign(new Error("SELECT command denied to user"),{code:"ER_TABLEACCESS_DENIED_ERROR",errno:1142});
+        return [state[liveMatch[1]].map((row)=>({...row}))];
+      }
       if(source==="START TRANSACTION"){transactionBackup=cloneState(state);return[{ok:1}];}
       if(source==="ROLLBACK"){
         if(rollbackFails) throw Object.assign(new Error("rollback transport lost"),{code:"ROLLBACK_LOST"});
@@ -165,6 +173,17 @@ assert.deepEqual(STAGING_RUNTIME_REGISTRY_RECONCILIATION_CONFIG.schema_prerequis
   ["20260815_custom_gpt_mcp_catalog_levels.sql","528143808adac23eb457058c4c34dd95c4c5d462bca9ac4b170b1f19b2006681",7]
 ]);
 assert.equal(STAGING_RUNTIME_REGISTRY_RECONCILIATION_CONFIG.schema_prerequisites[0].purpose,"actions_schema_contract_only_not_row_population");
+assert.deepEqual(
+  classifyStagingRuntimeRegistryReadAccessError({code:"ER_TABLEACCESS_DENIED_ERROR",errno:1142,message:"SELECT command denied to user"}),
+  {reason:"runtime_registry_select_denied",cause_code:"ER_TABLEACCESS_DENIED_ERROR",secrets_included:false}
+);
+assert.equal(classifyStagingRuntimeRegistryReadAccessError({code:"ECONNRESET",message:"connection lost"}),null);
+const operatorSource=fs.readFileSync(new URL("../autopilot-portable-staging/Repair-StagingRuntimeRegistry.ps1",import.meta.url),"utf8");
+assert.equal(operatorSource.includes('status="access_prerequisites_required"'),true);
+assert.equal(operatorSource.includes('runbook_key="database.access_repair"'),true);
+assert.equal(operatorSource.includes('apply_action="apply_grants"'),true);
+assert.equal((operatorSource.match(/runbook_key="database\\.schema_repair"/gu)||[]).length,2);
+assert.equal((operatorSource.match(/apply_action="apply_migration"/gu)||[]).length,2);
 parseStagingRuntimeRegistrySnapshot({snapshot_gzip:gzip,snapshot_metadata:metadata,expected_commit:SHA});
 
 const missingExecutor=executorFor();
@@ -178,6 +197,20 @@ const schemaBlocked=await inspectStagingRuntimeRegistrySnapshot({executor:execut
 assert.equal(schemaBlocked.status,"schema_not_ready");
 assert.equal(schemaBlocked.repair_allowed,false);
 assert.deepEqual(schemaBlocked.schema.missing_columns,["actions.allowed_actor_roles"]);
+
+const accessBlocked=await inspectStagingRuntimeRegistrySnapshot({executor:executorFor(blankState(),{denySelectTable:"endpoints"}),snapshot_gzip:gzip,snapshot_metadata:metadata,expected_commit:SHA});
+assert.equal(accessBlocked.status,"access_not_ready");
+assert.equal(accessBlocked.repair_allowed,false);
+assert.equal(accessBlocked.schema.access_denied,true);
+assert.equal(accessBlocked.access_prerequisite.reason,"runtime_registry_select_denied");
+assert.equal(accessBlocked.access_prerequisite.cause_code,"ER_TABLEACCESS_DENIED_ERROR");
+assert.equal(accessBlocked.missing_count,0);
+assert.equal(accessBlocked.conflict_count,0);
+const accessPlan=await planStagingRuntimeRegistryReconciliation({executor:executorFor(blankState(),{denySelectTable:"endpoints"}),snapshot_gzip:gzip,snapshot_metadata:metadata,expected_commit:SHA,actual_commit:SHA});
+assert.equal(accessPlan.status_before,"access_not_ready");
+assert.equal(accessPlan.repair_allowed,false);
+const schemaAccessBlocked=await inspectStagingRuntimeRegistrySnapshot({executor:executorFor(blankState(),{denySchemaRead:true}),snapshot_gzip:gzip,snapshot_metadata:metadata,expected_commit:SHA});
+assert.equal(schemaAccessBlocked.status,"access_not_ready");
 
 const plan=await planStagingRuntimeRegistryReconciliation({executor:missingExecutor,snapshot_gzip:gzip,snapshot_metadata:metadata,expected_commit:SHA,actual_commit:SHA});
 assert.equal(plan.status_before,"missing_rows");

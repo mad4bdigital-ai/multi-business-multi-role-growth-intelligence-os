@@ -38,10 +38,10 @@ for(const prerequisite of config.schema_prerequisites){
 }
 assert.deepEqual(STAGING_ROLE_GRANT_POLICIES.runtime.required_operations_by_table.admin_platform_endpoint_tools,["SELECT"]);
 assert.deepEqual(STAGING_ROLE_GRANT_POLICIES.runtime.required_operations_by_table.tenant_platform_endpoint_tools,["SELECT"]);
-assert.equal(STAGING_ROLE_GRANT_POLICIES.runtime.required_operations_by_table.endpoints,undefined);
-assert.equal(STAGING_ROLE_GRANT_POLICIES.runtime.required_operations_by_table.platform_endpoint_tool_exports,undefined);
-assert.equal(STAGING_ROLE_GRANT_POLICIES.runtime.required_tables.includes("endpoints"),false);
-assert.equal(STAGING_ROLE_GRANT_POLICIES.runtime.required_tables.includes("platform_endpoint_tool_exports"),false);
+assert.deepEqual(STAGING_ROLE_GRANT_POLICIES.runtime.required_operations_by_table.endpoints,["SELECT"]);
+assert.deepEqual(STAGING_ROLE_GRANT_POLICIES.runtime.required_operations_by_table.platform_endpoint_tool_exports,["SELECT"]);
+assert.equal(STAGING_ROLE_GRANT_POLICIES.runtime.required_tables.includes("endpoints"),true);
+assert.equal(STAGING_ROLE_GRANT_POLICIES.runtime.required_tables.includes("platform_endpoint_tool_exports"),true);
 assert.equal(STAGING_ROLE_GRANT_POLICIES.runtime.required_tables.includes("actions"),true);
 assert.deepEqual(STAGING_ROLE_GRANT_POLICIES.runtime.required_operations,["SELECT","INSERT","UPDATE"]);
 
@@ -54,6 +54,11 @@ assert.match(repair,/MYSQL_PWD="\$MARIADB_ROOT_PASSWORD"/u);
 assert.doesNotMatch(repair,/Read-Env[^\r\n]*RUNTIME_DB_ROOT_PASSWORD/u);
 assert.match(repair,/caller_sql_forbidden/u);
 assert.match(repair,/caller_target_forbidden/u);
+assert.match(repair,/status="access_prerequisites_required"/u);
+assert.match(repair,/runbook_key="database\.access_repair"/u);
+assert.match(repair,/apply_action="apply_grants"/u);
+assert.equal((repair.match(/runbook_key="database\.schema_repair"/gu)||[]).length,2);
+assert.equal((repair.match(/apply_action="apply_migration"/gu)||[]).length,2);
 assert.match(repair,/production_mutation_performed=\$false/u);
 assert.match(repair,/provider_mutation_performed=\$false/u);
 assert.match(repair,/mutation_retry_allowed=\$false/u);

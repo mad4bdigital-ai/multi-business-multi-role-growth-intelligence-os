@@ -73,6 +73,44 @@ function rowsFromResult(result) {
 async function queryRows(executor, sql, params = []) {
   return rowsFromResult(await executor.query(sql, params));
 }
+const READ_ACCESS_ERROR_CODES = new Set([
+  "ER_DBACCESS_DENIED_ERROR",
+  "ER_TABLEACCESS_DENIED_ERROR",
+  "ER_COLUMNACCESS_DENIED_ERROR",
+]);
+const READ_ACCESS_ERRNOS = new Set([1044, 1142, 1143]);
+export function classifyStagingRuntimeRegistryReadAccessError(error = {}) {
+  const code = String(error?.code || "").trim().toUpperCase();
+  const errno = Number(error?.errno);
+  const message = String(error?.message || "").trim();
+  const denied = READ_ACCESS_ERROR_CODES.has(code)
+    || READ_ACCESS_ERRNOS.has(errno)
+    || /\bSELECT command denied\b/iu.test(message);
+  if (!denied) return null;
+  const causeCode = READ_ACCESS_ERROR_CODES.has(code)
+    ? code
+    : READ_ACCESS_ERRNOS.has(errno)
+      ? `MYSQL_${errno}`
+      : "SELECT_COMMAND_DENIED";
+  return Object.freeze({
+    reason: "runtime_registry_select_denied",
+    cause_code: causeCode,
+    secrets_included: false,
+  });
+}
+async function preflightRegistryReadAccess(executor) {
+  for (const entry of CONFIG.tables) {
+    try {
+      await executor.query("SELECT 1 FROM " + quoteIdentifier(entry.table) + " LIMIT 0");
+    } catch (error) {
+      if (classifyStagingRuntimeRegistryReadAccessError(error)) throw error;
+      const code = String(error?.code || "").trim().toUpperCase();
+      const errno = Number(error?.errno);
+      if (code === "ER_NO_SUCH_TABLE" || errno === 1146) continue;
+      throw error;
+    }
+  }
+}
 function stripLeadingComments(value) {
   let source = String(value || "").trim();
   for (;;) {
@@ -337,6 +375,28 @@ async function inspectSchema(executor) {
 function publicFinding(item) {
   return { table: item.table, identity_sha256: item.identity_sha256, canonical_fingerprint: item.canonical_fingerprint || null, live_fingerprint: item.live_fingerprint || null, statement_sha256: item.statement_sha256 || null };
 }
+function accessBlockedInspection(snapshot, error) {
+  const accessPrerequisite = classifyStagingRuntimeRegistryReadAccessError(error);
+  if (!accessPrerequisite) throw error;
+  const schema = Object.freeze({ ready: false, missing_tables: [], missing_columns: [], access_denied: true });
+  return Object.freeze({
+    contract: "mad4b.staging-runtime-registry-reconciliation-inspection.v1",
+    status: "access_not_ready",
+    repair_allowed: false,
+    schema,
+    access_prerequisite: accessPrerequisite,
+    missing_count: 0,
+    exact_count: 0,
+    conflict_count: 0,
+    extra_count: 0,
+    missing_statement_sha256: [],
+    tables: [],
+    precondition_fingerprint: registryFingerprint({ source_snapshot_sha256: snapshot.snapshot_sha256, schema, access_prerequisite: accessPrerequisite, tables: [] }),
+    production_accessed: false,
+    provider_accessed: false,
+    secrets_included: false,
+  });
+}
 async function inspectTable(executor, snapshot, entry) {
   const projection = snapshot.metadata.projections[entry.table];
   const columns = projection.included_columns;
@@ -364,7 +424,13 @@ async function inspectTable(executor, snapshot, entry) {
 export async function inspectStagingRuntimeRegistrySnapshot({ executor, snapshot_gzip, snapshot_metadata, expected_commit } = {}) {
   if (!executor || typeof executor.query !== "function") throw new TypeError("A query-capable Runtime DB executor is required.");
   const snapshot = parseStagingRuntimeRegistrySnapshot({ snapshot_gzip, snapshot_metadata, expected_commit });
-  const schema = await inspectSchema(executor);
+  let schema;
+  try {
+    await preflightRegistryReadAccess(executor);
+    schema = await inspectSchema(executor);
+  } catch (error) {
+    return accessBlockedInspection(snapshot, error);
+  }
   if (!schema.ready) {
     return Object.freeze({ contract: "mad4b.staging-runtime-registry-reconciliation-inspection.v1", status: "schema_not_ready", repair_allowed: false, schema,
       missing_count: 0, exact_count: 0, conflict_count: 0, extra_count: 0, missing_statement_sha256: [], tables: [],
@@ -372,7 +438,11 @@ export async function inspectStagingRuntimeRegistrySnapshot({ executor, snapshot
       production_accessed: false, provider_accessed: false, secrets_included: false });
   }
   const reports = [];
-  for (const entry of CONFIG.tables) reports.push(await inspectTable(executor, snapshot, entry));
+  try {
+    for (const entry of CONFIG.tables) reports.push(await inspectTable(executor, snapshot, entry));
+  } catch (error) {
+    return accessBlockedInspection(snapshot, error);
+  }
   const missing = reports.flatMap((item) => item.missing);
   const exact = reports.flatMap((item) => item.exact);
   const conflicts = reports.flatMap((item) => item.conflicts);

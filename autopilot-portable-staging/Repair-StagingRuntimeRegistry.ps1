@@ -106,6 +106,27 @@ if($Mode -eq "Plan"){
     Require ($plan.production_access_forbidden -eq $true -and $plan.provider_access_forbidden -eq $true) "Runtime plan external authority boundary is invalid"
     Require ($plan.caller_sql_forbidden -eq $true -and $plan.caller_target_forbidden -eq $true) "Runtime plan caller authority boundary is invalid"
 
+    if([string]$plan.status_before -eq "access_not_ready"){
+        [ordered]@{
+            contract="mad4b.staging-runtime-registry-reconciliation-handoff.v1"
+            status="access_prerequisites_required"
+            expected_commit=$ExpectedCommit
+            access_condition="runtime_registry_select_denied"
+            prerequisite_authority=[ordered]@{
+                operation_key="database.repair"
+                runbook_key="database.access_repair"
+                action="dry_run"
+                apply_action="apply_grants"
+                target_source="staging_local_role_env"
+                target_key="staging-runtime"
+            }
+            database_mutation_performed=$false
+            production_mutation_performed=$false
+            provider_mutation_performed=$false
+            secrets_included=$false
+        }|ConvertTo-Json -Depth 30
+        return
+    }
     if([string]$plan.status_before -eq "schema_not_ready"){
         [ordered]@{
             contract="mad4b.staging-runtime-registry-reconciliation-handoff.v1"
@@ -114,8 +135,8 @@ if($Mode -eq "Plan"){
             missing_schema=$plan.status_before
             schema_prerequisites=$plan.schema_prerequisites
             prerequisite_authorities=@(
-                [ordered]@{migration="20260902_staging_actions_runtime_contract_reconciliation.sql";authority="staging_schema_repair";confirmation_formula="APPLY_STAGING_RUNTIME_MIGRATION:<sha>:staging-runtime:<migration>"},
-                [ordered]@{migration="20260815_custom_gpt_mcp_catalog_levels.sql";authority="staging_schema_repair";confirmation_formula="APPLY_STAGING_RUNTIME_MIGRATION:<sha>:staging-runtime:<migration>"}
+                [ordered]@{migration="20260902_staging_actions_runtime_contract_reconciliation.sql";authority="staging_schema_repair";operation_key="database.repair";runbook_key="database.schema_repair";action="dry_run";apply_action="apply_migration";target_source="staging_local_role_env";target_key="staging-runtime";confirmation_formula="APPLY_STAGING_RUNTIME_MIGRATION:<sha>:staging-runtime:<migration>"},
+                [ordered]@{migration="20260815_custom_gpt_mcp_catalog_levels.sql";authority="staging_schema_repair";operation_key="database.repair";runbook_key="database.schema_repair";action="dry_run";apply_action="apply_migration";target_source="staging_local_role_env";target_key="staging-runtime";confirmation_formula="APPLY_STAGING_RUNTIME_MIGRATION:<sha>:staging-runtime:<migration>"}
             )
             database_mutation_performed=$false
             production_mutation_performed=$false

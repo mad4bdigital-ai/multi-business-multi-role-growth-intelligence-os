@@ -13,6 +13,7 @@
       ".github/governance/test-authority-registry.json",
       "autopilot-portable-staging/Repair-StagingRuntimeRegistry.ps1",
       "docs/governance/configuration-drift-baseline-extensions.json",
+      "http-generic-api/databasePrivilegeContracts.js",
       "http-generic-api/config/canonical-semantic-artifacts.json",
       "http-generic-api/config/host-breakglass-staging-contract.json",
       "http-generic-api/config/repository-governance-constitution.json",
@@ -73,7 +74,7 @@
             "Require same-cycle readback to report no missing or conflicting canonical identities.",
             "Persist known-not-applied, unknown-outcome or succeeded lifecycle in a durable single-consumption ledger; unknown outcomes require reconciliation before any new plan.",
             "Route both fixed schema prerequisites through the existing server-managed Staging Schema Repair approval/ticket authority before semantic row reconciliation.",
-            "Acquire one exclusive host-local repair lock, revalidate the Runtime-identity precondition, materialize only plan-bound INSERT statements from the verified artifact, and execute them in one SERIALIZABLE Runtime DB root transaction without expanding application grants.",
+            "Acquire one exclusive host-local repair lock, revalidate the Runtime-identity precondition, materialize only plan-bound INSERT statements from the verified artifact, and execute them in one SERIALIZABLE Runtime DB root transaction without adding Runtime write authority.",
             "Keep the Runtime DB root secret container-local; the host orchestrator never reads or returns its value.",
             "After privileged transport, verify the postcondition through the normal Runtime identity; on transport ambiguity persist unknown_outcome and require explicit Reconcile mode before any new plan."
           ],
@@ -91,11 +92,12 @@
             "A transaction failure can be classified known-not-applied only after rollback plus semantic non-application readback; otherwise mutation outcome is unknown and automatic retry is forbidden.",
             "Apply completion requires same-cycle exact registry readback and a durable succeeded receipt.",
             "Both 20260902_staging_actions_runtime_contract_reconciliation.sql and 20260815_custom_gpt_mcp_catalog_levels.sql are checksum- and statement-count-pinned under the existing Staging Schema Repair authority; caller DDL is not accepted.",
-            "The local privileged transport does not expand Runtime grants: admin/tenant tool registries remain SELECT-only and endpoints/platform_endpoint_tool_exports receive no new Runtime grant.",
+            "The canonical local Staging Runtime grant policy gives endpoints, platform_endpoint_tool_exports, and the admin/tenant tool registries SELECT-only authority required for registry inspection and same-cycle readback; it adds no write privilege to those surfaces.",
             "The database root password remains inside the runtime-db container environment and is absent from host plan, ledger, output, and evidence payloads.",
             "JSON object/string representation differences and temporal driver representation differences are normalized before metadata fingerprints so equivalent values do not create false conflicts.",
             "Materialized reconciliation SQL is INSERT-only plus transaction/session control; UPDATE, DELETE, REPLACE, TRUNCATE, DROP, ALTER, CREATE, GRANT, and REVOKE remain forbidden.",
-            "The three reconciliation environment references are registered as non-secret permanent configuration-drift extensions scoped to exact source paths and grant no runtime or Production activation authority."
+            "The three reconciliation environment references are registered as non-secret permanent configuration-drift extensions scoped to exact source paths and grant no runtime or Production activation authority.",
+            "Runtime registry SELECT denial is classified fail-closed as access_not_ready and produces a structured database.access_repair/apply_grants handoff instead of being misreported as schema drift."
           ],
           "tests": [
             {
@@ -150,6 +152,7 @@
           ],
           "evidence_paths": [
             "autopilot-portable-staging/Repair-StagingRuntimeRegistry.ps1",
+            "http-generic-api/databasePrivilegeContracts.js",
             "docs/governance/configuration-drift-baseline-extensions.json",
             "http-generic-api/config/canonical-semantic-artifacts.json",
             "http-generic-api/config/host-breakglass-staging-contract.json",
