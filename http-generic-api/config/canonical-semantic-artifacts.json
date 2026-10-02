@@ -127,12 +127,42 @@
       "production_apply_allowed": false,
       "provider_apply_allowed": false,
       "source_kind": "repository_file"
+    },
+    {
+      "artifact_key": "runtime_registry_reconciliation_snapshot",
+      "lifecycle_class": "canonical_registry",
+      "target_role": "runtime",
+      "source_kind": "disposable_git_migration_projection",
+      "bundle_file": "runtime.registry-reconciliation.sql.gz",
+      "integrity_contract": "same_cycle_generated_sha256_manifest",
+      "replay_modes": [
+        "in_place_registry_reconciliation"
+      ],
+      "identity_contract": "runtime_registry_metadata_identity.v1",
+      "readback_contract": "runtime_registry_metadata_readback.v1",
+      "conflict_policy": "insert_missing_fail_closed_on_drift",
+      "required_for": [
+        "staging_runtime_registry_reconciliation"
+      ],
+      "dependencies": [],
+      "tables": [
+        "actions",
+        "endpoints",
+        "admin_platform_endpoint_tools",
+        "tenant_platform_endpoint_tools",
+        "platform_endpoint_tool_exports"
+      ],
+      "caller_sql_forbidden": true,
+      "caller_target_forbidden": true,
+      "production_apply_allowed": false,
+      "provider_apply_allowed": false
     }
   ],
   "dependency_graph": {
     "contract": "mad4b.canonical-semantic-artifact-dag.v1",
     "root_artifacts": [
-      "runtime_canonical_registry_snapshot"
+      "runtime_canonical_registry_snapshot",
+      "runtime_registry_reconciliation_snapshot"
     ],
     "cycle_policy": "fail_closed",
     "missing_dependency_policy": "fail_closed",

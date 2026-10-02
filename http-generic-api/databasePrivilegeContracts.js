@@ -49,6 +49,10 @@ export const BOOTSTRAP_ROLE_GRANT_POLICIES = Object.freeze({
 });
 
 const STAGING_RUNTIME_READ_ONLY_TABLES = Object.freeze([
+  // Canonical endpoint/export registries are required by runtime discovery and
+  // Staging registry reconciliation readback. Keep them SELECT-only.
+  "endpoints",
+  "platform_endpoint_tool_exports",
   "admin_platform_endpoint_tools",
   "tenant_platform_endpoint_tools",
   "sql_cache_runtime_policies",

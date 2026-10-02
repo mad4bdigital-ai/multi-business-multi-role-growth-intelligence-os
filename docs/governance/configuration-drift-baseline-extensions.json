@@ -433,6 +433,61 @@
       "grants_production_activation": false
     },
     {
+      "fingerprint": ".github/workflows/staging-live-certification.yml|expectedSha|environment_reference|release.cut.sha",
+      "owner": "staging-recovery-governance",
+      "reason": "The expected release-cut SHA is a read-only exact-identity binding used by the public-trust verifier to reject signed evidence for any other deployment; it cannot authorize deploy, provider, database, protected-ref, or Production mutation.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": ".github/workflows/staging-live-certification.yml|file|environment_reference|recovery.staging.signed.certification.file",
+      "owner": "staging-recovery-governance",
+      "reason": "The signed-certification file path is a runner-local non-secret reference created from an exact-SHA GitHub Actions artifact and consumed only by the public-trust verifier; the file contents remain subject to signature, payload-hash, freshness, environment, branch, deployment, and target checks before use.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": ".github/workflows/staging-live-certification.yml|GITHUB_ENV|environment_reference|github.env",
+      "owner": "staging-recovery-governance",
+      "reason": "GITHUB_ENV is the GitHub Actions runner-owned environment handoff used only after signed Recovery certification verification to pass bounded non-secret target and image identity into the subsequent read-only Staging certification step; it grants no provider, database, protected-ref, or Production mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": ".github/workflows/staging-live-certification.yml|RECOVERY_STAGING_EXPECTED_TARGET_FINGERPRINT|environment_reference|recovery.staging.expected.target.fingerprint",
+      "owner": "staging-recovery-governance",
+      "reason": "The Staging Recovery target fingerprint is a non-secret identity derived only after cryptographic verification of exact-SHA signed Recovery evidence and then passed through the runner environment for bounded consistency checks; artifact naming is not a trust root and no backend, JWT, tunnel, provider, database, protected-ref, or Production mutation authority is granted.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": ".github/workflows/staging-live-certification.yml|RECOVERY_STAGING_SIGNED_CERTIFICATION_ARTIFACT_NAME|environment_reference|recovery.staging.signed.certification.artifact.name",
+      "owner": "staging-recovery-governance",
+      "reason": "The selected signed-certification artifact name is a non-secret consistency binding checked against the target fingerprint recovered from the cryptographically verified payload; the name is never a trust root and grants no mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
       "fingerprint": ".github/workflows/staging-main-deploy-eligibility.yml|convergencePlanSha256|environment_reference|convergence.plan.sha256",
       "owner": "staging-gateway-governance",
       "reason": "Exact immutable environment-convergence plan SHA-256 is a non-secret stale-recovery identity binding used by the server-side dry-run evidence and explicit deploy handoff; it is not execution authority by itself and grants no runtime, provider, database, DNS, protected-ref, or Production mutation authority.",
@@ -1632,6 +1687,39 @@
       "grants_production_activation": false
     },
     {
+      "fingerprint": "http-generic-api/scripts/staging-runtime-registry-reconciliation-ledger.mjs|root|environment_reference|staging.runtime.registry.reconciliation.ledger.dir",
+      "owner": "staging-runtime-registry-reconciliation",
+      "reason": "The ledger directory is a local Staging host path reference for the single-consumption reconciliation state machine. It contains no credential value, selects no database or provider target, and grants no Runtime, Production, protected-ref, or provider mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/scripts/staging-runtime-registry-reconciliation-runtime-check.mjs|envCommit|environment_reference|deploy.commit",
+      "owner": "staging-runtime-registry-reconciliation",
+      "reason": "DEPLOY_COMMIT is consumed only as a non-secret exact-deployment identity and must equal both the immutable plan commit and deployment manifest before any reconciliation readback/plan action; it grants no mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/scripts/staging-runtime-registry-reconciliation-runtime-check.mjs|NODE_ENV|environment_reference|node.env",
+      "owner": "staging-runtime-registry-reconciliation",
+      "reason": "NODE_ENV is read only to fail closed unless the runtime is unambiguously Staging; it is not a secret or authority grant and cannot select Production, a provider, a database target, or arbitrary SQL.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
       "fingerprint": "http-generic-api/scripts/test-platform-configuration-entry-guard.mjs|reviewedPolicyFingerprint|literal_declaration|reviewedpolicyfingerprint",
       "owner": "repository-governance",
       "reason": "The platform configuration guard regression fixture binds a non-secret reviewed fingerprint to prove that permanent governance extensions bypass only the intended candidate classification while unreviewed and unsafe entries remain blocked.",
@@ -2119,61 +2207,6 @@
       "fingerprint": "local-connector/connector-runtime-bootstrap.mjs|policyEnabled|literal_declaration|policyenabled",
       "owner": "local-connector",
       "reason": "The boolean derives whether the environment-bound connector policy pull is active; it is fixed fail-closed bootstrap logic, contains no configured value, and grants no runtime or Production mutation authority.",
-      "lifecycle": "permanent",
-      "configuration_class": "ci_governance_input",
-      "sensitivity": "non_secret_reference",
-      "contains_secret_value": false,
-      "grants_runtime_mutation": false,
-      "grants_production_activation": false
-    },
-    {
-      "fingerprint": ".github/workflows/staging-live-certification.yml|GITHUB_ENV|environment_reference|github.env",
-      "owner": "staging-recovery-governance",
-      "reason": "GITHUB_ENV is the GitHub Actions runner-owned environment handoff used only after signed Recovery certification verification to pass bounded non-secret target and image identity into the subsequent read-only Staging certification step; it grants no provider, database, protected-ref, or Production mutation authority.",
-      "lifecycle": "permanent",
-      "configuration_class": "ci_governance_input",
-      "sensitivity": "non_secret_reference",
-      "contains_secret_value": false,
-      "grants_runtime_mutation": false,
-      "grants_production_activation": false
-    },
-    {
-      "fingerprint": ".github/workflows/staging-live-certification.yml|RECOVERY_STAGING_SIGNED_CERTIFICATION_ARTIFACT_NAME|environment_reference|recovery.staging.signed.certification.artifact.name",
-      "owner": "staging-recovery-governance",
-      "reason": "The selected signed-certification artifact name is a non-secret consistency binding checked against the target fingerprint recovered from the cryptographically verified payload; the name is never a trust root and grants no mutation authority.",
-      "lifecycle": "permanent",
-      "configuration_class": "ci_governance_input",
-      "sensitivity": "non_secret_reference",
-      "contains_secret_value": false,
-      "grants_runtime_mutation": false,
-      "grants_production_activation": false
-    },
-    {
-      "fingerprint": ".github/workflows/staging-live-certification.yml|expectedSha|environment_reference|release.cut.sha",
-      "owner": "staging-recovery-governance",
-      "reason": "The expected release-cut SHA is a read-only exact-identity binding used by the public-trust verifier to reject signed evidence for any other deployment; it cannot authorize deploy, provider, database, protected-ref, or Production mutation.",
-      "lifecycle": "permanent",
-      "configuration_class": "ci_governance_input",
-      "sensitivity": "non_secret_reference",
-      "contains_secret_value": false,
-      "grants_runtime_mutation": false,
-      "grants_production_activation": false
-    },
-    {
-      "fingerprint": ".github/workflows/staging-live-certification.yml|file|environment_reference|recovery.staging.signed.certification.file",
-      "owner": "staging-recovery-governance",
-      "reason": "The signed-certification file path is a runner-local non-secret reference created from an exact-SHA GitHub Actions artifact and consumed only by the public-trust verifier; the file contents remain subject to signature, payload-hash, freshness, environment, branch, deployment, and target checks before use.",
-      "lifecycle": "permanent",
-      "configuration_class": "ci_governance_input",
-      "sensitivity": "non_secret_reference",
-      "contains_secret_value": false,
-      "grants_runtime_mutation": false,
-      "grants_production_activation": false
-    },
-    {
-      "fingerprint": ".github/workflows/staging-live-certification.yml|RECOVERY_STAGING_EXPECTED_TARGET_FINGERPRINT|environment_reference|recovery.staging.expected.target.fingerprint",
-      "owner": "staging-recovery-governance",
-      "reason": "The Staging Recovery target fingerprint is a non-secret identity derived only after cryptographic verification of exact-SHA signed Recovery evidence and then passed through the runner environment for bounded consistency checks; artifact naming is not a trust root and no backend, JWT, tunnel, provider, database, protected-ref, or Production mutation authority is granted.",
       "lifecycle": "permanent",
       "configuration_class": "ci_governance_input",
       "sensitivity": "non_secret_reference",

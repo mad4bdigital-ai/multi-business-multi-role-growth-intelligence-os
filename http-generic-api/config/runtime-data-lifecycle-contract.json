@@ -20,7 +20,11 @@
     "canonical_semantic_snapshot_exact_commit_required": true,
     "canonical_semantic_snapshot_same_cycle_hash_required": true,
     "unregistered_activation_registry_mutation_forbidden": true,
-    "platform_admin_workspace_authority_parity_required": true
+    "platform_admin_workspace_authority_parity_required": true,
+    "registry_reconciliation_insert_only": true,
+    "registry_reconciliation_existing_row_drift_fail_closed": true,
+    "registry_reconciliation_extra_live_rows_preserved": true,
+    "registry_reconciliation_production_source_forbidden": true
   },
   "datasets": {
     "workspace_registry": {
@@ -126,9 +130,11 @@
       ],
       "replay_strategy": "disposable_git_semantic_snapshot",
       "artifact_keys": [
-        "runtime_canonical_registry_snapshot"
+        "runtime_canonical_registry_snapshot",
+        "runtime_registry_reconciliation_snapshot"
       ],
-      "snapshot_target_role": "runtime"
+      "snapshot_target_role": "runtime",
+      "in_place_reconciliation": "insert_missing_fail_closed_on_drift"
     },
     "remote_runtime_command_allowlists": {
       "class": "canonical_registry",
@@ -185,9 +191,11 @@
       "known_replay_gap": false,
       "replay_strategy": "disposable_git_semantic_snapshot",
       "artifact_keys": [
-        "runtime_canonical_registry_snapshot"
+        "runtime_canonical_registry_snapshot",
+        "runtime_registry_reconciliation_snapshot"
       ],
-      "snapshot_target_role": "runtime"
+      "snapshot_target_role": "runtime",
+      "in_place_reconciliation": "insert_missing_fail_closed_on_drift"
     },
     "platform_endpoint_tool_exports": {
       "class": "canonical_registry",
@@ -196,9 +204,11 @@
       "known_replay_gap": false,
       "replay_strategy": "disposable_git_semantic_snapshot",
       "artifact_keys": [
-        "runtime_canonical_registry_snapshot"
+        "runtime_canonical_registry_snapshot",
+        "runtime_registry_reconciliation_snapshot"
       ],
-      "snapshot_target_role": "runtime"
+      "snapshot_target_role": "runtime",
+      "in_place_reconciliation": "insert_missing_fail_closed_on_drift"
     },
     "connected_systems": {
       "class": "environment_state",
@@ -422,6 +432,30 @@
     "local_manager_device_link_sessions": {
       "class": "operational_state",
       "reseed_forbidden": true
+    },
+    "actions": {
+      "class": "canonical_registry",
+      "rebuild_from_git": true,
+      "zero_rows_allowed": false,
+      "known_replay_gap": false,
+      "replay_strategy": "disposable_git_registry_reconciliation_snapshot",
+      "artifact_keys": [
+        "runtime_registry_reconciliation_snapshot"
+      ],
+      "snapshot_target_role": "runtime",
+      "in_place_reconciliation": "insert_missing_fail_closed_on_drift"
+    },
+    "endpoints": {
+      "class": "canonical_registry",
+      "rebuild_from_git": true,
+      "zero_rows_allowed": false,
+      "known_replay_gap": false,
+      "replay_strategy": "disposable_git_registry_reconciliation_snapshot",
+      "artifact_keys": [
+        "runtime_registry_reconciliation_snapshot"
+      ],
+      "snapshot_target_role": "runtime",
+      "in_place_reconciliation": "insert_missing_fail_closed_on_drift"
     }
   },
   "table_families": [

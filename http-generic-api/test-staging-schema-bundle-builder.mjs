@@ -27,6 +27,31 @@ const generator = fs.readFileSync(generatorPath, "utf8");
 const baselineSchema = fs.readFileSync(path.join(apiRoot, "schema.sql"), "utf8");
 const expectedCommit = spawnSync("git", ["rev-parse", "HEAD"], { cwd: repoRoot, encoding: "utf8" }).stdout.trim();
 
+test("registry reconciliation projection is repository-owned, insert-only, and strips live bindings", () => {
+  const config = manifest.canonical_registry_reconciliation_snapshot;
+  assert.equal(config.contract, "mad4b.staging.runtime-registry-reconciliation-snapshot.v1");
+  assert.equal(config.target_role, "runtime");
+  assert.equal(config.source_kind, "disposable_git_migration_projection");
+  assert.equal(config.replay_mode, "in_place_insert_only");
+  assert.equal(config.production_access_forbidden, true);
+  assert.equal(config.provider_access_forbidden, true);
+  assert.equal(config.live_environment_data_copy_forbidden, true);
+  assert.deepEqual(config.tables, ["actions","endpoints","admin_platform_endpoint_tools","tenant_platform_endpoint_tools","platform_endpoint_tool_exports"]);
+  assert.deepEqual(config.identity_columns_by_table.endpoints, ["parent_action_key","endpoint_key"]);
+  for (const column of ["api_key_value","secret_store_ref","openai_schema_file_id","oauth_client_secret_ref","oauth_last_validated_at"]) {
+    assert.equal(config.excluded_columns_by_table.actions.includes(column), true);
+  }
+  assert.equal(config.excluded_columns_by_table.endpoints.includes("child_openai_schema_file_id"), true);
+  assert.equal(config.excluded_columns_by_table.platform_endpoint_tool_exports.includes("source_endpoint_id"), true);
+  assert.deepEqual(manifest.validation.required_registry_reconciliation_bundle_files, ["runtime.registry-reconciliation.sql.gz"]);
+  assert.match(generator, /function makeCanonicalRegistryReconciliationDump\(manifest, runtimeTables\)/u);
+  assert.match(generator, /canonical_registry_reconciliation_snapshot/u);
+  assert.match(generator, /configured_identity/u);
+  assert.match(generator, /column_types: Object\.fromEntries/u);
+  assert.match(generator, /column_types: plan\.column_types/u);
+  assert.match(generator, /canonical registry reconciliation snapshot contains a forbidden mutation/u);
+});
+
 test("semantic snapshot replays foreign-key parents before children", () => {
   const tables = manifest.canonical_semantic_snapshot.tables;
   const dependency = { child: "activation_callback_registry", parent: "activation_operational_tile_registry", constraint: "fk_activation_callback_tile" };
