@@ -541,13 +541,11 @@ export async function readTenantGptOAuthRecoveryServerEvidence({
       "  FROM `execution_log`",
       " WHERE action_key = ?",
       "   AND correlation_id = ?",
-      "   AND JSON_UNQUOTE(JSON_EXTRACT(runtime_evidence_json, '$.operation_id')) = ?",
-      "   AND JSON_UNQUOTE(JSON_EXTRACT(runtime_evidence_json, '$.deployment_sha')) = ?",
       "   AND created_at >= DATE_SUB(CURRENT_TIMESTAMP, INTERVAL 1 HOUR)",
       " ORDER BY id ASC",
       " LIMIT " + String(MAX_READBACK_ROWS + 1),
     ].join("\n"),
-    [TENANT_GPT_OAUTH_RECOVERY_SERVER_EVIDENCE_ACTION_KEY, correlationId, operationId, observedDeploymentSha],
+    [TENANT_GPT_OAUTH_RECOVERY_SERVER_EVIDENCE_ACTION_KEY, correlationId],
     readBudgetMs,
   );
 
