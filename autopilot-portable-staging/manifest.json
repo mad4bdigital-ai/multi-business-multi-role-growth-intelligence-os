@@ -370,19 +370,19 @@
     },
     {
       "path": "http-generic-api/openapi/openapi.tenant-gpt.auth.staging.yaml",
-      "sha256": "53a5a1f55876708e7a0f94ba70af2255c4ad5abac041875f0632acba50093935"
+      "sha256": "1841ea5cf35ae28339f13d96448bcda76f4fce6b5681b70afa755dd8cdc0425d"
     },
     {
       "path": "http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.staging.yaml",
-      "sha256": "ea2e4c3ce7e9a11a8c9e3a2f750d3bbd4934c6fde155207e216cc82648d331b5"
+      "sha256": "e70981dd4496b3fc19062595feb19568df8f58c4ed942bd6b643b97d4db62bd7"
     },
     {
       "path": "http-generic-api/openapi/openapi.tenant-gpt.activation.staging.yaml",
-      "sha256": "3bfb9feeeecd1d141befc8c898c88559144d55983d01ecd529364d01b1b27006"
+      "sha256": "cd65e2d19670d5a75c26128c8e1fa51f03ef856aa1a2eb77323be394da1bcb97"
     },
     {
       "path": "http-generic-api/openapi/openapi.custom-gpt.activation-admin.staging.yaml",
-      "sha256": "cc21353a30378c2ac3754ca921aafed4b122240278468f802bd50a39abf610cf"
+      "sha256": "4b590cb1e6a60ab35a9b791d908558283214ea20eb5b4309042edcaebb19a864"
     },
     {
       "path": "autopilot-portable-staging/Invoke-Staging-One-Click-Core.ps1",
