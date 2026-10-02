@@ -12,6 +12,7 @@
       ".github/derived-state-governance.json",
       ".github/governance/test-authority-registry.json",
       "autopilot-portable-staging/Repair-StagingRuntimeRegistry.ps1",
+      "docs/governance/configuration-drift-baseline-extensions.json",
       "http-generic-api/config/canonical-semantic-artifacts.json",
       "http-generic-api/config/host-breakglass-staging-contract.json",
       "http-generic-api/config/repository-governance-constitution.json",
@@ -93,7 +94,8 @@
             "The local privileged transport does not expand Runtime grants: admin/tenant tool registries remain SELECT-only and endpoints/platform_endpoint_tool_exports receive no new Runtime grant.",
             "The database root password remains inside the runtime-db container environment and is absent from host plan, ledger, output, and evidence payloads.",
             "JSON object/string representation differences and temporal driver representation differences are normalized before metadata fingerprints so equivalent values do not create false conflicts.",
-            "Materialized reconciliation SQL is INSERT-only plus transaction/session control; UPDATE, DELETE, REPLACE, TRUNCATE, DROP, ALTER, CREATE, GRANT, and REVOKE remain forbidden."
+            "Materialized reconciliation SQL is INSERT-only plus transaction/session control; UPDATE, DELETE, REPLACE, TRUNCATE, DROP, ALTER, CREATE, GRANT, and REVOKE remain forbidden.",
+            "The three reconciliation environment references are registered as non-secret permanent configuration-drift extensions scoped to exact source paths and grant no runtime or Production activation authority."
           ],
           "tests": [
             {
@@ -148,6 +150,7 @@
           ],
           "evidence_paths": [
             "autopilot-portable-staging/Repair-StagingRuntimeRegistry.ps1",
+            "docs/governance/configuration-drift-baseline-extensions.json",
             "http-generic-api/config/canonical-semantic-artifacts.json",
             "http-generic-api/config/host-breakglass-staging-contract.json",
             "http-generic-api/config/runtime-data-lifecycle-contract.json",
