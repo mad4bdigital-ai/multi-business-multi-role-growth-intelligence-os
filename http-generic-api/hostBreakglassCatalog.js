@@ -394,12 +394,7 @@ async function githubRequest({ token, method = "GET", pathname, body, fetchImpl 
   return { status: response.status, payload };
 }
 
-async function resolveHostBreakglassToken({
-  env = process.env,
-  fetchImpl = fetch,
-  tokenResolver = getGitHubAppInstallationToken,
-  repository = null,
-} = {}) {
+async function resolveHostBreakglassToken({ env = process.env, fetchImpl = fetch, tokenResolver = getGitHubAppInstallationToken } = {}) {
   const directToken = String(env.RUNTIME_BREAKGLASS_GITHUB_TOKEN || "").trim();
   if (directToken) return { token: directToken, auth_mode: "server_side_token" };
   try {
@@ -409,7 +404,6 @@ async function resolveHostBreakglassToken({
         github_app_installation_id: env.RUNTIME_BREAKGLASS_GITHUB_APP_INSTALLATION_ID || env.GITHUB_APP_INSTALLATION_ID,
         secret_store_ref: env.RUNTIME_BREAKGLASS_GITHUB_APP_PRIVATE_KEY_REF || "",
       },
-      repository,
       fetchImpl,
     });
     if (token) return { token: String(token), auth_mode: "github_app_installation" };
@@ -482,19 +476,7 @@ export async function dispatchHostBreakglassPlan(plan, { env = process.env, fetc
     return { ok: true, contract: "mad4.host-breakglass-host-local-handoff.v1", correlation_id: plan.correlation_id, plan_sha256: plan.plan_sha256, status: "host_local_execution_required", environment_key: plan.environment_key, target_source: plan.target_source, role_credential_source: "existing_hostinger_environment", execution_authority: plan.execution_authority, control_plane_host: plan.control_plane_host, local_connector_status: plan.local_connector_status, local_connector_required: plan.local_connector_required, local_connector_fallback_allowed: plan.local_connector_fallback_allowed, selected_rebuild_roles: Array.isArray(plan.selected_rebuild_roles) ? plan.selected_rebuild_roles : [], role_selection_proof_hash: plan.role_selection_proof?.selection_hash || null, separate_typed_confirmation_required: plan.action === "apply_migration" || plan.action === "apply_grants", github_secrets_required: false, workflow_dispatch_performed: false, database_mutation_performed: false, secrets_included: false };
   }
   if (plan.execution_transport !== "github_workflow" || plan.environment_key !== "production_hostinger_autodeploy") {
-    const receipt = { ok: true, contract: "mad4b.host-breakglass-local-handoff.v1", correlation_id: plan.correlation_id, plan_sha256: plan.plan_sha256, status: "local_execution_required", environment_key: plan.environment_key, required_platform: "win32", required_runtime: "docker_compose", command: "npm run host-breakglass:local -- --request-file <verified-request.json>", workflow_dispatch_performed: false, database_mutation_performed: false, secrets_included: false };
-    const existing = RUNS.get(plan.correlation_id);
-
-    if (existing && existing.plan_sha256 !== plan.plan_sha256) {
-      fail(
-        409,
-        "host_breakglass_idempotency_conflict",
-        "correlation_id is already bound to a different plan."
-      );
-    }
-
-    RUNS.set(plan.correlation_id, receipt);
-    return receipt;
+    return { ok: true, contract: "mad4b.host-breakglass-local-handoff.v1", correlation_id: plan.correlation_id, plan_sha256: plan.plan_sha256, status: "local_execution_required", environment_key: plan.environment_key, required_platform: "win32", required_runtime: "docker_compose", command: "npm run host-breakglass:local -- --request-file <verified-request.json>", workflow_dispatch_performed: false, database_mutation_performed: false, secrets_included: false };
   }
   if (plan.target_source === "host_local_role_env") fail(403, "host_breakglass_host_local_github_workflow_denied", "host_local_role_env cannot be downgraded into a GitHub workflow source.");
   const targetSourceMap = Object.freeze({ runtime_env: "hostinger_runtime_env", repository_allowlist: "repository_allowlist" });
@@ -503,12 +485,7 @@ export async function dispatchHostBreakglassPlan(plan, { env = process.env, fetc
   const existing = RUNS.get(plan.correlation_id);
   if (existing && existing.plan_sha256 !== plan.plan_sha256) fail(409, "host_breakglass_idempotency_conflict", "correlation_id is already bound to a different plan.");
   const [owner, repo] = plan.repository.split("/");
-  const { token, auth_mode } = await resolveHostBreakglassToken({
-    env,
-    fetchImpl,
-    tokenResolver,
-    repository: { owner, repo },
-  });
+  const { token, auth_mode } = await resolveHostBreakglassToken({ env, fetchImpl, tokenResolver });
   const prior = await githubRequest({ token, pathname: workflowRunsPath(plan), fetchImpl });
   const matchingRuns = matchingHostBreakglassRuns(prior.payload, plan);
   if (matchingRuns.length > 1) fail(409, "host_breakglass_idempotency_ambiguous", "More than one exact GitHub workflow run matches this correlation and plan.", { candidate_count: matchingRuns.length });
@@ -557,27 +534,8 @@ export async function dispatchHostBreakglassPlan(plan, { env = process.env, fetc
 export async function readHostBreakglassRun(correlationId, { catalog = readHostBreakglassCatalog(), fetchImpl = fetch, env = process.env, tokenResolver = getGitHubAppInstallationToken } = {}) {
   if (!SAFE_ID_RE.test(String(correlationId || ""))) fail(400, "host_breakglass_correlation_invalid", "correlation_id is invalid.");
   const receipt = RUNS.get(correlationId);
-
-  if (
-    receipt &&
-    (
-      receipt.status === "local_execution_required" ||
-      receipt.status === "host_local_execution_required"
-    )
-  ) {
-    return {
-      ...receipt,
-      durable_github_readback: false,
-    };
-  }
-
   const [owner, repo] = catalog.repository.split("/");
-  const { token, auth_mode } = await resolveHostBreakglassToken({
-    env,
-    fetchImpl,
-    tokenResolver,
-    repository: { owner, repo },
-  });
+  const { token, auth_mode } = await resolveHostBreakglassToken({ env, fetchImpl, tokenResolver });
   const result = await githubRequest({ token, pathname: `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/actions/workflows/${encodeURIComponent(catalog.workflow)}/runs?event=workflow_dispatch&branch=${encodeURIComponent(catalog.dispatch_ref)}&per_page=20`, fetchImpl });
   const durablePrefix = `runtime-breakglass-${correlationId}-`;
   const candidates = (result.payload?.workflow_runs || []).filter((item) => item?.head_branch === catalog.dispatch_ref && String(item?.event || "") === "workflow_dispatch" && String(item.display_title || item.run_name || "").startsWith(durablePrefix));
