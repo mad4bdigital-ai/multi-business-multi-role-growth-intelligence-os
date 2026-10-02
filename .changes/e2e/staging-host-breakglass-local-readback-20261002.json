@@ -1,0 +1,126 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-host-breakglass-local-readback",
+  "title": "Preserve Staging Host Breakglass local handoff and readback",
+  "delivery_mode": "single_pr",
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-host-breakglass-local-readback-20261002.json",
+      ".github/governance/test-authority-registry.json",
+      "autopilot-portable-staging/manifest.json",
+      "docs/remote-mcp-write-scope-inventory.md",
+      "http-generic-api/frontend-surface-dispatch.generated.json",
+      "http-generic-api/hostBreakglassCatalog.js",
+      "http-generic-api/hostBreakglassLocalRequest.js",
+      "http-generic-api/openapi/generated/custom-admin-schema-index.json",
+      "http-generic-api/openapi/generated/custom-gpt-registration-manifest.json",
+      "http-generic-api/openapi/openapi.custom-gpt.activation-admin.production.yaml",
+      "http-generic-api/openapi/openapi.custom-gpt.activation-admin.staging.yaml",
+      "http-generic-api/openapi/openapi.custom-gpt.activation-admin.yaml",
+      "http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.production.yaml",
+      "http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.staging.yaml",
+      "http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.yaml",
+      "http-generic-api/openapi/openapi.custom-gpt.recovery-admin.production.yaml",
+      "http-generic-api/openapi/openapi.custom-gpt.recovery-admin.staging.yaml",
+      "http-generic-api/openapi/openapi.tenant-gpt.activation.production.yaml",
+      "http-generic-api/openapi/openapi.tenant-gpt.activation.staging.yaml",
+      "http-generic-api/openapi/openapi.tenant-gpt.activation.yaml",
+      "http-generic-api/openapi/openapi.tenant-gpt.auth.production.yaml",
+      "http-generic-api/openapi/openapi.tenant-gpt.auth.staging.yaml",
+      "http-generic-api/openapi/openapi.tenant-gpt.auth.yaml",
+      "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
+      "http-generic-api/routes/adminHostBreakglassRoutes.js",
+      "http-generic-api/test-host-breakglass-local-readback.mjs",
+      "http-generic-api/test-host-breakglass-local-request.mjs",
+      "specs/020-platform-resource-identity-brand-governance/openapi-detail-closure-batch-full.json",
+      "specs/020-platform-resource-identity-brand-governance/openapi-detail-gap-classification.json",
+      "specs/020-platform-resource-identity-brand-governance/openapi-gap-closure-plan.json"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Preserve exact Staging local Host Breakglass handoff/readback while keeping Production Hostinger host-local readback broker-backed and non-mutating.",
+      "e2e_journeys": [
+        {
+          "id": "staging-local-host-breakglass-readback",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Staging recovery operator",
+          "entrypoint": "A governed Staging runtime-bootstrap plan resolves to the local Windows/Docker Host Breakglass transport.",
+          "terminal_outcome": "The exact local receipt is readable from process-local state without a GitHub broker call, while Production host-local and genuine GitHub-backed readbacks retain their existing broker-backed semantics.",
+          "steps": [
+            "Build the canonical Staging access-repair or schema-repair Host Breakglass plan.",
+            "Dispatch the local Staging transport and bind the local_execution_required receipt to correlation_id and plan_sha256.",
+            "Read the same correlation_id and return the exact local receipt without GitHub broker discovery.",
+            "Exercise a Production host_local_execution_required receipt and require broker-backed readback semantics.",
+            "Exercise genuine GitHub-backed readback and forward the server-owned repository binding into GitHub App installation discovery."
+          ],
+          "assertions": [
+            "Staging local readback does not invoke the GitHub broker.",
+            "A reused correlation_id cannot bind to a different plan hash.",
+            "Production host_local_execution_required is not accepted by the Staging local fast-path.",
+            "GitHub-backed readback resolves installation credentials against the canonical repository binding.",
+            "No Production mutation or execution-authority expansion is introduced."
+          ],
+          "tests": [
+            {
+              "id": "host-breakglass-local-readback",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-host-breakglass-local-readback.mjs",
+              "args": []
+            },
+            {
+              "id": "host-breakglass-local-request",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-host-breakglass-local-request.mjs",
+              "args": []
+            },
+            {
+              "id": "github-app-auth",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-github-app-auth.mjs",
+              "args": []
+            },
+            {
+              "id": "github-app-installation-discovery",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-github-app-installation-discovery.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/staging-host-breakglass-local-readback-20261002.json",
+            ".github/governance/test-authority-registry.json",
+            "http-generic-api/hostBreakglassCatalog.js",
+            "http-generic-api/hostBreakglassLocalRequest.js",
+            "http-generic-api/routes/adminHostBreakglassRoutes.js",
+            "http-generic-api/test-host-breakglass-local-readback.mjs",
+            "http-generic-api/test-host-breakglass-local-request.mjs"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}
