@@ -212,7 +212,6 @@ export function requireActivationTenantGptAccessToken(
   req,
   res,
   next,
-  { onRecoveryEvidence = null } = {},
 ) {
   const authorization = String(req.headers?.authorization || "");
   const token = authorization.replace(/^Bearer\s+/i, "").trim();
@@ -275,20 +274,6 @@ export function requireActivationTenantGptAccessToken(
       oauth_operation_id: gatewayCorrelation?.operation_id || null,
       oauth_correlation_id: gatewayCorrelation?.correlation_id || null,
     };
-    if (gatewayCorrelation && typeof onRecoveryEvidence === "function") {
-      Promise.resolve()
-        .then(() => onRecoveryEvidence({
-          event: "resource_request_verified",
-          correlation: gatewayCorrelation,
-        }))
-        .catch((evidenceError) => {
-          console.warn("tenant_gpt_oauth_recovery_evidence_write_failed", {
-            event: "resource_request_verified",
-            code: String(evidenceError?.code || "evidence_write_failed").slice(0, 64),
-            secrets_included: false,
-          });
-        });
-    }
     return next();
   } catch (error) {
     return res.status(error.status || 401).json({

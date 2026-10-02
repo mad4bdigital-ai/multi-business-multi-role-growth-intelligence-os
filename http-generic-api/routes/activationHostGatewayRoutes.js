@@ -202,6 +202,7 @@ export function buildActivationHostGatewayRoutes({
   ingressReplayStore = null,
   deploymentAttestationReader = null,
   oauthRecoveryEvidenceRecorder = null,
+  tenantGptAccessTokenVerifier = requireActivationTenantGptAccessToken,
 } = {}) {
   const config = buildGatewayConfig(env, activationHost);
   const effectiveIngressReplayStore = resolveStagingRecoveryReplayStore(config, env, ingressReplayStore);
@@ -357,9 +358,33 @@ export function buildActivationHostGatewayRoutes({
     };
 
     if (isTenantGptProtectedPath(pathname, req.method, config)) {
-      return requireActivationTenantGptAccessToken(req, res, next, {
-        onRecoveryEvidence: effectiveOAuthRecoveryEvidenceRecorder,
-      });
+      let verificationPassed = false;
+      let verificationError = null;
+      const verificationResult = await Promise.resolve(
+        tenantGptAccessTokenVerifier(req, res, (error) => {
+          verificationError = error || null;
+          verificationPassed = !error;
+        }),
+      );
+      if (verificationError) return next(verificationError);
+      if (!verificationPassed) return verificationResult;
+
+      const gatewayCorrelation = req.auth?.oauth_correlation || null;
+      if (gatewayCorrelation && typeof effectiveOAuthRecoveryEvidenceRecorder === "function") {
+        try {
+          await effectiveOAuthRecoveryEvidenceRecorder({
+            event: "resource_request_verified",
+            correlation: gatewayCorrelation,
+          });
+        } catch (evidenceError) {
+          console.warn("tenant_gpt_oauth_recovery_evidence_write_failed", {
+            event: "resource_request_verified",
+            code: String(evidenceError?.code || "evidence_write_failed").slice(0, 64),
+            secrets_included: false,
+          });
+        }
+      }
+      return next();
     }
     return next();
   });

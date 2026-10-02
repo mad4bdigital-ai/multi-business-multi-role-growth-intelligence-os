@@ -224,6 +224,7 @@ async function issueCorrelationTicket(baseUrl, {
 const oauthTokenDiagnostics = [];
 const tenantGptActivationContexts = [];
 const oauthCredentialRequests = [];
+const oauthRecoveryEvents = [];
 const ssoSessions = new Map();
 const durableOAuthCodes = new Map();
 
@@ -326,6 +327,10 @@ app.use(buildActivationHostGatewayRoutes());
 app.get("/tenant/activation/probe", (req, res) => res.status(200).json({ ok: true, auth: req.auth || null }));
 app.use("/auth", buildAuthRoutes({
   getPool: () => oauthClientPool,
+  recordTenantGptOAuthRecoveryServerEvidence: async ({ input }) => {
+    oauthRecoveryEvents.push(structuredClone(input));
+    return { recorded: true, secrets_included: false };
+  },
   isTenantGptSsoSessionActive: async ({ sid }) => ({ ok: true, active: ssoSessions.has(sid), sid }),
   persistTenantGptSsoSession: async ({ claims }) => { ssoSessions.set(claims.sid, claims); return { ok: true, sid: claims.sid }; },
   revokeTenantGptSsoSessionBySid: async ({ sid }) => ssoSessions.delete(sid),
@@ -395,6 +400,9 @@ try {
     assert("authorize popup does not call broad Google auth route", !result.text.includes('fetch("/auth/google"'));
     primaryCorrelationTicket = correlationTicketFromAuthorizeHtml(result.text);
     assert("authorize carries only a signed correlation ticket", typeof primaryCorrelationTicket === "string" && primaryCorrelationTicket.split(".").length === 3, primaryCorrelationTicket);
+    assert("authorize records exactly one Recovery authorize observation",
+      oauthRecoveryEvents.filter((event) => event.event === "authorize_received").length === 1,
+      JSON.stringify(oauthRecoveryEvents));
     assert("authorize does not expose raw correlation envelope", !result.text.includes('"operation_id"'), result.text.slice(0, 500));
     assert("authorize leaves GIS button locale automatic", !/locale\s*:\s*["'][^"']+["']/.test(result.text));
     assert("authorize does not force a GSI hl parameter", !result.text.includes("gsi/client?hl="));
@@ -765,6 +773,16 @@ try {
   assert("authorization code stores canonical ChatGPT callback", decodedAuthorizationCode?.redirect_uri === canonicalRedirectUri, JSON.stringify(decodedAuthorizationCode));
   assert("authorization code binds the registered OAuth client", decodedAuthorizationCode?.client_id === "mad4b-tenant-gpt", JSON.stringify(decodedAuthorizationCode));
   assert("authorization code binds the Activation protected resource", decodedAuthorizationCode?.resource === ACTIVATION_RESOURCE, JSON.stringify(decodedAuthorizationCode));
+  const primaryRecoverySequence = oauthRecoveryEvents
+    .filter((event) => event.correlation?.operation_id === decodedAuthorizationCode?.oauth_correlation?.operation_id)
+    .map((event) => event.event);
+  assert("successful authorize/code flow records server-owned Recovery stages in order",
+    JSON.stringify(primaryRecoverySequence) === JSON.stringify([
+      "authorize_received",
+      "login_consent_completed",
+      "authorization_code_issued",
+    ]),
+    JSON.stringify(primaryRecoverySequence));
   assert("authorization code binds the PKCE challenge", decodedAuthorizationCode?.code_challenge === PKCE_CHALLENGE, JSON.stringify(decodedAuthorizationCode));
   assert("authorization code binds S256 PKCE method", decodedAuthorizationCode?.code_challenge_method === "S256", JSON.stringify(decodedAuthorizationCode));
   assert("authorization code carries server-owned OAuth correlation", decodedAuthorizationCode?.oauth_correlation?.stage === "oauth_code_issue", JSON.stringify(decodedAuthorizationCode?.oauth_correlation));
@@ -813,6 +831,7 @@ try {
   assert("credential code preserves OAuth state", String(credentialCodeResult.body.redirect_to || "").includes("state=credential-state"), credentialCodeResult.body.redirect_to);
   assert("credential resolver receives the selected popup mode", oauthCredentialRequests[0]?.kind === "login", JSON.stringify(oauthCredentialRequests));
 
+  const recoveryEventCountBeforeTamperedTicket = oauthRecoveryEvents.length;
   const tamperedTicket = `${primaryCorrelationTicket.slice(0, -1)}${primaryCorrelationTicket.endsWith("a") ? "b" : "a"}`;
   const tamperedCorrelation = await postJson(baseUrl, "/auth/oauth/code", {
     correlation_ticket: tamperedTicket,
@@ -825,6 +844,9 @@ try {
   });
   assert("oauth code rejects a caller-tampered correlation ticket", tamperedCorrelation.status === 409 || tamperedCorrelation.status === 400, JSON.stringify(tamperedCorrelation.body));
   assert("tampered correlation ticket fails before code issuance", String(tamperedCorrelation.body.error?.code || "").startsWith("oauth_correlation_"), JSON.stringify(tamperedCorrelation.body));
+  assert("tampered correlation ticket writes no Recovery stage",
+    oauthRecoveryEvents.length === recoveryEventCountBeforeTamperedTicket,
+    JSON.stringify(oauthRecoveryEvents.slice(recoveryEventCountBeforeTamperedTicket)));
 
   const invalidClient = await postForm(baseUrl, "/auth/oauth/token", {
     grant_type: "authorization_code",

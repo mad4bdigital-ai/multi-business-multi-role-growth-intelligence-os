@@ -671,15 +671,6 @@ export function buildTenantGptOAuthTokenExchangeRoutes(deps = {}) {
           oauthCorrelation: tokenCorrelation,
         },
       );
-      await persistOAuthRecoveryTokenStage(
-        tokenQuery,
-        {
-          event: "token_exchange_completed",
-          correlation: tokenCorrelation,
-          redirect_uri_sha256: sha256(canonicalizeRedirectUri(codePayload.redirect_uri) || codePayload.redirect_uri),
-        },
-        now(),
-      );
       tokenLogContext.oauth_correlation = safeTenantGptOAuthOperationCorrelationEvidence(tokenCorrelation);
       tokenLogContext.access_token = {
         token_type: "bearer",
@@ -708,6 +699,16 @@ export function buildTenantGptOAuthTokenExchangeRoutes(deps = {}) {
         reason: activationContext?.reason || null,
         secrets_included: false,
       };
+
+      await persistOAuthRecoveryTokenStage(
+        tokenQuery,
+        {
+          event: "token_exchange_completed",
+          correlation: tokenCorrelation,
+          redirect_uri_sha256: sha256(canonicalizeRedirectUri(codePayload.redirect_uri) || codePayload.redirect_uri),
+        },
+        now(),
+      );
 
       const tokenResponse = {
         access_token: accessToken,
