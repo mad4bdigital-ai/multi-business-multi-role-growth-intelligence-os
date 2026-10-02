@@ -20,7 +20,10 @@
       "http-generic-api/scripts/manifests/test-manifest-spec012.mjs",
       "http-generic-api/tenantGptAccessTokenVerifier.js",
       "http-generic-api/tenantGptOAuthRecoveryEvidenceSink.js",
-      "http-generic-api/test-tenant-gpt-oauth-recovery-evidence-sink.mjs"
+      "http-generic-api/test-auth-oauth-routes.mjs",
+      "http-generic-api/test-staging-activation-gateway.mjs",
+      "http-generic-api/test-tenant-gpt-oauth-recovery-evidence-sink.mjs",
+      "http-generic-api/test-tenant-gpt-oauth-token-exchange-routes.mjs"
     ]
   },
   "environment_impact": {
@@ -54,6 +57,7 @@
             "Record resource_request_verified in the Activation Gateway and await persistence before downstream dispatch.",
             "Derive timestamps from verified correlation and deployment SHA from the canonical deployment manifest.",
             "Persist bounded no-secret integrity evidence to execution_log with normalized correlation_id plus runtime_evidence_json, under a bounded write deadline.",
+            "Read back candidates through indexed correlation identity under an independent bounded read deadline, then verify every returned row and observed transition in-process.",
             "Keep callback_received and Registration source attestation outside this server-owned scope."
           ],
           "assertions": [
@@ -61,11 +65,13 @@
             "Explicit local_windows_docker Staging is required; ambiguous staging, staging_hosted, Production, cross-repository manifests, non-main manifests, or mismatched deployment SHA fail closed.",
             "Caller-supplied deployment SHA or timestamps are rejected.",
             "Canonical digest represents integrity only and source_authenticity remains not_established.",
-            "Stage-specific envelope ancestry and subject/code/access bindings are mandatory.",
-            "Readback has time, row, event-candidate, and chain-state bounds.",
+            "Stage-specific request identity, envelope ancestry, subject, code and access-token bindings are mandatory.",
+            "Readback has an independent database-query deadline plus time-window, row, event-candidate, and chain-state bounds.",
             "Recovery evidence persistence has a bounded write deadline so database queue or query stalls cannot indefinitely block OAuth or protected-resource request paths.",
-            "Recovery readback selects candidates through normalized indexed execution_log.correlation_id before verifying operation, deployment and canonical evidence bindings.",
+            "Recovery readback selects candidates only through action_key plus normalized indexed execution_log.correlation_id, then rejects cross-operation, cross-correlation, cross-deployment or canonical-evidence drift instead of hiding it in SQL pre-filtering.",
             "Correlation continuity is hash-linked integrity derived from verified OAuth correlation envelopes; the evidence row itself does not claim a digital signature or external source authenticity.",
+            "Distinct non-terminal observations for one correlation are rejected as forks; exact canonical duplicates remain idempotent observations.",
+            "Every observed adjacent transition is validated even for partial chains, and every terminal resource observation must descend from the one observed token-exchange stage when that stage is present.",
             "Production or ambiguous Staging performs no Recovery evidence DB mutation.",
             "authorization_code_issued follows successful signing.",
             "token_exchange_completed is absent when activation-context persistence is not stored, while the valid OAuth response remains non-fatal and Recovery certification stays incomplete.",
