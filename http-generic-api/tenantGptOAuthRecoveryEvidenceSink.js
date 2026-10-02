@@ -282,6 +282,7 @@ function assertStageEvidenceShape(evidence) {
   const index = TENANT_GPT_OAUTH_RECOVERY_SERVER_EVENTS.indexOf(evidence.event);
   if (index < 0) fail("oauth_recovery_evidence_event_invalid", "Recovery evidence event is invalid.");
   requireSha256(evidence.client_id_sha256, "client_id_sha256");
+  requireSha256(evidence.stage_request_id_sha256, "stage_request_id_sha256");
   requireSha256(evidence.correlation_envelope_sha256, "correlation_envelope_sha256");
 
   if (index === 0) {
