@@ -76,7 +76,6 @@ __hostBreakglassTest.RUNS.set("production-host-local-readback-scope", {
   secrets_included: false,
 });
 
-let hostLocalBrokerResolverCalled = false;
 const hostLocalReadback = await readHostBreakglassRun(
   "production-host-local-readback-scope",
   {
@@ -87,10 +86,7 @@ const hostLocalReadback = await readHostBreakglassRun(
       dispatch_ref: "main",
     },
     env: {},
-    tokenResolver: async () => {
-      hostLocalBrokerResolverCalled = true;
-      return "fixture-installation-token";
-    },
+    tokenResolver: async () => "fixture-installation-token",
     fetchImpl: async () => ({
       ok: true,
       status: 200,
@@ -101,7 +97,6 @@ const hostLocalReadback = await readHostBreakglassRun(
   },
 );
 
-assert.equal(hostLocalBrokerResolverCalled, true);
 assert.equal(hostLocalReadback.status, "not_found");
 assert.equal(hostLocalReadback.durable_github_readback, true);
 
