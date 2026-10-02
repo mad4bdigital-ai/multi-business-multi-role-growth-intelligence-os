@@ -331,6 +331,36 @@ assert.ok(
   Date.now() - writeDeadlineStartedAt < 500,
   "Recovery evidence persistence timeout must bound caller latency",
 );
+
+const readDeadlineStartedAt = Date.now();
+assert.equal(
+  await asyncErrorCode(() => readTenantGptOAuthRecoveryServerEvidence({
+    query: async () => new Promise(() => {}),
+    operation_id: OPERATION_ID,
+    correlation_id: CORRELATION_ID,
+    deployment_sha: DEPLOYMENT_SHA,
+    env: STAGING_ENV,
+    nowMs: NOW_MS,
+    readBudgetMs: 15,
+  })),
+  "oauth_recovery_evidence_read_deadline_exceeded",
+);
+assert.ok(
+  Date.now() - readDeadlineStartedAt < 500,
+  "Recovery evidence readback timeout must bound caller latency",
+);
+assert.equal(
+  await asyncErrorCode(() => readTenantGptOAuthRecoveryServerEvidence({
+    query: async () => [[]],
+    operation_id: OPERATION_ID,
+    correlation_id: CORRELATION_ID,
+    deployment_sha: DEPLOYMENT_SHA,
+    env: STAGING_ENV,
+    nowMs: NOW_MS,
+    readBudgetMs: 5,
+  })),
+  "oauth_recovery_evidence_read_budget_invalid",
+);
 assert.equal(
   await asyncErrorCode(() => recordTenantGptOAuthRecoveryServerEvidence({
     query: async () => [{ affectedRows: 1 }],
