@@ -35,6 +35,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-
 const RECOVERY_EVIDENCE_CEILING_MILLISECONDS = 60 * 60 * 1000;
 const RECOVERY_EVIDENCE_WINDOW_MILLISECONDS = 15 * 60 * 1000;
 const RECOVERY_EVIDENCE_WRITE_BUDGET_MILLISECONDS = 1500;
+const RECOVERY_EVIDENCE_READ_BUDGET_MILLISECONDS = 1500;
 const MAX_READBACK_ROWS = 128;
 const MAX_EVENT_CANDIDATES = 32;
 const MAX_CHAIN_STATES = 256;
@@ -159,6 +160,40 @@ async function queryWithinWriteBudget(query, sql, params, writeBudgetMs) {
     timer = setTimeout(() => {
       const error = new Error("Recovery evidence persistence exceeded its bounded write deadline.");
       error.code = "oauth_recovery_evidence_write_deadline_exceeded";
+      error.status = 503;
+      error.secrets_included = false;
+      reject(error);
+    }, budgetMs);
+  });
+  try {
+    return await Promise.race([
+      Promise.resolve().then(() => query(sql, params)),
+      deadline,
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+function normalizeReadBudgetMs(value) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 10 || parsed > 5000) {
+    fail(
+      "oauth_recovery_evidence_read_budget_invalid",
+      "Recovery evidence read budget must be between 10 and 5000 milliseconds.",
+      500,
+    );
+  }
+  return Math.floor(parsed);
+}
+
+async function queryWithinReadBudget(query, sql, params, readBudgetMs) {
+  const budgetMs = normalizeReadBudgetMs(readBudgetMs);
+  let timer = null;
+  const deadline = new Promise((_, reject) => {
+    timer = setTimeout(() => {
+      const error = new Error("Recovery evidence readback exceeded its bounded read deadline.");
+      error.code = "oauth_recovery_evidence_read_deadline_exceeded";
       error.status = 503;
       error.secrets_included = false;
       reject(error);
@@ -488,6 +523,7 @@ export async function readTenantGptOAuthRecoveryServerEvidence({
   env = process.env,
   deploymentIdentityReader = readCanonicalDeploymentIdentity,
   nowMs = Date.now(),
+  readBudgetMs = RECOVERY_EVIDENCE_READ_BUDGET_MILLISECONDS,
 } = {}) {
   if (typeof query !== "function") fail("oauth_recovery_evidence_query_required", "A governed execution_log query function is required.", 500);
   strictStagingRuntime(env);
@@ -498,7 +534,8 @@ export async function readTenantGptOAuthRecoveryServerEvidence({
     fail("oauth_recovery_evidence_deployment_mismatch", "Readback deployment hint does not match observed runtime deployment.", 409);
   }
 
-  const result = await query(
+  const result = await queryWithinReadBudget(
+    query,
     [
       "SELECT id, runtime_evidence_json",
       "  FROM `execution_log`",
@@ -511,6 +548,7 @@ export async function readTenantGptOAuthRecoveryServerEvidence({
       " LIMIT " + String(MAX_READBACK_ROWS + 1),
     ].join("\n"),
     [TENANT_GPT_OAUTH_RECOVERY_SERVER_EVIDENCE_ACTION_KEY, correlationId, operationId, observedDeploymentSha],
+    readBudgetMs,
   );
 
   const rows = rowsFromQueryResult(result);
