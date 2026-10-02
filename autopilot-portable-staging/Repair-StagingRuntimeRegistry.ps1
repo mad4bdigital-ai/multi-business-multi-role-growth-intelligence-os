@@ -48,7 +48,7 @@ function Invoke-RuntimeCheck([string]$Action,[string]$PlanJson="") {
     try{return (($text|Out-String).Trim()|ConvertFrom-Json)}catch{Fail "Runtime registry reconciliation check returned invalid JSON: $Action"}
 }
 function Get-ValidatedPlan {
-    $text=& node (Join-Path $api "scripts/validate-staging-runtime-registry-reconciliation-plan.mjs") "--plan-file=$planPath" "--actual-commit=$ExpectedCommit"
+    $text=& node (Join-Path $api "scripts/staging-runtime-registry-reconciliation-plan-validate.mjs") "--plan-file=$planPath" "--actual-commit=$ExpectedCommit"
     Require ($LASTEXITCODE -eq 0) "immutable registry reconciliation plan validation failed"
     try{return (($text|Out-String).Trim()|ConvertFrom-Json)}catch{Fail "registry reconciliation plan validator returned invalid JSON"}
 }
@@ -204,7 +204,7 @@ try{
 
     $sqlFile=Join-Path ([IO.Path]::GetTempPath()) ("mad4b-staging-registry-reconcile-"+$plan.plan_sha256+".sql")
     if(Test-Path -LiteralPath $sqlFile){Remove-Item -LiteralPath $sqlFile -Force}
-    $materialized=& node (Join-Path $api "scripts/materialize-staging-runtime-registry-reconciliation-sql.mjs") "--plan-file=$planPath" "--actual-commit=$ExpectedCommit" "--output-file=$sqlFile"
+    $materialized=& node (Join-Path $api "scripts/staging-runtime-registry-reconciliation-materialize-sql.mjs") "--plan-file=$planPath" "--actual-commit=$ExpectedCommit" "--output-file=$sqlFile"
     Require ($LASTEXITCODE -eq 0) "registry reconciliation SQL materialization failed"
     $materializedResult=($materialized|Out-String).Trim()|ConvertFrom-Json
     Require ([int]$materializedResult.statement_count -eq [int]$plan.missing_count) "materialized statement count differs from immutable plan"

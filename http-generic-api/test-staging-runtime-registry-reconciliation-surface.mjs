@@ -4,7 +4,7 @@ import { STAGING_ROLE_GRANT_POLICIES } from "./databasePrivilegeContracts.js";
 
 const read=(file)=>fs.readFileSync(new URL("../"+file,import.meta.url),"utf8");
 const repair=read("autopilot-portable-staging/Repair-StagingRuntimeRegistry.ps1");
-const materializer=fs.readFileSync(new URL("./scripts/materialize-staging-runtime-registry-reconciliation-sql.mjs",import.meta.url),"utf8");
+const materializer=fs.readFileSync(new URL("./scripts/staging-runtime-registry-reconciliation-materialize-sql.mjs",import.meta.url),"utf8");
 const runtimeCheck=fs.readFileSync(new URL("./scripts/staging-runtime-registry-reconciliation-runtime-check.mjs",import.meta.url),"utf8");
 const config=JSON.parse(fs.readFileSync(new URL("./config/staging-runtime-registry-reconciliation.json",import.meta.url),"utf8"));
 const stagingOverlay=JSON.parse(fs.readFileSync(new URL("./config/host-breakglass-staging-contract.json",import.meta.url),"utf8"));
