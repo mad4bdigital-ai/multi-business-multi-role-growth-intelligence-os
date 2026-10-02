@@ -484,6 +484,49 @@ function parseEvidenceRow(row) {
   }
 }
 
+function assertObservedTransition(previous, current) {
+  if (current.previous_envelope_sha256 !== previous.correlation_envelope_sha256) {
+    fail("oauth_recovery_evidence_ancestry_mismatch", "Recovery envelope ancestry is not continuous.", 409);
+  }
+  if (Date.parse(current.occurred_at) < Date.parse(previous.occurred_at)) {
+    fail("oauth_recovery_evidence_time_order_invalid", "Recovery evidence time moved backwards.", 409);
+  }
+  if (
+    current.protected_resource !== previous.protected_resource
+    || current.client_id_sha256 !== previous.client_id_sha256
+  ) {
+    fail("oauth_recovery_evidence_binding_drift", "Recovery resource or client binding drifted across server stages.", 409);
+  }
+  if (
+    previous.subject_user_sha256 !== null
+    && (
+      current.subject_user_sha256 !== previous.subject_user_sha256
+      || current.subject_tenant_sha256 !== previous.subject_tenant_sha256
+    )
+  ) {
+    fail("oauth_recovery_evidence_subject_drift", "Recovery subject binding drifted across server stages.", 409);
+  }
+  if (
+    previous.oauth_code_jti_sha256 !== null
+    && current.oauth_code_jti_sha256 !== previous.oauth_code_jti_sha256
+  ) {
+    fail("oauth_recovery_evidence_code_drift", "Recovery OAuth code binding drifted across server stages.", 409);
+  }
+  if (
+    previous.access_token_jti_sha256 !== null
+    && current.access_token_jti_sha256 !== previous.access_token_jti_sha256
+  ) {
+    fail("oauth_recovery_evidence_access_drift", "Recovery access-token binding drifted across server stages.", 409);
+  }
+  if (
+    previous.redirect_uri_sha256 !== null
+    && current.redirect_uri_sha256 !== null
+    && current.redirect_uri_sha256 !== previous.redirect_uri_sha256
+  ) {
+    fail("oauth_recovery_evidence_redirect_drift", "Recovery redirect binding drifted across server stages.", 409);
+  }
+}
+
 function assertContinuousBindings(chain) {
   if (!Array.isArray(chain) || chain.length !== TENANT_GPT_OAUTH_RECOVERY_SERVER_EVENTS.length) {
     fail("oauth_recovery_evidence_chain_incomplete", "A complete five-stage server evidence chain is required.", 409);
@@ -581,6 +624,15 @@ export async function readTenantGptOAuthRecoveryServerEvidence({
         "More than one distinct non-terminal Recovery observation exists for the same OAuth correlation.",
         409,
       );
+    }
+  }
+
+  for (let index = 1; index < TENANT_GPT_OAUTH_RECOVERY_SERVER_EVENTS.length; index += 1) {
+    const previousCandidates = byEvent.get(TENANT_GPT_OAUTH_RECOVERY_SERVER_EVENTS[index - 1]) || [];
+    const currentCandidates = byEvent.get(TENANT_GPT_OAUTH_RECOVERY_SERVER_EVENTS[index]) || [];
+    if (previousCandidates.length !== 1 || currentCandidates.length === 0) continue;
+    for (const current of currentCandidates) {
+      assertObservedTransition(previousCandidates[0].evidence, current.evidence);
     }
   }
 
