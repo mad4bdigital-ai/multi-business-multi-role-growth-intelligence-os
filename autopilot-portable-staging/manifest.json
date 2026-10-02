@@ -150,7 +150,7 @@
     },
     {
       "path": "http-generic-api/frontend-surface-dispatch.generated.json",
-      "sha256": "8c90f6864dd4c8007df4978802f8d3d5cabf67faad0004e5fd613454ab5f93f9"
+      "sha256": "9877da8dc4b9b170bc0cbe719b0d7f501949f4bffa46a21e928577b7e923a7c3"
     },
     {
       "path": "http-generic-api/governanceDb.js",
@@ -170,7 +170,7 @@
     },
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
-      "sha256": "4457880b3cc8edd6eea9a7280501b7799c127c54f1e6f1ab0646ecc8335ea0af"
+      "sha256": "35f0d3720368fa83d86677a65c253b27eb76c5c1afc937fffa9e607bcbf46503"
     },
     {
       "path": "http-generic-api/remoteMcpConnectorRuntime.js",

@@ -24,8 +24,8 @@ const tables = [
 const definitions = {
   actions: {
     identity: ["action_key"],
-    columns: ["action_key","action_title","status","schema_json"],
-    row: { action_key:"canonical_action", action_title:"Canonical Action", status:"active", schema_json:'{"required":["a"],"type":"object"}' }
+    columns: ["action_key","action_title","status","schema_json","oauth_last_validated_at"],
+    row: { action_key:"canonical_action", action_title:"Canonical Action", status:"active", schema_json:'{"required":["a"],"type":"object"}', oauth_last_validated_at:"2026-10-02 01:02:03" }
   },
   endpoints: {
     identity: ["parent_action_key","endpoint_key"],
@@ -73,7 +73,7 @@ function snapshotFixture() {
     projections:Object.fromEntries(tables.map((table)=>[table,{
       included_columns:[...definitions[table].columns],
       excluded_columns:[],
-      column_types:Object.fromEntries(definitions[table].columns.map((column)=>[column,column.endsWith("_json")?"longtext":"varchar"])),
+      column_types:Object.fromEntries(definitions[table].columns.map((column)=>[column,column.endsWith("_json")?"longtext":column==="oauth_last_validated_at"?"timestamp":"varchar"])),
       identity_columns:[...definitions[table].identity],
       order_index:"configured_identity"
     }])),
@@ -198,6 +198,27 @@ assert.equal(applied.readback_verified,true);
 assert.equal((await applyLedger.read(applyPlan.plan_sha256)).state,"succeeded");
 assert.equal(applyExecutor.queries.some(({sql})=>/^\s*(UPDATE|DELETE|REPLACE|TRUNCATE|DROP)\b/iu.test(sql)),false);
 
+const confirmationExecutor=executorFor();
+const confirmationPlan=await planStagingRuntimeRegistryReconciliation({executor:confirmationExecutor,snapshot_gzip:gzip,snapshot_metadata:metadata,expected_commit:SHA,actual_commit:SHA});
+const confirmationLedger=ledgerFor();
+assert.equal(await code(()=>applyStagingRuntimeRegistryReconciliation({executor:confirmationExecutor,snapshot_gzip:gzip,snapshot_metadata:metadata,plan:confirmationPlan,confirmation:confirmationPlan.required_confirmation.toLowerCase(),actual_commit:SHA,ledger:confirmationLedger})),"STAGING_REGISTRY_RECONCILIATION_CONFIRMATION_REQUIRED");
+assert.equal(confirmationLedger.records.size,0);
+assert.equal(confirmationExecutor.queries.some(({sql})=>sql==="START TRANSACTION"),false);
+
+const driftExecutor=executorFor();
+const driftPlan=await planStagingRuntimeRegistryReconciliation({executor:driftExecutor,snapshot_gzip:gzip,snapshot_metadata:metadata,expected_commit:SHA,actual_commit:SHA});
+driftExecutor.state.actions.push({...definitions.actions.row});
+const driftLedger=ledgerFor();
+assert.equal(await code(()=>applyStagingRuntimeRegistryReconciliation({executor:driftExecutor,snapshot_gzip:gzip,snapshot_metadata:metadata,plan:driftPlan,confirmation:driftPlan.required_confirmation,actual_commit:SHA,ledger:driftLedger})),"STAGING_REGISTRY_RECONCILIATION_PRECONDITION_CHANGED");
+assert.equal(driftLedger.records.size,0);
+assert.equal(driftExecutor.queries.some(({sql})=>sql==="START TRANSACTION"),false);
+
+const planTamperExecutor=executorFor();
+const planTamper=await planStagingRuntimeRegistryReconciliation({executor:planTamperExecutor,snapshot_gzip:gzip,snapshot_metadata:metadata,expected_commit:SHA,actual_commit:SHA});
+const tamperedPlan=structuredClone(planTamper);
+tamperedPlan.missing_count+=1;
+assert.equal(await code(()=>applyStagingRuntimeRegistryReconciliation({executor:planTamperExecutor,snapshot_gzip:gzip,snapshot_metadata:metadata,plan:tamperedPlan,confirmation:planTamper.required_confirmation,actual_commit:SHA,ledger:ledgerFor()})),"STAGING_REGISTRY_RECONCILIATION_PLAN_HASH_MISMATCH");
+
 const exactState=Object.fromEntries(tables.map((table)=>[table,[{...definitions[table].row}]]));
 const exact=await inspectStagingRuntimeRegistrySnapshot({executor:executorFor(exactState),snapshot_gzip:gzip,snapshot_metadata:metadata,expected_commit:SHA});
 assert.equal(exact.status,"already_satisfied");
@@ -209,6 +230,12 @@ jsonEquivalentState.actions[0].schema_json={type:"object",required:["a"]};
 const jsonEquivalent=await inspectStagingRuntimeRegistrySnapshot({executor:executorFor(jsonEquivalentState),snapshot_gzip:gzip,snapshot_metadata:metadata,expected_commit:SHA});
 assert.equal(jsonEquivalent.status,"already_satisfied","JSON object/string representations must compare semantically");
 assert.equal(jsonEquivalent.conflict_count,0);
+
+const temporalEquivalentState=cloneState(exactState);
+temporalEquivalentState.actions[0].oauth_last_validated_at=new Date("2026-10-02T01:02:03.000Z");
+const temporalEquivalent=await inspectStagingRuntimeRegistrySnapshot({executor:executorFor(temporalEquivalentState),snapshot_gzip:gzip,snapshot_metadata:metadata,expected_commit:SHA});
+assert.equal(temporalEquivalent.status,"already_satisfied","Date/string temporal representations must compare semantically");
+assert.equal(temporalEquivalent.conflict_count,0);
 
 const conflictState=cloneState(exactState);
 conflictState.actions[0].action_title="Locally Changed";
@@ -222,6 +249,17 @@ extraState.actions.push({action_key:"local_extra",action_title:"Local Extra",sta
 const extra=await inspectStagingRuntimeRegistrySnapshot({executor:executorFor(extraState),snapshot_gzip:gzip,snapshot_metadata:metadata,expected_commit:SHA});
 assert.equal(extra.status,"already_satisfied");
 assert.equal(extra.extra_count,1);
+
+const extraApplyState=blankState();
+extraApplyState.actions.push({action_key:"local_extra",action_title:"Local Extra",status:"active"});
+const extraApplyExecutor=executorFor(extraApplyState);
+const extraApplyPlan=await planStagingRuntimeRegistryReconciliation({executor:extraApplyExecutor,snapshot_gzip:gzip,snapshot_metadata:metadata,expected_commit:SHA,actual_commit:SHA});
+const extraApplyLedger=ledgerFor();
+const extraApplied=await applyStagingRuntimeRegistryReconciliation({executor:extraApplyExecutor,snapshot_gzip:gzip,snapshot_metadata:metadata,plan:extraApplyPlan,confirmation:extraApplyPlan.required_confirmation,actual_commit:SHA,ledger:extraApplyLedger});
+assert.equal(extraApplied.status,"reconciled");
+assert.equal(extraApplied.extra_count,1);
+assert.equal(extraApplyExecutor.state.actions.some((row)=>row.action_key==="local_extra"),true);
+assert.equal((await extraApplyLedger.read(extraApplyPlan.plan_sha256)).extra_live_rows_preserved,1);
 
 const duplicateState=cloneState(exactState);
 duplicateState.endpoints.push({...definitions.endpoints.row});
@@ -243,6 +281,27 @@ const rollbackLedger=ledgerFor();
 assert.equal(await code(()=>applyStagingRuntimeRegistryReconciliation({executor:rollbackExecutor,snapshot_gzip:gzip,snapshot_metadata:metadata,plan:rollbackPlan,confirmation:rollbackPlan.required_confirmation,actual_commit:SHA,ledger:rollbackLedger})),"STAGING_REGISTRY_RECONCILIATION_KNOWN_NOT_APPLIED");
 assert.equal((await rollbackLedger.read(rollbackPlan.plan_sha256)).state,"known_not_applied");
 assert.equal(rollbackExecutor.state.actions.length,0);
+
+const reconcileNoMutationExecutor=executorFor();
+const reconcileNoMutationPlan=await planStagingRuntimeRegistryReconciliation({executor:reconcileNoMutationExecutor,snapshot_gzip:gzip,snapshot_metadata:metadata,expected_commit:SHA,actual_commit:SHA});
+const reconcileNoMutationLedger=ledgerFor();
+await reconcileNoMutationLedger.reserve({plan_sha256:reconcileNoMutationPlan.plan_sha256});
+await reconcileNoMutationLedger.markExecuting(reconcileNoMutationPlan.plan_sha256,{});
+await reconcileNoMutationLedger.markUnknown(reconcileNoMutationPlan.plan_sha256,{reason:"transport_ambiguous"});
+const reconciledNoMutation=await reconcileStagingRuntimeRegistryReconciliation({executor:reconcileNoMutationExecutor,snapshot_gzip:gzip,snapshot_metadata:metadata,plan:reconcileNoMutationPlan,actual_commit:SHA,ledger:reconcileNoMutationLedger});
+assert.equal(reconciledNoMutation.status,"reconciled_no_mutation");
+assert.equal((await reconcileNoMutationLedger.read(reconcileNoMutationPlan.plan_sha256)).state,"reconciled_no_mutation");
+
+const reconcileSucceededPlanExecutor=executorFor();
+const reconcileSucceededPlan=await planStagingRuntimeRegistryReconciliation({executor:reconcileSucceededPlanExecutor,snapshot_gzip:gzip,snapshot_metadata:metadata,expected_commit:SHA,actual_commit:SHA});
+const reconcileSucceededExecutor=executorFor(exactState);
+const reconcileSucceededLedger=ledgerFor();
+await reconcileSucceededLedger.reserve({plan_sha256:reconcileSucceededPlan.plan_sha256});
+await reconcileSucceededLedger.markExecuting(reconcileSucceededPlan.plan_sha256,{});
+await reconcileSucceededLedger.markUnknown(reconcileSucceededPlan.plan_sha256,{reason:"commit_ack_lost"});
+const reconciledSucceeded=await reconcileStagingRuntimeRegistryReconciliation({executor:reconcileSucceededExecutor,snapshot_gzip:gzip,snapshot_metadata:metadata,plan:reconcileSucceededPlan,actual_commit:SHA,ledger:reconcileSucceededLedger});
+assert.equal(reconciledSucceeded.status,"reconciled_succeeded");
+assert.equal((await reconcileSucceededLedger.read(reconcileSucceededPlan.plan_sha256)).state,"succeeded");
 
 const unknownExecutor=executorFor(blankState(),{failInsertAt:2,rollbackFails:true});
 const unknownPlan=await planStagingRuntimeRegistryReconciliation({executor:unknownExecutor,snapshot_gzip:gzip,snapshot_metadata:metadata,expected_commit:SHA,actual_commit:SHA});

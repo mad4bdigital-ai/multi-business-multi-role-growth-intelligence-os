@@ -208,7 +208,11 @@ export function verifyTenantGptAccessToken(token, {
   };
 }
 
-export function requireActivationTenantGptAccessToken(req, res, next) {
+export function requireActivationTenantGptAccessToken(
+  req,
+  res,
+  next,
+) {
   const authorization = String(req.headers?.authorization || "");
   const token = authorization.replace(/^Bearer\s+/i, "").trim();
   if (!token || token === authorization) {

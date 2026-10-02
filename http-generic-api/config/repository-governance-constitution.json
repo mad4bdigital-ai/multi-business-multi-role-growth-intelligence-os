@@ -535,9 +535,9 @@
     ".changes/e2e/staging-recovery-gateway-preflight-20260916.json",
     ".changes/e2e/staging-recovery-genuine-certification-phase-b-20260904.json",
     ".changes/e2e/staging-recovery-live-provider-evidence-20260928.json",
+    ".changes/e2e/staging-recovery-source-authority-b2-20261001.json",
     ".changes/e2e/staging-recovery-system-surface-closure-20260907.json",
     ".changes/e2e/staging-role-replay-semantic-snapshot-handoff-20260924.json",
-    ".changes/e2e/staging-runtime-registry-reconciliation-20261002.json",
     ".changes/e2e/staging-schema-bootstrap-role-aware.json",
     ".changes/e2e/staging-schema-bootstrap-stdin-transport.json",
     ".changes/e2e/staging-semantic-data-durability-20260920.json",
@@ -708,7 +708,8 @@
     "scripts/test-remote-mcp-write-scope-inventory.mjs",
     "specs/020-platform-resource-identity-brand-governance/contracts/runtime-database-readiness-contract.json",
     "specs/020-platform-resource-identity-brand-governance/contracts/runtime-db-write-authority-profiles.json",
-    "specs/020-platform-resource-identity-brand-governance/contracts/runtime-environment-invariant-contract.json"
+    "specs/020-platform-resource-identity-brand-governance/contracts/runtime-environment-invariant-contract.json",
+    ".changes/e2e/staging-runtime-registry-reconciliation-20261002.json"
   ],
   "derived_state": {
     "registry": ".github/derived-state-governance.json",
