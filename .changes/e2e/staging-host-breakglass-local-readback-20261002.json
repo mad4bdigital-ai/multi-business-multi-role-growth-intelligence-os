@@ -11,7 +11,9 @@
   "scope": {
     "include": [
       ".changes/e2e/staging-host-breakglass-local-readback-20261002.json",
+      ".github/derived-state-governance.json",
       ".github/governance/test-authority-registry.json",
+      "http-generic-api/config/repository-governance-constitution.json",
       "autopilot-portable-staging/manifest.json",
       "docs/remote-mcp-write-scope-inventory.md",
       "http-generic-api/frontend-surface-dispatch.generated.json",
@@ -77,6 +79,7 @@
             "A reused correlation_id cannot bind to a different plan hash.",
             "Production host_local_execution_required is not accepted by the Staging local fast-path.",
             "GitHub-backed readback resolves installation credentials against the canonical repository binding.",
+            "This critical E2E declaration is registered exactly in Constitution.control_plane_paths and convergence.automation_control_paths; broad patterns and autonomous merge remain forbidden.",
             "No Production mutation or execution-authority expansion is introduced."
           ],
           "tests": [
