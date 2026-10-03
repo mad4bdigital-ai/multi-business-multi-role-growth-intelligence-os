@@ -13,7 +13,15 @@
       "http-generic-api/config/host-breakglass-staging-contract.json",
       "http-generic-api/test-staging-recovery-system-tools.mjs",
       "http-generic-api/config/repository-governance-constitution.json",
-      ".github/derived-state-governance.json"
+      ".github/derived-state-governance.json",
+      "http-generic-api/stagingSchemaRepairHandoff.js",
+      "http-generic-api/stagingSchemaRepairSystemTools.js",
+      "http-generic-api/routes/recoverySystemToolOverlayRoutes.js",
+      "http-generic-api/hostBreakglassLocalRequest.js",
+      "http-generic-api/scripts/host-breakglass-local-verified.mjs",
+      "http-generic-api/scripts/host-breakglass-local.mjs",
+      "http-generic-api/test-recovery-system-tool-overlay.mjs",
+      "http-generic-api/test-host-breakglass-local-request.mjs"
     ]
   },
   "environment_impact": {
@@ -41,20 +49,28 @@
           "level": "synthetic_runtime",
           "actor": "Local Windows Staging recovery operator through the governed Recovery System surface",
           "entrypoint": "staging_recovery_schema_repair_prepare on the exact deployed main SHA with the repository-owned corrective migration.",
-          "terminal_outcome": "The corrective migration is allowlisted, checksum-bound, approval-gated, ticket-bound and read back through declared schema postconditions; Production and provider mutation remain forbidden.",
+          "terminal_outcome": "The corrective migration is allowlisted, checksum-bound and approval-gated; approval returns a server-bound verified local Windows/Docker handoff whose single-use ticket is reverified before database mutation and finalized only after canonical same-cycle schema readback. Production and provider mutation remain forbidden.",
           "steps": [
             "Bind the repair to the exact current main deployment and Staging target fingerprint.",
             "Resolve only 20261003_staging_remote_mcp_runtime_foundation_reconciliation.sql from the repository-owned Staging schema-repair allowlist.",
             "Create platform_runtime_config and the three Remote MCP OAuth persistence tables with CREATE TABLE IF NOT EXISTS only.",
             "Require the exact typed confirmation APPLY_STAGING_RUNTIME_MIGRATION:<sha>:staging-runtime:<migration> before issuing the single-use execution ticket.",
-            "Verify key columns and indexes for all four tables in the same execution cycle.",
+            "Keep the ticket signature and approval token server-side; return only a checksum-bound verified local handoff carrying the ticket ID/hash references required for private re-verification.",
+            "Rebuild the exact Host Breakglass transport plan on the Windows host and reject any request/plan digest mismatch before mutation.",
+            "Reserve and mark the server-issued ticket executing through the private Staging Recovery authority before local Docker/MariaDB mutation.",
+            "Verify key columns and indexes for all four tables in the same execution cycle and finalize the ticket only after canonical readback.",
+            "Reject the default Recovery canary/file writer as a database schema-mutation executor; direct in-process schema execution requires an explicitly marked Staging database-mutation executor.",
             "Run the separately governed Staging readiness/grant repair only after schema postconditions are ready.",
-            "Do not enable OAuth, provision clients, mutate provider state, sign Recovery acquisition evidence, run the Recovery canary, or mutate Production as part of this migration."
+            "Do not enable OAuth, provision clients, mutate provider state, sign Recovery acquisition evidence, run the Recovery certification canary as schema mutation, or mutate Production as part of this repair."
           ],
           "assertions": [
-            "The migration contains four additive CREATE TABLE IF NOT EXISTS statements and no INSERT, UPDATE, DELETE, DROP, ALTER, GRANT or REVOKE statement.",
+            "The migration contains four additive CREATE TABLE IF NOT EXISTS statements and no INSERT, UPDATE, DELETE, REPLACE, ALTER, DROP, TRUNCATE, GRANT or REVOKE statement.",
             "The migration targets the runtime role only and accepts only dry_run and apply_migration.",
             "Schema repair remains server-derived; caller raw SQL, caller database selection and caller commands are forbidden.",
+            "Approval returns a verified local request whose request_sha256 and transport plan_sha256 are recomputed on the exact checkout before local execution.",
+            "The verified local request carries execution-ticket ID/hash references but never carries the execution-ticket signature, approval token, private key or database credentials.",
+            "The private Staging authority re-verifies and reserves the ticket before mutation and requires same-cycle canonical database readback before ticket finalization.",
+            "An unmarked function such as the Recovery canary/file writer cannot satisfy direct schema database-mutation authority.",
             "Same-cycle postconditions cover platform_runtime_config plus remote_mcp_oauth_clients, remote_mcp_oauth_authorization_codes and remote_mcp_oauth_grants.",
             "The migration itself grants no database privileges; access reconciliation remains a separate governed operation.",
             "Production mutation, Hostinger mutation, provider mutation and external evidence fabrication remain false.",
@@ -81,6 +97,20 @@
               "working_directory": "http-generic-api",
               "path": "test-staging-schema-bundle-builder.mjs",
               "args": []
+            },
+            {
+              "id": "recovery-system-tool-overlay",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-recovery-system-tool-overlay.mjs",
+              "args": []
+            },
+            {
+              "id": "host-breakglass-local-request",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-host-breakglass-local-request.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
@@ -89,7 +119,14 @@
             "http-generic-api/config/host-breakglass-staging-contract.json",
             "http-generic-api/stagingRuntimeBootstrapContract.js",
             "http-generic-api/stagingSchemaRepairSystemTools.js",
-            "http-generic-api/test-staging-recovery-system-tools.mjs"
+            "http-generic-api/test-staging-recovery-system-tools.mjs",
+            "http-generic-api/stagingSchemaRepairHandoff.js",
+            "http-generic-api/routes/recoverySystemToolOverlayRoutes.js",
+            "http-generic-api/hostBreakglassLocalRequest.js",
+            "http-generic-api/scripts/host-breakglass-local-verified.mjs",
+            "http-generic-api/scripts/host-breakglass-local.mjs",
+            "http-generic-api/test-recovery-system-tool-overlay.mjs",
+            "http-generic-api/test-host-breakglass-local-request.mjs"
           ]
         }
       ]
