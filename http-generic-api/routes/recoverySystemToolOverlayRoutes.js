@@ -19,6 +19,7 @@ import {
 } from "../stagingRecoverySystemTools.js";
 import {
   buildStagingSchemaRepairSystemTools,
+  isStagingSchemaDatabaseMutationExecutor,
   stagingRecoverySchemaRepairApprove,
   stagingRecoverySchemaRepairExecute,
   stagingRecoverySchemaRepairPrepare,
@@ -131,7 +132,7 @@ function stagingExecutionDependenciesReady(deps = {}) {
 function stagingSchemaExecutionDependenciesReady(deps = {}) {
   const executor = deps.hostBreakglassMutationExecutor;
   return Boolean(
-    (typeof executor === "function" || typeof executor?.execute === "function")
+    isStagingSchemaDatabaseMutationExecutor(executor)
     && typeof deps.recoveryLock?.acquire === "function"
     && typeof deps.recoveryLock?.heartbeat === "function"
     && typeof deps.recoveryLock?.assertFence === "function"
@@ -190,7 +191,7 @@ export function projectRecoveryCapabilitiesForSystemSurface(env = process.env, d
       {
         capability_key: "staging_database_schema_repair",
         risk_class: "C3",
-        state_scope: schemaExecutionReady ? "allowlist_plan_approval_execute_same_cycle_readback" : "allowlist_plan_approval_ticket_only",
+        state_scope: schemaExecutionReady ? "allowlist_plan_approval_execute_same_cycle_readback" : "allowlist_plan_approval_verified_local_handoff_same_cycle_readback",
         target_database_mutation: schemaExecutionReady,
         provider_mutation: false,
         production_authority: false,
@@ -212,7 +213,7 @@ export function projectRecoveryCapabilitiesForSystemSurface(env = process.env, d
       ...(schemaExecutionReady ? ["staging_database_schema_repair"] : []),
     ],
     rebuild_role_capability_keys: [...STAGING_REBUILD_ROLE_CAPABILITIES],
-    local_handoff_mutation_capabilities: [...STAGING_REBUILD_ROLE_CAPABILITIES],
+    local_handoff_mutation_capabilities: [...STAGING_REBUILD_ROLE_CAPABILITIES, "staging_database_schema_repair"],
     production_authority: false,
     secrets_included: false,
   };
