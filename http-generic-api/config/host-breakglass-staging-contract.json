@@ -116,7 +116,7 @@
       },
       {
         "file": "20261003_staging_remote_mcp_runtime_foundation_reconciliation.sql",
-        "sha256": "084d951101471b13eaeedde416061bb0a9ce6a9e71bee5972a41281a077e8725",
+        "sha256": "352414ac3c1adbd7bccd3a339760c3506ae2f8e9a223ae669a012183eeabfecc",
         "statement_count": 4,
         "role": "runtime",
         "requires_tables": [],
@@ -165,7 +165,8 @@
             "table": "remote_mcp_oauth_grants",
             "index": "uq_remote_mcp_oauth_grants_access_jti"
           }
-        ]
+        ],
+        "artifact_scope": "staging_recovery_only"
       }
     ],
     "surface_authority_compatibility": {
