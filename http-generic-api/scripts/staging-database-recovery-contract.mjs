@@ -204,7 +204,7 @@ assert.match(legacyClone, /if \(\$LASTEXITCODE -ne 0\) \{ Fail "Schema import fa
 
 assert.equal(roleManifest.contract, "mad4b.staging.database-role-migration-manifest.v1");
 assert.equal(roleManifest.validation.required_runtime_table_census.length, 18);
-assert.equal(roleManifest.validation.required_runtime_support_tables.length, 25);
+assert.equal(roleManifest.validation.required_runtime_support_tables.length, 29);
 for (const table of [
   "local_manager_desktop_commands",
   "local_connector_device_aliases",
@@ -218,13 +218,25 @@ for (const table of [
     `missing Local Manager runtime support table: ${table}`,
   );
 }
+for (const table of [
+  "platform_runtime_config",
+  "remote_mcp_oauth_clients",
+  "remote_mcp_oauth_authorization_codes",
+  "remote_mcp_oauth_grants",
+]) {
+  assert.equal(
+    roleManifest.validation.required_runtime_support_tables.includes(table),
+    true,
+    `missing Remote MCP runtime support table: ${table}`,
+  );
+}
 assert.match(
   legacyClone,
-  /\$requiredRuntimeSupportTables\.Count -eq 25/,
+  /\$requiredRuntimeSupportTables\.Count -eq 29/,
 );
 assert.doesNotMatch(
   legacyClone,
-  /\$requiredRuntimeSupportTables\.Count -eq (?:11|20)/,
+  /\$requiredRuntimeSupportTables\.Count -eq (?:11|20|25)/,
 );
 assert.match(legacyClone, /staging-database-role-migration-manifest\.json/);
 assert.match(legacyClone, /Assert-SetEqual \$canonicalRuntimeCensus \$requiredRuntimeCensus "schema bundle runtime census projection"/);

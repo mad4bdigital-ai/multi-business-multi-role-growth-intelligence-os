@@ -1,0 +1,115 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-recovery-source-authority-b2a-runtime-foundation",
+  "title": "Staging Recovery B2A Remote MCP runtime foundation",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-recovery-source-authority-b2a-runtime-foundation-20261003.json",
+      "autopilot-portable-staging/**",
+      "http-generic-api/**",
+      ".github/workflows/staging-post-deploy-verification.yml",
+      "docs/runbooks/staging-recovery-phase-b-certification.md"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Restore the exact Staging runtime schema and bounded database authority required by the existing OpenAI Remote MCP OAuth profile before implementing Recovery external source attestation.",
+      "e2e_journeys": [
+        {
+          "id": "staging-recovery-b2a-runtime-foundation",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Staging operator and governed CI",
+          "entrypoint": "The exact-main Staging schema bundle, database repair contract, and Remote MCP profile/status tooling are evaluated.",
+          "terminal_outcome": "Staging requires the Remote MCP OAuth persistence surfaces, grants only bounded runtime operations, keeps Production bootstrap grants unchanged, and profile discovery remains database-independent.",
+          "steps": [
+            "Require platform_runtime_config and all three Remote MCP OAuth persistence tables in the canonical Staging runtime support census.",
+            "Require the same surfaces in the runtime role bundle so zero-object rebuild cannot silently omit them.",
+            "Grant only SELECT, INSERT, and UPDATE on Staging Remote MCP runtime persistence/configuration surfaces; do not grant DELETE, CREATE, ALTER, GRANT OPTION, or schema-wide authority.",
+            "Keep Production bootstrap grant policy unchanged.",
+            "Keep --list-profiles registry-only by deferring database-dependent imports until a database operation is requested.",
+            "Use the existing governed schema build/repair path for live Staging repair; do not create tables through readiness or ad-hoc SQL.",
+            "Re-run Remote MCP profile status and authenticated readiness only after exact-SHA repair."
+          ],
+          "assertions": [
+            "The canonical Staging role manifest requires platform_runtime_config, remote_mcp_oauth_clients, remote_mcp_oauth_authorization_codes, and remote_mcp_oauth_grants.",
+            "The Staging runtime principal receives only SELECT, INSERT, and UPDATE for the bounded Remote MCP persistence surfaces.",
+            "Production BOOTSTRAP_ROLE_GRANT_POLICIES are not expanded.",
+            "The schema recovery contract rejects the former 25-table support census.",
+            "--list-profiles does not require mysql2 or a database connection.",
+            "No Production mutation, provider mutation, schema-wide grant, DELETE, CREATE, ALTER, or GRANT OPTION is introduced.",
+            "secrets_included is false."
+          ],
+          "tests": [
+            {
+              "id": "staging-schema-bundle-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-schema-bundle-builder.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-database-repair-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-database-readiness-repair.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-database-recovery-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/staging-database-recovery-contract.mjs",
+              "args": []
+            },
+            {
+              "id": "remote-mcp-client-profile-registry",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-remote-mcp-client-profile-registry.mjs",
+              "args": []
+            },
+            {
+              "id": "remote-mcp-client-provisioning",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-remote-mcp-client-provisioning.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/staging-recovery-source-authority-b2a-runtime-foundation-20261003.json",
+            "http-generic-api/config/staging-database-role-migration-manifest.json",
+            "http-generic-api/databasePrivilegeContracts.js",
+            "autopilot-portable-staging/Clone-StagingDatabases.Legacy.ps1",
+            "http-generic-api/scripts/staging-database-recovery-contract.mjs",
+            "http-generic-api/test-staging-schema-bundle-builder.mjs",
+            "http-generic-api/test-staging-database-readiness-repair.mjs",
+            "http-generic-api/scripts/provision-remote-mcp-client.mjs",
+            "http-generic-api/migrations/038_sprint42_platform_runtime_config.sql",
+            "http-generic-api/migrations/20260801_remote_mcp_oauth21_operational.sql"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}
