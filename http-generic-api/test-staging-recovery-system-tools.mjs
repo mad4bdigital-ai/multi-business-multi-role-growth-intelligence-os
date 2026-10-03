@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { mkdtemp, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -276,6 +277,20 @@ test("surface readiness outside Staging is a no-mutation not-advertised verdict"
   assert.equal(result.production_authority, false);
   assert.equal(result.mutations_executed, false);
   assert.equal(result.secrets_included, false);
+});
+
+test("B2A Remote MCP foundation corrective migration is additive schema-only repair", () => {
+  const sql = readFileSync(new URL("./migrations/20261003_staging_remote_mcp_runtime_foundation_reconciliation.sql", import.meta.url), "utf8");
+  assert.equal((sql.match(/CREATE TABLE IF NOT EXISTS/giu) || []).length, 4);
+  for (const table of [
+    "platform_runtime_config",
+    "remote_mcp_oauth_clients",
+    "remote_mcp_oauth_authorization_codes",
+    "remote_mcp_oauth_grants",
+  ]) {
+    assert.match(sql, new RegExp(`CREATE TABLE IF NOT EXISTS \\\`${table}\\\``, "u"));
+  }
+  assert.doesNotMatch(sql.replace(/^\s*--.*$/gmu, ""), /\b(?:INSERT|UPDATE|DELETE|REPLACE|ALTER|DROP|TRUNCATE|GRANT|REVOKE|CREATE\s+USER|ALTER\s+USER)\b/iu);
 });
 
 test("Staging schema-repair prepare derives the fixed repository migration contract and rejects caller mutation controls", async () => {
