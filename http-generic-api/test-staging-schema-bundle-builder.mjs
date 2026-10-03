@@ -445,6 +445,7 @@ test("schema bundle manifest declares exactly three isolated roles", () => {
   assert.equal(manifest.validation.required_runtime_table_census.length, 18);
   assert.deepEqual(manifest.validation.required_runtime_support_tables, [
     "connected_systems", "platform_contract_surfaces", "platform_endpoint_tool_exports", "tenant_secrets", "platform_secrets",
+    "remote_mcp_oauth_grants", "remote_mcp_oauth_authorization_codes", "remote_mcp_oauth_clients", "platform_runtime_config",
     "secret_references", "credential_bindings", "admin_platform_endpoint_tools", "tenant_platform_endpoint_tools", "customer_sessions",
     "gpt_session_turns", "activation_dynamic_tab_registry", "activation_dynamic_tab_section_registry",
     "activation_dynamic_tab_discovery_rule_registry", "activation_section_action_registry", "activation_attention_rule_registry",
