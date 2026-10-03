@@ -288,7 +288,7 @@ test("B2A Remote MCP foundation corrective migration is additive schema-only rep
     "remote_mcp_oauth_authorization_codes",
     "remote_mcp_oauth_grants",
   ]) {
-    assert.match(sql, new RegExp(`CREATE TABLE IF NOT EXISTS \\\`${table}\\\``, "u"));
+    assert.match(sql, new RegExp("CREATE TABLE IF NOT EXISTS `" + table + "`", "u"));
   }
   assert.doesNotMatch(sql.replace(/^\s*--.*$/gmu, ""), /\b(?:INSERT|UPDATE|DELETE|REPLACE|ALTER|DROP|TRUNCATE|GRANT|REVOKE|CREATE\s+USER|ALTER\s+USER)\b/iu);
 });
