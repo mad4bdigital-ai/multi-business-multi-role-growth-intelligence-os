@@ -116,7 +116,7 @@
       },
       {
         "file": "20261003_staging_activation_registry_schema_reconciliation.sql",
-        "sha256": "43f6ce96bfd575d71225ff68f1c5bad74625535cfdacb8059e3c734ab6708b6c",
+        "sha256": "6729297dea3b7d601035c129cf912b12b3f09fd56a3319df7a20bd9ccab31b62",
         "statement_count": 8,
         "role": "runtime",
         "requires_tables": [],

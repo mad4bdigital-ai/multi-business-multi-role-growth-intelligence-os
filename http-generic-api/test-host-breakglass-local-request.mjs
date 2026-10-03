@@ -191,3 +191,68 @@ test("Staging schema-repair verified requests deny grant mutation authority", ()
     (error) => error?.code === "host_breakglass_local_request_action_denied",
   );
 });
+
+
+test("Staging Activation registry schema reconciliation is cataloged and pinned", () => {
+  const migration =
+    "20261003_staging_activation_registry_schema_reconciliation.sql";
+
+  const contract = readStagingRuntimeBootstrapContract();
+  const spec = contract.migrations[migration];
+
+  assert.ok(spec);
+  assert.equal(spec.sha256, "6729297dea3b7d601035c129cf912b12b3f09fd56a3319df7a20bd9ccab31b62");
+  assert.equal(spec.statement_count, 8);
+  assert.equal(spec.role, "runtime");
+  assert.deepEqual(spec.requires_tables, []);
+  assert.deepEqual(
+    spec.allowed_modes,
+    ["dry_run", "apply_migration"],
+  );
+
+  assert.deepEqual(
+    contract.postconditions[migration],
+    [
+      {
+        type: "column",
+        table: "activation_dynamic_tab_registry",
+        column: "tab_key",
+      },
+      {
+        type: "column",
+        table: "activation_dynamic_tab_section_registry",
+        column: "section_key",
+      },
+      {
+        type: "column",
+        table: "activation_dynamic_tab_discovery_rule_registry",
+        column: "rule_key",
+      },
+      {
+        type: "column",
+        table: "activation_section_action_registry",
+        column: "action_ref_key",
+      },
+      {
+        type: "column",
+        table: "activation_attention_rule_registry",
+        column: "rule_key",
+      },
+      {
+        type: "column",
+        table: "activation_freshness_policy_registry",
+        column: "policy_key",
+      },
+      {
+        type: "column",
+        table: "activation_signal_subscription_registry",
+        column: "subscription_key",
+      },
+      {
+        type: "column",
+        table: "activation_connector_pack_registry",
+        column: "pack_key",
+      },
+    ],
+  );
+});
