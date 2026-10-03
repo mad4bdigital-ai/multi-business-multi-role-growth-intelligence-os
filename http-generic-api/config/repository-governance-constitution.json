@@ -178,6 +178,12 @@
       ]
     },
     {
+      "id": "staging_recovery_migration",
+      "patterns": [
+        "http-generic-api/staging-recovery-migrations/**/*.sql"
+      ]
+    },
+    {
       "id": "api_runtime",
       "patterns": [
         "edge/activation-gateway/src/*.mjs",
@@ -531,6 +537,7 @@
     ".changes/e2e/staging-production-access-repair-execution-20260909.json",
     ".changes/e2e/staging-recovery-app-image-attestation-20261001.json",
     ".changes/e2e/staging-recovery-authority-certification-20260903.json",
+    ".changes/e2e/staging-recovery-b2a-runtime-schema-repair-20261003.json",
     ".changes/e2e/staging-recovery-external-acquisition-b1-20260928.json",
     ".changes/e2e/staging-recovery-external-evidence-integrity-20260928.json",
     ".changes/e2e/staging-recovery-gateway-preflight-20260916.json",

@@ -113,6 +113,60 @@
             "index": "idx_enabled_mcp_level_sort"
           }
         ]
+      },
+      {
+        "file": "20261003_staging_remote_mcp_runtime_foundation_reconciliation.sql",
+        "sha256": "352414ac3c1adbd7bccd3a339760c3506ae2f8e9a223ae669a012183eeabfecc",
+        "statement_count": 4,
+        "role": "runtime",
+        "requires_tables": [],
+        "allowed_modes": [
+          "dry_run",
+          "apply_migration"
+        ],
+        "postconditions": [
+          {
+            "type": "column",
+            "table": "platform_runtime_config",
+            "column": "config_key"
+          },
+          {
+            "type": "index",
+            "table": "platform_runtime_config",
+            "index": "idx_prc_status"
+          },
+          {
+            "type": "column",
+            "table": "remote_mcp_oauth_clients",
+            "column": "client_profile_key"
+          },
+          {
+            "type": "index",
+            "table": "remote_mcp_oauth_clients",
+            "index": "idx_remote_mcp_oauth_clients_status"
+          },
+          {
+            "type": "column",
+            "table": "remote_mcp_oauth_authorization_codes",
+            "column": "code_challenge"
+          },
+          {
+            "type": "index",
+            "table": "remote_mcp_oauth_authorization_codes",
+            "index": "idx_remote_mcp_oauth_codes_client_status"
+          },
+          {
+            "type": "column",
+            "table": "remote_mcp_oauth_grants",
+            "column": "access_jti"
+          },
+          {
+            "type": "index",
+            "table": "remote_mcp_oauth_grants",
+            "index": "uq_remote_mcp_oauth_grants_access_jti"
+          }
+        ],
+        "artifact_scope": "staging_recovery_only"
       }
     ],
     "surface_authority_compatibility": {

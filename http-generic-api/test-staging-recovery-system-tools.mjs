@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { existsSync, readFileSync } from "node:fs";
 import { mkdtemp, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -11,6 +12,8 @@ import {
   _testingStagingSchemaRepairSystemTools,
   buildStagingSchemaRepairSystemTools,
   createStagingSchemaRepairTicketAuthority,
+  stagingRecoverySchemaRepairApprove,
+  stagingRecoverySchemaRepairPrepare,
 } from "./stagingSchemaRepairSystemTools.js";
 import {
   _testingStagingRecoverySystemTools,
@@ -87,6 +90,8 @@ const TREE = "b".repeat(40);
 const CONTEXT = "c".repeat(64);
 const MIGRATION = "20260902_staging_actions_runtime_contract_reconciliation.sql";
 const MIGRATION_SHA256 = "6ca8879ec300b5970f6ddc3d9eeded38eda8dee12abd6bdeb7ba7d2ffa53ee2c";
+const REMOTE_MCP_FOUNDATION_MIGRATION = "20261003_staging_remote_mcp_runtime_foundation_reconciliation.sql";
+const REMOTE_MCP_FOUNDATION_MIGRATION_SHA256 = "352414ac3c1adbd7bccd3a339760c3506ae2f8e9a223ae669a012183eeabfecc";
 
 function stagingEnv(root) {
   return {
@@ -276,6 +281,25 @@ test("surface readiness outside Staging is a no-mutation not-advertised verdict"
   assert.equal(result.secrets_included, false);
 });
 
+test("B2A Remote MCP foundation corrective migration is additive schema-only repair", () => {
+  const canonicalPath = new URL("./migrations/20261003_staging_remote_mcp_runtime_foundation_reconciliation.sql", import.meta.url);
+  const recoveryPath = new URL("./staging-recovery-migrations/20261003_staging_remote_mcp_runtime_foundation_reconciliation.sql", import.meta.url);
+  assert.equal(existsSync(canonicalPath), false, "incident repair must remain outside the canonical ordered migration chain");
+  assert.equal(existsSync(recoveryPath), true);
+  const sql = readFileSync(recoveryPath, "utf8");
+  assert.equal((sql.match(/CREATE TABLE IF NOT EXISTS/giu) || []).length, 4);
+  assert.equal((sql.match(/COLLATE=utf8mb4_unicode_ci/giu) || []).length, 4, "every corrective table must declare the governed collation explicitly");
+  for (const table of [
+    "platform_runtime_config",
+    "remote_mcp_oauth_clients",
+    "remote_mcp_oauth_authorization_codes",
+    "remote_mcp_oauth_grants",
+  ]) {
+    assert.match(sql, new RegExp("CREATE TABLE IF NOT EXISTS `" + table + "`", "u"));
+  }
+  assert.doesNotMatch(sql.replace(/^\s*--.*$/gmu, ""), /\b(?:INSERT|UPDATE|DELETE|REPLACE|ALTER|DROP|TRUNCATE|GRANT|REVOKE|CREATE\s+USER|ALTER\s+USER)\b/iu);
+});
+
 test("Staging schema-repair prepare derives the fixed repository migration contract and rejects caller mutation controls", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "staging-schema-repair-"));
   try {
@@ -322,6 +346,23 @@ test("Staging schema-repair prepare derives the fixed repository migration contr
     assert.equal(
       catalogPrepared.approval_confirmation,
       `APPLY_STAGING_RUNTIME_MIGRATION:${SHA}:staging-runtime:20260815_custom_gpt_mcp_catalog_levels.sql`,
+    );
+
+    const remoteMcpPrepared = await authority.prepare({
+      expected_sha: SHA,
+      migration: REMOTE_MCP_FOUNDATION_MIGRATION,
+      idempotency_key: "staging-schema-prepare-remote-mcp-foundation-001",
+    });
+    assert.equal(remoteMcpPrepared.migration, REMOTE_MCP_FOUNDATION_MIGRATION);
+    assert.equal(remoteMcpPrepared.migration_sha256, REMOTE_MCP_FOUNDATION_MIGRATION_SHA256);
+    assert.equal(remoteMcpPrepared.statement_count, 4);
+    assert.equal(remoteMcpPrepared.target_role, "runtime");
+    assert.equal(_testingStagingSchemaRepairSystemTools.resolveMigration(REMOTE_MCP_FOUNDATION_MIGRATION).migration.artifact_scope, "staging_recovery_only");
+    assert.equal(remoteMcpPrepared.raw_sql_allowed, false);
+    assert.equal(remoteMcpPrepared.caller_database_allowed, false);
+    assert.equal(
+      remoteMcpPrepared.approval_confirmation,
+      `APPLY_STAGING_RUNTIME_MIGRATION:${SHA}:staging-runtime:${REMOTE_MCP_FOUNDATION_MIGRATION}`,
     );
 
     await assert.rejects(
@@ -395,6 +436,54 @@ test("Staging schema-repair approval issues one signed single-use migration tick
   }
 });
 
+test("Staging schema-repair public approval returns one verified local Windows/Docker handoff without exposing ticket signature", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "staging-schema-local-handoff-"));
+  try {
+    const env = stagingEnv(root);
+    const prepared = await stagingRecoverySchemaRepairPrepare({
+      expected_sha: SHA,
+      migration: REMOTE_MCP_FOUNDATION_MIGRATION,
+      idempotency_key: "staging-schema-handoff-prepare-001",
+    }, { env });
+
+    const approved = await stagingRecoverySchemaRepairApprove({
+      plan_id: prepared.plan_id,
+      plan_hash: prepared.plan_hash,
+      step_id: prepared.step_id,
+      idempotency_key: "staging-schema-handoff-execute-001",
+      approval_confirmation: prepared.approval_confirmation,
+    }, { env });
+
+    assert.equal(approved.ok, true);
+    assert.equal(approved.status, "execution_ticket_issued_local_handoff_ready");
+    assert.equal(approved.local_execution_required, true);
+    assert.equal(approved.execution_ticket_held_server_side, true);
+    assert.equal(approved.execution_ticket_not_returned, true);
+    assert.equal(Object.hasOwn(approved, "ticket_id"), false);
+    assert.equal(Object.hasOwn(approved, "ticket_hash"), false);
+    assert.equal(Object.hasOwn(approved, "signature"), false);
+
+    const handoff = approved.local_handoff;
+    assert.equal(handoff.status, "local_execution_required");
+    assert.equal(handoff.local_windows_docker_required, true);
+    assert.equal(handoff.execution_ticket_signature_exposed, false);
+    assert.equal(handoff.database_mutation_performed, false);
+    assert.equal(handoff.production_authority, false);
+    assert.match(handoff.command, /^node scripts\/host-breakglass-local-verified\.mjs --request-file \.\\verified-staging-schema-repair-/u);
+    assert.equal(handoff.verified_request.runbook_key, "database.schema_repair");
+    assert.equal(handoff.verified_request.action, "apply_migration");
+    assert.equal(handoff.verified_request.expected_sha, SHA);
+    assert.equal(handoff.verified_request.migration, REMOTE_MCP_FOUNDATION_MIGRATION);
+    assert.equal(handoff.verified_request.authority_plan_hash, prepared.plan_hash);
+    assert.match(handoff.verified_request.execution_ticket_id, /^ticket:/u);
+    assert.match(handoff.verified_request.execution_ticket_hash, /^[0-9a-f]{64}$/u);
+    assert.equal(handoff.authority_plan_hash_separate_from_transport_plan, true);
+    assert.notEqual(handoff.transport_plan_sha256, prepared.plan_hash);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("Schema-repair descriptors expose only high-level plan/approval/execution references and no raw mutation controls", () => {
   const tools = buildStagingSchemaRepairSystemTools();
   assert.deepEqual(tools.map((entry) => entry.name), [
@@ -407,8 +496,10 @@ test("Schema-repair descriptors expose only high-level plan/approval/execution r
   for (const forbidden of ["sql", "raw_sql", "database", "target_key", "script_path", "execution_ticket_id", "execution_ticket_hash"]) {
     assert.equal(Object.hasOwn(prepare.properties, forbidden), false);
   }
+  const directDatabaseExecutor = async () => ({ ok: true });
+  directDatabaseExecutor.staging_database_mutation_authority = true;
   const positive = _testingStagingSchemaRepairSystemTools.schemaExecutionReady({
-    hostBreakglassMutationExecutor: async () => ({}),
+    hostBreakglassMutationExecutor: directDatabaseExecutor,
     recoveryLock: { acquire() {}, heartbeat() {}, assertFence() {}, release() {} },
     readbackVerifier: { verify() {}, independent_authority: true, role_aware: true, mutation_authority: false },
     migrationLedger: { finalize() {} },
@@ -417,6 +508,14 @@ test("Schema-repair descriptors expose only high-level plan/approval/execution r
   });
   assert.equal(positive, true);
   assert.equal(_testingStagingSchemaRepairSystemTools.schemaExecutionReady({}), false);
+  assert.equal(_testingStagingSchemaRepairSystemTools.schemaExecutionReady({
+    hostBreakglassMutationExecutor: async () => ({ ok: true }),
+    recoveryLock: { acquire() {}, heartbeat() {}, assertFence() {}, release() {} },
+    readbackVerifier: { verify() {}, independent_authority: true, role_aware: true, mutation_authority: false },
+    migrationLedger: { finalize() {} },
+    deploymentIdentityProvider: { readAttestation() {} },
+    recoveryStore: { getExecutionTicket() {}, reserveExecutionTicket() {}, finalizeExecutionTicket() {}, markApprovalUsed() {} },
+  }), false, "an unmarked canary/file executor must never advertise direct database schema mutation authority");
 });
 
 console.log("staging recovery system tool contract tests loaded");
