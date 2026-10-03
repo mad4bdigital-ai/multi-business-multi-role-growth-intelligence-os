@@ -83,6 +83,7 @@ function resolveMigration(migration) {
     statement_count: Number(spec.statement_count),
     role,
     requires_tables: Array.isArray(spec.requires_tables) ? [...spec.requires_tables] : [],
+    artifact_scope: text(spec.artifact_scope || "canonical", 64),
     postconditions: Array.isArray(contract.postconditions?.[file]) ? structuredClone(contract.postconditions[file]) : [],
     allowed_mode: "apply_migration",
     server_derived: true,
