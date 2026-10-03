@@ -91,7 +91,7 @@ const CONTEXT = "c".repeat(64);
 const MIGRATION = "20260902_staging_actions_runtime_contract_reconciliation.sql";
 const MIGRATION_SHA256 = "6ca8879ec300b5970f6ddc3d9eeded38eda8dee12abd6bdeb7ba7d2ffa53ee2c";
 const REMOTE_MCP_FOUNDATION_MIGRATION = "20261003_staging_remote_mcp_runtime_foundation_reconciliation.sql";
-const REMOTE_MCP_FOUNDATION_MIGRATION_SHA256 = "084d951101471b13eaeedde416061bb0a9ce6a9e71bee5972a41281a077e8725";
+const REMOTE_MCP_FOUNDATION_MIGRATION_SHA256 = "352414ac3c1adbd7bccd3a339760c3506ae2f8e9a223ae669a012183eeabfecc";
 
 function stagingEnv(root) {
   return {
@@ -282,7 +282,7 @@ test("surface readiness outside Staging is a no-mutation not-advertised verdict"
 });
 
 test("B2A Remote MCP foundation corrective migration is additive schema-only repair", () => {
-  const sql = readFileSync(new URL("./migrations/20261003_staging_remote_mcp_runtime_foundation_reconciliation.sql", import.meta.url), "utf8");
+  const sql = readFileSync(new URL("./staging-recovery-migrations/20261003_staging_remote_mcp_runtime_foundation_reconciliation.sql", import.meta.url), "utf8");
   assert.equal((sql.match(/CREATE TABLE IF NOT EXISTS/giu) || []).length, 4);
   for (const table of [
     "platform_runtime_config",
@@ -352,6 +352,7 @@ test("Staging schema-repair prepare derives the fixed repository migration contr
     assert.equal(remoteMcpPrepared.migration_sha256, REMOTE_MCP_FOUNDATION_MIGRATION_SHA256);
     assert.equal(remoteMcpPrepared.statement_count, 4);
     assert.equal(remoteMcpPrepared.target_role, "runtime");
+    assert.equal(_testingStagingSchemaRepairSystemTools.resolveMigration(REMOTE_MCP_FOUNDATION_MIGRATION).migration.artifact_scope, "staging_recovery_only");
     assert.equal(remoteMcpPrepared.raw_sql_allowed, false);
     assert.equal(remoteMcpPrepared.caller_database_allowed, false);
     assert.equal(
