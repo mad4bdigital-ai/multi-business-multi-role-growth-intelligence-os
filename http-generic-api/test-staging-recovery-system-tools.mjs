@@ -87,6 +87,8 @@ const TREE = "b".repeat(40);
 const CONTEXT = "c".repeat(64);
 const MIGRATION = "20260902_staging_actions_runtime_contract_reconciliation.sql";
 const MIGRATION_SHA256 = "6ca8879ec300b5970f6ddc3d9eeded38eda8dee12abd6bdeb7ba7d2ffa53ee2c";
+const REMOTE_MCP_FOUNDATION_MIGRATION = "20261003_staging_remote_mcp_runtime_foundation_reconciliation.sql";
+const REMOTE_MCP_FOUNDATION_MIGRATION_SHA256 = "084d951101471b13eaeedde416061bb0a9ce6a9e71bee5972a41281a077e8725";
 
 function stagingEnv(root) {
   return {
@@ -322,6 +324,22 @@ test("Staging schema-repair prepare derives the fixed repository migration contr
     assert.equal(
       catalogPrepared.approval_confirmation,
       `APPLY_STAGING_RUNTIME_MIGRATION:${SHA}:staging-runtime:20260815_custom_gpt_mcp_catalog_levels.sql`,
+    );
+
+    const remoteMcpPrepared = await authority.prepare({
+      expected_sha: SHA,
+      migration: REMOTE_MCP_FOUNDATION_MIGRATION,
+      idempotency_key: "staging-schema-prepare-remote-mcp-foundation-001",
+    });
+    assert.equal(remoteMcpPrepared.migration, REMOTE_MCP_FOUNDATION_MIGRATION);
+    assert.equal(remoteMcpPrepared.migration_sha256, REMOTE_MCP_FOUNDATION_MIGRATION_SHA256);
+    assert.equal(remoteMcpPrepared.statement_count, 4);
+    assert.equal(remoteMcpPrepared.target_role, "runtime");
+    assert.equal(remoteMcpPrepared.raw_sql_allowed, false);
+    assert.equal(remoteMcpPrepared.caller_database_allowed, false);
+    assert.equal(
+      remoteMcpPrepared.approval_confirmation,
+      `APPLY_STAGING_RUNTIME_MIGRATION:${SHA}:staging-runtime:${REMOTE_MCP_FOUNDATION_MIGRATION}`,
     );
 
     await assert.rejects(
