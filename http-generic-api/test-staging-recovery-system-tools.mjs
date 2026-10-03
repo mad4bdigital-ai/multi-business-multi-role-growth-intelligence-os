@@ -298,13 +298,13 @@ test("B2A Remote MCP foundation corrective migration is additive schema-only rep
     assert.match(sql, new RegExp("CREATE TABLE IF NOT EXISTS `" + table + "`", "u"));
   }
   const statements = sql
-    .replace(/^\\s*--.*$/gmu, "")
+    .replace(/^\s*--.*$/gmu, "")
     .split(";")
     .map((statement) => statement.trim())
     .filter(Boolean);
   assert.equal(statements.length, 4, "corrective migration must contain exactly four SQL statements");
   for (const statement of statements) {
-    assert.match(statement, /^CREATE\\s+TABLE\\s+IF\\s+NOT\\s+EXISTS\\b/iu, "corrective migration may contain CREATE TABLE IF NOT EXISTS statements only");
+    assert.match(statement, /^CREATE\s+TABLE\s+IF\s+NOT\s+EXISTS\b/iu, "corrective migration may contain CREATE TABLE IF NOT EXISTS statements only");
   }
 });
 
