@@ -27,7 +27,8 @@
       "http-generic-api/config/deployment-branch-policy.json",
       "http-generic-api/test-environment-impact-closure.mjs",
       ".github/governance/semantic-surface-registry.json",
-      ".github/tests/repository-governance-closure.test.mjs"
+      ".github/tests/repository-governance-closure.test.mjs",
+      "http-generic-api/test-staging-empty-role-db-bootstrap.mjs"
     ]
   },
   "environment_impact": {
@@ -82,7 +83,8 @@
             "Production mutation, Hostinger mutation, provider mutation and external evidence fabrication remain false.",
             "The declaration is registered exactly in Constitution.control_plane_paths and convergence.automation_control_paths.",
             "The corrective SQL artifact is stored under http-generic-api/staging-recovery-migrations and is excluded from the canonical ordered schema-bundle migration inventory.",
-            "The staging-recovery-migrations artifact root is classified staging_only by deployment-branch policy and never as shared_runtime or production_only."
+            "The staging-recovery-migrations artifact root is classified staging_only by deployment-branch policy and never as shared_runtime or production_only.",
+            "The local handoff mutation capability inventory preserves all role-specific rebuild handoffs and explicitly adds staging_database_schema_repair without granting direct schema mutation authority unless the marked executor dependencies are ready."
           ],
           "tests": [
             {
@@ -126,6 +128,13 @@
               "working_directory": "http-generic-api",
               "path": "test-environment-impact-closure.mjs",
               "args": []
+            },
+            {
+              "id": "staging-selective-rebuild-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-empty-role-db-bootstrap.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
@@ -146,7 +155,8 @@
             "http-generic-api/config/deployment-branch-policy.json",
             "http-generic-api/test-environment-impact-closure.mjs",
             ".github/governance/semantic-surface-registry.json",
-            ".github/tests/repository-governance-closure.test.mjs"
+            ".github/tests/repository-governance-closure.test.mjs",
+            "http-generic-api/test-staging-empty-role-db-bootstrap.mjs"
           ]
         }
       ]
