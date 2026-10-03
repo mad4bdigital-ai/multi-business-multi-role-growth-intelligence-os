@@ -113,6 +113,59 @@
             "index": "idx_enabled_mcp_level_sort"
           }
         ]
+      },
+      {
+        "file": "20261003_staging_activation_registry_schema_reconciliation.sql",
+        "sha256": "6729297dea3b7d601035c129cf912b12b3f09fd56a3319df7a20bd9ccab31b62",
+        "statement_count": 8,
+        "role": "runtime",
+        "requires_tables": [],
+        "allowed_modes": [
+          "dry_run",
+          "apply_migration"
+        ],
+        "postconditions": [
+          {
+            "type": "column",
+            "table": "activation_dynamic_tab_registry",
+            "column": "tab_key"
+          },
+          {
+            "type": "column",
+            "table": "activation_dynamic_tab_section_registry",
+            "column": "section_key"
+          },
+          {
+            "type": "column",
+            "table": "activation_dynamic_tab_discovery_rule_registry",
+            "column": "rule_key"
+          },
+          {
+            "type": "column",
+            "table": "activation_section_action_registry",
+            "column": "action_ref_key"
+          },
+          {
+            "type": "column",
+            "table": "activation_attention_rule_registry",
+            "column": "rule_key"
+          },
+          {
+            "type": "column",
+            "table": "activation_freshness_policy_registry",
+            "column": "policy_key"
+          },
+          {
+            "type": "column",
+            "table": "activation_signal_subscription_registry",
+            "column": "subscription_key"
+          },
+          {
+            "type": "column",
+            "table": "activation_connector_pack_registry",
+            "column": "pack_key"
+          }
+        ]
       }
     ],
     "surface_authority_compatibility": {
