@@ -25,7 +25,9 @@
       "http-generic-api/stagingRuntimeBootstrapContract.js",
       "http-generic-api/runtimeBootstrapContract.js",
       "http-generic-api/config/deployment-branch-policy.json",
-      "http-generic-api/test-environment-impact-closure.mjs"
+      "http-generic-api/test-environment-impact-closure.mjs",
+      ".github/governance/semantic-surface-registry.json",
+      ".github/tests/repository-governance-closure.test.mjs"
     ]
   },
   "environment_impact": {
@@ -142,7 +144,9 @@
             "http-generic-api/test-host-breakglass-local-request.mjs",
             "http-generic-api/runtimeBootstrapContract.js",
             "http-generic-api/config/deployment-branch-policy.json",
-            "http-generic-api/test-environment-impact-closure.mjs"
+            "http-generic-api/test-environment-impact-closure.mjs",
+            ".github/governance/semantic-surface-registry.json",
+            ".github/tests/repository-governance-closure.test.mjs"
           ]
         }
       ]

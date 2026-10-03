@@ -178,6 +178,12 @@
       ]
     },
     {
+      "id": "staging_recovery_migration",
+      "patterns": [
+        "http-generic-api/staging-recovery-migrations/**/*.sql"
+      ]
+    },
+    {
       "id": "api_runtime",
       "patterns": [
         "edge/activation-gateway/src/*.mjs",
