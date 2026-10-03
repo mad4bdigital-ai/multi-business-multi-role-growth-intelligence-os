@@ -140,7 +140,8 @@
           "http-generic-api/scripts/build-staging-admin-openapi.mjs",
           "http-generic-api/scripts/build-staging-remote-mcp-openapi.mjs",
           "http-generic-api/test-staging-*.mjs",
-          "STAGING-*.md"
+          "STAGING-*.md",
+          "http-generic-api/staging-recovery-migrations/**"
         ],
         "environments": [
           "staging"
