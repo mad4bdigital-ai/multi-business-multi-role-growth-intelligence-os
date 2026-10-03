@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { mkdtemp, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -282,8 +282,13 @@ test("surface readiness outside Staging is a no-mutation not-advertised verdict"
 });
 
 test("B2A Remote MCP foundation corrective migration is additive schema-only repair", () => {
-  const sql = readFileSync(new URL("./staging-recovery-migrations/20261003_staging_remote_mcp_runtime_foundation_reconciliation.sql", import.meta.url), "utf8");
+  const canonicalPath = new URL("./migrations/20261003_staging_remote_mcp_runtime_foundation_reconciliation.sql", import.meta.url);
+  const recoveryPath = new URL("./staging-recovery-migrations/20261003_staging_remote_mcp_runtime_foundation_reconciliation.sql", import.meta.url);
+  assert.equal(existsSync(canonicalPath), false, "incident repair must remain outside the canonical ordered migration chain");
+  assert.equal(existsSync(recoveryPath), true);
+  const sql = readFileSync(recoveryPath, "utf8");
   assert.equal((sql.match(/CREATE TABLE IF NOT EXISTS/giu) || []).length, 4);
+  assert.equal((sql.match(/COLLATE=utf8mb4_unicode_ci/giu) || []).length, 4, "every corrective table must declare the governed collation explicitly");
   for (const table of [
     "platform_runtime_config",
     "remote_mcp_oauth_clients",
