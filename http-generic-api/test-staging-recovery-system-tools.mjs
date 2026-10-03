@@ -297,7 +297,15 @@ test("B2A Remote MCP foundation corrective migration is additive schema-only rep
   ]) {
     assert.match(sql, new RegExp("CREATE TABLE IF NOT EXISTS `" + table + "`", "u"));
   }
-  assert.doesNotMatch(sql.replace(/^\s*--.*$/gmu, ""), /\b(?:INSERT|UPDATE|DELETE|REPLACE|ALTER|DROP|TRUNCATE|GRANT|REVOKE|CREATE\s+USER|ALTER\s+USER)\b/iu);
+  const statements = sql
+    .replace(/^\\s*--.*$/gmu, "")
+    .split(";")
+    .map((statement) => statement.trim())
+    .filter(Boolean);
+  assert.equal(statements.length, 4, "corrective migration must contain exactly four SQL statements");
+  for (const statement of statements) {
+    assert.match(statement, /^CREATE\\s+TABLE\\s+IF\\s+NOT\\s+EXISTS\\b/iu, "corrective migration may contain CREATE TABLE IF NOT EXISTS statements only");
+  }
 });
 
 test("Staging schema-repair prepare derives the fixed repository migration contract and rejects caller mutation controls", async () => {
