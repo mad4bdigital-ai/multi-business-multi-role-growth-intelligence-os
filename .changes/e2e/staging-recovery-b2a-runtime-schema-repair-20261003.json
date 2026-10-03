@@ -9,7 +9,7 @@
   "scope": {
     "include": [
       ".changes/e2e/staging-recovery-b2a-runtime-schema-repair-20261003.json",
-      "http-generic-api/migrations/20261003_staging_remote_mcp_runtime_foundation_reconciliation.sql",
+      "http-generic-api/staging-recovery-migrations/20261003_staging_remote_mcp_runtime_foundation_reconciliation.sql",
       "http-generic-api/config/host-breakglass-staging-contract.json",
       "http-generic-api/test-staging-recovery-system-tools.mjs",
       "http-generic-api/config/repository-governance-constitution.json",
@@ -21,7 +21,9 @@
       "http-generic-api/scripts/host-breakglass-local-verified.mjs",
       "http-generic-api/scripts/host-breakglass-local.mjs",
       "http-generic-api/test-recovery-system-tool-overlay.mjs",
-      "http-generic-api/test-host-breakglass-local-request.mjs"
+      "http-generic-api/test-host-breakglass-local-request.mjs",
+      "http-generic-api/stagingRuntimeBootstrapContract.js",
+      "http-generic-api/runtimeBootstrapContract.js"
     ]
   },
   "environment_impact": {
@@ -52,7 +54,7 @@
           "terminal_outcome": "The corrective migration is allowlisted, checksum-bound and approval-gated; approval returns a server-bound verified local Windows/Docker handoff whose single-use ticket is reverified before database mutation and finalized only after canonical same-cycle schema readback. Production and provider mutation remain forbidden.",
           "steps": [
             "Bind the repair to the exact current main deployment and Staging target fingerprint.",
-            "Resolve only 20261003_staging_remote_mcp_runtime_foundation_reconciliation.sql from the repository-owned Staging schema-repair allowlist.",
+            "Resolve only 20261003_staging_remote_mcp_runtime_foundation_reconciliation.sql from the repository-owned Staging Recovery-only artifact root and schema-repair allowlist; it must remain outside the canonical ordered migration chain.",
             "Create platform_runtime_config and the three Remote MCP OAuth persistence tables with CREATE TABLE IF NOT EXISTS only.",
             "Require the exact typed confirmation APPLY_STAGING_RUNTIME_MIGRATION:<sha>:staging-runtime:<migration> before issuing the single-use execution ticket.",
             "Keep the ticket signature and approval token server-side; return only a checksum-bound verified local handoff carrying the ticket ID/hash references required for private re-verification.",
@@ -74,7 +76,8 @@
             "Same-cycle postconditions cover platform_runtime_config plus remote_mcp_oauth_clients, remote_mcp_oauth_authorization_codes and remote_mcp_oauth_grants.",
             "The migration itself grants no database privileges; access reconciliation remains a separate governed operation.",
             "Production mutation, Hostinger mutation, provider mutation and external evidence fabrication remain false.",
-            "The declaration is registered exactly in Constitution.control_plane_paths and convergence.automation_control_paths."
+            "The declaration is registered exactly in Constitution.control_plane_paths and convergence.automation_control_paths.",
+            "The corrective SQL artifact is stored under http-generic-api/staging-recovery-migrations and is excluded from the canonical ordered schema-bundle migration inventory."
           ],
           "tests": [
             {
@@ -115,7 +118,7 @@
           ],
           "evidence_paths": [
             ".changes/e2e/staging-recovery-b2a-runtime-schema-repair-20261003.json",
-            "http-generic-api/migrations/20261003_staging_remote_mcp_runtime_foundation_reconciliation.sql",
+            "http-generic-api/staging-recovery-migrations/20261003_staging_remote_mcp_runtime_foundation_reconciliation.sql",
             "http-generic-api/config/host-breakglass-staging-contract.json",
             "http-generic-api/stagingRuntimeBootstrapContract.js",
             "http-generic-api/stagingSchemaRepairSystemTools.js",
@@ -126,7 +129,8 @@
             "http-generic-api/scripts/host-breakglass-local-verified.mjs",
             "http-generic-api/scripts/host-breakglass-local.mjs",
             "http-generic-api/test-recovery-system-tool-overlay.mjs",
-            "http-generic-api/test-host-breakglass-local-request.mjs"
+            "http-generic-api/test-host-breakglass-local-request.mjs",
+            "http-generic-api/runtimeBootstrapContract.js"
           ]
         }
       ]
