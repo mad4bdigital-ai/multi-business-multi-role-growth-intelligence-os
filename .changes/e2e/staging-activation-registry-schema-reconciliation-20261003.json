@@ -1,0 +1,105 @@
+{
+    "$schema":  "../../.specify/schemas/e2e-phases.schema.json",
+    "schema_version":  1,
+    "feature_key":  "staging-activation-registry-schema-reconciliation",
+    "title":  "Staging Activation registry schema reconciliation",
+    "delivery_mode":  "single_pr",
+    "current_phase":  "mvp",
+    "scope":  {
+                  "include":  [
+                                  ".changes/e2e/staging-activation-registry-schema-reconciliation-20261003.json",
+                                  "http-generic-api/activation-surfaces/connector_pack_catalog.json",
+                                  "http-generic-api/config/host-breakglass-staging-contract.json",
+                                  "http-generic-api/migrations/20261003_staging_activation_registry_schema_reconciliation.sql",
+                                  "http-generic-api/test-host-breakglass-local-request.mjs",
+                                  "http-generic-api/test-staging-schema-bundle-builder.mjs"
+                              ]
+              },
+    "merge_contract":  {
+                           "minimum_phase":  "mvp"
+                       },
+    "environment_impact":  {
+                               "source_of_truth":  "http-generic-api/config/deployment-branch-policy.json",
+                               "declared_targets":  [
+                                                        "production",
+                                                        "staging"
+                                                    ],
+                               "cross_environment_reviewed":  true,
+                               "live_staging_certification_required":  true,
+                               "production_mutation_allowed":  false
+                           },
+    "phases":  [
+                   {
+                       "id":  "mvp",
+                       "status":  "implemented",
+                       "objective":  "Restore the eight Activation registry schema surfaces required by Staging hard activation through the governed Staging Host Breakglass migration contract without executing Production or provider mutations.",
+                       "e2e_journeys":  [
+                                            {
+                                                "id":  "staging-activation-registry-schema-reconciliation",
+                                                "end_to_end":  true,
+                                                "level":  "synthetic_runtime",
+                                                "actor":  "Staging operator and governed CI",
+                                                "entrypoint":  "The repository-owned Staging Host Breakglass schema-repair catalog and Activation registry migration are evaluated.",
+                                                "terminal_outcome":  "The eight required Activation registry tables are cataloged for bounded Staging schema repair, connector-pack activation coverage is explicit, migration checksum authority is Git-blob bound, and no Production mutation is authorized.",
+                                                "steps":  [
+                                                              "Catalog the additive eight-table Activation registry reconciliation migration in the Staging Host Breakglass readiness contract.",
+                                                              "Bind the migration checksum to the exact repository Git blob and retain a statement count of eight.",
+                                                              "Require runtime-only schema repair authority with no grant mutation or arbitrary SQL authority.",
+                                                              "Expose activation_connector_pack_registry through an explicit admin-only Activation surface manifest.",
+                                                              "Keep the migration schema-only with no seed, backfill, destructive DDL, grants, revokes, or provider writes.",
+                                                              "Require live Staging certification before governed schema-repair application.",
+                                                              "Keep Production mutation explicitly disallowed."
+                                                          ],
+                                                "assertions":  [
+                                                                   "The Staging repair catalog resolves the reconciliation migration by exact checksum and statement count.",
+                                                                   "The migration contains only additive CREATE TABLE IF NOT EXISTS statements for the required Activation registry surfaces.",
+                                                                   "Host Breakglass schema-repair authority remains Staging-scoped and runtime-role bounded.",
+                                                                   "activation_connector_pack_registry is covered by an explicit admin-only Activation surface.",
+                                                                   "The canonical Staging schema bundle inventories the updated exact migration chain.",
+                                                                   "Production mutation remains disallowed.",
+                                                                   "Provider mutation remains disallowed.",
+                                                                   "secrets_included is false."
+                                                               ],
+                                                "tests":  [
+                                                              {
+                                                                  "id":  "staging-host-breakglass-local-request",
+                                                                  "runner":  "node",
+                                                                  "working_directory":  "http-generic-api",
+                                                                  "path":  "test-host-breakglass-local-request.mjs",
+                                                                  "args":  [
+
+                                                                           ]
+                                                              },
+                                                              {
+                                                                  "id":  "staging-schema-bundle-contract",
+                                                                  "runner":  "node",
+                                                                  "working_directory":  "http-generic-api",
+                                                                  "path":  "test-staging-schema-bundle-builder.mjs",
+                                                                  "args":  [
+
+                                                                           ]
+                                                              },
+                                                              {
+                                                                  "id":  "activation-surface-coverage-gate",
+                                                                  "runner":  "node",
+                                                                  "working_directory":  "http-generic-api",
+                                                                  "path":  "test-activation-surface-coverage-gate.mjs",
+                                                                  "args":  [
+
+                                                                           ]
+                                                              }
+                                                          ],
+                                                "evidence_paths":  [
+                                                                       ".changes/e2e/staging-activation-registry-schema-reconciliation-20261003.json",
+                                                                       "http-generic-api/activation-surfaces/connector_pack_catalog.json",
+                                                                       "http-generic-api/config/host-breakglass-staging-contract.json",
+                                                                       "http-generic-api/migrations/20261003_staging_activation_registry_schema_reconciliation.sql",
+                                                                       "http-generic-api/test-host-breakglass-local-request.mjs",
+                                                                       "http-generic-api/test-staging-schema-bundle-builder.mjs"
+                                                                   ]
+                                            }
+                                        ]
+                   }
+               ],
+    "secrets_included":  false
+}
