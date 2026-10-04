@@ -101,7 +101,10 @@
             "The WAITING_FOR_STAGING resume marker must be authored by github-actions[bot]; user-authored lookalike comments are rejected.",
             "Trusted resume-marker authority is parsed as exact key/value fields rather than by a whitespace-sensitive prefix, while duplicate keys, missing bindings, non-bot authors, moved SHAs, and executed markers remain fail-closed.",
             "Trusted resume-marker discovery is independent of Windows PowerShell collection materialization: gh/gojq enumerates bot-authored candidate comment IDs across all pages, each comment is re-read as one JSON object, and exact field bindings remain fail-closed.",
-            "Trusted resume-marker discovery uses gh/gojq only to emit primitive id/login TSV rows; Windows PowerShell performs the exact github-actions[bot] identity comparison, then re-reads each bot comment and ignores unrelated bot comments before exact marker-field validation."
+            "Trusted resume-marker discovery uses gh/gojq only to emit primitive id/login TSV rows; Windows PowerShell performs the exact github-actions[bot] identity comparison, then re-reads each bot comment and ignores unrelated bot comments before exact marker-field validation.",
+            "The current control-plane portable manifest is verified before any historical checkout; it protects the live driver, not the historical payload.",
+            "A governed historical release-cut checkout must be tracked-clean and is bound by exact commit/tree plus git-archive build-context provenance; stale historical generated manifest hashes are not treated as payload authority.",
+            "Non-historical exact-ref operation retains post-checkout portable-manifest verification."
           ],
           "tests": [
             {

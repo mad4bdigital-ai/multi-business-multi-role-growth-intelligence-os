@@ -179,6 +179,27 @@ function Repair-ManifestLineEndings([string]$RepoPath) {
     git update-index --really-refresh 2>$null | Out-Null
 }
 
+function Assert-PortableManifestIntegrity([string]$RepoPath, [string]$ManifestPath, [string]$Stage) {
+    if (-not (Test-Path -LiteralPath $ManifestPath -PathType Leaf)) { Fail "Portable manifest is missing: $ManifestPath" }
+    try { $manifestObject = Get-Content -Raw -LiteralPath $ManifestPath | ConvertFrom-Json } catch { Fail "Portable manifest is invalid JSON: $ManifestPath" }
+    if ([int]$manifestObject.schema_version -ne 1 -or $null -eq $manifestObject.files) { Fail "Portable manifest schema is unsupported: $ManifestPath" }
+    foreach ($entry in $manifestObject.files) {
+        $relative = ([string]$entry.path).Replace("\","/")
+        if ([string]::IsNullOrWhiteSpace($relative) -or [IO.Path]::IsPathRooted($relative) -or $relative.Contains("..")) {
+            Fail "Portable manifest contains an invalid repository-relative path"
+        }
+        $full = Join-Path $RepoPath $relative
+        if (-not (Test-Path -LiteralPath $full -PathType Leaf)) { Fail "Manifest file is missing: $relative" }
+        $actual = (Get-FileHash -Algorithm SHA256 -LiteralPath $full).Hash.ToLowerInvariant()
+        $expected = ([string]$entry.sha256).ToLowerInvariant()
+        if ($expected -notmatch '^[0-9a-f]{64}$' -or $actual -ne $expected) { Fail "Manifest hash mismatch: $relative" }
+    }
+    Write-StagingLog -Level info -Component $LogComponent -Stage $Stage -Message "portable manifest integrity verified" -Data @{
+        manifest = $ManifestPath
+        file_count = @($manifestObject.files).Count
+    }
+}
+
 function Write-ServiceFailureDiagnostics([string]$Service, [string]$ContainerId) {
     try {
         $state = (& docker inspect --format '{{json .State}}' $ContainerId 2>$null | Out-String).Trim()
@@ -669,23 +690,38 @@ try {
     Repair-ManifestLineEndings $RepositoryPath
     $dirty = @(git status --porcelain --untracked-files=all)
     if ($dirty.Count -gt 0) { Fail "Working tree is not clean after protected line-ending normalization; Auto Pilot will not overwrite local work" }
+
+    # The portable manifest belongs to the live control-plane driver. Verify it before
+    # switching the worktree to a historical release cut; a historical generated manifest
+    # may legitimately be stale relative to canonical Git bytes and is not payload authority.
+    Assert-PortableManifestIntegrity $RepositoryPath $Manifest "driver-manifest"
+
     Invoke-Native "git" @("fetch", "origin", $Ref, "--depth=2")
     $remoteCommit = (Get-NativeText "git" @("rev-parse", "origin/$Ref")).ToLowerInvariant()
+    $governedHistoricalResume = $false
     if ($remoteCommit -ne $ExpectedCommit.ToLowerInvariant()) {
         Assert-GovernedReleaseCutResume $remoteCommit
+        $governedHistoricalResume = $true
         Invoke-Native "git" @("fetch", "origin", $ExpectedCommit, "--depth=2")
     }
     Invoke-Native "git" @("checkout", "--detach", $ExpectedCommit)
     $checkedOut = Get-NativeText "git" @("rev-parse", "HEAD")
     if ($checkedOut.ToLowerInvariant() -ne $ExpectedCommit.ToLowerInvariant()) { Fail "Checked-out commit readback mismatch" }
 
-    if (-not (Test-Path $Manifest)) { Fail "Portable manifest is missing: $Manifest" }
-    $manifestObject = Get-Content -Raw $Manifest | ConvertFrom-Json
-    foreach ($entry in $manifestObject.files) {
-        $full = Join-Path $RepositoryPath $entry.path
-        if (-not (Test-Path $full)) { Fail "Manifest file is missing: $($entry.path)" }
-        $actual = (Get-FileHash -Algorithm SHA256 $full).Hash.ToLowerInvariant()
-        if ($actual -ne $entry.sha256.ToLowerInvariant()) { Fail "Manifest hash mismatch: $($entry.path)" }
+    $trackedDirtyAfterCheckout = @(git status --porcelain --untracked-files=no)
+    if ($trackedDirtyAfterCheckout.Count -gt 0) {
+        Fail "Tracked working tree changed after exact release checkout"
+    }
+
+    if (-not $governedHistoricalResume) {
+        Assert-PortableManifestIntegrity $RepositoryPath $Manifest "payload-manifest"
+    } else {
+        Write-StagingLog -Level info -Component $LogComponent -Stage "payload-integrity" -Message "historical release payload uses exact Git commit/tree authority instead of historical generated manifest hashes" -Data @{
+            expected_commit = $ExpectedCommit.ToLowerInvariant()
+            current_main = $remoteCommit
+            historical_manifest_trusted = $false
+            tracked_worktree_clean = $true
+        }
     }
     if (-not (Test-Path $BuildContextScript)) { Fail "Exact Git build context generator is missing: $BuildContextScript" }
     $buildTree = Get-NativeText "git" @("rev-parse", "$ExpectedCommit^{tree}")
