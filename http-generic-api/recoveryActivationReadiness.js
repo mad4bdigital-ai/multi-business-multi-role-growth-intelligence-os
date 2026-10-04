@@ -49,6 +49,8 @@ const CERTIFICATION_REQUIRED_NEGATIVE_TESTS = Object.freeze([
   "schema_precondition_drift",
 ]);
 
+const IMAGE_DIGEST_RE = /^sha256:[0-9a-f]{64}$/u;
+
 const PRODUCTION_LIVE_BLOCKERS = Object.freeze({
   certification_missing: "RECOVERY_STAGING_CERTIFICATION_REQUIRED",
   certification_expired: "RECOVERY_STAGING_CERTIFICATION_EXPIRED",
@@ -240,7 +242,9 @@ export function evaluateStagingRecoveryCertification({
       && nonEmpty(certification.audit_evidence.evidence_hash),
     canonical_payload_hash: nonEmpty(certification?.audit_evidence?.canonical_payload_hash)
       && certification.audit_evidence.canonical_payload_hash === certificationPayloadHash(certification),
-    artifact_integrity: certification?.artifact_integrity?.valid === true,
+    artifact_integrity: certification?.artifact_integrity?.valid === true
+      && /^[0-9a-f]{64}$/u.test(String(certification?.artifact_integrity?.manifest_sha256 || ""))
+      && IMAGE_DIGEST_RE.test(String(certification?.artifact_integrity?.app_image_digest || "")),
     freshness: certification?.expires_at
       ? Number.isFinite(Date.parse(certification.expires_at)) && Date.parse(certification.expires_at) > Date.now()
       : false,
@@ -261,6 +265,8 @@ export function evaluateStagingRecoveryCertification({
     provider_environment: certification?.provider_environment || null,
     evidence_hash: certification?.audit_evidence?.evidence_hash || null,
     canonical_payload_hash: certification?.audit_evidence?.canonical_payload_hash || null,
+    manifest_sha256: certification?.artifact_integrity?.manifest_sha256 || null,
+    app_image_digest: certification?.artifact_integrity?.app_image_digest || null,
     expires_at: certification?.expires_at || null,
   };
   return {
