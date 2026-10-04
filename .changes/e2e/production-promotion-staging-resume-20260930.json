@@ -4,7 +4,7 @@
   "feature_key": "production-promotion-staging-resume-20260930",
   "title": "Resumable Production promotion across offline local Staging and advancing main",
   "delivery_mode": "single_pr",
-  "current_phase": "mvp",
+  "current_phase": "operational",
   "scope": {
     "include": [
       ".changes/e2e/production-promotion-staging-resume-20260930.json",
@@ -12,7 +12,8 @@
       "http-generic-api/test-production-promotion-convergence-workflows.mjs",
       "http-generic-api/config/repository-governance-constitution.json",
       ".github/derived-state-governance.json",
-      ".github/tests/repository-governance-objection-gate.test.mjs"
+      ".github/tests/repository-governance-objection-gate.test.mjs",
+      "autopilot-portable-staging/Start-AutoPilot.ps1"
     ]
   },
   "merge_contract": {
@@ -68,8 +69,53 @@
     },
     {
       "id": "operational",
-      "status": "planned",
-      "objective": "Exercise one real offline-to-online Staging convergence and prove an explicit governed retry reuses the existing candidate surfaces when source pins remain valid."
+      "status": "implemented",
+      "objective": "Exercise and govern the real offline-to-online Staging convergence path by allowing the current trusted local Auto Pilot driver to deploy an exact authorized Production release-cut ancestor without moving main or Production.",
+      "e2e_journeys": [
+        {
+          "id": "authorized-release-cut-local-staging-resume",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Governed Windows Staging operator",
+          "entrypoint": "A Production promotion request is in WAITING_FOR_STAGING with an exact GOVENED/GOVERNED production staging resume marker, while current main has advanced beyond the authorized release cut.",
+          "terminal_outcome": "Start-AutoPilot keeps current main as the trusted control-plane driver, verifies the exact request head, resume marker, release-cut ancestry, pinned Production SHA and two-parent candidate topology, then permits only the exact release-cut payload to be fetched and deployed to local Staging. Production and provider authority remain unchanged.",
+          "steps": [
+            "Require explicit AllowGovernedReleaseCutAncestor mode and a confirmation token derived from the first 12 hex characters of the exact release cut.",
+            "Verify the promotion request is open on main with the exact request head and exact control-plane title.",
+            "Require exactly one matching GOVENED/GOVERNED Production Staging resume marker binding request PR, request head, release cut, pinned Production and candidate.",
+            "Verify the release cut remains an ancestor of current main through GitHub compare evidence.",
+            "Verify Production still equals the pinned SHA.",
+            "Verify candidate has exactly two parents, release cut first and pinned Production second, and its tree equals the release-cut tree.",
+            "Verify the request marker is a one-parent direct descendant of the release cut with an identical tree.",
+            "Self-update the Staging control-plane driver to current main, not to the older payload commit.",
+            "Fetch and check out only the exact authorized release cut for the Staging payload, then continue existing exact-tree build-context and certification controls.",
+            "Leave Production merge, Production deployment, migrations, provider mutation, database mutation and secret output unauthorized."
+          ],
+          "assertions": [
+            "Default Start-AutoPilot behavior remains fail-closed when origin/main differs from ExpectedCommit.",
+            "Historical commits that are not exact authorized ancestors of current main remain rejected.",
+            "A moved Production ref, changed request head, missing or duplicate resume marker, changed candidate parents, changed candidate tree or changed request-marker tree fails closed.",
+            "The operational resume path does not invoke gh workflow run, gh pr merge or git push.",
+            "The path grants only local Staging payload deployment authority and cannot mutate Production.",
+            "secrets_included is false."
+          ],
+          "tests": [
+            {
+              "id": "production-promotion-convergence-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-production-promotion-convergence-workflows.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/production-promotion-staging-resume-20260930.json",
+            ".github/workflows/governed-production-promotion-request-launcher.yml",
+            "autopilot-portable-staging/Start-AutoPilot.ps1",
+            "http-generic-api/test-production-promotion-convergence-workflows.mjs"
+          ]
+        }
+      ]
     },
     {
       "id": "resilient",
