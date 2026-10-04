@@ -82,7 +82,7 @@
           "steps": [
             "Require explicit AllowGovernedReleaseCutAncestor mode and a confirmation token derived from the first 12 hex characters of the exact release cut.",
             "Verify the promotion request is open on main with the exact request head and exact control-plane title.",
-            "Require exactly one matching GOVENED/GOVERNED Production Staging resume marker binding request PR, request head, release cut, pinned Production and candidate.",
+            "Require exactly one matching GOVERNED_PRODUCTION_STAGING_RESUME_ARMED marker binding request PR, request head, release cut, pinned Production and candidate.",
             "Verify the release cut remains an ancestor of current main through GitHub compare evidence.",
             "Verify Production still equals the pinned SHA.",
             "Verify candidate has exactly two parents, release cut first and pinned Production second, and its tree equals the release-cut tree.",
@@ -97,7 +97,8 @@
             "A moved Production ref, changed request head, missing or duplicate resume marker, changed candidate parents, changed candidate tree or changed request-marker tree fails closed.",
             "The operational resume path does not invoke gh workflow run, gh pr merge or git push.",
             "The path grants only local Staging payload deployment authority and cannot mutate Production.",
-            "secrets_included is false."
+            "secrets_included is false.",
+            "The WAITING_FOR_STAGING resume marker must be authored by github-actions[bot]; user-authored lookalike comments are rejected."
           ],
           "tests": [
             {
