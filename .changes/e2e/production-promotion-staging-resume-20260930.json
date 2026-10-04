@@ -142,7 +142,7 @@
       "production"
     ],
     "cross_environment_reviewed": true,
-    "live_staging_certification_required": false,
+    "live_staging_certification_required": true,
     "production_mutation_allowed": false
   }
 }
