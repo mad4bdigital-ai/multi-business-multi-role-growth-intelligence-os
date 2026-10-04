@@ -961,7 +961,7 @@ assert("local connector requires fresh Local Manager authorization for privilege
       source.includes("auth_context: device.auth_context") &&
       source.includes("reauth_required_for_stale_device_tokens: true") &&
       source.includes("secrets_included: false"));
-    assert("local connector admin installer tenant selection is explicit and mismatch safe", source.includes("requestedTenantId") && source.includes("selectedTenantId") && source.includes("connector_config_tenant_mismatch"));
+    assert("device installer lookup requires token tenant and unambiguous canonical identity", source.includes("AND c.tenant_id <=> ?") && source.includes("a.tenant_id <=> c.tenant_id") && source.includes("connector_config_ambiguous") && source.includes("[device.user_id, device.tenant_id || null, device.device_id, device.device_id]"));
     assert("Local Manager privileged installer authorization requires bounded fresh user step-up for stale device tokens",
       deviceLinkSource.includes("requireFreshLocalManagerDeviceForPrivilegedInstaller") &&
       deviceLinkSource.includes("DEVICE_TOKEN_TTL_SECONDS = 365 * 24 * 60 * 60") &&
@@ -1033,7 +1033,7 @@ assert("local connector requires fresh Local Manager authorization for privilege
 
   {
     const indexSource = readFileSync("routes/index.js", "utf8");
-    const betaSource = readFileSync("routes/localManagerBetaRoutes.js", "utf8");
+    const betaSource = readFileSync("routes/localManagerBetaRoutes.js", "utf8") + readFileSync("localManagerReleaseRegistry.js", "utf8");
     const localManagerWriteSource = readFileSync("localManagerWriteAuthority.js", "utf8");
     const authSource = readFileSync("routes/authRoutes.js", "utf8");
     assert("local manager beta routes are imported and mounted",
@@ -1150,7 +1150,7 @@ assert("local connector requires fresh Local Manager authorization for privilege
       releaseMigrationSource.includes("Mad4B-Local-Manager-Setup.exe"));
     const deviceLinkSource = readFileSync("services/localManagerDeviceLinkService.js", "utf8");
     assert("local manager Windows default download redirects to public EXE release asset",
-      betaSource.includes("Mad4B-Local-Manager-Setup-0.2.30.exe") &&
+      betaSource.includes("Mad4B-Local-Manager-Setup-0.2.31.exe") &&
       betaSource.includes("releases/download/local-manager-windows-latest") &&
       !betaSource.includes("Mad4B-Local-Manager-Windows-Bootstrap.ps1") &&
       !betaSource.includes("connector_secret") &&

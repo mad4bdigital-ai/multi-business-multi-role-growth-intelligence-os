@@ -88,7 +88,23 @@ assert.deepEqual(STAGING_ROLE_GRANT_POLICIES.runtime.required_operations_by_tabl
 assert.equal(STAGING_ROLE_GRANT_POLICIES.runtime.required_operations_by_table.workspace_registry.includes("INSERT"), false);
 assert.equal(STAGING_ROLE_GRANT_POLICIES.runtime.required_operations_by_table.workspace_registry.includes("UPDATE"), false);
 assert.equal(STAGING_ROLE_GRANT_POLICIES.runtime.required_tables.includes("platform_runtime_config"), true);
-assert.deepEqual(STAGING_ROLE_GRANT_POLICIES.runtime.required_operations_by_table.platform_runtime_config, ["SELECT"]);
+assert.deepEqual(STAGING_ROLE_GRANT_POLICIES.runtime.required_operations_by_table.platform_runtime_config, ["SELECT", "INSERT", "UPDATE"]);
+for (const remoteMcpRuntimeTable of [
+  "platform_secrets",
+  "remote_mcp_oauth_clients",
+  "remote_mcp_oauth_authorization_codes",
+  "remote_mcp_oauth_grants",
+]) {
+  assert.equal(STAGING_ROLE_GRANT_POLICIES.runtime.required_tables.includes(remoteMcpRuntimeTable), true);
+  assert.deepEqual(
+    STAGING_ROLE_GRANT_POLICIES.runtime.required_operations_by_table[remoteMcpRuntimeTable],
+    ["SELECT", "INSERT", "UPDATE"],
+  );
+  assert.equal(
+    STAGING_ROLE_GRANT_POLICIES.runtime.required_operations_by_table[remoteMcpRuntimeTable].includes("DELETE"),
+    false,
+  );
+}
 assert.deepEqual(STAGING_ROLE_GRANT_POLICIES.runtime.required_operations_by_table.platform_tool_dispatch_bindings, ["SELECT"]);
 assert.deepEqual(STAGING_ROLE_GRANT_POLICIES.runtime.required_operations_by_table.workspace_assets, ["SELECT"]);
 for (const desktopIdentityDependency of ["local_connector_device_aliases", "local_connector_user_configs"]) {

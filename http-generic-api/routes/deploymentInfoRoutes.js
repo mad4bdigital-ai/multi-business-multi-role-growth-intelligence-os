@@ -3,6 +3,7 @@ import crypto from "node:crypto";
 import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import { readDeploymentManifest } from "../deploymentManifest.js";
+import { resolveRuntimeEnvironmentStrict } from "../runtimeEnvironmentResolver.js";
 import { getGovernanceDbPrivilegeReadinessSnapshot } from "../governanceDbPrivilegeReadinessRuntime.js";
 import {
   getMcpCatalogSchemaStartupPreflight,
@@ -110,6 +111,30 @@ function buildRuntimeBindingEvidence(env = {}) {
     secrets_included: false,
     database_connection_performed: false,
     database_mutation_performed: false,
+  };
+}
+
+function buildRuntimeEnvironmentEvidence(env = process.env) {
+  const resolved = resolveRuntimeEnvironmentStrict(env);
+  const signalKeys = Array.isArray(resolved?.values)
+    ? [...new Set(resolved.values.map((entry) => String(entry?.key || "").trim()).filter(Boolean))]
+    : [];
+  return {
+    contract: resolved?.contract || "mad4b.runtime-environment-resolver.v1",
+    environment_policy_contract: resolved?.environment_policy_contract || "mad4b.runtime-environment-policy.v1",
+    ok: resolved?.ok === true,
+    environment_key: resolved?.environment_key || null,
+    runtime_variant: resolved?.runtime_variant || null,
+    canonical_runtime_variant: resolved?.canonical_runtime_variant || null,
+    runtime_class: resolved?.runtime_class || null,
+    runtime_class_explicit: resolved?.runtime_class_explicit === true,
+    deployment_model: resolved?.deployment_model || null,
+    source_branch: resolved?.source_branch || null,
+    reason: resolved?.reason || null,
+    signal_keys: signalKeys,
+    signal_count: signalKeys.length,
+    raw_values_exposed: false,
+    secrets_included: false,
   };
 }
 
@@ -247,6 +272,7 @@ export function buildDeploymentInfoRoutes({
   mcpCatalogSchemaReadinessReader = readMcpCatalogSchemaReadinessSafe,
   productionActivationReadinessReader = runProductionActivationReadiness,
   runtimeBootstrapStatusReader = getRuntimeBootstrapStatus,
+  runtimeEnvironmentReader = buildRuntimeEnvironmentEvidence,
   runtimeBootstrapReader = runBootstrap,
   hostLocalInspectionReader = executeHostLocalRoleInspection,
   platformAdminWorkspaceReadinessReader,
@@ -559,6 +585,8 @@ export function buildDeploymentInfoRoutes({
       };
     }
 
+    const runtimeEnvironment = await Promise.resolve(runtimeEnvironmentReader(process.env));
+
     res.status(200).json({
       ok: true,
       service: "growth-intelligence-platform",
@@ -606,6 +634,7 @@ export function buildDeploymentInfoRoutes({
         ref_mtime: git.ref_mtime || null,
       } : { detected: false },
       runtime_integrity: runtimeIntegrity,
+      runtime_environment: runtimeEnvironment,
       runtime_bootstrap_status: runtimeBootstrapStatus,
       ...(includeGovernanceDbReadiness ? {
         governance_db_privilege_readiness: governanceDbPrivilegeReadiness,
@@ -633,6 +662,11 @@ export function buildDeploymentInfoRoutes({
         runtime_integrity_state: runtimeIntegrity.state || "degraded",
         runtime_integrity_verified: runtimeIntegrity.verified === true,
         runtime_integrity_read_only: runtimeIntegrity.read_only_check === true,
+        runtime_environment_resolved: runtimeEnvironment.ok === true,
+        runtime_environment_key: runtimeEnvironment.environment_key,
+        runtime_class_explicit: runtimeEnvironment.runtime_class_explicit === true,
+        runtime_class: runtimeEnvironment.runtime_class,
+        runtime_environment_reason: runtimeEnvironment.reason,
         manifest_error: manifestResult.ok ? null : manifestResult.error,
         secrets_included: false,
       },

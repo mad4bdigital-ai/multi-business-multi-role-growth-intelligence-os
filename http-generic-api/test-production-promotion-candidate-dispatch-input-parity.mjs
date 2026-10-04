@@ -121,8 +121,8 @@ assert.doesNotMatch(
 );
 assert.match(
   fullPromotionBridge,
-  /--field expected_head_sha="\$\{MAIN_SHA\}"/u,
-  "full promotion bridge must pin the launcher to exact current main",
+  /--field expected_head_sha="\$\{RELEASE_CUT_SHA\}"/u,
+  "full promotion bridge must pin the launcher to the exact authorized release cut",
 );
 assert.match(
   fullPromotionBridge,
@@ -146,8 +146,28 @@ assert.match(
 );
 assert.match(
   fullPromotionBridge,
-  /git diff --quiet "\$\{main_sha\}" "\$\{request_head_sha\}"/u,
-  "full promotion bridge must require the request marker tree to equal current main",
+  /git diff --quiet "\$\{release_cut_sha\}" "\$\{request_head_sha\}"/u,
+  "full promotion bridge must require the request marker tree to equal the authorized release cut",
+);
+assert.match(
+  fullPromotionBridge,
+  /git merge-base --is-ancestor "\$\{production_sha\}" "\$\{release_cut_sha\}"/u,
+  "full promotion bridge must require Production ancestry inside the authorized release cut",
+);
+assert.match(
+  fullPromotionBridge,
+  /git merge-base --is-ancestor "\$\{release_cut_sha\}" "\$\{main_sha\}"/u,
+  "full promotion bridge must require the authorized release cut to remain in current main ancestry",
+);
+assert.match(
+  fullPromotionBridge,
+  /git merge-base --is-ancestor "\$\{release_cut_sha\}" "\$\{request_head_sha\}"/u,
+  "full promotion bridge must require the request marker to descend from the authorized release cut",
+);
+assert.match(
+  fullPromotionBridge,
+  /release_cut_sha=.*sed -n/u,
+  "full promotion bridge must resolve an explicit release_cut_sha from the governed request body when present",
 );
 
 const canonicalDecisionWrite = fullPromotionBridge.indexOf('.outcome="dispatched" | .dispatch_requested=true');

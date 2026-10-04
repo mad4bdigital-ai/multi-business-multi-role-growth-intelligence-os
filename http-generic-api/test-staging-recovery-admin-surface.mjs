@@ -20,10 +20,10 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import YAML from "yaml";
-import { webcrypto, generateKeyPairSync, sign } from "node:crypto";
+import { webcrypto, generateKeyPairSync, sign, createHash } from "node:crypto";
 import { mkdtemp, rm } from "node:fs/promises";
 import os from "node:os";
-import { createFileRecoveryEvidenceStore, createRecoveryReadinessAuthorities, readinessEvidencePayload, recoveryReadinessRouteDependencies, expectedStagingRegistration, expectedStagingGatewayDeployment, RECOVERY_READINESS_EVIDENCE_CONTRACT } from "./recoveryReadinessEvidence.js";
+import { createFileRecoveryEvidenceStore, createRecoveryReadinessAuthorities, readinessEvidencePayload, recoveryReadinessRouteDependencies, expectedStagingRegistration, expectedStagingGatewayDeployment, recoveryExternalEvidenceHash, RECOVERY_EXTERNAL_EVIDENCE_CONTRACT, RECOVERY_READINESS_EVIDENCE_CONTRACT } from "./recoveryReadinessEvidence.js";
 import { buildActivationHostGatewayRoutes } from "./routes/activationHostGatewayRoutes.js";
 import { createActivationGateway, stableJson } from "../edge/activation-gateway/src/gateway.mjs";
 
@@ -84,7 +84,7 @@ function validCertification() {
     lifecycle_trace: lifecycleTrace,
     negative_tests: { all_passed: true, cases: negativeCases },
     audit_evidence: { durable: true, evidence_hash: "d".repeat(64) },
-    artifact_integrity: { valid: true },
+    artifact_integrity: { valid: true, manifest_sha256: "a".repeat(64), app_image_digest: "sha256:" + "b".repeat(64) },
     expires_at: new Date(Date.now() + 3600000).toISOString(),
     safety: {
       production_mutation_performed: false,
@@ -331,6 +331,12 @@ test("real signed Worker to origin rejects forgery, substitution, replay and mis
   });
   const pathname = "/admin/recovery/staging/contract";
   try {
+    const direct = await fetch(`${origin.url}${pathname}`, { headers: { host: new URL(policy.upstream_origin).host, "x-forwarded-host": policy.public_host } });
+    assert.equal(direct.status, 403);
+    assert.equal((await direct.json()).error.code, "RECOVERY_TRUSTED_INGRESS_REQUIRED");
+    const directDev = await fetch(`${origin.url}${pathname}`, { headers: { host: new URL(policy.upstream_origin).host } });
+    assert.equal(directDev.status, 404);
+    assert.equal((await directDev.json()).error.code, "RECOVERY_STAGING_HOST_UNAVAILABLE");
     const response = await handler(new Request(`https://${policy.public_host}${pathname}`, { headers: { "x-mad4b-ingress-attestation": "caller-forgery" } }), workerEnv);
     assert.equal(response.status, 200);
     assert.equal((await response.json()).production_authority, false);
@@ -504,16 +510,40 @@ test("readiness consumes one signed snapshot; every external pre-live proof is m
     const gateway = await expectedStagingGatewayDeployment();
     const binding = { deployment_sha: cert.deployment_sha, target_fingerprint: cert.target_fingerprint,
       evidence_hash: "e".repeat(64), expires_at: cert.expires_at };
+    function seal(kind, value) {
+      const types = { registration: ["chatgpt_registration", "chatgpt_live_readback"],
+        oauth: ["oauth_browser_round_trip", "oauth_server_correlation"],
+        network: ["origin_network_isolation", "independent_network_probe"] };
+      const base = { ...value, ...binding, contract: RECOVERY_EXTERNAL_EVIDENCE_CONTRACT,
+        evidence_kind: types[kind][0], source_provenance: { source: types[kind][1], observation_id: `test-${kind}-observation` },
+        observed_at: new Date().toISOString(), secrets_included: false };
+      return { ...base, evidence_hash: recoveryExternalEvidenceHash(base) };
+    }
     const payload = {
       contract: RECOVERY_READINESS_EVIDENCE_CONTRACT, issuer: "isolated-test-signer", key_id: "test-key",
       environment: "staging", ...binding, stagingCertification: cert,
       adapterProvenance: completeStagingComposition().adapter_provenance,
-      registrationEvidence: { ...await expectedStagingRegistration(), ...binding, observed_in: "chatgpt" },
-      oauthEvidence: { ...binding, issuer: "https://dev.mad4b.com", resource: "https://activation-dev.mad4b.com",
-        steps: Object.fromEntries(["authorize", "login_consent", "code", "callback", "token", "resource"].map((key) => [key, "pass"])) },
-      networkEvidence: { ...binding, environment: "staging", gateway_host: gateway.gateway_host,
+      registrationEvidence: seal("registration", { ...await expectedStagingRegistration(), observed_in: "chatgpt" }),
+      oauthEvidence: seal("oauth", { issuer: "https://dev.mad4b.com", resource: "https://activation-dev.mad4b.com",
+        steps: Object.fromEntries(["authorize", "login_consent", "code", "callback", "token", "resource"].map((key) => [key, "pass"])) }),
+      networkEvidence: seal("network", { environment: "staging", gateway_host: gateway.gateway_host,
         upstream_origin: gateway.upstream_origin, gateway_only: true, signed_ingress_required: true,
-        network_restriction_verified: true, direct_origin_publicly_reachable: false },
+        network_restriction_verified: true, direct_recovery_surface_bypass_denied: true,
+        request_method: "GET", request_body_sha256: createHash("sha256").update("").digest("hex"),
+        direct_recovery_surface_status: 403, direct_recovery_surface_reason: "RECOVERY_TRUSTED_INGRESS_REQUIRED",
+        direct_recovery_surface_path: "/admin/recovery/staging/contract",
+        signed_gateway_recovery_path: "/admin/recovery/staging/contract", signed_gateway_recovery_method: "GET",
+        signed_gateway_recovery_body_sha256: createHash("sha256").update("").digest("hex"),
+        signed_gateway_recovery_status: 200,
+        public_health_identity: {
+          status: 200,
+          ok: true,
+          source_commit: cert.deployment_sha,
+          worker_build_sha: cert.deployment_sha,
+          worker_bundle_sha256: "1".repeat(64),
+          policy_hash: gateway.policy_hash,
+          secrets_included: false,
+        } }),
       workerDeploymentEvidence: { ...binding, observed_in: "cloudflare_workers", deployment_verified: true,
         gateway_host: gateway.gateway_host, policy_hash: gateway.policy_hash,
         worker_build_sha: cert.deployment_sha, policy_source_sha: cert.deployment_sha,
@@ -537,7 +567,18 @@ test("readiness consumes one signed snapshot; every external pre-live proof is m
         ...recoveryReadinessRouteDependencies(authority), ingressBuildIdentity });
     }
     const ready = await read(payload);
-    assert.equal(ready.ready, true, JSON.stringify(ready));
+    assert.equal(ready.target_fingerprint, cert.target_fingerprint);
+    assert.deepEqual(ready.ingress_build_identity, ingress);
+    assert.equal(
+      Object.hasOwn(ready.ingress_build_identity, "auth_digest"),
+      false,
+    );
+    assert.equal(
+      Object.hasOwn(ready.ingress_build_identity, "jti"),
+      false,
+    );
+    assert.equal(ready.ready, false, "synthetic observations cannot activate certification");
+    assert.deepEqual(ready.external_evidence.blocking_failures, ["external_acquisition_authority"]);
     assert.equal(ready.production_live.enabled, false);
     assert.notEqual(payload.workerDeploymentEvidence.worker_bundle_sha256, payload.workerDeploymentEvidence.deployed_bundle_sha256,
       "the source-set and emitted deployment bytes legitimately have different hashes");
@@ -555,7 +596,7 @@ test("readiness consumes one signed snapshot; every external pre-live proof is m
       { registrationEvidence: null }, { oauthEvidence: null }, { networkEvidence: null }, { workerDeploymentEvidence: null },
       { registrationEvidence: { ...payload.registrationEvidence, schema_sha256: "f".repeat(64) } },
       { oauthEvidence: { ...payload.oauthEvidence, resource: "https://activation.mad4b.com" } },
-      { networkEvidence: { ...payload.networkEvidence, direct_origin_publicly_reachable: true } },
+      { networkEvidence: { ...payload.networkEvidence, direct_recovery_surface_bypass_denied: false } },
       { workerDeploymentEvidence: { ...payload.workerDeploymentEvidence, deployed_bundle_sha256: "3".repeat(64) } },
       { workerDeploymentEvidence: { ...payload.workerDeploymentEvidence, release_bundle_sha256: null } },
       { workerDeploymentEvidence: { ...payload.workerDeploymentEvidence, worker_bundle_sha256: "3".repeat(64) } },
