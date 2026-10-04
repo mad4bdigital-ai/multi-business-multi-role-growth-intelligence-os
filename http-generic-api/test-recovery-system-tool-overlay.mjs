@@ -157,7 +157,7 @@ test("Staging access repair mutation is advertised only when execute and indepen
   });
   assert.deepEqual(staging.target_database_mutation_capabilities, ["staging_database_access_repair"]);
   assert.equal(staging.system_surface_extensions.find((entry) => entry.capability_key === "staging_database_access_repair").state_scope, "plan_approval_execute_readback");
-  assert.equal(staging.system_surface_extensions.find((entry) => entry.capability_key === "staging_database_schema_repair").state_scope, "allowlist_plan_approval_ticket_only");
+  assert.equal(staging.system_surface_extensions.find((entry) => entry.capability_key === "staging_database_schema_repair").state_scope, "allowlist_plan_approval_verified_local_handoff_same_cycle_readback");
 });
 
 test("Staging schema repair direct mutation requires an explicitly marked database executor; ordinary approval remains a verified local handoff", () => {
