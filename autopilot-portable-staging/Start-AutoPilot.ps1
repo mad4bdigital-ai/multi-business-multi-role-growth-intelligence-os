@@ -313,21 +313,36 @@ function Assert-GovernedReleaseCutResume([string]$RemoteCommit) {
         return $fields
     }
 
-    # Do not rely on Windows PowerShell array materialization for the comments collection.
-    # Let gh/gojq select trusted candidate IDs across every page, then read each comment
-    # as one JSON object and apply the exact field parser below.
-    $candidateIdsRaw = (& gh api "/repos/$ExpectedRepository/issues/$PromotionRequestPr/comments?per_page=100" --paginate --jq '.[] | select(.user.login == "github-actions[bot]" and (.body | startswith("GOVERNED_PRODUCTION_STAGING_RESUME_ARMED"))) | .id' 2>$null | Out-String).Trim()
-    if ($LASTEXITCODE -ne 0) { Fail "Governed release-cut resume could not enumerate trusted promotion request markers" }
+    # Avoid both Windows PowerShell JSON-array materialization quirks and native-argument
+    # quoting quirks for string literals inside gh --jq. Emit only primitive TSV fields
+    # from gojq, filter the trusted bot identity in PowerShell, then re-read each candidate
+    # as one JSON object before applying the exact resume-marker field bindings.
+    $commentIndexRaw = (& gh api "/repos/$ExpectedRepository/issues/$PromotionRequestPr/comments?per_page=100" --paginate --jq '.[] | [.id, .user.login] | @tsv' 2>$null | Out-String).Trim()
+    if ($LASTEXITCODE -ne 0) { Fail "Governed release-cut resume could not enumerate promotion request comments" }
 
-    $candidateIdLines = @()
-    if (-not [string]::IsNullOrWhiteSpace($candidateIdsRaw)) {
-        $candidateIdLines = @($candidateIdsRaw -split '\r?\n' | ForEach-Object { ([string]$_).Trim() } | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) })
-    }
-    if (@($candidateIdLines | Where-Object { [string]$_ -notmatch '^\d+$' }).Count -gt 0) {
-        Fail "Governed release-cut resume trusted marker enumeration returned an invalid comment id"
+    $trustedResumeMarkerIds = @()
+    if (-not [string]::IsNullOrWhiteSpace($commentIndexRaw)) {
+        foreach ($line in @($commentIndexRaw -split '\r?\n')) {
+            $row = ([string]$line).Trim()
+            if ([string]::IsNullOrWhiteSpace($row)) { continue }
+
+            $columns = @($row -split "`t", 2)
+            if ($columns.Count -ne 2) {
+                Fail "Governed release-cut resume comment index returned an invalid TSV row"
+            }
+
+            $commentId = ([string]$columns[0]).Trim()
+            $commentLogin = ([string]$columns[1]).Trim()
+            if ($commentId -notmatch '^\d+$' -or [string]::IsNullOrWhiteSpace($commentLogin)) {
+                Fail "Governed release-cut resume comment index returned invalid fields"
+            }
+
+            if ($commentLogin -eq "github-actions[bot]") {
+                $trustedResumeMarkerIds += $commentId
+            }
+        }
     }
 
-    $trustedResumeMarkerIds = @($candidateIdLines)
     $resumeMarkerIds = @()
     foreach ($commentId in $trustedResumeMarkerIds) {
         $commentRaw = (& gh api "/repos/$ExpectedRepository/issues/comments/$commentId" 2>$null | Out-String).Trim()
@@ -336,11 +351,12 @@ function Assert-GovernedReleaseCutResume([string]$RemoteCommit) {
         }
         try { $comment = $commentRaw | ConvertFrom-Json } catch { Fail "Governed release-cut resume trusted marker comment response is invalid" }
 
-        $commentBody = ([string]$comment.body).Trim()
-        if (([string]$comment.user.login) -ne "github-actions[bot]" -or
-            $commentBody -notmatch '^GOVERNED_PRODUCTION_STAGING_RESUME_ARMED(?:\s|$)') {
-            Fail "Governed release-cut resume trusted marker identity changed during verification"
+        if (([string]$comment.user.login) -ne "github-actions[bot]") {
+            Fail "Governed release-cut resume trusted marker author identity changed during verification"
         }
+
+        $commentBody = ([string]$comment.body).Trim()
+        if ($commentBody -notmatch '^GOVERNED_PRODUCTION_STAGING_RESUME_ARMED(?:\s|$)') { continue }
 
         $fields = ConvertFrom-GovernedStagingResumeMarker $commentBody
         if ($null -eq $fields) { continue }

@@ -218,8 +218,12 @@ assert.match(
 assert.match(stagingAutoPilot, /ConvertFrom-GovernedStagingResumeMarker/u);
 assert.match(stagingAutoPilot, /trustedResumeMarkerIds/u);
 assert.match(stagingAutoPilot, /--paginate/u);
+assert.match(stagingAutoPilot, /\.\[\] \| \[\.id, \.user\.login\] \| @tsv/u);
+assert.match(stagingAutoPilot, /\$row -split "`t", 2/u);
+assert.match(stagingAutoPilot, /\$commentLogin -eq "github-actions\[bot\]"/u);
 assert.match(stagingAutoPilot, /issues\/comments\/\$commentId/u);
-assert.match(stagingAutoPilot, /select\(\.user\.login == "github-actions\[bot\]"/u);
+assert.match(stagingAutoPilot, /trusted marker author identity changed/u);
+assert.doesNotMatch(stagingAutoPilot, /select\(\.user\.login == "github-actions\[bot\]"/u);
 assert.doesNotMatch(stagingAutoPilot, /\$commentsRaw\s*=/u);
 assert.match(stagingAutoPilot, /ContainsKey\("request_pr"\)/u);
 assert.match(stagingAutoPilot, /ContainsKey\("merge_executed"\)/u);
