@@ -107,7 +107,9 @@
             "Non-historical exact-ref operation retains post-checkout portable-manifest verification.",
             "Direct Start-AutoPilot environment bootstrap delegates to the canonical Initialize-StagingEnvironment helper used by One-Click instead of maintaining a second local secret generator.",
             "Canonical Staging bootstrap fills missing Staging-only OAuth/MCP/activation secrets without exposing their values, while Production/provider/database mutation authority remains false.",
-            "Exact release-cut deployment bindings are applied only after canonical environment reconciliation."
+            "Exact release-cut deployment bindings are applied only after canonical environment reconciliation.",
+            "Direct Start-AutoPilot environment bootstrap delegates to the canonical Initialize-StagingEnvironment helper used by One-Click instead of maintaining a second local generator.",
+            "Canonical Staging bootstrap fills missing Staging-only OAuth/MCP/activation values without exposing their values, while Production/provider/database mutation authority remains false."
           ],
           "tests": [
             {
