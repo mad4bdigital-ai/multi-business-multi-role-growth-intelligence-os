@@ -358,6 +358,7 @@
         ".github/tests/production-promotion-review-mode.test.mjs",
         ".github/tests/production-promotion-runtime.test.mjs",
         ".github/workflows/governed-production-promotion-request-launcher.yml",
+        "http-generic-api/test-production-promotion-candidate-dispatch-input-parity.mjs",
         "http-generic-api/test-production-promotion-candidate-workflow.mjs",
         "http-generic-api/test-production-promotion-convergence-workflows.mjs"
       ]
