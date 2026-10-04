@@ -20,6 +20,8 @@ const runtimeStartupEnvironment = read("http-generic-api/scripts/runtime-startup
 const gateResolver = read(".github/scripts/production-promotion-supporting-gates.mjs");
 const evidenceHelper = read(".github/scripts/production-promotion-release-cut-evidence.mjs");
 const registry = JSON.parse(read(".github/contracts/production-promotion-supporting-gates.v1.json"));
+const stagingAutoPilot = read("autopilot-portable-staging/Start-AutoPilot.ps1");
+const stagingResumeDeclaration = JSON.parse(read(".changes/e2e/production-promotion-staging-resume-20260930.json"));
 
 const object = (digit) => String(digit).repeat(40);
 const treeEntry = (path, digit) => ({ path, mode: "100644", type: "blob", object: object(digit) });
@@ -170,6 +172,53 @@ assert.doesNotMatch(launcher, /source-pinned main moved during convergence/u);
 assert.doesNotMatch(launcher, /MAX_ATTEMPTS=3/u);
 assert.doesNotMatch(launcher, /gh pr merge/u);
 assert.doesNotMatch(launcher, /contents:\s*write/u);
+
+for (const required of [
+  /governed_production_promotion_staging_resume\.v1/u,
+  /WAITING_FOR_STAGING/u,
+  /GOVERNED_PRODUCTION_STAGING_RESUME_ARMED/u,
+  /github-actions\[bot\]/u,
+  /same governed request can be explicitly re-dispatched/u,
+]) assert.match(
+  `${launcher}\n${JSON.stringify(stagingResumeDeclaration)}`,
+  required,
+);
+
+const operationalPhase = stagingResumeDeclaration.phases.find((phase) => phase.id === "operational");
+assert.equal(operationalPhase?.status, "implemented");
+assert.equal(stagingResumeDeclaration.environment_impact?.live_staging_certification_required, true);
+assert.equal(stagingResumeDeclaration.environment_impact?.production_mutation_allowed, false);
+
+for (const required of [
+  /AllowGovernedReleaseCutAncestor/u,
+  /PromotionRequestPr/u,
+  /PromotionRequestHeadSha/u,
+  /PromotionCandidateSha/u,
+  /PinnedProductionSha/u,
+  /GovernedResumeConfirmation/u,
+  /DEPLOY_STAGING_RELEASE_CUT_/u,
+  /GOVERNED_PRODUCTION_STAGING_RESUME_ARMED/u,
+  /Governed release-cut resume requires exactly one matching WAITING_FOR_STAGING marker/u,
+  /Governed release-cut resume release cut is not an ancestor of current main/u,
+  /Governed release-cut resume Production moved/u,
+  /Governed release-cut resume candidate first parent changed/u,
+  /Governed release-cut resume candidate second parent changed/u,
+  /Governed release-cut resume candidate tree changed/u,
+  /Governed release-cut resume request marker parent changed/u,
+  /Governed release-cut resume request marker tree changed/u,
+  /production_mutation = \$false/u,
+  /provider_mutation = \$false/u,
+  /secrets_included = \$false/u,
+]) assert.match(stagingAutoPilot, required);
+
+assert.match(
+  stagingAutoPilot,
+  /if \(\$remoteCommit -ne \$ExpectedCommit\.ToLowerInvariant\(\)\) \{[\s\S]*?Assert-GovernedReleaseCutResume \$remoteCommit[\s\S]*?fetch", "origin", \$ExpectedCommit, "--depth=2"/u,
+);
+assert.match(stagingAutoPilot, /Compare|compare\/\$releaseCut\.\.\.\$currentMain/u);
+assert.doesNotMatch(stagingAutoPilot, /gh\s+workflow\s+run/u);
+assert.doesNotMatch(stagingAutoPilot, /gh\s+pr\s+merge/u);
+assert.doesNotMatch(stagingAutoPilot, /git\s+push/u);
 
 {
   const sourceStart = launcher.indexOf("- name: Resolve authorized release cut and request identity");

@@ -16,7 +16,13 @@ param(
     [ValidateSet("Smart", "ForceBuild", "SkipBuild")]
     [string]$BuildMode = "Smart",
     [switch]$SkipBuild,
-    [switch]$SkipSelfUpdate
+    [switch]$SkipSelfUpdate,
+    [switch]$AllowGovernedReleaseCutAncestor,
+    [int]$PromotionRequestPr = 0,
+    [string]$PromotionRequestHeadSha = "",
+    [string]$PromotionCandidateSha = "",
+    [string]$PinnedProductionSha = "",
+    [string]$GovernedResumeConfirmation = ""
 )
 
 Set-StrictMode -Version Latest
@@ -250,9 +256,109 @@ function Set-EnvValue([string]$Path, [string]$Name, [string]$Value) {
     }
     Write-StagingUtf8NoBom $Path $text
 }
+function Assert-GovernedReleaseCutResume([string]$RemoteCommit) {
+    if (-not $AllowGovernedReleaseCutAncestor) {
+        Fail "Pinned commit mismatch: origin/$Ref resolved to $RemoteCommit, expected $ExpectedCommit"
+    }
+    if ($Ref -ne "main") { Fail "Governed release-cut resume is restricted to the main lineage" }
+
+    foreach ($entry in @(
+        @{ name = "ExpectedCommit"; value = $ExpectedCommit },
+        @{ name = "PromotionRequestHeadSha"; value = $PromotionRequestHeadSha },
+        @{ name = "PromotionCandidateSha"; value = $PromotionCandidateSha },
+        @{ name = "PinnedProductionSha"; value = $PinnedProductionSha },
+        @{ name = "RemoteCommit"; value = $RemoteCommit }
+    )) {
+        if ([string]$entry.value -notmatch '^[0-9a-fA-F]{40}$') {
+            Fail "Governed release-cut resume requires exact SHA binding for $($entry.name)"
+        }
+    }
+    if ($PromotionRequestPr -lt 1) { Fail "Governed release-cut resume requires an exact promotion request PR" }
+
+    $releaseCut = $ExpectedCommit.ToLowerInvariant()
+    $requestHead = $PromotionRequestHeadSha.ToLowerInvariant()
+    $candidate = $PromotionCandidateSha.ToLowerInvariant()
+    $production = $PinnedProductionSha.ToLowerInvariant()
+    $currentMain = $RemoteCommit.ToLowerInvariant()
+    $requiredConfirmation = "DEPLOY_STAGING_RELEASE_CUT_{0}" -f $releaseCut.Substring(0, 12).ToUpperInvariant()
+    if ($GovernedResumeConfirmation -ne $requiredConfirmation) {
+        Fail "Governed release-cut resume confirmation mismatch; expected $requiredConfirmation"
+    }
+
+    Require-Command "gh"
+
+    $prRaw = (& gh api "/repos/$ExpectedRepository/pulls/$PromotionRequestPr" 2>$null | Out-String).Trim()
+    if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($prRaw)) { Fail "Governed release-cut resume could not read promotion request PR" }
+    try { $pr = $prRaw | ConvertFrom-Json } catch { Fail "Governed release-cut resume promotion request response is invalid" }
+    if ([string]$pr.state -ne "open" -or [string]$pr.base.ref -ne "main" -or [string]$pr.title -ne "ops: request governed Production synchronization") {
+        Fail "Governed release-cut resume promotion request identity is invalid"
+    }
+    if (([string]$pr.head.sha).ToLowerInvariant() -ne $requestHead) { Fail "Governed release-cut resume request head moved" }
+
+    $commentsRaw = (& gh api "/repos/$ExpectedRepository/issues/$PromotionRequestPr/comments?per_page=100" 2>$null | Out-String).Trim()
+    if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($commentsRaw)) { Fail "Governed release-cut resume could not read promotion request comments" }
+    try { $comments = @($commentsRaw | ConvertFrom-Json) } catch { Fail "Governed release-cut resume comments response is invalid" }
+    $resumePrefix = "GOVERNED_PRODUCTION_STAGING_RESUME_ARMED request_pr=$PromotionRequestPr request_head=$requestHead release_cut=$releaseCut Production=$production candidate=$candidate review_mode="
+    $resumeMarker = @($comments | Where-Object {
+        ([string]$_.user.login) -eq "github-actions[bot]" -and
+        ([string]$_.body).StartsWith($resumePrefix, [System.StringComparison]::Ordinal) -and
+        ([string]$_.body).Contains("merge_executed=false") -and
+        ([string]$_.body).Contains("deployment_executed=false")
+    })
+    if ($resumeMarker.Count -ne 1) { Fail "Governed release-cut resume requires exactly one matching WAITING_FOR_STAGING marker" }
+
+    $compareRaw = (& gh api "/repos/$ExpectedRepository/compare/$releaseCut...$currentMain" 2>$null | Out-String).Trim()
+    if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($compareRaw)) { Fail "Governed release-cut resume could not verify main ancestry" }
+    try { $compare = $compareRaw | ConvertFrom-Json } catch { Fail "Governed release-cut resume ancestry response is invalid" }
+    if (([string]$compare.merge_base_commit.sha).ToLowerInvariant() -ne $releaseCut -or [int]$compare.behind_by -ne 0) {
+        Fail "Governed release-cut resume release cut is not an ancestor of current main"
+    }
+
+    $productionRaw = (& gh api "/repos/$ExpectedRepository/git/ref/heads/Production" 2>$null | Out-String).Trim()
+    if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($productionRaw)) { Fail "Governed release-cut resume could not verify Production ref" }
+    try { $productionRef = $productionRaw | ConvertFrom-Json } catch { Fail "Governed release-cut resume Production response is invalid" }
+    if (([string]$productionRef.object.sha).ToLowerInvariant() -ne $production) { Fail "Governed release-cut resume Production moved" }
+
+    $cutRaw = (& gh api "/repos/$ExpectedRepository/git/commits/$releaseCut" 2>$null | Out-String).Trim()
+    $candidateRaw = (& gh api "/repos/$ExpectedRepository/git/commits/$candidate" 2>$null | Out-String).Trim()
+    $requestRaw = (& gh api "/repos/$ExpectedRepository/git/commits/$requestHead" 2>$null | Out-String).Trim()
+    if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($cutRaw) -or [string]::IsNullOrWhiteSpace($candidateRaw) -or [string]::IsNullOrWhiteSpace($requestRaw)) {
+        Fail "Governed release-cut resume could not read exact Git identities"
+    }
+    try {
+        $cutCommit = $cutRaw | ConvertFrom-Json
+        $candidateCommit = $candidateRaw | ConvertFrom-Json
+        $requestCommit = $requestRaw | ConvertFrom-Json
+    } catch { Fail "Governed release-cut resume Git identity response is invalid" }
+
+    if (@($candidateCommit.parents).Count -ne 2) { Fail "Governed release-cut resume candidate parent count changed" }
+    if (([string]$candidateCommit.parents[0].sha).ToLowerInvariant() -ne $releaseCut) { Fail "Governed release-cut resume candidate first parent changed" }
+    if (([string]$candidateCommit.parents[1].sha).ToLowerInvariant() -ne $production) { Fail "Governed release-cut resume candidate second parent changed" }
+    if (([string]$candidateCommit.tree.sha).ToLowerInvariant() -ne ([string]$cutCommit.tree.sha).ToLowerInvariant()) { Fail "Governed release-cut resume candidate tree changed" }
+
+    if (@($requestCommit.parents).Count -ne 1 -or ([string]$requestCommit.parents[0].sha).ToLowerInvariant() -ne $releaseCut) {
+        Fail "Governed release-cut resume request marker parent changed"
+    }
+    if (([string]$requestCommit.tree.sha).ToLowerInvariant() -ne ([string]$cutCommit.tree.sha).ToLowerInvariant()) {
+        Fail "Governed release-cut resume request marker tree changed"
+    }
+
+    Write-StagingOperationBoundary -Component $LogComponent -Stage "governed-release-cut-resume" -Outcome "success" -Message "authorized Production release cut may be deployed to local Staging" -Data @{
+        release_cut = $releaseCut
+        current_main = $currentMain
+        promotion_request_pr = $PromotionRequestPr
+        promotion_request_head = $requestHead
+        candidate = $candidate
+        pinned_production = $production
+        production_mutation = $false
+        provider_mutation = $false
+        secrets_included = $false
+    }
+}
+
 function Invoke-SelfUpdate {
     if ($SkipSelfUpdate) { return }
-    $targetCommit = $ExpectedCommit.ToLowerInvariant()
+    $deploymentCommit = $ExpectedCommit.ToLowerInvariant()
     Push-Location $RepositoryPath
     try {
         Assert-StagingOriginIdentity $RepositoryPath $ExpectedRepository
@@ -261,14 +367,18 @@ function Invoke-SelfUpdate {
         $dirty = @(git status --porcelain --untracked-files=all)
         if ($dirty.Count -gt 0) { Fail "Working tree is not clean; refusing bootstrap checkout before Auto Pilot self-update" }
         Invoke-Native "git" @("fetch", "origin", $Ref, "--depth=2")
-        $remoteCommit = Get-NativeText "git" @("rev-parse", "origin/$Ref")
-        if ($remoteCommit.ToLowerInvariant() -ne $targetCommit) { Fail "Self-update pinned commit mismatch: origin/$Ref resolved to $remoteCommit, expected $ExpectedCommit" }
-        $currentCommit = Get-NativeText "git" @("rev-parse", "HEAD")
-        if ($currentCommit.ToLowerInvariant() -ne $targetCommit) {
-            Invoke-Native "git" @("checkout", "--detach", $ExpectedCommit)
+        $remoteCommit = (Get-NativeText "git" @("rev-parse", "origin/$Ref")).ToLowerInvariant()
+        $driverCommit = $deploymentCommit
+        if ($remoteCommit -ne $deploymentCommit) {
+            Assert-GovernedReleaseCutResume $remoteCommit
+            $driverCommit = $remoteCommit
         }
-        $checkedOut = Get-NativeText "git" @("rev-parse", "HEAD")
-        if ($checkedOut.ToLowerInvariant() -ne $targetCommit) { Fail "Self-update checkout readback mismatch" }
+        $currentCommit = (Get-NativeText "git" @("rev-parse", "HEAD")).ToLowerInvariant()
+        if ($currentCommit -ne $driverCommit) {
+            Invoke-Native "git" @("checkout", "--detach", $driverCommit)
+        }
+        $checkedOut = (Get-NativeText "git" @("rev-parse", "HEAD")).ToLowerInvariant()
+        if ($checkedOut -ne $driverCommit) { Fail "Self-update checkout readback mismatch" }
     } finally {
         Pop-Location
     }
@@ -279,7 +389,7 @@ function Invoke-SelfUpdate {
     foreach ($marker in @("prepare-staging-build-context.mjs", "STAGING_BUILD_TREE", "STAGING_BUILD_CONTEXT_FILE_SET_SHA256")) {
         if (-not $reloadedText.Contains($marker)) { Fail "Self-update target script is missing required provenance marker: $marker" }
     }
-    Write-StagingOperationBoundary -Component $LogComponent -Stage "bootstrap-sync" -Outcome "success" -Message "reloaded exact-commit Auto Pilot before local execution" -Data @{ sha = $targetCommit; secrets_included = $false }
+    Write-StagingOperationBoundary -Component $LogComponent -Stage "bootstrap-sync" -Outcome "success" -Message "reloaded exact-commit Auto Pilot before local execution" -Data @{ driver_sha = $driverCommit; deployment_sha = $deploymentCommit; governed_release_cut_resume = [bool]$AllowGovernedReleaseCutAncestor; secrets_included = $false }
 
     $childBuildMode = if ($SkipBuild) { "Smart" } else { $BuildMode }
     $childArgs = @(
@@ -294,6 +404,16 @@ function Invoke-SelfUpdate {
     if ($ValidateOnly) { $childArgs += "-ValidateOnly" }
     if ($Stop) { $childArgs += "-Stop" }
     if ($SkipBuild) { $childArgs += "-SkipBuild" }
+    if ($AllowGovernedReleaseCutAncestor) {
+        $childArgs += @(
+            "-AllowGovernedReleaseCutAncestor",
+            "-PromotionRequestPr", [string]$PromotionRequestPr,
+            "-PromotionRequestHeadSha", $PromotionRequestHeadSha,
+            "-PromotionCandidateSha", $PromotionCandidateSha,
+            "-PinnedProductionSha", $PinnedProductionSha,
+            "-GovernedResumeConfirmation", $GovernedResumeConfirmation
+        )
+    }
     & powershell.exe @childArgs
     $exitCode = $LASTEXITCODE
     if ($exitCode -ne 0) {
@@ -477,9 +597,10 @@ try {
     $dirty = @(git status --porcelain --untracked-files=all)
     if ($dirty.Count -gt 0) { Fail "Working tree is not clean after protected line-ending normalization; Auto Pilot will not overwrite local work" }
     Invoke-Native "git" @("fetch", "origin", $Ref, "--depth=2")
-    $remoteCommit = Get-NativeText "git" @("rev-parse", "origin/$Ref")
-    if ($remoteCommit.ToLowerInvariant() -ne $ExpectedCommit.ToLowerInvariant()) {
-        Fail "Pinned commit mismatch: origin/$Ref resolved to $remoteCommit, expected $ExpectedCommit"
+    $remoteCommit = (Get-NativeText "git" @("rev-parse", "origin/$Ref")).ToLowerInvariant()
+    if ($remoteCommit -ne $ExpectedCommit.ToLowerInvariant()) {
+        Assert-GovernedReleaseCutResume $remoteCommit
+        Invoke-Native "git" @("fetch", "origin", $ExpectedCommit, "--depth=2")
     }
     Invoke-Native "git" @("checkout", "--detach", $ExpectedCommit)
     $checkedOut = Get-NativeText "git" @("rev-parse", "HEAD")
