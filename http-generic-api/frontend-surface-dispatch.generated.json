@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "997e57b3a4740f8000e9d4fd8eba848941096f33978d6d1ecd917aaa4038246b",
+    "source_digest": "7a34ae5e924a660080a9ff400ff101d50bfaefc35e810e790f3b138b2c144095",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -11,7 +11,7 @@
       },
       {
         "file": "frontend-operation-governance.generated.json",
-        "sha256": "a262145fdb7090578197983a6a1ce9e80bb5b7af8ee32f06939375fa6bf7d4e1",
+        "sha256": "2958fc5605af6fd3cc0849a5e8eff8f70e4357af972b5ee00a9fdfbdba3a3011",
         "present": true
       },
       {
@@ -26,7 +26,7 @@
       },
       {
         "file": "openapi.yaml",
-        "sha256": "2387d7bd7f44c369c884c654ac6e6296fff55b175cf4f09e65c5f0a2b0201df5",
+        "sha256": "61a013b32cfbb53d1572171f2041f7c4052dc9ae061c431e393ed69192d3fa09",
         "present": true
       },
       {
@@ -131,7 +131,7 @@
       },
       {
         "file": "openapi/openapi.custom-gpt.staging-admin.yaml",
-        "sha256": "8893c99b9b9a229070c547ea570f7168a0250cafd4b1a36c6c0bc27af5c7cc1a",
+        "sha256": "f78a9ec8926af841dc6edc439fd6f763f33a4aaba5236dc381a3238f035893ec",
         "present": true
       },
       {
@@ -276,7 +276,7 @@
       },
       {
         "file": "public/connect/app.jsx",
-        "sha256": "526917d67a8b142a0f527e159f48113dc5d27a8ac170de2542952e0bd8a7ce06",
+        "sha256": "d2f340a807d7959490da9fed2a6afef00a88ad572dfdb15d854026f5a1f48fd8",
         "present": true
       },
       {
@@ -311,7 +311,7 @@
       },
       {
         "file": "public/connect/steps-3.jsx",
-        "sha256": "dbcf6a91c05b7ec5e31643345e94c94877d89eb38521166b6c9a05913df597ff",
+        "sha256": "c7646e36e1bbcbf94117b8009f78a6a973be22c0c80b5dd7fb11a6095239694e",
         "present": true
       },
       {
@@ -376,7 +376,7 @@
       },
       {
         "file": "routes/activationHostGatewayRoutes.js",
-        "sha256": "2e86925108a91a2748d872a1d52dfda9f9affa0aede8c02694eb47da1639fa5e",
+        "sha256": "f0d7eeb5e137a5b6fc43900002b0631b08dd6086f9e9911b19c57cc00a891b48",
         "present": true
       },
       {
@@ -391,7 +391,7 @@
       },
       {
         "file": "routes/adminHostBreakglassRoutes.js",
-        "sha256": "145cad8fcebcb1b6b5b7f30798733f59d41e6f5e2f2d3144e2c42d1f73ff4fbb",
+        "sha256": "b3720b6ca33b8a4ad22e13e0a652ecf9d7e0be594ee213e76a0483b408cb38c2",
         "present": true
       },
       {
@@ -456,7 +456,7 @@
       },
       {
         "file": "routes/authRoutes.js",
-        "sha256": "1a7a78c808802ebb7506dbaeb8f6d4f4cae1a229bd7913726e194c36ac73c132",
+        "sha256": "e54bcc44d680f40931e0db303df6c520e65ab9ce8a3e35b178169513b2e5d580",
         "present": true
       },
       {
@@ -546,7 +546,7 @@
       },
       {
         "file": "routes/deploymentInfoRoutes.js",
-        "sha256": "51a12ace035f6c65559975e3a94577349f7b6c5fb5390da62fade25a5c280343",
+        "sha256": "a2e86cf0d19f093118f41079ef9e0b36f91055f99fb4dd0b11cce498f68eaad0",
         "present": true
       },
       {
@@ -616,7 +616,7 @@
       },
       {
         "file": "routes/gptToolsRoutes.js",
-        "sha256": "24759a1cba41be77df6321939cff710e38105ac74cce27317934013606069838",
+        "sha256": "ea6dcff78a1178c16a9ea45f5808d568600c635aa6ceec71dc571ac88785bb81",
         "present": true
       },
       {
@@ -661,7 +661,7 @@
       },
       {
         "file": "routes/localConnectorInstallRoutes.js",
-        "sha256": "0d7ebbbc6b2481b46a8d12a0bb3a3d4ce8052424ef53324c92053e9bb336ff72",
+        "sha256": "c7542beb0a43503567b27e459b12698b890fb64c4353ca5fd2f1d5da4c2dbd4f",
         "present": true
       },
       {
@@ -676,7 +676,7 @@
       },
       {
         "file": "routes/localManagerBetaRoutes.js",
-        "sha256": "720b809bf40b56ec51c6e6f997be33b4a5da60088682638906fbe66189b11d9a",
+        "sha256": "bea7a772209fabf4d9988f600d48729d934daa31f3fafa28dcc782f59c371886",
         "present": true
       },
       {
@@ -786,7 +786,7 @@
       },
       {
         "file": "routes/recoveryKernelRoutes.js",
-        "sha256": "1add3c0cbb7c5d554b3676a4191ec6b774ce1034a0de2879509ebc6d910e2178",
+        "sha256": "8ef787857ace9e446a22bd5547fe7575154efd099bbd1b19fa93e75f6565f6aa",
         "present": true
       },
       {
@@ -986,7 +986,7 @@
       },
       {
         "file": "routes/stagingRecoveryAdminRoutes.js",
-        "sha256": "a2652174b1788eac1d8fb6255022da1664f26a320e8abf7db076061495ee7ae7",
+        "sha256": "d98740a6277dd51f854fd3242ae02d79898da739811b6a70c0415811a5a7a487",
         "present": true
       },
       {
@@ -1006,7 +1006,7 @@
       },
       {
         "file": "routes/systemLayerRoutes.js",
-        "sha256": "a6a13c21e6ea867702408b45083f90e30f688d40af26f22e94230a9c3fc4d4c3",
+        "sha256": "78b50c99c52dfdeacb9579e7d3e0fc62e2fccb41e80adbddcda095852d556304",
         "present": true
       },
       {
@@ -1096,7 +1096,7 @@
       },
       {
         "file": "scripts/test-manifest.mjs",
-        "sha256": "4b7355a3905a8a6359f913e8ce25e2ff8981a020438f0d46cca9cf9b9aadfc3a",
+        "sha256": "c73a3a2a2520ebcd729298dd2e973a9c314cf95e78358c833735a263c9022842",
         "present": true
       },
       {
@@ -1131,12 +1131,12 @@
       },
       {
         "file": "test-local-manager-pairing-security.mjs",
-        "sha256": "b4dd5c17c3275b84ef459e5eaf54e4f51fe5133f8f046139aa67608332bb87f7",
+        "sha256": "b6935f7cdf990b9468a482f0c4eb83f27ec2afa2d20be7085d76033e21e19c36",
         "present": true
       },
       {
         "file": "test-managed-google-oauth-broker.mjs",
-        "sha256": "4d6d143ea6ad0a5cbede043fa966f064cbb7917ddc301d38247c2bd8bde39905",
+        "sha256": "90ff2c1110a0c07b6ef2067b8b018d5980c64ba6a70d30d2169568060d2789a1",
         "present": true
       },
       {
@@ -1151,12 +1151,12 @@
       },
       {
         "file": "test-recovery-kernel-routes.mjs",
-        "sha256": "adb7a8f69e2069e1a55ace0007b9bc97f6ac9437277f7da76442f249a3dc513e",
+        "sha256": "ae66429472a50af70e1f9afbb130f03672c4ed1ceb442673d608b926828e9fda",
         "present": true
       },
       {
         "file": "test-recovery-kernel.mjs",
-        "sha256": "d0e2cdc6cb94e185575ff9506f98fd7166a7e7eae5d6feee36d7b388c74a7245",
+        "sha256": "643dbf3a8a346190dec1fa6be7c7c283845c7c7e044ff1348fe8c84d6581c809",
         "present": true
       },
       {
@@ -1171,12 +1171,12 @@
       },
       {
         "file": "test-runtime-gate-deployment-info-parity.mjs",
-        "sha256": "19b3b13e8e7e6795c0ae03c844759a3af62d55f1be11dee0a1b7abdd709b330f",
+        "sha256": "bcd9b0dab1423b291a681bcbc5a6ed5ba8d92147ec9dfd12c62d9f0e986be26d",
         "present": true
       },
       {
         "file": "test-staging-recovery-admin-surface.mjs",
-        "sha256": "af5bc4ba453e1a18c22065d717867fc9ca5e4d9f68c7326e3ca308f6e41deb67",
+        "sha256": "dc29b62919e637c978900be66c768d7ccb966739aa3c5a0eecb485c4fb9cdf8c",
         "present": true
       },
       {
@@ -1912,7 +1912,7 @@
       "family_key": "deployment-info.developer",
       "label": "deployment info (developer)",
       "source_file": "routes/deploymentInfoRoutes.js",
-      "source_digest": "51a12ace035f6c65559975e3a94577349f7b6c5fb5390da62fade25a5c280343",
+      "source_digest": "a2e86cf0d19f093118f41079ef9e0b36f91055f99fb4dd0b11cce498f68eaad0",
       "mount_prefix": "/",
       "mount_order": 13395,
       "split_from_mixed_scope_file": true,
@@ -2201,7 +2201,7 @@
       "family_key": "deployment-info.public",
       "label": "deployment info (public)",
       "source_file": "routes/deploymentInfoRoutes.js",
-      "source_digest": "51a12ace035f6c65559975e3a94577349f7b6c5fb5390da62fade25a5c280343",
+      "source_digest": "a2e86cf0d19f093118f41079ef9e0b36f91055f99fb4dd0b11cce498f68eaad0",
       "mount_prefix": "/",
       "mount_order": 13395,
       "split_from_mixed_scope_file": true,
@@ -2786,7 +2786,7 @@
       "family_key": "admin-host-breakglass",
       "label": "admin host breakglass",
       "source_file": "routes/adminHostBreakglassRoutes.js",
-      "source_digest": "145cad8fcebcb1b6b5b7f30798733f59d41e6f5e2f2d3144e2c42d1f73ff4fbb",
+      "source_digest": "b3720b6ca33b8a4ad22e13e0a652ecf9d7e0be594ee213e76a0483b408cb38c2",
       "mount_prefix": "/",
       "mount_order": 13629,
       "split_from_mixed_scope_file": false,
@@ -3174,7 +3174,7 @@
       "family_key": "recovery-kernel",
       "label": "recovery kernel",
       "source_file": "routes/recoveryKernelRoutes.js",
-      "source_digest": "1add3c0cbb7c5d554b3676a4191ec6b774ce1034a0de2879509ebc6d910e2178",
+      "source_digest": "8ef787857ace9e446a22bd5547fe7575154efd099bbd1b19fa93e75f6565f6aa",
       "mount_prefix": "/",
       "mount_order": 13708,
       "split_from_mixed_scope_file": false,
@@ -4205,7 +4205,7 @@
       "family_key": "staging-recovery-admin",
       "label": "staging recovery admin",
       "source_file": "routes/stagingRecoveryAdminRoutes.js",
-      "source_digest": "a2652174b1788eac1d8fb6255022da1664f26a320e8abf7db076061495ee7ae7",
+      "source_digest": "d98740a6277dd51f854fd3242ae02d79898da739811b6a70c0415811a5a7a487",
       "mount_prefix": "/",
       "mount_order": 13869,
       "split_from_mixed_scope_file": false,
@@ -6508,7 +6508,7 @@
       "family_key": "local-manager-beta.admin",
       "label": "local manager beta (admin)",
       "source_file": "routes/localManagerBetaRoutes.js",
-      "source_digest": "720b809bf40b56ec51c6e6f997be33b4a5da60088682638906fbe66189b11d9a",
+      "source_digest": "bea7a772209fabf4d9988f600d48729d934daa31f3fafa28dcc782f59c371886",
       "mount_prefix": "/",
       "mount_order": 14352,
       "split_from_mixed_scope_file": true,
@@ -6647,7 +6647,7 @@
       "family_key": "local-manager-beta.local_device",
       "label": "local manager beta (local_device)",
       "source_file": "routes/localManagerBetaRoutes.js",
-      "source_digest": "720b809bf40b56ec51c6e6f997be33b4a5da60088682638906fbe66189b11d9a",
+      "source_digest": "bea7a772209fabf4d9988f600d48729d934daa31f3fafa28dcc782f59c371886",
       "mount_prefix": "/",
       "mount_order": 14352,
       "split_from_mixed_scope_file": true,
@@ -7238,7 +7238,7 @@
       "family_key": "local-manager-beta.public.default",
       "label": "local manager beta (public) [default]",
       "source_file": "routes/localManagerBetaRoutes.js",
-      "source_digest": "720b809bf40b56ec51c6e6f997be33b4a5da60088682638906fbe66189b11d9a",
+      "source_digest": "bea7a772209fabf4d9988f600d48729d934daa31f3fafa28dcc782f59c371886",
       "mount_prefix": "/",
       "mount_order": 14352,
       "split_from_mixed_scope_file": true,
@@ -7912,7 +7912,7 @@
       "family_key": "local-manager-beta.public.local-manager",
       "label": "local manager beta (public) [local-manager]",
       "source_file": "routes/localManagerBetaRoutes.js",
-      "source_digest": "720b809bf40b56ec51c6e6f997be33b4a5da60088682638906fbe66189b11d9a",
+      "source_digest": "bea7a772209fabf4d9988f600d48729d934daa31f3fafa28dcc782f59c371886",
       "mount_prefix": "/",
       "mount_order": 14352,
       "split_from_mixed_scope_file": true,
@@ -8770,7 +8770,7 @@
       "family_key": "local-connector-install.developer",
       "label": "local connector install (developer)",
       "source_file": "routes/localConnectorInstallRoutes.js",
-      "source_digest": "0d7ebbbc6b2481b46a8d12a0bb3a3d4ce8052424ef53324c92053e9bb336ff72",
+      "source_digest": "c7542beb0a43503567b27e459b12698b890fb64c4353ca5fd2f1d5da4c2dbd4f",
       "mount_prefix": "/",
       "mount_order": 14514,
       "split_from_mixed_scope_file": true,
@@ -9213,7 +9213,7 @@
       "family_key": "local-connector-install.local_device",
       "label": "local connector install (local_device)",
       "source_file": "routes/localConnectorInstallRoutes.js",
-      "source_digest": "0d7ebbbc6b2481b46a8d12a0bb3a3d4ce8052424ef53324c92053e9bb336ff72",
+      "source_digest": "c7542beb0a43503567b27e459b12698b890fb64c4353ca5fd2f1d5da4c2dbd4f",
       "mount_prefix": "/",
       "mount_order": 14514,
       "split_from_mixed_scope_file": true,
@@ -13913,7 +13913,7 @@
       "family_key": "system-layer.admin",
       "label": "system layer (admin)",
       "source_file": "routes/systemLayerRoutes.js",
-      "source_digest": "a6a13c21e6ea867702408b45083f90e30f688d40af26f22e94230a9c3fc4d4c3",
+      "source_digest": "78b50c99c52dfdeacb9579e7d3e0fc62e2fccb41e80adbddcda095852d556304",
       "mount_prefix": "/",
       "mount_order": 15505,
       "split_from_mixed_scope_file": true,
@@ -14689,7 +14689,7 @@
       "family_key": "system-layer.developer",
       "label": "system layer (developer)",
       "source_file": "routes/systemLayerRoutes.js",
-      "source_digest": "a6a13c21e6ea867702408b45083f90e30f688d40af26f22e94230a9c3fc4d4c3",
+      "source_digest": "78b50c99c52dfdeacb9579e7d3e0fc62e2fccb41e80adbddcda095852d556304",
       "mount_prefix": "/",
       "mount_order": 15505,
       "split_from_mixed_scope_file": true,
@@ -15177,7 +15177,7 @@
       "family_key": "auth.admin",
       "label": "auth (admin)",
       "source_file": "routes/authRoutes.js",
-      "source_digest": "1a7a78c808802ebb7506dbaeb8f6d4f4cae1a229bd7913726e194c36ac73c132",
+      "source_digest": "e54bcc44d680f40931e0db303df6c520e65ab9ce8a3e35b178169513b2e5d580",
       "mount_prefix": "/auth",
       "mount_order": 15546,
       "split_from_mixed_scope_file": true,
@@ -15325,7 +15325,7 @@
       "family_key": "auth.public",
       "label": "auth (public)",
       "source_file": "routes/authRoutes.js",
-      "source_digest": "1a7a78c808802ebb7506dbaeb8f6d4f4cae1a229bd7913726e194c36ac73c132",
+      "source_digest": "e54bcc44d680f40931e0db303df6c520e65ab9ce8a3e35b178169513b2e5d580",
       "mount_prefix": "/auth",
       "mount_order": 15546,
       "split_from_mixed_scope_file": true,
@@ -49258,7 +49258,7 @@
       "family_key": "gpt-tools.admin",
       "label": "gpt tools (admin)",
       "source_file": "routes/gptToolsRoutes.js",
-      "source_digest": "24759a1cba41be77df6321939cff710e38105ac74cce27317934013606069838",
+      "source_digest": "ea6dcff78a1178c16a9ea45f5808d568600c635aa6ceec71dc571ac88785bb81",
       "mount_prefix": "/",
       "mount_order": 19226,
       "split_from_mixed_scope_file": true,
@@ -49489,7 +49489,7 @@
       "family_key": "gpt-tools.developer",
       "label": "gpt tools (developer)",
       "source_file": "routes/gptToolsRoutes.js",
-      "source_digest": "24759a1cba41be77df6321939cff710e38105ac74cce27317934013606069838",
+      "source_digest": "ea6dcff78a1178c16a9ea45f5808d568600c635aa6ceec71dc571ac88785bb81",
       "mount_prefix": "/",
       "mount_order": 19226,
       "split_from_mixed_scope_file": true,

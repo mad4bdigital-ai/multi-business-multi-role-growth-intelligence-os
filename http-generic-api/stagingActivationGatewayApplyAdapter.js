@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import fs from "node:fs";
 import { PLATFORM_TENANT_ID } from "./agentSkillGrantRequestService.js";
 import { createCloudflareApiClient } from "./activationGatewayRolloutTool.js";
 import { readCanonicalDeploymentIdentity } from "./deploymentManifest.js";
@@ -56,6 +57,34 @@ function adapterError(code, message, status = 400, details = {}) {
 
 function truthy(value) {
   return ["1", "true", "yes", "on", "enabled"].includes(String(value ?? "").trim().toLowerCase());
+}
+
+const DEFAULT_STAGING_CLOUDFLARE_API_TOKEN_FILE = "/run/secrets/staging_cloudflare_api_token";
+
+function resolveServerHeldCloudflareToken(env = process.env) {
+  const configuredFile = compact(
+    env.STAGING_CLOUDFLARE_API_TOKEN_FILE || DEFAULT_STAGING_CLOUDFLARE_API_TOKEN_FILE,
+    2048,
+  );
+  if (configuredFile) {
+    try {
+      const token = fs.readFileSync(configuredFile, "utf8").trim();
+      if (token) return token.slice(0, 4096);
+    } catch (error) {
+      if (!["ENOENT", "EACCES"].includes(error?.code)) {
+        throw adapterError(
+          "staging_activation_gateway_provider_secret_unreadable",
+          "Server-held Staging Cloudflare credential could not be read.",
+          503,
+          { secret_file_configured: true, secret_file_readable: false },
+        );
+      }
+    }
+  }
+  // Compatibility for non-Compose server runtimes that inject secrets directly
+  // into the process environment. The Staging .env contract forbids persisting
+  // CLOUDFLARE_API_TOKEN itself.
+  return compact(env.CLOUDFLARE_API_TOKEN, 4096);
 }
 
 function resolveStagingGatewayDataPools(deps = {}) {
@@ -491,12 +520,14 @@ export async function buildStagingActivationGatewayApplyPlan(input = {}, deps = 
     trust_key_id: bundle.origin_trust.key_id, trust_public_key_sha256: sha256(bundle.origin_trust.public_key),
     expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString() };
   const planSha = sha256(stableJson(planBody));
-  const providerTokenPresent = Boolean(deps.cloudflareClient?.token_present ?? (deps.env || process.env).CLOUDFLARE_API_TOKEN);
+  const env = deps.env || process.env;
+  const providerToken = deps.cloudflareClient ? "" : resolveServerHeldCloudflareToken(env);
+  const providerTokenPresent = Boolean(deps.cloudflareClient?.token_present ?? providerToken);
   const semanticWorkspaceReady = semanticReadiness.ready === true && Boolean(workspace?.workspace_id);
-  const client = semanticWorkspaceReady
-    ? (deps.cloudflareClient || createCloudflareApiClient({ fetchImpl: deps.fetchImpl, token: (deps.env || process.env).CLOUDFLARE_API_TOKEN, timeoutMs: deps.cloudflareTimeoutMs }))
+  const client = semanticWorkspaceReady && providerTokenPresent
+    ? (deps.cloudflareClient || createCloudflareApiClient({ fetchImpl: deps.fetchImpl, token: providerToken, timeoutMs: deps.cloudflareTimeoutMs }))
     : null;
-  const featureEnabled = truthy((deps.env || process.env).STAGING_ACTIVATION_GATEWAY_APPLY_ENABLED);
+  const featureEnabled = truthy(env.STAGING_ACTIVATION_GATEWAY_APPLY_ENABLED);
   const checks = [
     { key: "profile_bound", ok: true },
     { key: "server_resource_binding_valid", ok: true },
@@ -639,7 +670,15 @@ export async function runStagingActivationGatewayApply(input = {}, deps = {}) {
   const executionNonceSha256 = sha256(nonce);
   await claimStagingGatewayExecutionPlan(governancePool, { planId, planSha256: planSha, convergencePlanSha256: convergencePlanSha });
 
-  const client = deps.cloudflareClient || createCloudflareApiClient({ fetchImpl: deps.fetchImpl, token: env.CLOUDFLARE_API_TOKEN, timeoutMs: deps.cloudflareTimeoutMs });
+  const providerToken = deps.cloudflareClient ? "" : resolveServerHeldCloudflareToken(env);
+  if (!deps.cloudflareClient && !providerToken) {
+    throw adapterError(
+      "staging_activation_gateway_cloudflare_token_missing",
+      "Server-held Staging Cloudflare credential is unavailable.",
+      503,
+    );
+  }
+  const client = deps.cloudflareClient || createCloudflareApiClient({ fetchImpl: deps.fetchImpl, token: providerToken, timeoutMs: deps.cloudflareTimeoutMs });
   const accountId = plan.resource_binding.account_id;
   const scriptName = plan.resource_binding.script_name;
   const fetchImpl = deps.smokeFetch || deps.fetchImpl || globalThis.fetch;

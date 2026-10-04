@@ -42,6 +42,8 @@ const REBUILD_BUNDLE_VERIFY_KEYS = Object.freeze(["authority_action", "execution
 const ACCESS_REPAIR_PREPARE_KEYS = Object.freeze(["authority_action", "expected_sha", "target_key", "target_fingerprint", "idempotency_key"]);
 const ACCESS_REPAIR_APPROVE_KEYS = Object.freeze(["authority_action", "plan_id", "plan_hash", "step_id", "idempotency_key", "approval_confirmation"]);
 const SENSITIVE_KEY_RE = /(password|secret|credential|authorization|private[_-]?key|connection[_-]?string|database[_-]?name|db[_-]?(?:user|password)|hostname|username|raw[_-]?sql|command)/iu;
+const SHA40_RE = /^[a-f0-9]{40}$/u;
+const SHA256_RE = /^[a-f0-9]{64}$/u;
 const LEGACY_READBACK_ASSERTION_KEYS = Object.freeze(["readback_ready", "same_cycle", "database_mutation_performed", "readback_evidence_hash"]);
 
 function isObject(value) { return Boolean(value && typeof value === "object" && !Array.isArray(value)); }
@@ -55,6 +57,32 @@ function publicAttestation(attestation) {
   if (!isObject(attestation)) return null;
   const environment = typeof attestation.environment === "string" && attestation.environment.trim() ? attestation.environment.trim() : null;
   return { repository: attestation.repository || null, branch: attestation.branch || null, sha: attestation.sha || attestation.commit_sha || null, environment, environment_match: environment === "staging" && attestation.environment_match !== false, repository_match: attestation.repository_match === true, branch_match: attestation.branch_match === true, sha_match: attestation.sha_match === true, manifest_bound: attestation.manifest_bound === true, read_only: attestation.read_only === true, secrets_included: false };
+}
+
+export function publicIngressBuildIdentity(value) {
+  if (!isObject(value)) return null;
+
+  const identity = {
+    deployment_sha: String(value.deployment_sha || "").trim().toLowerCase(),
+    worker_build_sha: String(value.worker_build_sha || "").trim().toLowerCase(),
+    worker_bundle_sha256: String(value.worker_bundle_sha256 || "").trim().toLowerCase(),
+    policy_hash: String(value.policy_hash || "").trim().toLowerCase(),
+    gateway_host: String(value.gateway_host || "").trim().toLowerCase(),
+    expires_at: value.expires_at,
+  };
+
+  if (
+    !SHA40_RE.test(identity.deployment_sha)
+    || !SHA40_RE.test(identity.worker_build_sha)
+    || !SHA256_RE.test(identity.worker_bundle_sha256)
+    || !SHA256_RE.test(identity.policy_hash)
+    || identity.gateway_host !== STAGING_RECOVERY_ADMIN_HOST
+    || !Number.isInteger(identity.expires_at)
+  ) {
+    return null;
+  }
+
+  return Object.freeze(identity);
 }
 function hasSensitiveReceiptKey(value, depth = 0) {
   if (depth > 8 || value == null) return false;
@@ -165,7 +193,11 @@ export async function buildStagingRecoveryAdminReadiness({ recoveryComposition =
   const currentSha = expectedSha || attestation?.sha || attestation?.commit_sha || null;
   const attestationValid = isObject(attestation) && attestation.environment === "staging" && attestationMatches({ attestation, expectedSha: currentSha, expectedBranch: "main", expectedEnvironment: "staging", expectedTargetFingerprint: currentTargetFingerprint });
   const certificationResult = evaluateStagingRecoveryCertification({ certification, expectedSha: currentSha, expectedTargetFingerprint: currentTargetFingerprint, requireExpectedTargetFingerprint: true });
-  const externalEvidence = await evaluateExternalStagingEvidence(snapshot, ingressBuildIdentity);
+  const verifiedIngressBuildIdentity = publicIngressBuildIdentity(ingressBuildIdentity);
+  const externalEvidence = await evaluateExternalStagingEvidence(
+    snapshot,
+    verifiedIngressBuildIdentity,
+  );
   const ready = authorityGraph.ready === true && externalEvidence.ready && attestationValid && certificationResult.valid === true && certificationResult.evidence?.deployment_sha === attestation?.sha && certificationResult.evidence?.target_fingerprint === currentTargetFingerprint;
   return {
     contract: STAGING_RECOVERY_ADMIN_SURFACE_CONTRACT,
@@ -173,6 +205,8 @@ export async function buildStagingRecoveryAdminReadiness({ recoveryComposition =
     ready,
     environment: "staging",
     server_uri: STAGING_RECOVERY_ADMIN_SERVER_URI,
+    target_fingerprint: currentTargetFingerprint || null,
+    ingress_build_identity: verifiedIngressBuildIdentity,
     authority_graph: authorityGraph,
     external_evidence: externalEvidence,
     certification: { contract: certificationResult.contract, status: certificationResult.status, valid: certificationResult.valid === true, certification_id: certificationResult.evidence?.certification_id || null, deployment_sha: certificationResult.evidence?.deployment_sha || null, target_fingerprint: certificationResult.evidence?.target_fingerprint || null, blocking_failures: [...(certificationResult.blocking_failures || []), ...(!attestationValid ? ["deployment_attestation"] : []), ...(!currentTargetFingerprint ? ["target_fingerprint_binding"] : [])], fingerprint: certificationResult.certification_fingerprint || null },

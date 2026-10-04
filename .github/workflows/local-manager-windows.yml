@@ -8,13 +8,19 @@ on:
       - Production
     paths:
       - 'apps/local-manager-windows/**'
+      - 'apps/local-manager-windows-tests/**'
+      - 'apps/local-manager-sidecar-certification/**'
       - 'http-generic-api/routes/localManagerBetaRoutes.js'
+      - 'http-generic-api/localManagerReleaseRegistry.js'
       - 'http-generic-api/test-local-manager-tool-release-owner.mjs'
       - '.github/workflows/local-manager-windows.yml'
   pull_request:
     paths:
       - 'apps/local-manager-windows/**'
+      - 'apps/local-manager-windows-tests/**'
+      - 'apps/local-manager-sidecar-certification/**'
       - 'http-generic-api/routes/localManagerBetaRoutes.js'
+      - 'http-generic-api/localManagerReleaseRegistry.js'
       - 'http-generic-api/test-local-manager-tool-release-owner.mjs'
       - '.github/workflows/local-manager-windows.yml'
 
@@ -39,6 +45,15 @@ jobs:
         with:
           dotnet-version: '8.0.x'
 
+      - name: Verify profile isolation and update integrity
+        run: |
+          dotnet run --project apps/local-manager-windows-tests/LocalManagerProfileTests.csproj -p:LocalManagerEnvironment=production
+          dotnet run --project apps/local-manager-windows-tests/LocalManagerProfileTests.csproj -p:LocalManagerEnvironment=staging
+
+      - name: Certify sidecar contracts in both environments
+        run: |
+          dotnet run --project apps/local-manager-sidecar-certification/Mad4B.LocalManager.SidecarCertification.csproj -p:LocalManagerEnvironment=production
+          dotnet run --project apps/local-manager-sidecar-certification/Mad4B.LocalManager.SidecarCertification.csproj -p:LocalManagerEnvironment=staging
       - name: Restore
         run: dotnet restore apps/local-manager-windows/Mad4B.LocalManager.Windows.csproj
 
@@ -72,7 +87,7 @@ jobs:
         shell: pwsh
         run: |
           $projectPath = 'apps/local-manager-windows/Mad4B.LocalManager.Windows.csproj'
-          $routePath = 'http-generic-api/routes/localManagerBetaRoutes.js'
+          $routePath = 'http-generic-api/localManagerReleaseRegistry.js'
           [xml]$project = Get-Content -LiteralPath $projectPath
           $version = ($project.Project.PropertyGroup | Where-Object { $_.Version } | Select-Object -First 1).Version
           if ([string]::IsNullOrWhiteSpace($version)) { throw "Expected <Version> in $projectPath" }
@@ -179,3 +194,25 @@ jobs:
               --prerelease `
               --latest=false
           }
+
+  build-staging-exe:
+    name: Build isolated Staging EXE
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - name: Setup .NET
+        uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
+        with:
+          dotnet-version: '8.0.x'
+      - name: Build Staging profile
+        run: >-
+          dotnet publish apps/local-manager-windows/Mad4B.LocalManager.Windows.csproj
+          -c Release -r win-x64 --self-contained true
+          -p:LocalManagerEnvironment=staging -o dist/local-manager-staging
+      - name: Upload Staging artifact for certification
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: Mad4B-Local-Manager-Staging-EXE
+          path: dist/local-manager-staging/Mad4B-Local-Manager.exe
+          if-no-files-found: error
