@@ -78,6 +78,7 @@ assert.deepEqual(classifyPath("http-generic-api/schema.sql", classes).map((entry
 assert.deepEqual(classifyPath("http-generic-api/schemas/http-generic-api/http-generic-api.yaml", classes).map((entry) => entry.id), ["shared_runtime"]);
 assert.deepEqual(classifyPath("autopilot-portable-production/Deploy.ps1", classes).map((entry) => entry.id), ["production_only"]);
 assert.deepEqual(classifyPath("http-generic-api/.env.staging.example", classes).map((entry) => entry.id), ["staging_only"]);
+assert.deepEqual(classifyPath("http-generic-api/staging-recovery-migrations/20261003_staging_remote_mcp_runtime_foundation_reconciliation.sql", classes).map((entry) => entry.id), ["staging_only"]);
 assert.deepEqual(classifyPath("http-generic-api/frontend-surface-dispatch.generated.json", classes).map((entry) => entry.id), ["shared_runtime"]);
 assert.deepEqual(classifyPath("http-generic-api/auth.mjs", classes).map((entry) => entry.id), ["shared_runtime"]);
 assert.deepEqual(classifyPath("apps/local-manager-device-proof-certification/Program.cs", classes).map((entry) => entry.id), ["cross_runtime_certification"]);

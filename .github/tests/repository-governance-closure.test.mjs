@@ -32,6 +32,11 @@ assert.deepEqual(constitution.branches.main.required_checks, ["Derived State Clo
 assert.deepEqual(constitution.branches.Production.required_checks, ["Governed Production Promotion"]);
 assert.equal(constitution.branches.Production.generic_pull_request_merge_forbidden, true);
 assert.ok(constitution.semantic_executable_classes.some((entry) => entry.id === "production_promotion_governance"));
+assert.ok(constitution.semantic_executable_classes.some((entry) => entry.id === "staging_recovery_migration"));
+const stagingRecoveryMigrationClass = constitution.semantic_executable_classes.find((entry) => entry.id === "staging_recovery_migration");
+assert.deepEqual(stagingRecoveryMigrationClass.patterns, ["http-generic-api/staging-recovery-migrations/**/*.sql"]);
+const dbEffectFacet = semantic.facets.find((entry) => entry.id === "db_effect");
+assert.equal(dbEffectFacet.path_patterns.includes("http-generic-api/staging-recovery-migrations/**/*.sql"), true);
 assert.equal(derived.repository_governance.semantic_surface_registry, constitution.authority.semantic_surface_registry);
 assert.equal(derived.repository_governance.verifier_registry, constitution.authority.verifier_registry);
 assert.equal(derived.repository_governance.evidence_producer_registry, constitution.authority.evidence_producer_registry);
