@@ -328,8 +328,8 @@ test("Staging Activation registry corrective migration is recovery-only additive
   ]) {
     assert.match(sql, new RegExp("CREATE TABLE IF NOT EXISTS " + table + "\\b", "u"));
   }
-  const statements = sql
-    .replace(/^\s*--.*$/gmu, "")
+  const executableSql = sql.replace(/^\s*--.*$/gmu, "");
+  const statements = executableSql
     .split(";")
     .map((statement) => statement.trim())
     .filter(Boolean);
@@ -337,7 +337,7 @@ test("Staging Activation registry corrective migration is recovery-only additive
   for (const statement of statements) {
     assert.match(statement, /^CREATE\s+TABLE\s+IF\s+NOT\s+EXISTS\b/iu);
   }
-  assert.doesNotMatch(sql, /\b(?:INSERT|UPDATE|DELETE|REPLACE|ALTER|DROP|TRUNCATE|GRANT|REVOKE)\b/iu);
+  assert.doesNotMatch(executableSql, /\b(?:INSERT|UPDATE|DELETE|REPLACE|ALTER|DROP|TRUNCATE|GRANT|REVOKE)\b/iu);
 });
 
 test("Staging schema-repair prepare derives the fixed repository migration contract and rejects caller mutation controls", async () => {
