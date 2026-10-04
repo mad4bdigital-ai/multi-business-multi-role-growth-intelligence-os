@@ -18,6 +18,14 @@
     "upstream_branch": "main",
     "deployment_provider": "hostinger",
     "deployment_mode": "hostinger_auto_deploy",
+    "required_runtime_environment": {
+      "environment_key": "production",
+      "deployment_environment": "production_hostinger_autodeploy",
+      "runtime_class": "hostinger_autodeploy",
+      "runtime_class_explicit": true,
+      "source_branch": "Production",
+      "fail_closed_reason": "runtime_class_ambiguous"
+    },
     "auto_deploy_on_push": true,
     "required_environment_branch": "Production",
     "required_readbacks": [
@@ -38,6 +46,14 @@
     "runtime_location": "local_device",
     "lifecycle_status": "planned",
     "deployment_mode": "local_staging_runtime",
+    "required_runtime_environment": {
+      "environment_key": "staging",
+      "deployment_environment": "staging_local_windows_docker",
+      "runtime_class": "local_windows_docker",
+      "runtime_class_explicit": true,
+      "source_branch": "main",
+      "fail_closed_reason": "runtime_class_ambiguous"
+    },
     "hostinger_auto_deploy": false,
     "production_traffic_allowed": false
   },
@@ -55,7 +71,8 @@
       "hostinger_auto_deploy_build",
       "exact_production_sha_manifest",
       "health_readback",
-      "version_readback"
+      "version_readback",
+      "runtime_environment_identity_readback"
     ]
   },
   "environment_impact": {
@@ -64,6 +81,7 @@
       "deployment_branch_policy": "http-generic-api/config/deployment-branch-policy.json",
       "domain_family_policy": "http-generic-api/config/domain-family-policy.json",
       "runtime_environment_invariant": "specs/020-platform-resource-identity-brand-governance/contracts/runtime-environment-invariant-contract.json",
+      "runtime_environment_policy": "http-generic-api/runtimeEnvironmentPolicy.js",
       "runtime_db_write_authority": "specs/020-platform-resource-identity-brand-governance/contracts/runtime-db-write-authority-profiles.json",
       "runtime_database_readiness": "specs/020-platform-resource-identity-brand-governance/contracts/runtime-database-readiness-contract.json",
       "activation_gateway_staging_policy": "edge/activation-gateway/generated/route-policy.staging.json"
@@ -71,6 +89,7 @@
     "source_of_truth_paths": [
       "http-generic-api/config/deployment-branch-policy.json",
       "http-generic-api/config/domain-family-policy.json",
+      "http-generic-api/runtimeEnvironmentPolicy.js",
       "specs/020-platform-resource-identity-brand-governance/contracts/runtime-environment-invariant-contract.json",
       "specs/020-platform-resource-identity-brand-governance/contracts/runtime-db-write-authority-profiles.json",
       "specs/020-platform-resource-identity-brand-governance/contracts/runtime-database-readiness-contract.json",
@@ -121,7 +140,8 @@
           "http-generic-api/scripts/build-staging-admin-openapi.mjs",
           "http-generic-api/scripts/build-staging-remote-mcp-openapi.mjs",
           "http-generic-api/test-staging-*.mjs",
-          "STAGING-*.md"
+          "STAGING-*.md",
+          "http-generic-api/staging-recovery-migrations/**"
         ],
         "environments": [
           "staging"
@@ -143,6 +163,8 @@
       {
         "id": "shared_runtime",
         "patterns": [
+          "apps/local-manager-sidecar-certification/**",
+          "apps/local-manager-windows-tests/**",
           "apps/local-manager-windows/**",
           "canonicals/openapi/**",
           "edge/**",
@@ -171,6 +193,7 @@
           "http-generic-api/scripts/governed-migration-runner-bootstrap.mjs",
           "http-generic-api/scripts/governed-migration-runner.mjs",
           "http-generic-api/scripts/host-breakglass-*.mjs",
+          "http-generic-api/scripts/local-manager-readiness.mjs",
           "http-generic-api/scripts/provision-remote-mcp-client.mjs",
           "http-generic-api/scripts/runtime-persistence-operational-readiness.mjs",
           "http-generic-api/scripts/split-openapi.mjs",
@@ -213,6 +236,7 @@
           ".specify/schemas/**",
           ".specify/spec-kit-work-map-integration-policy.json",
           ".specify/work-map-schema-classification-registry.json",
+          "AI_Agent_Knowledge_Guide.md",
           "deployment_parity_checklist.md",
           "docs/ai-docs-agent-governance.md",
           "docs/auto-docs-agent/**",
@@ -299,6 +323,7 @@
           "http-generic-api/scripts/test-operation-resilience-controller.mjs",
           "http-generic-api/scripts/test-platform-configuration-entry-guard.mjs",
           "http-generic-api/scripts/test-platform-work-map-schema-intelligence.mjs",
+          "http-generic-api/scripts/test-production-runtime-parity-evidence.mjs",
           "http-generic-api/scripts/test-protected-branch-validation-triggers.mjs",
           "http-generic-api/scripts/test-protected-branch-validation-triggers.mjs",
           "http-generic-api/scripts/test-remote-mcp-write-scope-generated-refresh-recipe.mjs",
@@ -309,6 +334,7 @@
           "http-generic-api/test-*.mjs",
           "scripts/**",
           "specs/**/*.md",
+          "specs/*/implementation/**",
           "specs/*/completion.json",
           "specs/*/e2e-phases.json",
           "specs/*/manifest.json",
