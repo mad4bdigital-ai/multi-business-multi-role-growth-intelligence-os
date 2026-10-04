@@ -8,11 +8,11 @@ namespace Mad4B.LocalManager.Windows;
 
 internal static class WindowsAppRegistration
 {
-    private const string UninstallRegistryPath = @"Software\Microsoft\Windows\CurrentVersion\Uninstall\Mad4B.LocalManager.Windows";
-    private const string AppPathsRegistryPath = @"Software\Microsoft\Windows\CurrentVersion\App Paths\Mad4B-Local-Manager.exe";
-    private const string ProductName = "Mad4B Local Manager";
+    private const string UninstallRegistryPath = @"Software\Microsoft\Windows\CurrentVersion\Uninstall\Mad4B.LocalManager.Windows" + LocalManagerEnvironment.Suffix;
+    private const string AppPathsRegistryPath = @"Software\Microsoft\Windows\CurrentVersion\App Paths\Mad4B-Local-Manager" + LocalManagerEnvironment.Suffix + ".exe";
+    private const string ProductName = "Mad4B Local Manager" + LocalManagerEnvironment.DisplaySuffix;
     private const string Publisher = "Mad4B Digital";
-    private const string ShortcutFileName = "Mad4B Local Manager.lnk";
+    private const string ShortcutFileName = "Mad4B Local Manager" + LocalManagerEnvironment.DisplaySuffix + ".lnk";
 
     internal static bool TryHandleCommandLine(string[] args, string executablePath)
     {
@@ -67,7 +67,7 @@ internal static class WindowsAppRegistration
         key.SetValue("InstallLocation", installRoot, RegistryValueKind.String);
         key.SetValue("UninstallString", quotedExe + " --uninstall", RegistryValueKind.String);
         key.SetValue("QuietUninstallString", quotedExe + " --uninstall --quiet", RegistryValueKind.String);
-        key.SetValue("URLInfoAbout", "https://auth.mad4b.com/app/local-manager", RegistryValueKind.String);
+        key.SetValue("URLInfoAbout", LocalManagerEnvironment.BaseUrl + "/app/local-manager", RegistryValueKind.String);
         key.SetValue("InstallDate", DateTime.UtcNow.ToString("yyyyMMdd"), RegistryValueKind.String);
         key.SetValue("NoModify", 1, RegistryValueKind.DWord);
         key.SetValue("NoRepair", 1, RegistryValueKind.DWord);

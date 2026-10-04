@@ -8,7 +8,7 @@ on:
         required: true
         type: string
       expected_head_sha:
-        description: Exact authorized main release-cut SHA and trusted launcher SHA
+        description: Exact authorized main release-cut SHA; trusted launcher may be a later main descendant
         required: true
         type: string
       expected_request_head_sha:
@@ -100,12 +100,15 @@ jobs:
         run: |
           set -Eeuo pipefail
           reject() { echo "::error::$1"; exit 1; }
+          require_sha() { [[ "$2" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::$1 must be an exact lowercase SHA"; return 1; }; }
           [[ "$CONFIRMATION" == "AUTHORIZE_GOVERNED_PRODUCTION_PROMOTION_REQUEST" ]] || reject "typed confirmation mismatch"
           [[ "$REQUEST_PR" =~ ^[1-9][0-9]*$ ]] || reject "request_pr must be a positive integer"
           [[ "$EXPECTED_HEAD_SHA" =~ ^[0-9a-f]{40}$ ]] || reject "expected_head_sha must be an exact lowercase SHA"
           [[ "$EXPECTED_REQUEST_HEAD_SHA" =~ ^[0-9a-f]{40}$ ]] || reject "expected_request_head_sha must be an exact lowercase SHA"
-          [[ "$CURRENT_HEAD_SHA" == "$EXPECTED_HEAD_SHA" ]] || reject "launcher SHA differs from the authorized release cut"
           [[ "$GITHUB_REF_NAME" == "main" ]] || reject "launcher must be dispatched from trusted main"
+          CURRENT_MAIN_API_SHA="$(gh api "/repos/${REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
+          require_sha CURRENT_MAIN_API_SHA "$CURRENT_MAIN_API_SHA"
+          [[ "$CURRENT_HEAD_SHA" == "$CURRENT_MAIN_API_SHA" ]] || reject "launcher must execute the current trusted main tip"
           case "$REVIEW_MODE" in human|ai_policy) ;; *) reject "review_mode must be human or ai_policy" ;; esac
 
           for prefix in "$RELEASE_BRANCH_PREFIX" "$VALIDATION_BRANCH_PREFIX" "$VALIDATION_BASE_BRANCH_PREFIX"; do
@@ -457,14 +460,41 @@ jobs:
 
           ALLOW_ACTION_REQUIRED=false
           [[ "$REVIEW_MODE" == human ]] && ALLOW_ACTION_REQUIRED=true
+          DEFERRED_GATE_ID=""
+          DEFERRED_GATE_RUN_ID=""
           while IFS= read -r gate; do
             gate_id="$(jq -r '.id' <<<"$gate")"
             label="$(jq -r '.label' <<<"$gate")"
             gate_run_id="$(jq -r --arg id "$gate_id" '.[$id]' <<<"$SUPPORTING_RUNS")"
-            wait_run_success "$gate_run_id" "$label" "$ALLOW_ACTION_REQUIRED"
+            if ! wait_run_success "$gate_run_id" "$label" "$ALLOW_ACTION_REQUIRED"; then
+              if [[ "$gate_id" == "staging_live_certification" ]]; then
+                DEFERRED_GATE_ID="$gate_id"
+                DEFERRED_GATE_RUN_ID="$gate_run_id"
+                break
+              fi
+              exit 1
+            fi
           done < <(jq -c '.gates[]' "$GATE_PLAN")
           if [[ "$APPROVAL_REQUIRED" == 1 ]]; then
             echo "::error::one or more supporting gates require approval; resume the same operation after approving approval-manifest.json"
+            exit 78
+          fi
+          if [[ -n "$DEFERRED_GATE_ID" ]]; then
+            RESUME_MANIFEST="$OPERATION_DIR/staging-resume-manifest.json"
+            jq -n \
+              --arg operation_id "$OPERATION_ID" \
+              --arg request_pr "$REQUEST_PR" \
+              --arg request_head "$EXPECTED_REQUEST_HEAD_SHA" \
+              --arg release_cut "$RELEASE_CUT_SHA" \
+              --arg production "$PRODUCTION_SHA" \
+              --arg candidate "$CANDIDATE_SHA" \
+              --arg review_mode "$REVIEW_MODE" \
+              --arg gate_run_id "$DEFERRED_GATE_RUN_ID" \
+              '{schema_version:"governed_production_promotion_staging_resume.v1",state:"WAITING_FOR_STAGING",operation_id:$operation_id,request_pr:$request_pr,request_head_sha:$request_head,release_cut_sha:$release_cut,production_sha:$production,candidate_sha:$candidate,review_mode:$review_mode,failed_gate:"staging_live_certification",failed_gate_run_id:$gate_run_id,merge_executed:false,deployment_executed:false,secrets_included:false}' \
+              > "$RESUME_MANIFEST"
+            RESUME_MARKER="GOVERNED_PRODUCTION_STAGING_RESUME_ARMED request_pr=$REQUEST_PR request_head=$EXPECTED_REQUEST_HEAD_SHA release_cut=$RELEASE_CUT_SHA Production=$PRODUCTION_SHA candidate=$CANDIDATE_SHA review_mode=$REVIEW_MODE failed_gate_run=$DEFERRED_GATE_RUN_ID merge_executed=false deployment_executed=false"
+            gh pr comment "$REQUEST_PR" --repo "$REPOSITORY" --body "$RESUME_MARKER"
+            echo "::error::Staging Live Certification is not yet converged; operation is safely resumable after an exact successful Staging certification"
             exit 78
           fi
 

@@ -39,6 +39,7 @@ import {
 
 const SHA = "a".repeat(40);
 const ENV = {
+  NODE_ENV: "production",
   GITHUB_REPOSITORY: "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os",
   GITHUB_REF_NAME: "Production",
   GITHUB_SHA: SHA,
