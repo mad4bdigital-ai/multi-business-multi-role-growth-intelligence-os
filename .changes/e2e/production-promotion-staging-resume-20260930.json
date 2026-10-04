@@ -77,7 +77,7 @@
           "end_to_end": true,
           "level": "synthetic_runtime",
           "actor": "Governed Windows Staging operator",
-          "entrypoint": "A Production promotion request is in WAITING_FOR_STAGING with an exact GOVENED/GOVERNED production staging resume marker, while current main has advanced beyond the authorized release cut.",
+          "entrypoint": "A Production promotion request is in WAITING_FOR_STAGING with an exact GOVERNED_PRODUCTION_STAGING_RESUME_ARMED marker, while current main has advanced beyond the authorized release cut.",
           "terminal_outcome": "Start-AutoPilot keeps current main as the trusted control-plane driver, verifies the exact request head, resume marker, release-cut ancestry, pinned Production SHA and two-parent candidate topology, then permits only the exact release-cut payload to be fetched and deployed to local Staging. Production and provider authority remain unchanged.",
           "steps": [
             "Require explicit AllowGovernedReleaseCutAncestor mode and a confirmation token derived from the first 12 hex characters of the exact release cut.",
