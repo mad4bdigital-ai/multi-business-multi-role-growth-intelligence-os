@@ -313,21 +313,589 @@ function Assert-GovernedReleaseCutResume([string]$RemoteCommit) {
         return $fields
     }
 
-    # Do not rely on Windows PowerShell array materialization for the comments collection.
-    # Let gh/gojq select trusted candidate IDs across every page, then read each comment
-    # as one JSON object and apply the exact field parser below.
-    $candidateIdsRaw = (& gh api "/repos/$ExpectedRepository/issues/$PromotionRequestPr/comments?per_page=100" --paginate --jq '.[] | select(.user.login == "github-actions[bot]" and (.body | startswith("GOVERNED_PRODUCTION_STAGING_RESUME_ARMED"))) | .id' 2>$null | Out-String).Trim()
-    if ($LASTEXITCODE -ne 0) { Fail "Governed release-cut resume could not enumerate trusted promotion request markers" }
+    # Avoid both Windows PowerShell JSON-array materialization quirks and native-argument
+    # quoting quirks for string literals inside gh --jq. Emit only primitive TSV fields
+    # from gojq, filter the trusted bot identity in PowerShell, then re-read each candidate
+    # as one JSON object before applying the exact resume-marker field bindings.
+    $commentIndexRaw = (& gh api "/repos/$ExpectedRepository/issues/$PromotionRequestPr/comments?per_page=100" --paginate --jq '.[] | [.id, .user.login] | @tsv' 2>$null | Out-String).Trim()
+    if ($LASTEXITCODE -ne 0) { Fail "Governed release-cut resume could not enumerate promotion request comments" }
 
-    $candidateIdLines = @()
-    if (-not [string]::IsNullOrWhiteSpace($candidateIdsRaw)) {
-        $candidateIdLines = @($candidateIdsRaw -split '\r?\n' | ForEach-Object { ([string]$_).Trim() } | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) })
+    $trustedResumeMarkerIds = @()
+    if (-not [string]::IsNullOrWhiteSpace($commentIndexRaw)) {
+        foreach ($line in @($commentIndexRaw -split '\r?\n')) {
+            $row = ([string]$line).Trim()
+            if ([string]::IsNullOrWhiteSpace($row)) { continue }
+
+            $columns = @($row -split "`t", 2)
+            if ($columns.Count -ne 2) {
+                Fail "Governed release-cut resume comment index returned an invalid TSV row"
+            }
+
+            $commentId = ([string]$columns[0]).Trim()
+            $commentLogin = ([string]$columns[1]).Trim()
+            if ($commentId -notmatch '^\d+        $matches = (
+            $fields.ContainsKey("request_pr") -and [string]$fields["request_pr"] -eq [string]$PromotionRequestPr -and
+            $fields.ContainsKey("request_head") -and ([string]$fields["request_head"]).ToLowerInvariant() -eq $requestHead -and
+            $fields.ContainsKey("release_cut") -and ([string]$fields["release_cut"]).ToLowerInvariant() -eq $releaseCut -and
+            $fields.ContainsKey("Production") -and ([string]$fields["Production"]).ToLowerInvariant() -eq $production -and
+            $fields.ContainsKey("candidate") -and ([string]$fields["candidate"]).ToLowerInvariant() -eq $candidate -and
+            $fields.ContainsKey("review_mode") -and -not [string]::IsNullOrWhiteSpace([string]$fields["review_mode"]) -and
+            $fields.ContainsKey("merge_executed") -and [string]$fields["merge_executed"] -eq "false" -and
+            $fields.ContainsKey("deployment_executed") -and [string]$fields["deployment_executed"] -eq "false"
+        )
+        if ($matches) { $resumeMarkerIds += [string]$commentId }
     }
-    if (@($candidateIdLines | Where-Object { [string]$_ -notmatch '^\d+$' }).Count -gt 0) {
-        Fail "Governed release-cut resume trusted marker enumeration returned an invalid comment id"
+    if ($resumeMarkerIds.Count -ne 1) {
+        Fail "Governed release-cut resume requires exactly one matching WAITING_FOR_STAGING marker" @{
+            promotion_request_pr = $PromotionRequestPr
+            trusted_marker_candidates = $trustedResumeMarkerIds.Count
+            matching_markers = $resumeMarkerIds.Count
+        }
     }
 
-    $trustedResumeMarkerIds = @($candidateIdLines)
+    $compareRaw = (& gh api "/repos/$ExpectedRepository/compare/$releaseCut...$currentMain" 2>$null | Out-String).Trim()
+    if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($compareRaw)) { Fail "Governed release-cut resume could not verify main ancestry" }
+    try { $compare = $compareRaw | ConvertFrom-Json } catch { Fail "Governed release-cut resume ancestry response is invalid" }
+    if (([string]$compare.merge_base_commit.sha).ToLowerInvariant() -ne $releaseCut -or [int]$compare.behind_by -ne 0) {
+        Fail "Governed release-cut resume release cut is not an ancestor of current main"
+    }
+
+    $productionRaw = (& gh api "/repos/$ExpectedRepository/git/ref/heads/Production" 2>$null | Out-String).Trim()
+    if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($productionRaw)) { Fail "Governed release-cut resume could not verify Production ref" }
+    try { $productionRef = $productionRaw | ConvertFrom-Json } catch { Fail "Governed release-cut resume Production response is invalid" }
+    if (([string]$productionRef.object.sha).ToLowerInvariant() -ne $production) { Fail "Governed release-cut resume Production moved" }
+
+    $cutRaw = (& gh api "/repos/$ExpectedRepository/git/commits/$releaseCut" 2>$null | Out-String).Trim()
+    $candidateRaw = (& gh api "/repos/$ExpectedRepository/git/commits/$candidate" 2>$null | Out-String).Trim()
+    $requestRaw = (& gh api "/repos/$ExpectedRepository/git/commits/$requestHead" 2>$null | Out-String).Trim()
+    if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($cutRaw) -or [string]::IsNullOrWhiteSpace($candidateRaw) -or [string]::IsNullOrWhiteSpace($requestRaw)) {
+        Fail "Governed release-cut resume could not read exact Git identities"
+    }
+    try {
+        $cutCommit = $cutRaw | ConvertFrom-Json
+        $candidateCommit = $candidateRaw | ConvertFrom-Json
+        $requestCommit = $requestRaw | ConvertFrom-Json
+    } catch { Fail "Governed release-cut resume Git identity response is invalid" }
+
+    if (@($candidateCommit.parents).Count -ne 2) { Fail "Governed release-cut resume candidate parent count changed" }
+    if (([string]$candidateCommit.parents[0].sha).ToLowerInvariant() -ne $releaseCut) { Fail "Governed release-cut resume candidate first parent changed" }
+    if (([string]$candidateCommit.parents[1].sha).ToLowerInvariant() -ne $production) { Fail "Governed release-cut resume candidate second parent changed" }
+    if (([string]$candidateCommit.tree.sha).ToLowerInvariant() -ne ([string]$cutCommit.tree.sha).ToLowerInvariant()) { Fail "Governed release-cut resume candidate tree changed" }
+
+    if (@($requestCommit.parents).Count -ne 1 -or ([string]$requestCommit.parents[0].sha).ToLowerInvariant() -ne $releaseCut) {
+        Fail "Governed release-cut resume request marker parent changed"
+    }
+    if (([string]$requestCommit.tree.sha).ToLowerInvariant() -ne ([string]$cutCommit.tree.sha).ToLowerInvariant()) {
+        Fail "Governed release-cut resume request marker tree changed"
+    }
+
+    Write-StagingOperationBoundary -Component $LogComponent -Stage "governed-release-cut-resume" -Outcome "success" -Message "authorized Production release cut may be deployed to local Staging" -Data @{
+        release_cut = $releaseCut
+        current_main = $currentMain
+        promotion_request_pr = $PromotionRequestPr
+        promotion_request_head = $requestHead
+        candidate = $candidate
+        pinned_production = $production
+        production_mutation = $false
+        provider_mutation = $false
+        secrets_included = $false
+    }
+}
+
+function Invoke-SelfUpdate {
+    if ($SkipSelfUpdate) { return }
+    $deploymentCommit = $ExpectedCommit.ToLowerInvariant()
+    Push-Location $RepositoryPath
+    try {
+        Assert-StagingOriginIdentity $RepositoryPath $ExpectedRepository
+        Quarantine-KnownBackupFiles $RepositoryPath
+        Repair-ManifestLineEndings $RepositoryPath
+        $dirty = @(git status --porcelain --untracked-files=all)
+        if ($dirty.Count -gt 0) { Fail "Working tree is not clean; refusing bootstrap checkout before Auto Pilot self-update" }
+        Invoke-Native "git" @("fetch", "origin", $Ref, "--depth=2")
+        $remoteCommit = (Get-NativeText "git" @("rev-parse", "origin/$Ref")).ToLowerInvariant()
+        $driverCommit = $deploymentCommit
+        if ($remoteCommit -ne $deploymentCommit) {
+            Assert-GovernedReleaseCutResume $remoteCommit
+            $driverCommit = $remoteCommit
+        }
+        $currentCommit = (Get-NativeText "git" @("rev-parse", "HEAD")).ToLowerInvariant()
+        if ($currentCommit -ne $driverCommit) {
+            Invoke-Native "git" @("checkout", "--detach", $driverCommit)
+        }
+        $checkedOut = (Get-NativeText "git" @("rev-parse", "HEAD")).ToLowerInvariant()
+        if ($checkedOut -ne $driverCommit) { Fail "Self-update checkout readback mismatch" }
+    } finally {
+        Pop-Location
+    }
+
+    $reloadedScript = Join-Path $RepositoryPath "autopilot-portable-staging\Start-AutoPilot.ps1"
+    if (-not (Test-Path -LiteralPath $reloadedScript)) { Fail "Self-update target script is missing: $reloadedScript" }
+    $reloadedText = Get-Content -Raw -LiteralPath $reloadedScript
+    foreach ($marker in @("prepare-staging-build-context.mjs", "STAGING_BUILD_TREE", "STAGING_BUILD_CONTEXT_FILE_SET_SHA256")) {
+        if (-not $reloadedText.Contains($marker)) { Fail "Self-update target script is missing required provenance marker: $marker" }
+    }
+    Write-StagingOperationBoundary -Component $LogComponent -Stage "bootstrap-sync" -Outcome "success" -Message "reloaded exact-commit Auto Pilot before local execution" -Data @{ driver_sha = $driverCommit; deployment_sha = $deploymentCommit; governed_release_cut_resume = [bool]$AllowGovernedReleaseCutAncestor; secrets_included = $false }
+
+    $childBuildMode = if ($SkipBuild) { "Smart" } else { $BuildMode }
+    $childArgs = @(
+        "-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $reloadedScript,
+        "-RepositoryPath", $RepositoryPath, "-RepositoryUrl", $RepositoryUrl, "-ExpectedRepository", $ExpectedRepository, "-Ref", $Ref,
+        "-ExpectedCommit", $ExpectedCommit, "-BuildMode", $childBuildMode, "-SkipSelfUpdate"
+    )
+    $childArgs += @("-TunnelMode", $TunnelMode)
+    if ($EnableActivationGateway) { $childArgs += "-EnableActivationGateway" }
+    if ($RequireSchemaBundle) { $childArgs += "-RequireSchemaBundle" }
+    if ($ApplySchemaBundle) { $childArgs += "-ApplySchemaBundle" }
+    if ($ValidateOnly) { $childArgs += "-ValidateOnly" }
+    if ($Stop) { $childArgs += "-Stop" }
+    if ($SkipBuild) { $childArgs += "-SkipBuild" }
+    if ($AllowGovernedReleaseCutAncestor) {
+        $childArgs += @(
+            "-AllowGovernedReleaseCutAncestor",
+            "-PromotionRequestPr", [string]$PromotionRequestPr,
+            "-PromotionRequestHeadSha", $PromotionRequestHeadSha,
+            "-PromotionCandidateSha", $PromotionCandidateSha,
+            "-PinnedProductionSha", $PinnedProductionSha,
+            "-GovernedResumeConfirmation", $GovernedResumeConfirmation
+        )
+    }
+    & powershell.exe @childArgs
+    $exitCode = $LASTEXITCODE
+    if ($exitCode -ne 0) {
+        Write-StagingLog -Level warning -Component $LogComponent -Stage "bootstrap-child-failure" -Message "Reloaded Auto Pilot failed; preserving the child process root failure" -Data @{ parent_error = "RELOADED_AUTO_PILOT_FAILED"; expected_commit = $ExpectedCommit; child_exit_code = $exitCode }
+        exit $exitCode
+    }
+    exit 0
+}
+
+function Test-ExactStagingImage([string]$ImageId, [string]$ExpectedCommit, [string]$ExpectedTree, [string]$ExpectedContextFileSet) {
+    if ($ImageId -notmatch '^sha256:[0-9a-fA-F]{64}$') { return $false }
+    if ($ExpectedCommit -notmatch '^[0-9a-fA-F]{40}$' -or $ExpectedTree -notmatch '^[0-9a-fA-F]{40}$' -or $ExpectedContextFileSet -notmatch '^[0-9a-fA-F]{64}$') { return $false }
+    try {
+        # Avoid Docker Go-template quoting/parsing differences on Windows PowerShell 5.1.
+        # Parse the canonical image inspect JSON once, then validate both identity and labels.
+        $inspectJson = (& docker image inspect $ImageId 2>$null | Out-String).Trim()
+        if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($inspectJson)) { return $false }
+        $inspect = @($inspectJson | ConvertFrom-Json)[0]
+        if ($null -eq $inspect -or $null -eq $inspect.Config -or $null -eq $inspect.Config.Labels) { return $false }
+        $labels = $inspect.Config.Labels
+        $inspectedId = ([string]$inspect.Id).Trim().ToLowerInvariant()
+        if ($inspectedId -ne $ImageId.ToLowerInvariant()) { return $false }
+        return (([string]$labels.'org.mad4b.staging.provenance.contract').Trim() -eq "mad4b.staging-build-provenance.v1" -and
+            (([string]$labels.'org.mad4b.staging.build.commit').Trim().ToLowerInvariant()) -eq $ExpectedCommit.ToLowerInvariant() -and
+            (([string]$labels.'org.mad4b.staging.build.tree').Trim().ToLowerInvariant()) -eq $ExpectedTree.ToLowerInvariant() -and
+            (([string]$labels.'org.mad4b.staging.build.context_file_set_sha256').Trim().ToLowerInvariant()) -eq $ExpectedContextFileSet.ToLowerInvariant() -and
+            (([string]$labels.'org.mad4b.staging.build.secrets_included').Trim().ToLowerInvariant()) -eq "false")
+    } catch {
+        return $false
+    }
+}
+function Find-ExactStagingImageId([string]$ExpectedCommit, [string]$ExpectedTree, [string]$ExpectedContextFileSet, [string]$EnvPath, [object[]]$ComposeArgs) {
+    $candidateIds = @()
+    $fromEnvLine = Get-Content -LiteralPath $EnvPath | Where-Object { $_ -match '^STAGING_APP_IMAGE_ID=(.*)$' } | Select-Object -First 1
+    if ($fromEnvLine) {
+        $fromEnv = ($fromEnvLine -replace '^STAGING_APP_IMAGE_ID=', '').Trim().ToLowerInvariant()
+        if ($fromEnv -match '^sha256:[0-9a-f]{64}$') { $candidateIds += $fromEnv }
+    }
+    # Compose owns the effective app image name. Resolve it from the interpolated
+    # model instead of `compose images -q`: that command dereferences the image of
+    # an existing container and exits nonzero when Docker GC has removed it, which
+    # is a normal pre-build condition rather than an Auto Pilot failure.
+    if ($null -ne $ComposeArgs -and $ComposeArgs.Count -gt 0) {
+        try {
+            $composeModelJson = (& docker @($ComposeArgs + @("config", "--format", "json")) 2>$null | Out-String).Trim()
+            if ($LASTEXITCODE -eq 0 -and -not [string]::IsNullOrWhiteSpace($composeModelJson)) {
+                $composeModel = $composeModelJson | ConvertFrom-Json
+                $effectiveImageRef = [string]$composeModel.services.app.image
+                if ([string]::IsNullOrWhiteSpace($effectiveImageRef) -and -not [string]::IsNullOrWhiteSpace([string]$composeModel.name)) {
+                    $effectiveImageRef = "{0}-app:latest" -f [string]$composeModel.name
+                }
+                if (-not [string]::IsNullOrWhiteSpace($effectiveImageRef)) {
+                    $effectiveImageId = (& docker image inspect --format '{{.Id}}' $effectiveImageRef 2>$null | Out-String).Trim()
+                    if ($LASTEXITCODE -eq 0 -and $effectiveImageId -match '^sha256:[0-9a-fA-F]{64}$') {
+                        $candidateIds += $effectiveImageId.ToLowerInvariant()
+                    }
+                }
+            }
+        } catch {
+            # Continue to the label-index fallback. Candidate acceptance remains
+            # fail-closed in Test-ExactStagingImage.
+        }
+    }
+    $labelQuery = (Get-NativeText "docker" @("image", "ls", "--no-trunc", "--filter", "label=org.mad4b.staging.provenance.contract=mad4b.staging-build-provenance.v1", "--format", "{{.ID}}")).Trim()
+    $candidateIds += @($labelQuery -split "\s+" | Where-Object { $_ -match '^sha256:[0-9a-fA-F]{64}$' })
+    foreach ($candidate in @($candidateIds | Select-Object -Unique)) {
+        if (Test-ExactStagingImage ([string]$candidate) $ExpectedCommit $ExpectedTree $ExpectedContextFileSet) { return ([string]$candidate).ToLowerInvariant() }
+    }
+    return ""
+}
+function Seed-SchemaBundle([string]$RepoPath, [string]$Sha) {
+    $dumpDir = Join-Path $RepoPath "autopilot-portable-staging\staging-db-dumps"
+    $required = @("runtime.schema.sql.gz", "governance.schema.sql.gz", "persistence.schema.sql.gz")
+    $bundleManifestPath = Join-Path $dumpDir "staging-schema-bundle-manifest.json"
+    $missingRequired = @($required | Where-Object { -not (Test-Path -LiteralPath (Join-Path $dumpDir $_)) })
+    $missingArtifacts = @($missingRequired)
+    if (-not (Test-Path -LiteralPath $bundleManifestPath -PathType Leaf)) { $missingArtifacts += "staging-schema-bundle-manifest.json" }
+    $available = (Test-Path -LiteralPath $dumpDir -PathType Container) -and ($missingArtifacts.Count -eq 0)
+    if (-not $available) {
+        if ($RequireSchemaBundle -or $ApplySchemaBundle) { Fail "Schema bundle is required but missing from $dumpDir" }
+        Write-StagingLog -Level info -Component $LogComponent -Stage "schema-bundle" -Message "no complete local schema-only bundle found; leaving recovered Staging databases unchanged" -Data @{ missing_artifacts = @($missingArtifacts) }
+        return "skipped_no_schema_bundle"
+    }
+
+    try { $bundleManifest = Get-Content -Raw -LiteralPath $bundleManifestPath | ConvertFrom-Json }
+    catch {
+        if ($RequireSchemaBundle -or $ApplySchemaBundle) { Fail "Schema bundle manifest is invalid JSON: $bundleManifestPath" }
+        Write-StagingLog -Level warning -Component $LogComponent -Stage "schema-bundle" -Message "local schema-only bundle manifest is invalid; skipping optional bundle validation" -Data @{ expected_commit = $Sha; manifest = $bundleManifestPath }
+        return "skipped_invalid_schema_bundle"
+    }
+    $bundleContract = if ($bundleManifest.PSObject.Properties.Name -contains "contract") { [string]$bundleManifest.contract } else { "" }
+    $bundleSourceCommit = if ($bundleManifest.PSObject.Properties.Name -contains "source_commit") { ([string]$bundleManifest.source_commit).Trim().ToLowerInvariant() } else { "" }
+    $expectedSha = $Sha.ToLowerInvariant()
+    if ($bundleContract -ne "mad4b.staging.schema-bundle-output.v1") {
+        if ($RequireSchemaBundle -or $ApplySchemaBundle) { Fail "Schema bundle manifest contract is unsupported: $bundleContract" }
+        Write-StagingLog -Level warning -Component $LogComponent -Stage "schema-bundle" -Message "local schema-only bundle contract is unsupported; skipping optional bundle validation" -Data @{ expected_commit = $expectedSha; observed_commit = $bundleSourceCommit; contract = $bundleContract }
+        return "skipped_incompatible_schema_bundle"
+    }
+    if ($bundleSourceCommit -ne $expectedSha) {
+        if ($RequireSchemaBundle -or $ApplySchemaBundle) { Fail "Schema bundle manifest is not bound to ExpectedCommit: expected=$expectedSha observed=$bundleSourceCommit" }
+        Write-StagingLog -Level warning -Component $LogComponent -Stage "schema-bundle" -Message "local schema-only bundle is stale for the exact commit; skipping optional bundle validation" -Data @{ expected_commit = $expectedSha; observed_commit = $bundleSourceCommit; contract = $bundleContract }
+        return "skipped_stale_schema_bundle"
+    }
+
+    $clone = Join-Path $RepoPath "autopilot-portable-staging\Clone-StagingDatabases.ps1"
+    if (-not (Test-Path -LiteralPath $clone)) { Fail "Clone-StagingDatabases.ps1 is missing: $clone" }
+    $cloneArgs = @("-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $clone, "-DumpDirectory", $dumpDir, "-ExpectedCommit", $Sha, "-Mode", "schema_only")
+    if ($ApplySchemaBundle) {
+        $cloneArgs += "-Apply"
+        Invoke-Native "powershell.exe" $cloneArgs
+        Write-StagingOperationBoundary -Component $LogComponent -Stage "schema-bundle" -Outcome "success" -Message "explicit local Staging schema-only bundle applied" -Data @{ commit = $Sha; mode = "schema_only"; production_accessed = $false; provider_accessed = $false }
+        return "schema_only_applied"
+    }
+    Invoke-Native "powershell.exe" $cloneArgs
+    Write-StagingOperationBoundary -Component $LogComponent -Stage "schema-bundle" -Outcome "success" -Message "local Staging schema-only bundle validated in dry-run mode" -Data @{ commit = $Sha; mode = "schema_only"; production_accessed = $false; provider_accessed = $false }
+    return "schema_only_dry_run"
+}
+
+function Quarantine-KnownBackupFiles([string]$RepoPath) {
+    $backupRoot = Join-Path $env:USERPROFILE "MAD4B-Staging-Backups"
+    $backupFiles = @(Get-ChildItem -LiteralPath (Join-Path $RepoPath "autopilot-portable-staging") -Filter "*.backup" -File -ErrorAction SilentlyContinue)
+    foreach ($file in $backupFiles) {
+        New-Item -ItemType Directory -Force -Path $backupRoot | Out-Null
+        $destination = Join-Path $backupRoot ("{0}-{1}{2}" -f $file.BaseName, (Get-Date).ToUniversalTime().ToString("yyyyMMdd-HHmmss"), $file.Extension)
+        Move-Item -LiteralPath $file.FullName -Destination $destination -Force
+        Write-StagingLog -Level warning -Component $LogComponent -Stage "working-tree" -Message "quarantined known AutoPilot backup outside repository" -Data @{ source = $file.Name; destination = $destination }
+    }
+}
+
+$scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
+if ($SkipBuild) {
+    if ($BuildMode -ne "Smart") { Fail "-SkipBuild cannot be combined with an explicit BuildMode" }
+    $BuildMode = "SkipBuild"
+}
+if ([string]::IsNullOrWhiteSpace($RepositoryPath)) {
+    $RepositoryPath = (Resolve-Path (Join-Path $scriptRoot "..")).Path
+}
+$RepositoryPath = [IO.Path]::GetFullPath($RepositoryPath)
+$ApiPath = Join-Path $RepositoryPath "http-generic-api"
+$ComposeBase = Join-Path $ApiPath "docker-compose.yml"
+$ComposeStage = Join-Path $ApiPath "docker-compose.staging.yml"
+$EnvExample = Join-Path $ApiPath ".env.staging.example"
+$EnvFile = Join-Path $ApiPath ".env.staging"
+$Manifest = Join-Path $scriptRoot "manifest.json"
+$StateFile = Join-Path $scriptRoot "autopilot-state.json"
+$CertificationScript = Join-Path $scriptRoot "Invoke-StagingCertification.ps1"
+$BuildContextScript = Join-Path $ApiPath "scripts/prepare-staging-build-context.mjs"
+$BuildContextPath = Join-Path $RepositoryPath ".staging-build-context"
+
+Require-Command "git"
+if (-not (Test-Path $ComposeBase) -or -not (Test-Path $ComposeStage) -or -not (Test-Path $EnvExample)) {
+    if ([string]::IsNullOrWhiteSpace($RepositoryUrl)) { Fail "Repository files are missing and RepositoryUrl is empty" }
+    New-Item -ItemType Directory -Force -Path $RepositoryPath | Out-Null
+    if (-not (Test-Path (Join-Path $RepositoryPath ".git"))) {
+        Invoke-Native "git" @("clone", "--filter=blob:none", "--no-checkout", $RepositoryUrl, $RepositoryPath)
+    }
+}
+
+if (-not (Test-Path (Join-Path $RepositoryPath ".git"))) { Fail "RepositoryPath is not a Git repository: $RepositoryPath" }
+Assert-StagingOriginIdentity $RepositoryPath $ExpectedRepository
+if (-not (Test-Path -LiteralPath $CertificationScript)) { Fail "Staging certification helper is missing: $CertificationScript" }
+Assert-Sha $ExpectedCommit
+Invoke-SelfUpdate
+Require-Command "docker"
+Require-Command "wsl"
+
+if ($env:DOCKER_HOST) { Fail "DOCKER_HOST is set; refusing a remote Docker daemon" }
+if ($env:DOCKER_CONTEXT) { Fail "DOCKER_CONTEXT is set; unset it and select a local Docker Desktop context explicitly" }
+$context = Get-NativeText "docker" @("context", "show")
+if ($context -notin @("default", "desktop-linux")) { Fail "Docker context '$context' is not an accepted local context" }
+$dockerServer = Get-NativeText "docker" @("info", "--format", "{{.ServerVersion}}")
+if ([string]::IsNullOrWhiteSpace($dockerServer)) { Fail "Docker daemon is not reachable" }
+    $wslStatus = (& wsl.exe --status 2>$null | Out-String)
+    if ([string]::IsNullOrWhiteSpace($wslStatus)) { Fail "WSL2 status could not be read" }
+    if (-not (Test-StagingWsl2Ready)) { Fail "No WSL2 distribution is available; Docker Desktop must be configured for WSL2" }
+
+    Push-Location $RepositoryPath
+try {
+    Quarantine-KnownBackupFiles $RepositoryPath
+    Repair-ManifestLineEndings $RepositoryPath
+    $dirty = @(git status --porcelain --untracked-files=all)
+    if ($dirty.Count -gt 0) { Fail "Working tree is not clean after protected line-ending normalization; Auto Pilot will not overwrite local work" }
+    Invoke-Native "git" @("fetch", "origin", $Ref, "--depth=2")
+    $remoteCommit = (Get-NativeText "git" @("rev-parse", "origin/$Ref")).ToLowerInvariant()
+    if ($remoteCommit -ne $ExpectedCommit.ToLowerInvariant()) {
+        Assert-GovernedReleaseCutResume $remoteCommit
+        Invoke-Native "git" @("fetch", "origin", $ExpectedCommit, "--depth=2")
+    }
+    Invoke-Native "git" @("checkout", "--detach", $ExpectedCommit)
+    $checkedOut = Get-NativeText "git" @("rev-parse", "HEAD")
+    if ($checkedOut.ToLowerInvariant() -ne $ExpectedCommit.ToLowerInvariant()) { Fail "Checked-out commit readback mismatch" }
+
+    if (-not (Test-Path $Manifest)) { Fail "Portable manifest is missing: $Manifest" }
+    $manifestObject = Get-Content -Raw $Manifest | ConvertFrom-Json
+    foreach ($entry in $manifestObject.files) {
+        $full = Join-Path $RepositoryPath $entry.path
+        if (-not (Test-Path $full)) { Fail "Manifest file is missing: $($entry.path)" }
+        $actual = (Get-FileHash -Algorithm SHA256 $full).Hash.ToLowerInvariant()
+        if ($actual -ne $entry.sha256.ToLowerInvariant()) { Fail "Manifest hash mismatch: $($entry.path)" }
+    }
+    if (-not (Test-Path $BuildContextScript)) { Fail "Exact Git build context generator is missing: $BuildContextScript" }
+    $buildTree = Get-NativeText "git" @("rev-parse", "$ExpectedCommit^{tree}")
+    if ($buildTree -notmatch '^[0-9a-fA-F]{40}$') { Fail "Pinned commit tree readback is not an exact SHA" }
+    Invoke-Native "node" @($BuildContextScript, "--repository-path", $RepositoryPath, "--commit", $ExpectedCommit.ToLowerInvariant(), "--output-dir", $BuildContextPath)
+    $buildContextMetadataPath = Join-Path $BuildContextPath ".staging-build-context.json"
+    if (-not (Test-Path $buildContextMetadataPath)) { Fail "Exact Git build context provenance metadata is missing" }
+    try { $buildContextMetadata = Get-Content -Raw -LiteralPath $buildContextMetadataPath | ConvertFrom-Json } catch { Fail "Exact Git build context provenance metadata is invalid" }
+    if ([string]$buildContextMetadata.commit_sha -ne $ExpectedCommit.ToLowerInvariant() -or [string]$buildContextMetadata.tree_sha -ne $buildTree.ToLowerInvariant() -or [string]$buildContextMetadata.source -ne "git_archive_exact_commit" -or $buildContextMetadata.local_ignored_files_included -ne $false -or $buildContextMetadata.secrets_included -ne $false) { Fail "Exact Git build context provenance did not converge" }
+
+    if (-not (Test-Path $EnvFile)) {
+        Copy-Item $EnvExample $EnvFile
+        $localSecrets = @{
+            "DB_PASSWORD" = ([guid]::NewGuid().ToString("N") + [guid]::NewGuid().ToString("N"))
+            "RUNTIME_DB_ROOT_PASSWORD" = ([guid]::NewGuid().ToString("N") + [guid]::NewGuid().ToString("N"))
+            "GOVERNANCE_DB_PASSWORD" = ([guid]::NewGuid().ToString("N") + [guid]::NewGuid().ToString("N"))
+            "RUNTIME_PERSISTENCE_DB_PASSWORD" = ([guid]::NewGuid().ToString("N") + [guid]::NewGuid().ToString("N"))
+            "RUNTIME_PERSISTENCE_DB_ROOT_PASSWORD" = ([guid]::NewGuid().ToString("N") + [guid]::NewGuid().ToString("N"))
+            "BACKEND_API_KEY" = ([guid]::NewGuid().ToString("N") + [guid]::NewGuid().ToString("N"))
+            "JWT_SECRET" = ([guid]::NewGuid().ToString("N") + [guid]::NewGuid().ToString("N"))
+            "LOCAL_MANAGER_DEVICE_JWT_SECRET" = ([guid]::NewGuid().ToString("N") + [guid]::NewGuid().ToString("N"))
+            "TENANT_GPT_SSO_SIGNING_SECRET" = ([guid]::NewGuid().ToString("N") + [guid]::NewGuid().ToString("N"))
+            "TOKEN_ENCRYPTION_KEY" = ([guid]::NewGuid().ToString("N") + [guid]::NewGuid().ToString("N"))
+        }
+        $envText = Get-Content -Raw $EnvFile
+        foreach ($key in $localSecrets.Keys) { $envText = [regex]::Replace($envText, "(?m)^$key=.*$", "$key=$($localSecrets[$key])") }
+        Write-StagingUtf8NoBom $EnvFile $envText
+    }
+
+    $generatedLocalSecrets = @{
+        "DB_PASSWORD" = ([guid]::NewGuid().ToString("N") + [guid]::NewGuid().ToString("N"))
+        "RUNTIME_DB_ROOT_PASSWORD" = ([guid]::NewGuid().ToString("N") + [guid]::NewGuid().ToString("N"))
+        "GOVERNANCE_DB_PASSWORD" = ([guid]::NewGuid().ToString("N") + [guid]::NewGuid().ToString("N"))
+        "GOVERNANCE_DB_ROOT_PASSWORD" = ([guid]::NewGuid().ToString("N") + [guid]::NewGuid().ToString("N"))
+        "RUNTIME_PERSISTENCE_DB_PASSWORD" = ([guid]::NewGuid().ToString("N") + [guid]::NewGuid().ToString("N"))
+        "RUNTIME_PERSISTENCE_DB_ROOT_PASSWORD" = ([guid]::NewGuid().ToString("N") + [guid]::NewGuid().ToString("N"))
+        "BACKEND_API_KEY" = ([guid]::NewGuid().ToString("N") + [guid]::NewGuid().ToString("N"))
+        "JWT_SECRET" = ([guid]::NewGuid().ToString("N") + [guid]::NewGuid().ToString("N"))
+            "LOCAL_MANAGER_DEVICE_JWT_SECRET" = ([guid]::NewGuid().ToString("N") + [guid]::NewGuid().ToString("N"))
+        "TENANT_GPT_SSO_SIGNING_SECRET" = ([guid]::NewGuid().ToString("N") + [guid]::NewGuid().ToString("N"))
+        "TOKEN_ENCRYPTION_KEY" = ([guid]::NewGuid().ToString("N") + [guid]::NewGuid().ToString("N"))
+        "REMOTE_MCP_OAUTH_SIGNING_SECRET" = ([guid]::NewGuid().ToString("N") + [guid]::NewGuid().ToString("N"))
+        "TENANT_GPT_STAGING_ACTIVATION_OAUTH_CLIENT_SECRET" = ([guid]::NewGuid().ToString("N") + [guid]::NewGuid().ToString("N"))
+    }
+    $envText = Get-Content -Raw $EnvFile
+    foreach ($key in $generatedLocalSecrets.Keys) {
+        if ($envText -notmatch "(?im)^$([regex]::Escape($key))=") {
+            $envText = $envText.TrimEnd() + "`r`n$key=$($generatedLocalSecrets[$key])`r`n"
+        } elseif ($envText -match "(?im)^$([regex]::Escape($key))=\s*$" -or $envText -match "(?im)^$([regex]::Escape($key))=local_[^\r\n]*change_me\s*$") {
+            $envText = [regex]::Replace($envText, "(?im)^$([regex]::Escape($key))=.*$", "$key=$($generatedLocalSecrets[$key])")
+        }
+    }
+    Write-StagingUtf8NoBom $EnvFile $envText
+    Ensure-EnvDefault $EnvFile "TENANT_GPT_STAGING_OAUTH_CLIENT_ID" "mad4b-tenant-gpt-staging"
+    Ensure-EnvDefault $EnvFile "TENANT_GPT_ACTIONS_CONFIDENTIAL_CLIENT_COMPAT_ENABLED" "true"
+    $activationGatewayDesired = if ($EnableActivationGateway) { "true" } else { "false" }
+    Set-EnvValue $EnvFile "ACTIVATION_STAGING_GATEWAY_ENABLED" $activationGatewayDesired
+    Set-EnvValue $EnvFile "ACTIVATION_HOST_GATEWAY_HOST" "activation-dev.mad4b.com"
+    Set-EnvValue $EnvFile "ACTIVATION_STAGING_AUTH_HOST" "activation-dev.mad4b.com"
+    # Keep runtime deployment readback bound to the immutable commit selected above.
+    Set-EnvValue $EnvFile "DEPLOYMENT_EXPECTED_COMMIT_SHA" $ExpectedCommit
+    Set-EnvValue $EnvFile "DEPLOY_COMMIT" $ExpectedCommit
+    Set-EnvValue $EnvFile "DEPLOY_BRANCH" $Ref
+    Set-EnvValue $EnvFile "STAGING_BUILD_CONTEXT" (([IO.Path]::GetFullPath($BuildContextPath)) -replace '\\','/')
+    Set-EnvValue $EnvFile "STAGING_BUILD_TREE" $buildTree.ToLowerInvariant()
+    Set-EnvValue $EnvFile "STAGING_BUILD_CONTEXT_FILE_SET_SHA256" ([string]$buildContextMetadata.context_file_set_sha256)
+    # Reconcile only the selected tunnel transport profile. This is safe for direct
+    # Start-AutoPilot and Auto-Deploy callers and does not widen Activation Gateway,
+    # database, provider, or Production mutation authority.
+    $tunnelProfile = Set-StagingTunnelRuntimeProfile -Path $EnvFile -TunnelMode $TunnelMode
+    Write-StagingOperationBoundary -Component $LogComponent -Stage "tunnel-profile" -Outcome "success" -Message "canonical Staging tunnel runtime profile reconciled" -Data @{ tunnel_mode = [string]$tunnelProfile.tunnel_mode; tunnel_origin = [string]$tunnelProfile.tunnel_origin; app_host_bind = [string]$tunnelProfile.app_host_bind; production_mutation = [bool]$tunnelProfile.production_mutation; provider_mutation = [bool]$tunnelProfile.provider_mutation; database_mutation = [bool]$tunnelProfile.database_mutation; secrets_included = [bool]$tunnelProfile.secrets_included }
+    Assert-UniqueEnvKeys $EnvFile
+    $effectiveEnv = Get-Content -Raw $EnvFile
+    if ($effectiveEnv -match '(?im)^CLOUDFLARE_TUNNEL_TOKEN=\s*$' -and $TunnelMode -eq "docker_sidecar") { Fail "docker_sidecar requested but CLOUDFLARE_TUNNEL_TOKEN is empty" }
+    if ($effectiveEnv -notmatch '(?im)^MIGRATION_APPLIED=false\s*$' -or $effectiveEnv -notmatch '(?im)^DATABASE_MUTATED=false\s*$') { Fail "Mutation safety flags must be present and exactly false" }
+    if ($TunnelSelected -and (Read-EnvValue $EnvFile "TENANT_GPT_STAGING_ENABLED") -eq "true" -and [string]::IsNullOrWhiteSpace((Read-EnvValue $EnvFile "TENANT_GPT_STAGING_OAUTH_CLIENT_SECRET"))) { Fail "TunnelMode requires TENANT_GPT_STAGING_OAUTH_CLIENT_SECRET when Staging GPT is enabled" }
+    if ($TunnelSelected -and (Read-EnvValue $EnvFile "REMOTE_MCP_ENABLED") -eq "true" -and (Read-EnvValue $EnvFile "REMOTE_MCP_OAUTH_ENABLED") -eq "true" -and [string]::IsNullOrWhiteSpace((Read-EnvValue $EnvFile "REMOTE_MCP_OAUTH_SIGNING_SECRET"))) { Fail "TunnelMode requires REMOTE_MCP_OAUTH_SIGNING_SECRET when Staging MCP OAuth is enabled" }
+    $activationGatewayEnabled = (Read-EnvValue $EnvFile "ACTIVATION_STAGING_GATEWAY_ENABLED").ToLowerInvariant() -eq "true"
+    if ($activationGatewayEnabled -and [string]::IsNullOrWhiteSpace((Read-EnvValue $EnvFile "TENANT_GPT_STAGING_ACTIVATION_OAUTH_CLIENT_SECRET"))) { Fail "Activation Staging Gateway requires TENANT_GPT_STAGING_ACTIVATION_OAUTH_CLIENT_SECRET" }
+    if ($effectiveEnv -notmatch '(?im)^TENANT_GPT_SSO_COOKIE_MODE=host_only\s*$') { Fail "Staging SSO cookie mode must be host_only" }
+    if ($effectiveEnv -notmatch '(?im)^CLOUDFLARE_TUNNEL_HOSTNAMES=dev\.mad4b\.com,mcp-dev\.mad4b\.com\s*$') { Fail "Staging Tunnel requires exactly dev.mad4b.com and mcp-dev.mad4b.com; Activation uses a separate Worker custom domain" }
+    if ($activationGatewayEnabled -and (Read-EnvValue $EnvFile "ACTIVATION_HOST_GATEWAY_HOST") -ne "activation-dev.mad4b.com") { Fail "Activation Staging Gateway must use activation-dev.mad4b.com as its Worker custom domain" }
+    if ($activationGatewayEnabled -and (Read-EnvValue $EnvFile "ACTIVATION_STAGING_AUTH_HOST") -ne "activation-dev.mad4b.com") { Fail "Activation Staging OAuth host must be activation-dev.mad4b.com" }
+    if ($TunnelSelected -and $effectiveEnv -notmatch '(?im)^CLOUDFLARE_TUNNEL_ORIGIN_APP=http://127\.0\.0\.1:8080\s*$') { Fail "Staging tunnel origin must be exactly http://127.0.0.1:8080 when a tunnel transport is selected" }
+    if (-not $TunnelSelected -and (Read-EnvValue $EnvFile "CLOUDFLARE_TUNNEL_ORIGIN_APP") -ne "") { Fail "Disabled Staging tunnel mode must not retain a tunnel origin" }
+    if ($effectiveEnv -notmatch '(?im)^CLOUDFLARE_TUNNEL_LOGLEVEL=info\s*$') { Fail "Staging tunnel loglevel must remain info; debug may expose request headers" }
+    if ($effectiveEnv -notmatch '(?im)^CLOUDFLARE_TUNNEL_GRACE_PERIOD=30s\s*$') { Fail "Staging tunnel grace period must remain 30s" }
+    if ($effectiveEnv -match '(?im)^CLOUDFLARE_TUNNEL_HOSTNAMES=.*(auth\.mad4b\.com|mcp\.mad4b\.com|activation\.mad4b\.com)') { Fail "Forbidden Production hostname found in staging tunnel list" }
+
+    $composeArgs = @(Get-StagingComposeArgs $ApiPath $EnvFile $TunnelMode)
+    Invoke-Native "docker" ($composeArgs + @("config", "--quiet"))
+    if ($ValidateOnly) {
+        Write-Host "AUTO_PILOT_VALIDATED: commit=$ExpectedCommit context=$context tunnel_mode=$TunnelMode"
+        return
+    }
+    if ($Stop) {
+        Write-StagingLog -Level info -Component $LogComponent -Stage "stop" -Message "stopping local Staging services"
+        Invoke-Native "docker" ($composeArgs + @("--profile", "tunnel", "stop"))
+        $stagingService = Get-Service -Name "Mad4B-Staging-Cloudflared" -ErrorAction SilentlyContinue
+        if ($null -ne $stagingService -and $stagingService.Status -ne "Stopped") { Stop-Service -Name "Mad4B-Staging-Cloudflared" -Force -ErrorAction Stop }
+        Write-StagingOperationBoundary -Component $LogComponent -Stage "stop" -Outcome "success" -Message "local Staging services and Staging-owned tunnel runtimes stopped"
+        return
+    }
+    $existingImageId = Find-ExactStagingImageId $ExpectedCommit $buildTree $buildContextMetadata.context_file_set_sha256 $EnvFile $composeArgs
+    $imageReused = $false
+    $buildAction = "built"
+    $imageMatchesExactProvenance = $existingImageId -match '^sha256:[0-9a-f]{64}$'
+    if ($BuildMode -eq "Smart" -and $imageMatchesExactProvenance) {
+        $imageReused = $true
+        $buildAction = "reused_exact_provenance"
+        Write-StagingOperationBoundary -Component $LogComponent -Stage "compose-build" -Outcome "success" -Message "reused exact Staging image; build skipped" -Data @{ mode = $BuildMode; image_id = $existingImageId; commit = $ExpectedCommit; tree = $buildTree; context_file_set_sha256 = [string]$buildContextMetadata.context_file_set_sha256; secrets_included = $false }
+    } elseif ($BuildMode -eq "SkipBuild") {
+        Fail "SkipBuild requested but no local app image matches exact commit/tree/context provenance"
+    } else {
+        if ($BuildMode -eq "ForceBuild") { $buildAction = "forced_build" }
+        Write-StagingLog -Level info -Component $LogComponent -Stage "compose-build" -Message "building Staging app from exact Git context" -Data @{ mode = $BuildMode; previous_image_id = $existingImageId; previous_image_exact = [bool]$imageMatchesExactProvenance }
+        Invoke-Native "docker" ($composeArgs + @("build", "app"))
+    }
+    $imageId = Find-ExactStagingImageId $ExpectedCommit $buildTree $buildContextMetadata.context_file_set_sha256 $EnvFile $composeArgs
+    if ($imageId -notmatch '^sha256:[0-9a-fA-F]{64}$') { Fail "Staging app image ID is not a content-addressed sha256 digest with exact provenance" }
+    Set-EnvValue $EnvFile "STAGING_APP_IMAGE_ID" $imageId.ToLowerInvariant()
+    Assert-UniqueEnvKeys $EnvFile
+    Invoke-Native "docker" ($composeArgs + @("config", "--quiet"))
+    $upArgs = $composeArgs + @("up", "-d")
+    Write-StagingLog -Level info -Component $LogComponent -Stage "compose-up" -Message "starting local application topology"
+    Invoke-Native "docker" $upArgs
+    foreach ($service in @("redis", "runtime-db", "governance-db", "persistence-db", "app")) { Wait-ServiceHealthy $composeArgs $service }
+    Assert-WindowsHostOriginReachable $composeArgs $TunnelMode
+    if ($TunnelMode -eq "windows_service") {
+        Write-StagingLog -Level info -Component $LogComponent -Stage "tunnel" -Message "reconciling Staging tunnel in windows_service mode"
+        Invoke-Native "docker" ($composeArgs + @("--profile", "tunnel", "stop", "cloudflared"))
+        $service = Get-Service -Name "Mad4B-Staging-Cloudflared" -ErrorAction SilentlyContinue
+        if ($null -eq $service -or $service.Status -ne "Running") { [void](Ensure-StagingCloudflaredWindowsService $EnvFile) }
+        $serviceReadback = Get-CimInstance Win32_Service -Filter "Name='Mad4B-Staging-Cloudflared'" -ErrorAction Stop
+        if ($serviceReadback.State -ne "Running" -or [int]$serviceReadback.ProcessId -le 0) { Fail "windows_service tunnel did not reach Running" }
+        $dockerTunnelId = (& docker @($composeArgs + @("ps", "-q", "cloudflared")) 2>$null | Out-String).Trim()
+        if (-not [string]::IsNullOrWhiteSpace($dockerTunnelId)) {
+            $dockerTunnelRunning = (& docker inspect --format "{{.State.Running}}" $dockerTunnelId 2>$null | Out-String).Trim().ToLowerInvariant()
+            if ($dockerTunnelRunning -eq "true") { Fail "windows_service mode refuses concurrent Docker cloudflared sidecar" }
+        }
+        Write-StagingOperationBoundary -Component $LogComponent -Stage "tunnel" -Outcome "success" -Message "Staging Windows service tunnel is the sole runtime" -Data @{ tunnel_mode = $TunnelMode; service = "Mad4B-Staging-Cloudflared"; pid = [int]$serviceReadback.ProcessId }
+    } elseif ($TunnelMode -eq "docker_sidecar") {
+        Write-StagingLog -Level info -Component $LogComponent -Stage "tunnel" -Message "reconciling Staging tunnel in docker_sidecar mode"
+        $service = Get-Service -Name "Mad4B-Staging-Cloudflared" -ErrorAction SilentlyContinue
+        if ($null -ne $service -and $service.Status -ne "Stopped") {
+            Stop-Service -Name "Mad4B-Staging-Cloudflared" -Force -ErrorAction Stop
+            $service.WaitForStatus([System.ServiceProcess.ServiceControllerStatus]::Stopped, [TimeSpan]::FromSeconds(20))
+        }
+        Invoke-Native "docker" ($composeArgs + @("--profile", "tunnel", "up", "-d", "cloudflared"))
+        Write-StagingOperationBoundary -Component $LogComponent -Stage "tunnel" -Outcome "success" -Message "Staging Docker sidecar tunnel is the sole runtime" -Data @{ tunnel_mode = $TunnelMode; hostnames = "dev.mad4b.com,mcp-dev.mad4b.com" }
+    } else {
+        Invoke-Native "docker" ($composeArgs + @("--profile", "tunnel", "stop", "cloudflared"))
+        $service = Get-Service -Name "Mad4B-Staging-Cloudflared" -ErrorAction SilentlyContinue
+        if ($null -ne $service -and $service.Status -ne "Stopped") { Stop-Service -Name "Mad4B-Staging-Cloudflared" -Force -ErrorAction Stop }
+        Write-StagingOperationBoundary -Component $LogComponent -Stage "tunnel" -Outcome "success" -Message "Staging tunnel disabled; no Staging-owned tunnel runtime is running" -Data @{ tunnel_mode = $TunnelMode }
+    }
+    Invoke-Native "docker" ($composeArgs + @("ps"))
+
+    $schemaSeedStatus = Seed-SchemaBundle $RepositoryPath $ExpectedCommit
+    $baseState = @{
+        commit = $ExpectedCommit
+        ref = $Ref
+        docker_context = $context
+        build_context_source = "git_archive_exact_commit"
+        build_tree_sha = $buildTree.ToLowerInvariant()
+        build_context_file_set_sha256 = [string]$buildContextMetadata.context_file_set_sha256
+        app_image_digest = $imageId.ToLowerInvariant()
+        build_mode = $BuildMode
+        build_action = $buildAction
+        image_reused = [bool]$imageReused
+        tunnel_started = [bool]$TunnelSelected
+        tunnel_mode = $TunnelMode
+        schema_bundle_required = [bool]$RequireSchemaBundle
+        schema_bundle_apply_requested = [bool]$ApplySchemaBundle
+        schema_seed_status = $schemaSeedStatus
+        certification_status = "pending"
+        certification_ready = $false
+        migration_applied = $false
+        database_mutated = $false
+        production_deploy = $false
+        provider_mutation = $false
+        ruleset_mutation = $false
+        secrets_included = $false
+        generated_at = (Get-Date).ToUniversalTime().ToString("o")
+    }
+    Set-Content -Encoding utf8 $StateFile ($baseState | ConvertTo-Json -Depth 8)
+
+    $certArgs = @("-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $CertificationScript, "-RepositoryPath", $RepositoryPath, "-ExpectedCommit", $ExpectedCommit, "-Ref", $Ref, "-StatePath", $StateFile)
+    $certArgs += @("-TunnelMode", $TunnelMode)
+    Write-StagingLog -Level info -Component $LogComponent -Stage "certification" -Message "same-cycle Staging certification started" -Data @{ commit = $ExpectedCommit; gateway_enabled = [bool]$activationGatewayEnabled }
+    & powershell.exe @certArgs
+    if ($LASTEXITCODE -ne 0) {
+        $certificationBlockingFailures = @()
+        $certificationDegradedReasons = @()
+        try {
+            $failedCertificationState = Get-Content -Raw -LiteralPath $StateFile | ConvertFrom-Json
+            $blockingProperty = $failedCertificationState.PSObject.Properties["certification_blocking_failures"]
+            $degradedProperty = $failedCertificationState.PSObject.Properties["certification_degraded_reasons"]
+            if ($null -ne $blockingProperty) {
+                $certificationBlockingFailures = @($blockingProperty.Value | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) })
+            }
+            if ($null -ne $degradedProperty) {
+                $certificationDegradedReasons = @($degradedProperty.Value | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) })
+            }
+        } catch { }
+        $reasonSuffix = if (@($certificationBlockingFailures).Count -gt 0) { " reasons=$($certificationBlockingFailures -join ',')" } else { " reasons=unavailable" }
+        $failureMessage = "Staging certification blocked exact commit $ExpectedCommit$reasonSuffix"
+        Write-StagingOperationBoundary -Component $LogComponent -Stage "certification" -Outcome "failure" -Message $failureMessage -Data @{ commit = $ExpectedCommit; blocking_failures = $certificationBlockingFailures; degraded_reasons = $certificationDegradedReasons }
+        Fail $failureMessage
+    }
+    try { $certState = Get-Content -Raw -LiteralPath $StateFile | ConvertFrom-Json }
+    catch { Fail "Staging certification state could not be read" }
+    if ($certState.certification_status -eq "degraded") {
+        Write-StagingLog -Level warning -Component $LogComponent -Stage "certification" -Message "Staging is running but not release-ready" -Data @{ commit = $ExpectedCommit; degraded_reasons = @($certState.certification_degraded_reasons); database_readiness = $certState.database_readiness }
+    } elseif ($certState.certification_status -eq "ready") {
+        Write-StagingOperationBoundary -Component $LogComponent -Stage "certification" -Outcome "success" -Message "Staging exact commit certified ready" -Data @{ commit = $ExpectedCommit; database_readiness = $certState.database_readiness }
+    } else {
+        Fail "Unsupported Staging certification state: $($certState.certification_status)"
+    }
+
+    Write-Host "AUTO_PILOT_STARTED: local staging is running; tunnel_mode=$TunnelMode; commit=$ExpectedCommit certification=$($certState.certification_status)"
+    Write-StagingOperationBoundary -Component $LogComponent -Stage "complete" -Outcome "success" -Message "local Staging application operations completed" -Data @{ commit = $ExpectedCommit; tunnel_started = [bool]$TunnelSelected; tunnel_mode = $TunnelMode; services = "redis,runtime-db,governance-db,persistence-db,app"; certification_status = $certState.certification_status }
+    Write-Host "APP_OPERATIONS_LOG: $(Get-StagingLogRoot)"
+} finally {
+    Pop-Location
+    if (Test-Path -LiteralPath $BuildContextPath) { Remove-Item -LiteralPath $BuildContextPath -Recurse -Force -ErrorAction SilentlyContinue }
+}
+ -or [string]::IsNullOrWhiteSpace($commentLogin)) {
+                Fail "Governed release-cut resume comment index returned invalid fields"
+            }
+
+            if ($commentLogin -eq "github-actions[bot]") {
+                $trustedResumeMarkerIds += $commentId
+            }
+        }
+    }
+
     $resumeMarkerIds = @()
     foreach ($commentId in $trustedResumeMarkerIds) {
         $commentRaw = (& gh api "/repos/$ExpectedRepository/issues/comments/$commentId" 2>$null | Out-String).Trim()
@@ -336,11 +904,12 @@ function Assert-GovernedReleaseCutResume([string]$RemoteCommit) {
         }
         try { $comment = $commentRaw | ConvertFrom-Json } catch { Fail "Governed release-cut resume trusted marker comment response is invalid" }
 
-        $commentBody = ([string]$comment.body).Trim()
-        if (([string]$comment.user.login) -ne "github-actions[bot]" -or
-            $commentBody -notmatch '^GOVERNED_PRODUCTION_STAGING_RESUME_ARMED(?:\s|$)') {
-            Fail "Governed release-cut resume trusted marker identity changed during verification"
+        if (([string]$comment.user.login) -ne "github-actions[bot]") {
+            Fail "Governed release-cut resume trusted marker author identity changed during verification"
         }
+
+        $commentBody = ([string]$comment.body).Trim()
+        if ($commentBody -notmatch '^GOVERNED_PRODUCTION_STAGING_RESUME_ARMED(?:\s|$)') { continue }
 
         $fields = ConvertFrom-GovernedStagingResumeMarker $commentBody
         if ($null -eq $fields) { continue }
