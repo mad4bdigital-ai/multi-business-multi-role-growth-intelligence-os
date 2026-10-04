@@ -177,6 +177,7 @@ for (const required of [
   /governed_production_promotion_staging_resume\.v1/u,
   /WAITING_FOR_STAGING/u,
   /GOVERNED_PRODUCTION_STAGING_RESUME_ARMED/u,
+  /github-actions\[bot\]/u,
   /same governed request can be explicitly re-dispatched/u,
 ]) assert.match(
   `${launcher}\n${JSON.stringify(stagingResumeDeclaration)}`,
