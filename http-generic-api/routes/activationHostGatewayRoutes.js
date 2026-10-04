@@ -7,6 +7,8 @@ import { resolveActivationGatewayHostProfile } from "../activationGatewayHostPro
 import { resolveTrustedRequestHost } from "../trustedRequestHost.js";
 import { verifyRecoveryGatewayIngress } from "../trustedIngressContract.js";
 import { createFileRecoveryEvidenceStore } from "../recoveryReadinessEvidence.js";
+import { getPool } from "../db.js";
+import { recordTenantGptOAuthRecoveryServerEvidence } from "../tenantGptOAuthRecoveryEvidenceSink.js";
 import stagingPolicy from "../activation-gateway-runtime/generated/route-policy.staging.json" with { type: "json" };
 const DEFAULT_HOST_PROFILE = resolveActivationGatewayHostProfile(process.env);
 export const ACTIVATION_HOST_GATEWAY_HOST = String(
@@ -199,6 +201,8 @@ export function buildActivationHostGatewayRoutes({
   env = process.env,
   ingressReplayStore = null,
   deploymentAttestationReader = null,
+  oauthRecoveryEvidenceRecorder = null,
+  tenantGptAccessTokenVerifier = requireActivationTenantGptAccessToken,
 } = {}) {
   const config = buildGatewayConfig(env, activationHost);
   const effectiveIngressReplayStore = resolveStagingRecoveryReplayStore(config, env, ingressReplayStore);
@@ -206,6 +210,39 @@ export function buildActivationHostGatewayRoutes({
     ? !config.staging || String(env.ACTIVATION_STAGING_GATEWAY_ENABLED || "").trim().toLowerCase() === "true"
     : enabled === true);
   const router = Router();
+  // Performance-only, non-authoritative de-duplication. Durable Recovery
+  // authority remains execution_log + signed correlation-chain readback.
+  const recoveryObservationCache = new Map();
+  const effectiveOAuthRecoveryEvidenceRecorder = config.staging
+    ? (typeof oauthRecoveryEvidenceRecorder === "function"
+      ? oauthRecoveryEvidenceRecorder
+      : async (input) => {
+          const operationId = String(input?.correlation?.operation_id || "");
+          const correlationId = String(input?.correlation?.correlation_id || "");
+          const event = String(input?.event || "");
+          const observationIdentity = `${operationId}:${correlationId}:${event}`;
+          if (recoveryObservationCache.has(observationIdentity)) {
+            return recoveryObservationCache.get(observationIdentity);
+          }
+          const pending = recordTenantGptOAuthRecoveryServerEvidence({
+            query: (sql, params) => getPool().query(sql, params),
+            input,
+            env,
+          });
+          recoveryObservationCache.set(observationIdentity, pending);
+          if (recoveryObservationCache.size > 2048) {
+            const oldest = recoveryObservationCache.keys().next().value;
+            if (oldest && oldest !== observationIdentity) recoveryObservationCache.delete(oldest);
+          }
+          try {
+            return await pending;
+          } finally {
+            if (recoveryObservationCache.get(observationIdentity) === pending) {
+              recoveryObservationCache.delete(observationIdentity);
+            }
+          }
+        })
+    : null;
 
   async function serveActivationSchema(req, res, schemaFile) {
     delete req.headers.cookie;
@@ -320,7 +357,33 @@ export function buildActivationHostGatewayRoutes({
     };
 
     if (isTenantGptProtectedPath(pathname, req.method, config)) {
-      return requireActivationTenantGptAccessToken(req, res, next);
+      let verificationPassed = false;
+      let verificationError = null;
+      const verificationResult = await Promise.resolve(
+        tenantGptAccessTokenVerifier(req, res, (error) => {
+          verificationError = error || null;
+          verificationPassed = !error;
+        }),
+      );
+      if (verificationError) return next(verificationError);
+      if (!verificationPassed) return verificationResult;
+
+      const gatewayCorrelation = req.auth?.oauth_correlation || null;
+      if (gatewayCorrelation && typeof effectiveOAuthRecoveryEvidenceRecorder === "function") {
+        try {
+          await effectiveOAuthRecoveryEvidenceRecorder({
+            event: "resource_request_verified",
+            correlation: gatewayCorrelation,
+          });
+        } catch (evidenceError) {
+          console.warn("tenant_gpt_oauth_recovery_evidence_write_failed", {
+            event: "resource_request_verified",
+            code: String(evidenceError?.code || "evidence_write_failed").slice(0, 64),
+            secrets_included: false,
+          });
+        }
+      }
+      return next();
     }
     return next();
   });

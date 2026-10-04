@@ -1268,10 +1268,6 @@ export function buildLocalConnectorInstallRoutes(deps) {
     try {
       const device = await requireFreshLocalManagerDeviceForPrivilegedInstaller(req);
       const format = String(req.body?.format || "bat").trim().toLowerCase();
-      const requestedTenantId = req.auth?.is_admin === true
-        ? String(req.body?.tenant_id || "").trim()
-        : "";
-      const selectedTenantId = requestedTenantId || device.tenant_id || "";
       const ttl = Math.max(5, Math.min(10, Number(req.body?.ttl_minutes || 10)));
       assertNoInstallerAuthorityOverrides(req.body || {});
       const appManaged = req.body?.app_managed === true || req.body?.suppress_pause === true || req.body?.no_pause === true;
@@ -1279,43 +1275,20 @@ export function buildLocalConnectorInstallRoutes(deps) {
       const [rows] = await getPool().query(
         `SELECT c.config_id, c.tenant_id, c.device_id
            FROM \`local_connector_user_configs\` c
-          WHERE c.user_id = ?
-            AND c.is_enabled = 1
-            AND (
-              c.device_id = ?
-              OR c.config_id IN (
-                SELECT a.canonical_config_id
-                  FROM \`local_connector_device_aliases\` a
-                 WHERE a.alias_device_id = ?
-                   AND a.user_id = ?
-                   AND a.status = 'active'
-              )
-            )
-          ORDER BY CASE WHEN c.device_id = ? THEN 0 ELSE 1 END,
-                   CASE WHEN c.tenant_id = ? THEN 0 WHEN c.tenant_id = '00000000-0000-0000-0000-000000000000' THEN 1 ELSE 2 END,
-                   COALESCE(c.last_health_at, c.updated_at, c.created_at) DESC
-          LIMIT 1`,
-        [device.user_id, device.device_id, device.device_id, device.user_id, device.device_id, selectedTenantId]
+          WHERE c.user_id = ? AND c.is_enabled = 1
+            AND c.tenant_id <=> ?
+            AND (c.device_id = ? OR EXISTS (
+              SELECT 1 FROM \`local_connector_device_aliases\` a
+               WHERE a.canonical_config_id = c.config_id AND a.canonical_device_id = c.device_id
+                 AND a.alias_device_id = ? AND a.user_id = c.user_id
+                 AND a.tenant_id <=> c.tenant_id AND a.status = 'active'))
+          LIMIT 2`,
+        [device.user_id, device.tenant_id || null, device.device_id, device.device_id]
       );
+      if (rows.length > 1) return res.status(409).json({ ok: false, error: { code: "connector_config_ambiguous", message: "Multiple connector identities match this device. Reconcile before repair." }, secrets_included: false });
       const config = rows[0] || null;
-      if (requestedTenantId && config && String(config.tenant_id || "") !== requestedTenantId) {
-        return res.status(404).json({
-          ok: false,
-          error: {
-            code: "connector_config_tenant_mismatch",
-            message: "No active connector config was found for the requested tenant and linked device.",
-          },
-          secrets_included: false,
-        });
-      }
-      if (!config) return res.status(404).json({ ok: false, error: { code: "connector_config_not_found", message: "No active connector config was found for this linked device." }, secrets_included: false });
-      await reconcileConnectorDeviceAliases(getPool(), {
-        userId: device.user_id,
-        tenantId: config.tenant_id || device.tenant_id,
-        configId: config.config_id,
-        canonicalDeviceId: config.device_id,
-        aliasDeviceIds: [device.device_id, device.session?.hostname, config.device_id],
-      });
+      if (!config) return res.status(404).json({ ok: false, error: { code: "connector_config_not_found", message: "Provision this device through authenticated account setup before requesting repair." }, secrets_included: false });
+      // Installer-link issuance is read-only; aliases belong to the dedicated writer.
       const token = signInstallerDownloadToken(createInstallerCapability({
         config_id: config.config_id,
         user_id: device.user_id,

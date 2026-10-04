@@ -3096,7 +3096,7 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
       const result = await runGovernedMigrationExecution(args || {}, {
         authorizeApply: async (inspection) => {
           const resolved = await resolveCapabilityExecutionEnvelope({
-            pool: getPool(),
+            pool: getGovernancePool(),
             source: args || {},
             acceptedAppKeys: ["platform_orchestration"],
             acceptedIntents: ["governed_migration_execute", "governed_migration_apply", "migration_apply", "governed_migration_runner"],
@@ -3111,7 +3111,7 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
             throw capabilityEnvelopeError(resolved, "Governed migration apply requires a ready platform_orchestration capability envelope.");
           }
           await markCapabilityEnvelopeReferenced({
-            pool: getPool(),
+            writerPool: getGovernancePool(),
             envelopeId: resolved.envelope_id,
             executionRef: `governed_migration_execute:${inspection.migration}`,
           });
