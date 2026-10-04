@@ -85,6 +85,7 @@ jobs:
           request_head_branch=""
           main_sha=""
           production_sha=""
+          release_cut_sha=""
           if [[ "${outcome}" == "eligible" ]]; then
             pr="$(gh api -H 'Accept: application/vnd.github+json' -H 'X-GitHub-Api-Version: 2022-11-28' "repos/${REPOSITORY}/pulls/${REQUEST_PR}")"
             title="$(jq -r '.title' <<<"${pr}")"
@@ -94,8 +95,11 @@ jobs:
             head_repository="$(jq -r '.head.repo.full_name // ""' <<<"${pr}")"
             request_head_branch="$(jq -r '.head.ref' <<<"${pr}")"
             request_head_sha="$(jq -r '.head.sha' <<<"${pr}")"
+            body="$(jq -r '.body // ""' <<<"${pr}")"
             main_sha="$(gh api "/repos/${REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
             production_sha="$(gh api "/repos/${REPOSITORY}/git/ref/heads/Production" --jq '.object.sha')"
+            release_cut_sha="$(sed -n 's/^- release_cut_sha: `\([0-9a-f]\{40\}\)`$/\1/p' <<<"${body}" | head -n1)"
+            [[ -n "${release_cut_sha}" ]] || release_cut_sha="${main_sha}"
 
             if [[ "${title}" != "ops: request governed Production synchronization" ]]; then
               outcome="blocked"; reason="unexpected_request_title"
@@ -109,7 +113,7 @@ jobs:
               outcome="blocked"; reason="invalid_governed_request_branch"
             elif [[ "${request_head_branch}" == "main" || "${request_head_branch}" == "Production" ]]; then
               outcome="blocked"; reason="protected_request_branch_forbidden"
-            elif [[ ! "${request_head_sha}" =~ ^[0-9a-f]{40}$ || ! "${main_sha}" =~ ^[0-9a-f]{40}$ || ! "${production_sha}" =~ ^[0-9a-f]{40}$ ]]; then
+            elif [[ ! "${request_head_sha}" =~ ^[0-9a-f]{40}$ || ! "${main_sha}" =~ ^[0-9a-f]{40}$ || ! "${production_sha}" =~ ^[0-9a-f]{40}$ || ! "${release_cut_sha}" =~ ^[0-9a-f]{40}$ ]]; then
               outcome="blocked"; reason="invalid_exact_ref_identity"
             elif [[ "${GITHUB_SHA}" != "${main_sha}" ]]; then
               outcome="blocked"; reason="main_moved_before_bridge_execution"
@@ -128,12 +132,16 @@ jobs:
               outcome="blocked"; reason="request_branch_moved_after_api_readback"
             elif [[ "${production_readback}" != "${production_sha}" ]]; then
               outcome="blocked"; reason="production_moved_after_api_readback"
-            elif ! git merge-base --is-ancestor "${main_sha}" "${request_head_sha}"; then
-              outcome="blocked"; reason="request_head_does_not_descend_from_current_main"
-            elif ! git diff --quiet "${main_sha}" "${request_head_sha}"; then
-              outcome="blocked"; reason="request_head_tree_differs_from_current_main"
-            elif ! git merge-base --is-ancestor "${production_sha}" "${main_sha}"; then
-              outcome="blocked"; reason="production_not_contained_by_current_main"
+            elif ! git cat-file -e "${release_cut_sha}^{commit}" 2>/dev/null; then
+              outcome="blocked"; reason="release_cut_unavailable"
+            elif ! git merge-base --is-ancestor "${production_sha}" "${release_cut_sha}"; then
+              outcome="blocked"; reason="production_not_contained_by_release_cut"
+            elif ! git merge-base --is-ancestor "${release_cut_sha}" "${main_sha}"; then
+              outcome="blocked"; reason="release_cut_not_contained_by_current_main"
+            elif ! git merge-base --is-ancestor "${release_cut_sha}" "${request_head_sha}"; then
+              outcome="blocked"; reason="request_head_does_not_descend_from_release_cut"
+            elif ! git diff --quiet "${release_cut_sha}" "${request_head_sha}"; then
+              outcome="blocked"; reason="request_head_tree_differs_from_release_cut"
             fi
           fi
 
@@ -145,9 +153,10 @@ jobs:
             --arg request_head_sha "${request_head_sha}" \
             --arg main_sha "${main_sha}" \
             --arg production_sha "${production_sha}" \
+            --arg release_cut_sha "${release_cut_sha}" \
             --arg review_mode "${REVIEW_MODE}" \
             --argjson request_pr "${REQUEST_PR}" \
-            '{contract:$contract,outcome:$outcome,reason:(if ($reason|length)>0 then $reason else null end),request_pr:$request_pr,request_head_branch:(if ($request_head_branch|length)>0 then $request_head_branch else null end),request_head_sha:(if ($request_head_sha|length)>0 then $request_head_sha else null end),main_sha:(if ($main_sha|length)>0 then $main_sha else null end),production_sha:(if ($production_sha|length)>0 then $production_sha else null end),review_mode:$review_mode,dispatch_requested:false,launcher_run_id:null,evidence_comment_written:false,production_merge:false,deployment:false,migration_apply:false,grant_apply:false,provider_mutation:false,credential_payload_read:false,secrets_included:false}' \
+            '{contract:$contract,outcome:$outcome,reason:(if ($reason|length)>0 then $reason else null end),request_pr:$request_pr,request_head_branch:(if ($request_head_branch|length)>0 then $request_head_branch else null end),request_head_sha:(if ($request_head_sha|length)>0 then $request_head_sha else null end),main_sha:(if ($main_sha|length)>0 then $main_sha else null end),production_sha:(if ($production_sha|length)>0 then $production_sha else null end),release_cut_sha:(if ($release_cut_sha|length)>0 then $release_cut_sha else null end),release_cut_mode:(($release_cut_sha|length)>0 and $release_cut_sha != $main_sha),review_mode:$review_mode,dispatch_requested:false,launcher_run_id:null,evidence_comment_written:false,production_merge:false,deployment:false,migration_apply:false,grant_apply:false,provider_mutation:false,credential_payload_read:false,secrets_included:false}' \
             > "${REPORT_DIR}/decision.json"
 
           if [[ "${outcome}" == "eligible" ]]; then
@@ -155,6 +164,7 @@ jobs:
             echo "request_head_sha=${request_head_sha}" >> "$GITHUB_OUTPUT"
             echo "main_sha=${main_sha}" >> "$GITHUB_OUTPUT"
             echo "production_sha=${production_sha}" >> "$GITHUB_OUTPUT"
+            echo "release_cut_sha=${release_cut_sha}" >> "$GITHUB_OUTPUT"
           else
             echo "eligible=false" >> "$GITHUB_OUTPUT"
           fi
@@ -166,6 +176,7 @@ jobs:
           REQUEST_HEAD_SHA: ${{ steps.request.outputs.request_head_sha }}
           MAIN_SHA: ${{ steps.request.outputs.main_sha }}
           PRODUCTION_SHA: ${{ steps.request.outputs.production_sha }}
+          RELEASE_CUT_SHA: ${{ steps.request.outputs.release_cut_sha }}
         run: |
           set -Eeuo pipefail
           current_main_sha="$(gh api "/repos/${REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
@@ -176,7 +187,7 @@ jobs:
           [[ "${current_request_head}" == "${REQUEST_HEAD_SHA}" ]] || { echo "::error::request head moved before launcher dispatch"; exit 1; }
 
           existing_body="$(gh api "/repos/${REPOSITORY}/issues/${REQUEST_PR}/comments?per_page=100" \
-            --jq "[.[] | select(.body | startswith(\"GOVERNED_PRODUCTION_PROMOTION_LAUNCH \") and contains(\"main_sha=${MAIN_SHA}\") and contains(\"production_sha=${PRODUCTION_SHA}\"))] | last.body // empty")"
+            --jq "[.[] | select(.body | startswith(\"GOVERNED_PRODUCTION_PROMOTION_LAUNCH \") and contains(\"main_sha=${MAIN_SHA}\") and contains(\"production_sha=${PRODUCTION_SHA}\") and contains(\"release_cut_sha=${RELEASE_CUT_SHA}\"))] | last.body // empty")"
           if [[ -n "${existing_body}" ]]; then
             existing_run_id="$(sed -n 's/.*launcher_run_id=\([0-9][0-9]*\).*/\1/p' <<<"${existing_body}")"
             if [[ -n "${existing_run_id}" ]]; then
@@ -207,7 +218,7 @@ jobs:
             --repo "${REPOSITORY}" \
             --ref main \
             --field request_pr="${REQUEST_PR}" \
-            --field expected_head_sha="${MAIN_SHA}" \
+            --field expected_head_sha="${RELEASE_CUT_SHA}" \
             --field expected_request_head_sha="${REQUEST_HEAD_SHA}" \
             --field release_branch_prefix="${release_branch_prefix}" \
             --field validation_branch_prefix="${validation_branch_prefix}" \
@@ -229,7 +240,7 @@ jobs:
             "${REPORT_DIR}/decision.json" > "${REPORT_DIR}/decision.tmp"
           mv "${REPORT_DIR}/decision.tmp" "${REPORT_DIR}/decision.json"
 
-          body="GOVERNED_PRODUCTION_PROMOTION_LAUNCH request_pr=${REQUEST_PR} launcher_run_id=${launcher_run_id} main_sha=${MAIN_SHA} production_sha=${PRODUCTION_SHA} review_mode=${REVIEW_MODE} production_merge=false deployment=false migration_apply=false grant_apply=false provider_mutation=false credential_payload_read=false"
+          body="GOVERNED_PRODUCTION_PROMOTION_LAUNCH request_pr=${REQUEST_PR} launcher_run_id=${launcher_run_id} main_sha=${MAIN_SHA} production_sha=${PRODUCTION_SHA} release_cut_sha=${RELEASE_CUT_SHA} review_mode=${REVIEW_MODE} production_merge=false deployment=false migration_apply=false grant_apply=false provider_mutation=false credential_payload_read=false"
           if gh api --method POST "/repos/${REPOSITORY}/issues/${REQUEST_PR}/comments" -f body="${body}" >/dev/null 2>&1; then
             jq '.evidence_comment_written=true' "${REPORT_DIR}/decision.json" > "${REPORT_DIR}/decision.tmp"
             mv "${REPORT_DIR}/decision.tmp" "${REPORT_DIR}/decision.json"
@@ -251,6 +262,9 @@ jobs:
 
   prepare:
     name: Prepare exact Production baseline rebuild approval
+    environment:
+      name: Production
+      deployment: false
     permissions:
       contents: read
       issues: write
@@ -298,6 +312,9 @@ jobs:
 
   execute:
     name: Execute one approved Production Recovery role step
+    environment:
+      name: Production
+      deployment: false
     permissions:
       contents: read
       issues: write
@@ -342,6 +359,261 @@ jobs:
           path: ${{ env.EVIDENCE_DIR }}
           if-no-files-found: error
           retention-days: 30
+
+
+  control-store-plan:
+    name: Read exact Production Recovery Control Store bootstrap plan
+    environment:
+      name: Production
+      deployment: false
+    permissions:
+      contents: read
+      issues: write
+    if: >-
+      github.event.issue.number == 6813 &&
+      !github.event.issue.pull_request &&
+      startsWith(github.event.comment.body, 'PLAN_PRODUCTION_RECOVERY_CONTROL_STORE:') &&
+      contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 15
+    concurrency:
+      group: production-recovery-control-store-plan
+      cancel-in-progress: false
+    env:
+      COMMENT_BODY: ${{ github.event.comment.body }}
+      BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
+      GH_TOKEN: ${{ github.token }}
+      REPOSITORY: ${{ github.repository }}
+      CONTROL_ISSUE: '6813'
+      CONTROL_STORE_BASE_URL: https://auth.mad4b.com/admin/recovery-bootstrap
+      EVIDENCE_DIR: .artifacts/production-recovery-control-store-plan
+    steps:
+      - name: Checkout exact issue-comment event head
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Read exact bounded Control Store status and plan
+        id: plan
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          rm -rf "${EVIDENCE_DIR}"
+          mkdir -p "${EVIDENCE_DIR}"
+          if [[ ! "${COMMENT_BODY}" =~ ^PLAN_PRODUCTION_RECOVERY_CONTROL_STORE:([0-9a-f]{40})$ ]]; then
+            echo "::error::Control Store plan confirmation format mismatch"
+            exit 1
+          fi
+          expected_sha="${BASH_REMATCH[1]}"
+          production_sha="$(gh api "/repos/${REPOSITORY}/git/ref/heads/Production" --jq '.object.sha')"
+          [[ "${production_sha}" == "${expected_sha}" ]]
+          [[ -n "${BACKEND_API_KEY}" ]]
+          [[ "${CONTROL_STORE_BASE_URL}" == "https://auth.mad4b.com/admin/recovery-bootstrap" ]]
+
+          header_file="${RUNNER_TEMP}/recovery-control-store-plan-header.txt"
+          payload_file="${RUNNER_TEMP}/recovery-control-store-plan-payload.json"
+          status_file="${EVIDENCE_DIR}/status.json"
+          plan_file="${EVIDENCE_DIR}/plan.json"
+          umask 077
+          cleanup() { rm -f "${header_file}" "${payload_file}"; }
+          trap cleanup EXIT
+          printf 'header = "x-api-key: %s"\n' "${BACKEND_API_KEY}" > "${header_file}"
+
+          status_code="$(curl --proto '=https' --tlsv1.2 --silent --show-error --connect-timeout 10 --max-time 120 --config "${header_file}" -H 'accept: application/json' -o "${status_file}" -w '%{http_code}' "${CONTROL_STORE_BASE_URL}/status?expected_sha=${expected_sha}")"
+          [[ "${status_code}" == "200" ]]
+          [[ "$(wc -c < "${status_file}")" -le 131072 ]]
+
+          jq -n --arg expected_sha "${expected_sha}" '{expected_sha:$expected_sha}' > "${payload_file}"
+          plan_code="$(curl --proto '=https' --tlsv1.2 --silent --show-error --connect-timeout 10 --max-time 120 --config "${header_file}" -H 'accept: application/json' -H 'content-type: application/json' --data-binary "@${payload_file}" -o "${plan_file}" -w '%{http_code}' "${CONTROL_STORE_BASE_URL}/plan")"
+          [[ "${plan_code}" == "200" ]]
+          [[ "$(wc -c < "${plan_file}")" -le 131072 ]]
+
+          jq -e --arg sha "${expected_sha}" '
+            (.contract == "mad4b.production-recovery-control-store-bootstrap-plan.v1") and
+            (.expected_sha == $sha) and
+            (.secrets_included == false) and
+            ([.. | objects | keys[] | select(test("secret|password|access_token|refresh_token|private_key|credential_value"; "i"))] | length == 0)
+          ' "${plan_file}" >/dev/null
+          jq -e '
+            (.secrets_included == false) and
+            (.database_mutation_performed == false) and
+            (.target_database_mutation_performed == false) and
+            (.provider_mutation_performed == false) and
+            (.production_runtime_mutation_performed == false)
+          ' "${status_file}" >/dev/null
+
+          plan_sha="$(jq -er '.plan_sha256' "${plan_file}")"
+          [[ "${plan_sha}" =~ ^[0-9a-f]{64}$ ]]
+          action="$(jq -r '.action // "unknown"' "${plan_file}")"
+          execution_allowed="$(jq -r '.execution_allowed // false' "${plan_file}")"
+          blocker="$(jq -r '.blocker // "none"' "${plan_file}")"
+          required_confirmation="$(jq -r '.required_confirmation // ""' "${plan_file}")"
+
+          echo "expected_sha=${expected_sha}" >> "${GITHUB_OUTPUT}"
+          echo "plan_sha=${plan_sha}" >> "${GITHUB_OUTPUT}"
+          echo "action=${action}" >> "${GITHUB_OUTPUT}"
+          echo "execution_allowed=${execution_allowed}" >> "${GITHUB_OUTPUT}"
+          echo "blocker=${blocker}" >> "${GITHUB_OUTPUT}"
+          echo "required_confirmation=${required_confirmation}" >> "${GITHUB_OUTPUT}"
+
+      - name: Publish exact no-secret Control Store plan receipt
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ steps.plan.outputs.expected_sha }}
+          PLAN_SHA: ${{ steps.plan.outputs.plan_sha }}
+          ACTION: ${{ steps.plan.outputs.action }}
+          EXECUTION_ALLOWED: ${{ steps.plan.outputs.execution_allowed }}
+          BLOCKER: ${{ steps.plan.outputs.blocker }}
+          REQUIRED_CONFIRMATION: ${{ steps.plan.outputs.required_confirmation }}
+        run: |
+          set -Eeuo pipefail
+          body="## Production Recovery Control Store — exact plan
+
+          - Production SHA: ${EXPECTED_SHA}
+          - plan_sha256: ${PLAN_SHA}
+          - action: ${ACTION}
+          - execution_allowed: ${EXECUTION_ALLOWED}
+          - blocker: ${BLOCKER}
+          - required_confirmation: ${REQUIRED_CONFIRMATION:-none}
+          - database_mutation_performed: false
+          - target_database_mutation_performed: false
+          - provider_mutation_performed: false
+          - production_runtime_mutation_performed: false
+          - secrets_included: false
+
+          If and only if action is reconcile_control_store_schema and execution_allowed is true, the exact separately governed apply command is:
+
+          APPLY_PRODUCTION_RECOVERY_CONTROL_STORE_SCHEMA:${EXPECTED_SHA}:${PLAN_SHA}"
+          gh api --method POST "/repos/${REPOSITORY}/issues/${CONTROL_ISSUE}/comments" -f body="${body}" >/dev/null
+
+      - name: Upload no-secret Control Store plan evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: production-recovery-control-store-plan-${{ github.run_id }}
+          path: ${{ env.EVIDENCE_DIR }}
+          if-no-files-found: error
+          retention-days: 30
+
+  control-store-apply:
+    name: Apply exact Production Recovery Control Store schema plan
+    environment:
+      name: Production
+      deployment: false
+    permissions:
+      contents: read
+      issues: write
+    if: >-
+      github.event.issue.number == 6813 &&
+      !github.event.issue.pull_request &&
+      startsWith(github.event.comment.body, 'APPLY_PRODUCTION_RECOVERY_CONTROL_STORE_SCHEMA:') &&
+      contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 20
+    concurrency:
+      group: production-recovery-control-store-apply
+      cancel-in-progress: false
+    env:
+      COMMENT_BODY: ${{ github.event.comment.body }}
+      BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
+      GH_TOKEN: ${{ github.token }}
+      REPOSITORY: ${{ github.repository }}
+      CONTROL_ISSUE: '6813'
+      CONTROL_STORE_BASE_URL: https://auth.mad4b.com/admin/recovery-bootstrap
+      EVIDENCE_DIR: .artifacts/production-recovery-control-store-apply
+    steps:
+      - name: Checkout exact issue-comment event head
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Apply only the exact authoritative Control Store schema plan
+        id: apply
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          rm -rf "${EVIDENCE_DIR}"
+          mkdir -p "${EVIDENCE_DIR}"
+          if [[ ! "${COMMENT_BODY}" =~ ^APPLY_PRODUCTION_RECOVERY_CONTROL_STORE_SCHEMA:([0-9a-f]{40}):([0-9a-f]{64})$ ]]; then
+            echo "::error::Control Store apply confirmation format mismatch"
+            exit 1
+          fi
+          expected_sha="${BASH_REMATCH[1]}"
+          plan_sha="${BASH_REMATCH[2]}"
+          production_sha="$(gh api "/repos/${REPOSITORY}/git/ref/heads/Production" --jq '.object.sha')"
+          [[ "${production_sha}" == "${expected_sha}" ]]
+          [[ -n "${BACKEND_API_KEY}" ]]
+          [[ "${CONTROL_STORE_BASE_URL}" == "https://auth.mad4b.com/admin/recovery-bootstrap" ]]
+
+          header_file="${RUNNER_TEMP}/recovery-control-store-apply-header.txt"
+          payload_file="${RUNNER_TEMP}/recovery-control-store-apply-payload.json"
+          result_file="${EVIDENCE_DIR}/receipt.json"
+          umask 077
+          cleanup() { rm -f "${header_file}" "${payload_file}"; }
+          trap cleanup EXIT
+          printf 'header = "x-api-key: %s"\n' "${BACKEND_API_KEY}" > "${header_file}"
+          jq -n             --arg expected_sha "${expected_sha}"             --arg plan_sha256 "${plan_sha}"             --arg confirmation "APPLY_PRODUCTION_RECOVERY_CONTROL_STORE_SCHEMA"             '{expected_sha:$expected_sha,plan_sha256:$plan_sha256,confirmation:$confirmation}' > "${payload_file}"
+
+          http_status="$(curl --proto '=https' --tlsv1.2 --silent --show-error --connect-timeout 10 --max-time 180 --config "${header_file}" -H 'accept: application/json' -H 'content-type: application/json' --data-binary "@${payload_file}" -o "${result_file}" -w '%{http_code}' "${CONTROL_STORE_BASE_URL}/apply")"
+          [[ "$(wc -c < "${result_file}")" -le 131072 ]]
+          jq -e '
+            (.secrets_included == false) and
+            ([.. | objects | keys[] | select(test("secret|password|access_token|refresh_token|private_key|credential_value"; "i"))] | length == 0)
+          ' "${result_file}" >/dev/null
+          [[ "${http_status}" == "200" ]]
+          jq -e --arg sha "${expected_sha}" --arg plan "${plan_sha}" '
+            (.ok == true) and
+            (.status == "control_store_schema_ready") and
+            (.expected_sha == $sha) and
+            (.plan_sha256 == $plan) and
+            (.same_cycle_readback_performed == true) and
+            (.target_database_mutation_performed == false) and
+            (.provider_mutation_performed == false) and
+            (.production_runtime_mutation_performed == false) and
+            (.secrets_included == false)
+          ' "${result_file}" >/dev/null
+
+          echo "expected_sha=${expected_sha}" >> "${GITHUB_OUTPUT}"
+          echo "plan_sha=${plan_sha}" >> "${GITHUB_OUTPUT}"
+          echo "status=$(jq -er '.status' "${result_file}")" >> "${GITHUB_OUTPUT}"
+          echo "next_action=$(jq -r '.next_action // "unknown"' "${result_file}")" >> "${GITHUB_OUTPUT}"
+
+      - name: Publish bounded Control Store apply receipt
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ steps.apply.outputs.expected_sha }}
+          PLAN_SHA: ${{ steps.apply.outputs.plan_sha }}
+          APPLY_STATUS: ${{ steps.apply.outputs.status }}
+          NEXT_ACTION: ${{ steps.apply.outputs.next_action }}
+        run: |
+          set -Eeuo pipefail
+          body="## Production Recovery Control Store — schema reconciliation complete
+
+          - Production SHA: ${EXPECTED_SHA}
+          - plan_sha256: ${PLAN_SHA}
+          - status: ${APPLY_STATUS}
+          - next_action: ${NEXT_ACTION}
+          - same_cycle_readback_performed: true
+          - target_database_mutation_performed: false
+          - provider_mutation_performed: false
+          - production_runtime_mutation_performed: false
+          - automatic_replay_allowed: false
+          - secrets_included: false"
+          gh api --method POST "/repos/${REPOSITORY}/issues/${CONTROL_ISSUE}/comments" -f body="${body}" >/dev/null
+
+      - name: Upload no-secret Control Store apply evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: production-recovery-control-store-apply-${{ github.run_id }}
+          path: ${{ env.EVIDENCE_DIR }}
+          if-no-files-found: error
+          retention-days: 30
+
 
   release-cut-reconciliation:
     name: Create exact release-cut reconciliation PR
@@ -500,3 +772,96 @@ jobs:
           - merge method: \\`merge_commit_only\\`
           - Production mutation: \\`false\\`
           EOF
+
+  env-key-inventory:
+    name: Read exact Production runtime and Hostinger env key names
+    environment:
+      name: Production
+      deployment: false
+    permissions:
+      contents: read
+    if: >-
+      github.event_name == 'issue_comment' &&
+      github.event.issue.number == 6813 &&
+      !github.event.issue.pull_request &&
+      startsWith(github.event.comment.body, 'READ_PRODUCTION_ENV_KEY_INVENTORY:') &&
+      contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 15
+    concurrency:
+      group: production-runtime-env-key-inventory
+      cancel-in-progress: false
+    env:
+      COMMENT_BODY: ${{ github.event.comment.body }}
+      BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
+      HOSTINGER_API_TOKEN: ${{ secrets.HOSTINGER_API_TOKEN }}
+      GH_TOKEN: ${{ github.token }}
+      REPOSITORY: ${{ github.repository }}
+    steps:
+      - name: Checkout exact trusted main tooling
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Resolve exact read-only Production target
+        id: target
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          if [[ ! "${COMMENT_BODY}" =~ ^READ_PRODUCTION_ENV_KEY_INVENTORY:([0-9a-f]{40})$ ]]; then
+            echo "::error::Production env-key inventory confirmation format mismatch"
+            exit 1
+          fi
+          expected_sha="${BASH_REMATCH[1]}"
+          main_sha="$(gh api "/repos/${REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
+          production_sha="$(gh api "/repos/${REPOSITORY}/git/ref/heads/Production" --jq '.object.sha')"
+          [[ "${GITHUB_SHA}" == "${main_sha}" ]]
+          [[ "${production_sha}" == "${expected_sha}" ]]
+          [[ -n "${BACKEND_API_KEY}" ]]
+          [[ -n "${HOSTINGER_API_TOKEN}" ]]
+          echo "expected_sha=${expected_sha}" >> "${GITHUB_OUTPUT}"
+
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '22'
+
+      - name: Validate read-only inventory contract
+        working-directory: http-generic-api
+        run: node test-production-runtime-env-key-inventory.mjs
+
+      - name: Collect key names only
+        working-directory: http-generic-api
+        env:
+          EXPECTED_PRODUCTION_SHA: ${{ steps.target.outputs.expected_sha }}
+          OUTPUT_DIR: ${{ runner.temp }}/production-runtime-env-key-inventory
+        run: node scripts/production-runtime-env-key-inventory.mjs
+
+      - name: Enforce no-value evidence
+        shell: bash
+        env:
+          EVIDENCE_PATH: ${{ runner.temp }}/production-runtime-env-key-inventory/inventory.json
+        run: |
+          set -Eeuo pipefail
+          jq -e '
+            (.contract == "mad4b.production-runtime-env-key-inventory.v1") and
+            (.raw_values_exposed == false) and
+            (.secrets_included == false) and
+            (.effects.provider_get_performed == true) and
+            (.effects.provider_mutation_performed == false) and
+            (.effects.production_runtime_mutation_performed == false) and
+            (.effects.database_mutation_performed == false) and
+            (.effects.restart_performed == false) and
+            (.effects.deployment_performed == false) and
+            ([.. | objects | keys[] | select(test("(^|_)(password|private_key|access_token|refresh_token|credential_value|raw_value)(_|$)"; "i"))] | length == 0)
+          ' "${EVIDENCE_PATH}" >/dev/null
+
+      - name: Upload no-secret env key inventory
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: production-runtime-env-key-inventory-${{ github.run_id }}
+          path: ${{ runner.temp }}/production-runtime-env-key-inventory/inventory.json
+          if-no-files-found: error
+          retention-days: 7
+
