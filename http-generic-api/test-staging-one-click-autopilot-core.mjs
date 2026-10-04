@@ -280,7 +280,7 @@ assert.match(startAutoPilot, /if \(\$RequireSchemaBundle\) \{ \$childArgs \+= "-
 assert.match(startAutoPilot, /if \(\$ApplySchemaBundle\) \{ \$childArgs \+= "-ApplySchemaBundle" \}/);
 assert.match(startAutoPilot, /\[switch\]\$EnableActivationGateway/);
 assert.match(startAutoPilot, /if \(\$EnableActivationGateway\) \{ \$childArgs \+= "-EnableActivationGateway" \}/);
-assert.match(startAutoPilot, /Set-EnvValue \$EnvFile "ACTIVATION_STAGING_GATEWAY_ENABLED" \$activationGatewayDesired/);
+assert.match(stagingEnvironment, /function Initialize-StagingEnvironment[\s\S]*?Set-StagingEnvValue \$envFile 'ACTIVATION_STAGING_GATEWAY_ENABLED'/);
 assert.match(autoDeploy, /\[switch\]\$EnableActivationGateway/);
 assert.match(autoDeploy, /if \(\$EnableActivationGateway\) \{ \$pilotArgs \+= "-EnableActivationGateway" \}/);
 assert.match(installAutoDeploy, /\[switch\]\$EnableActivationGateway/);
