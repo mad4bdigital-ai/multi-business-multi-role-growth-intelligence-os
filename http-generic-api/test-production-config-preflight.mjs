@@ -19,11 +19,14 @@ const base = {
   CONTROL_PLANE_WRITE_DB_USER: "control_plane_writer",
   CONTROL_PLANE_WRITE_DB_PASSWORD: "writer_fixture_password",
   LOCAL_MANAGER_WRITE_AUTHORITY_ENABLED: "true",
+  LOCAL_MANAGER_WRITE_DB_ENVIRONMENT: "production",
   LOCAL_MANAGER_WRITE_DB_HOST: "db",
   LOCAL_MANAGER_WRITE_DB_NAME: "growth_runtime",
   LOCAL_MANAGER_WRITE_DB_USER: "local_manager_writer",
   LOCAL_MANAGER_WRITE_DB_PASSWORD: "local_manager_writer_fixture_password",
   DB_USER: "runtime_reader",
+  DB_HOST: "db",
+  DB_NAME: "growth_runtime",
 };
 
 const ready = evaluateProductionConfig(base);
@@ -53,6 +56,14 @@ assert.match(localManagerWriteReused.errors.join("\n"), /LOCAL_MANAGER_WRITE_DB_
 const localManagerWriteRoot = evaluateProductionConfig({ ...base, LOCAL_MANAGER_WRITE_DB_USER: "root" });
 assert.equal(localManagerWriteRoot.ok, false);
 assert.match(localManagerWriteRoot.errors.join("\n"), /LOCAL_MANAGER_WRITE_DB_USER must not be root/);
+const writerBindingMissing = evaluateProductionConfig({ ...base, LOCAL_MANAGER_WRITE_DB_ENVIRONMENT: "" });
+assert.equal(writerBindingMissing.ok, false);
+assert.equal(writerBindingMissing.local_manager_write.status, "invalid");
+assert.match(writerBindingMissing.errors.join("\n"), /LOCAL_MANAGER_WRITE_DB_ENVIRONMENT/);
+const writerBindingMismatch = evaluateProductionConfig({ ...base, LOCAL_MANAGER_WRITE_DB_ENVIRONMENT: "staging" });
+assert.equal(writerBindingMismatch.ok, false);
+assert.equal(writerBindingMismatch.local_manager_write.runtime_target_bound, false);
+assert.match(writerBindingMismatch.errors.join("\n"), /LOCAL_MANAGER_WRITE_DB_ENVIRONMENT_MISMATCH/);
 assert.equal(ready.oauth_client.confidential_compat_enabled, false);
 assert.equal(ready.oauth_client.confidential_compat_source, "secure_default_disabled");
 assert.equal(ready.managed_google_oauth.enabled, false);
@@ -286,3 +297,10 @@ assert.equal(writerReusesRuntimeIdentity.ok, false);
 assert.match(writerReusesRuntimeIdentity.errors.join("\n"), /distinct from DB_USER/);
 
 console.log("test-production-config-preflight: ok");
+
+for (const override of [{LOCAL_MANAGER_WRITE_DB_HOST:"production-db"},{LOCAL_MANAGER_WRITE_DB_NAME:"other_runtime"},{LOCAL_MANAGER_WRITE_DB_PORT:"3307"}]) {
+  const result = evaluateProductionConfig({...base,...override});
+  assert.equal(result.ok,false);
+  assert.equal(result.local_manager_write.runtime_target_bound,false);
+  assert.match(result.errors.join("\n"),/LOCAL_MANAGER_WRITE_DB_TARGET_MISMATCH/);
+}
