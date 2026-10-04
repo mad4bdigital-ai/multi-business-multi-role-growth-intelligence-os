@@ -186,7 +186,8 @@ for (const required of [
 
 const operationalPhase = stagingResumeDeclaration.phases.find((phase) => phase.id === "operational");
 assert.equal(operationalPhase?.status, "implemented");
-assert.equal(operationalPhase?.environment_impact?.production_mutation_allowed ?? false, false);
+assert.equal(stagingResumeDeclaration.environment_impact?.live_staging_certification_required, true);
+assert.equal(stagingResumeDeclaration.environment_impact?.production_mutation_allowed, false);
 
 for (const required of [
   /AllowGovernedReleaseCutAncestor/u,
