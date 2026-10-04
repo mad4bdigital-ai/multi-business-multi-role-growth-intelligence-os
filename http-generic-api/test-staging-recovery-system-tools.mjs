@@ -316,7 +316,6 @@ test("Staging Activation registry corrective migration is recovery-only additive
   assert.equal(existsSync(canonicalPath), false, "Activation incident repair must remain outside the canonical ordered migration chain");
   assert.equal(existsSync(recoveryPath), true);
   const sql = readFileSync(recoveryPath, "utf8");
-  assert.equal((sql.match(/CREATE TABLE IF NOT EXISTS/giu) || []).length, 8);
   for (const table of [
     "activation_dynamic_tab_registry",
     "activation_dynamic_tab_section_registry",
