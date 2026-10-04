@@ -1,5 +1,9 @@
+import { LOCAL_MANAGER_WINDOWS_LATEST_VERSION, LOCAL_MANAGER_WINDOWS_RELEASE_TAG,
+  LOCAL_MANAGER_WINDOWS_EXE_URL, LOCAL_MANAGER_WINDOWS_SHA256_URL,
+  latestLocalManagerWindowsRelease, normalizeVersion, compareVersions } from "../localManagerReleaseRegistry.js";
 import { Router } from "express";
 import { getPool } from "../db.js";
+import { resolveRuntimeEnvironment } from "../runtimeEnvironmentResolver.js";
 import { createOperationResilienceController } from "../operationResilienceController.js";
 import {
   approveDeviceLinkSession,
@@ -596,6 +600,7 @@ function localManagerLinkDevicePage(initialCode = "") {
 const GOOGLE_CLIENT_ID = ${JSON.stringify(GOOGLE_CLIENT_ID)};
 const $ = (id) => document.getElementById(id);
 let pairingFingerprint = '';
+let pairingDeviceId = '';
 const esc = (v) => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
 function normalizeCode(value){ return String(value || '').trim().toUpperCase().replace(/[^A-Z0-9]/g,'').replace(/^(.{4})(.*)$/,'$1-$2').slice(0,9); }
 function setOut(obj){ $('out').textContent = typeof obj === 'string' ? obj : JSON.stringify(obj, null, 2); }
@@ -638,6 +643,7 @@ async function loadPreview(){
   if(!res.ok || !data.ok){ $('devicePreview').innerHTML = '<span class="bad">'+esc(data?.error?.message || 'Could not load pairing code.')+'</span>'; return; }
   const d = data.device || {};
   pairingFingerprint = String(d.pairing_fingerprint || '');
+  pairingDeviceId = String(d.device_id || '').trim().toLowerCase();
   $('devicePreview').innerHTML = 'Device: <strong>'+esc(d.display_label || d.hostname || d.device_id || 'Windows device')+'</strong> · Platform: '+esc(d.platform || 'windows')+' · Version: '+esc(d.app_version || 'unknown')+' · Status: '+esc(d.effective_status || data.status)+' · Expires: '+esc(d.expires_at || 'soon');
 }
 function getToken(){ return sessionStorage.getItem('mlm_user_token') || ''; }
@@ -655,6 +661,16 @@ async function approveDevice(){
   const data = await res.json();
   setOut(data);
   if(res.ok && data.ok){
+    if(data.connector_alias && data.connector_alias.resolved !== true){
+      if(!pairingDeviceId){
+        $('authState').innerHTML = '<span class="bad">Approval saved, but the pairing session did not return an exact device identity. Start a fresh device link from the Windows app.</span>';
+        return false;
+      }
+      const setupReturnPath = '/app/local-manager/link-device?code=' + encodeURIComponent(code) + '&setup_return=1';
+      const setupUrl = '/connect?device_id=' + encodeURIComponent(pairingDeviceId) + '&return_to=' + encodeURIComponent(setupReturnPath);
+      $('authState').innerHTML = '<span class="bad">Approval saved. Connector setup is incomplete; the device is not linked yet. Complete connector installation; the Windows app will continue polling this approved session automatically.</span> <a href="' + setupUrl + '">Open account setup</a>';
+      return false;
+    }
     const msg = data.already_linked
       ? 'This device was already linked. The Windows app session has been refreshed.'
       : 'Device approved. You can return to the Windows app.';
@@ -690,6 +706,11 @@ async function initializeLinkDevicePage(){
   $('codePreview').textContent = $('deviceCode').value || '---- ----';
   await loadPreview();
   if(signedIn && normalizeCode($('deviceCode').value)){
+    const returnedFromSetup = new URLSearchParams(window.location.search).get('setup_return') === '1';
+    if(returnedFromSetup){
+      setOut({ok:true,status:'connector_setup_returned',message:'Connector setup returned. Your explicit approval is already saved; the Windows app will continue polling and complete the same session automatically.'});
+      return;
+    }
     setOut({ok:true,status:'signed_in',message:'Signed in. Review the device details, then click Approve device.'});
   }
 }
@@ -800,93 +821,6 @@ if(restoreUser()) loadDevices();
 </body></html>`;
 }
 
-const LOCAL_MANAGER_WINDOWS_LATEST_VERSION = "0.2.30";
-const LOCAL_MANAGER_WINDOWS_RELEASE_TAG = "local-manager-windows-latest";
-const LOCAL_MANAGER_WINDOWS_EXE_URL = "https://github.com/mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os/releases/download/local-manager-windows-latest/Mad4B-Local-Manager-Setup-0.2.30.exe";
-const LOCAL_MANAGER_WINDOWS_SHA256_URL = "https://github.com/mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os/releases/download/local-manager-windows-latest/Mad4B-Local-Manager-Setup-0.2.30.exe.sha256.json";
-
-function normalizeVersion(value) {
-  const raw = String(value || "").trim().replace(/^v/i, "");
-  return raw.split(/[+-]/)[0] || raw;
-}
-
-function compareVersions(left, right) {
-  const leftParts = normalizeVersion(left).split(".").map((part) => Number.parseInt(part, 10) || 0);
-  const rightParts = normalizeVersion(right).split(".").map((part) => Number.parseInt(part, 10) || 0);
-  const maxLength = Math.max(leftParts.length, rightParts.length);
-  for (let i = 0; i < maxLength; i += 1) {
-    const delta = (leftParts[i] || 0) - (rightParts[i] || 0);
-    if (delta !== 0) return delta > 0 ? 1 : -1;
-  }
-  return 0;
-}
-
-function localManagerFallbackReleaseRow() {
-  return {
-    app_key: "mad4b-local-manager",
-    platform: "windows",
-    release_channel: "latest-prerelease",
-    version: LOCAL_MANAGER_WINDOWS_LATEST_VERSION,
-    minimum_supported_version: null,
-    release_tag: LOCAL_MANAGER_WINDOWS_RELEASE_TAG,
-    artifact_url: LOCAL_MANAGER_WINDOWS_EXE_URL,
-    sha256_url: LOCAL_MANAGER_WINDOWS_SHA256_URL,
-    sha256: null,
-    update_required: 0,
-    release_notes_json: [
-      "Adds Continue with Google to Local Manager device approval.",
-      "Adds forgot-password entry point while preserving the pairing code.",
-      "Keeps device approval on the installed app polling flow after authentication."
-    ],
-    source: "code_fallback",
-  };
-}
-
-async function latestLocalManagerWindowsRelease() {
-  const fallback = localManagerFallbackReleaseRow();
-  try {
-    const [rows] = await getPool().query(
-      `SELECT * FROM \`local_app_releases\`
-        WHERE app_key = 'mad4b-local-manager'
-          AND platform = 'windows'
-          AND release_channel = 'latest-prerelease'
-          AND status = 'active'
-        ORDER BY COALESCE(published_at, updated_at, created_at) DESC, version DESC, release_id DESC
-        LIMIT 2`
-    );
-    const [selectedRow = null] = rows;
-    if (!selectedRow) {
-      return {
-        ...fallback,
-        source: "code_fallback_registry_empty",
-        registry_degraded: true,
-        registry_reason: "local_app_release_registry_empty",
-      };
-    }
-    const selected = { ...selectedRow, source: "db", registry_degraded: false, registry_reason: null };
-    const fallbackVersion = normalizeVersion(fallback.version);
-    const selectedVersion = normalizeVersion(selected.version);
-    if (compareVersions(fallbackVersion, selectedVersion) > 0) {
-      return {
-        ...fallback,
-        source: "code_fallback_newer_than_db",
-        registry_degraded: true,
-        registry_reason: "local_app_release_registry_stale",
-        stale_db_version: selected.version || null,
-        stale_db_release_id: selected.release_id || null,
-      };
-    }
-    return selected;
-  } catch {
-    return {
-      ...fallback,
-      source: "code_fallback_registry_unavailable",
-      registry_degraded: true,
-      registry_reason: "local_app_release_registry_unavailable",
-    };
-  }
-}
-
 async function localManagerWindowsUpdateInfo(req) {
   const currentVersion = normalizeVersion(req.query.current_version || req.query.version || "");
   const release = await latestLocalManagerWindowsRelease();
@@ -910,6 +844,8 @@ async function localManagerWindowsUpdateInfo(req) {
     release_notes: Array.isArray(notes) ? notes : [],
     registry_source: release.source || "db",
     registry_degraded: release.registry_degraded === true,
+    environment: resolveRuntimeEnvironment().environment_key,
+    release_readiness: release.registry_degraded === true ? "degraded" : "registry_selected",
     registry_reason: release.registry_reason || null,
     checked_at: new Date().toISOString(),
     secrets_included: false,
@@ -967,12 +903,18 @@ export function buildLocalManagerBetaRoutes(deps) {
   router.get("/app/local-manager/update/windows", async (req, res) => {
     res.setHeader("Content-Type", "application/json; charset=utf-8");
     res.setHeader("Cache-Control", "no-store");
-    return res.status(200).json(await localManagerWindowsUpdateInfo(req));
+    try { return res.status(200).json(await localManagerWindowsUpdateInfo(req)); }
+    catch (error) { return res.status(error.status || 503).json({ ok:false, error:{code:error.code || "local_manager_release_unavailable", message:error.message}, secrets_included:false }); }
   });
 
-  router.get("/app/local-manager/download/windows", (_req, res) => {
+  router.get("/app/local-manager/download/windows", async (_req, res) => {
     res.setHeader("Cache-Control", "no-store");
-    return res.redirect(302, LOCAL_MANAGER_WINDOWS_EXE_URL);
+    try {
+      const release = await latestLocalManagerWindowsRelease();
+      const artifact = new URL(release.artifact_url);
+      if (artifact.origin !== "https://github.com" || !artifact.pathname.startsWith("/mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os/releases/download/")) throw new Error("Release origin is not allowed.");
+      return res.redirect(302, artifact.href);
+    } catch (error) { return res.status(503).json({ok:false,error:{code:error.code || "local_manager_release_unavailable",message:"A verified release is unavailable for this environment."},secrets_included:false}); }
   });
 
   router.get("/app/local-manager/sign-in", (_req, res) => {

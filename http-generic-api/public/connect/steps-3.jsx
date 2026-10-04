@@ -4,7 +4,7 @@ const { useState: useStateC, useEffect: useEffectC, useRef: useRefC } = React;
 // ============================================================================
 // DEVICE INSTALL — cascading reveal
 // ============================================================================
-function DeviceInstall({ tenant, deviceId, setDeviceId, onComplete, onBack, completed }) {
+function DeviceInstall({ tenant, deviceId, setDeviceId, onComplete, onBack, completed, error }) {
   const [phase, setPhase] = useStateC(completed ? "done" : "idle"); // idle, building, done
   const [progress, setProgress] = useStateC(completed ? 100 : 0);
   const [revealed, setRevealed] = useStateC(completed ? 6 : 0); // count of artifacts visible
@@ -23,6 +23,23 @@ function DeviceInstall({ tenant, deviceId, setDeviceId, onComplete, onBack, comp
     { kind: "cmd", label: "Run command", value: startCmd, accent: "var(--lime)" },
   ];
 
+  const completeProvisioning = async () => {
+    try {
+      const ok = await Promise.resolve(onComplete ? onComplete() : false);
+      if (ok !== true) {
+        setProgress(0);
+        setPhase("error");
+        return;
+      }
+      setProgress(100);
+      setPhase("done");
+      artifacts.forEach((_, i) => setTimeout(() => setRevealed(i + 1), 180 + i * 220));
+    } catch {
+      setProgress(0);
+      setPhase("error");
+    }
+  };
+
   const build = () => {
     setPhase("building");
     setProgress(0);
@@ -30,14 +47,10 @@ function DeviceInstall({ tenant, deviceId, setDeviceId, onComplete, onBack, comp
     let p = 0;
     const tick = setInterval(() => {
       p += 4 + Math.random() * 6;
-      if (p >= 100) {
-        p = 100;
+      if (p >= 90) {
         clearInterval(tick);
-        setPhase("done");
-        setProgress(100);
-        // cascade reveal artifacts
-        artifacts.forEach((_, i) => setTimeout(() => setRevealed(i + 1), 180 + i * 220));
-        setTimeout(() => onComplete && onComplete(), 180 + artifacts.length * 220 + 400);
+        setProgress(90);
+        void completeProvisioning();
       } else {
         setProgress(p);
       }
@@ -130,6 +143,18 @@ function DeviceInstall({ tenant, deviceId, setDeviceId, onComplete, onBack, comp
             <div style={{ opacity: progress > 50 ? 1 : 0.4 }}>→ writing Hostinger CNAME...</div>
             <div style={{ opacity: progress > 75 ? 1 : 0.4 }}>→ generating .env, .ps1, .bat...</div>
           </div>
+        </div>
+      )}
+
+      {phase === "error" && (
+        <div className="panel" style={{ padding: 18, marginBottom: 16, borderColor: "var(--red)" }}>
+          <div style={{ fontFamily: "var(--font-display)", fontWeight: 700, color: "var(--red)", marginBottom: 6 }}>
+            Provisioning did not complete
+          </div>
+          <div style={{ fontSize: 13, color: "var(--ink-soft)", marginBottom: 12 }}>
+            {error || "The server did not confirm device provisioning. Nothing was marked complete."}
+          </div>
+          <button className="btn btn-primary btn-sm" onClick={() => setPhase("idle")}>Retry provisioning</button>
         </div>
       )}
 

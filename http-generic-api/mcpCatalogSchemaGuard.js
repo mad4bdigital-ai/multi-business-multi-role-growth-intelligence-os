@@ -1,4 +1,5 @@
 import { getPool } from "./db.js";
+import { resolveRuntimeEnvironmentStrict } from "./runtimeEnvironmentResolver.js";
 
 export const MCP_CATALOG_LEVEL_MIGRATION = "20260815_custom_gpt_mcp_catalog_levels.sql";
 export const MCP_CATALOG_LEVEL_MIGRATION_SHA256 = "528143808adac23eb457058c4c34dd95c4c5d462bca9ac4b170b1f19b2006681";
@@ -231,6 +232,11 @@ export async function readMcpCatalogSchemaReadiness({ pool = null } = {}) {
 
 const mcpCatalogSchemaStartupPreflightState = {
   contract: "mad4b.mcp-catalog-schema-startup-preflight.v1",
+  environment: "unknown",
+  environment_source: "not_run",
+  runtime_environment_reason: null,
+  runtime_class: null,
+  runtime_class_explicit: false,
   status: "not_run",
   ready: false,
   startup_blocked: false,
@@ -307,7 +313,7 @@ export function getMcpCatalogSchemaStartupPreflight() {
   return JSON.parse(JSON.stringify(mcpCatalogSchemaStartupPreflightState));
 }
 
-export async function runMcpCatalogSchemaStartupPreflight({ pool, logger = console, environment = "unknown", env = process.env } = {}) {
+export async function runMcpCatalogSchemaStartupPreflight({ pool, logger = console, environment = null, env = process.env } = {}) {
   const targetPool = pool || (() => {
     try {
       return getPool();
@@ -318,9 +324,16 @@ export async function runMcpCatalogSchemaStartupPreflight({ pool, logger = conso
   const readiness = targetPool
     ? await readMcpCatalogSchemaReadinessSafe({ pool: targetPool, env })
     : unavailableSchemaReadiness({ code: "DB_CONFIG_MISSING" });
+  const runtimeEnvironment = resolveRuntimeEnvironmentStrict(env);
+  const explicitEnvironment = String(environment || "").trim().toLowerCase();
+  const resolvedEnvironment = explicitEnvironment || String(runtimeEnvironment?.environment_key || "unknown");
   const result = {
     contract: "mad4b.mcp-catalog-schema-startup-preflight.v1",
-    environment: String(environment || "unknown"),
+    environment: resolvedEnvironment,
+    environment_source: explicitEnvironment ? "explicit_argument" : "runtime_environment_resolver",
+    runtime_environment_reason: runtimeEnvironment?.reason || null,
+    runtime_class: runtimeEnvironment?.runtime_class || null,
+    runtime_class_explicit: runtimeEnvironment?.runtime_class_explicit === true,
     status: readiness.ok ? "ready" : "schema_contract_not_ready",
     ready: readiness.ok === true,
     startup_blocked: false,
