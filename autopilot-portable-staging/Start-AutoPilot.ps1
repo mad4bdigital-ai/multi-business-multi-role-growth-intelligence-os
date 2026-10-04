@@ -732,67 +732,38 @@ try {
     try { $buildContextMetadata = Get-Content -Raw -LiteralPath $buildContextMetadataPath | ConvertFrom-Json } catch { Fail "Exact Git build context provenance metadata is invalid" }
     if ([string]$buildContextMetadata.commit_sha -ne $ExpectedCommit.ToLowerInvariant() -or [string]$buildContextMetadata.tree_sha -ne $buildTree.ToLowerInvariant() -or [string]$buildContextMetadata.source -ne "git_archive_exact_commit" -or $buildContextMetadata.local_ignored_files_included -ne $false -or $buildContextMetadata.secrets_included -ne $false) { Fail "Exact Git build context provenance did not converge" }
 
-    if (-not (Test-Path $EnvFile)) {
-        Copy-Item $EnvExample $EnvFile
-        $localSecrets = @{
-            "DB_PASSWORD" = ([guid]::NewGuid().ToString("N") + [guid]::NewGuid().ToString("N"))
-            "RUNTIME_DB_ROOT_PASSWORD" = ([guid]::NewGuid().ToString("N") + [guid]::NewGuid().ToString("N"))
-            "GOVERNANCE_DB_PASSWORD" = ([guid]::NewGuid().ToString("N") + [guid]::NewGuid().ToString("N"))
-            "RUNTIME_PERSISTENCE_DB_PASSWORD" = ([guid]::NewGuid().ToString("N") + [guid]::NewGuid().ToString("N"))
-            "RUNTIME_PERSISTENCE_DB_ROOT_PASSWORD" = ([guid]::NewGuid().ToString("N") + [guid]::NewGuid().ToString("N"))
-            "BACKEND_API_KEY" = ([guid]::NewGuid().ToString("N") + [guid]::NewGuid().ToString("N"))
-            "JWT_SECRET" = ([guid]::NewGuid().ToString("N") + [guid]::NewGuid().ToString("N"))
-            "LOCAL_MANAGER_DEVICE_JWT_SECRET" = ([guid]::NewGuid().ToString("N") + [guid]::NewGuid().ToString("N"))
-            "TENANT_GPT_SSO_SIGNING_SECRET" = ([guid]::NewGuid().ToString("N") + [guid]::NewGuid().ToString("N"))
-            "TOKEN_ENCRYPTION_KEY" = ([guid]::NewGuid().ToString("N") + [guid]::NewGuid().ToString("N"))
-        }
-        $envText = Get-Content -Raw $EnvFile
-        foreach ($key in $localSecrets.Keys) { $envText = [regex]::Replace($envText, "(?m)^$key=.*$", "$key=$($localSecrets[$key])") }
-        Write-StagingUtf8NoBom $EnvFile $envText
+    $envState = Initialize-StagingEnvironment `
+        -RepositoryPath $RepositoryPath `
+        -TunnelMode $TunnelMode `
+        -EnableActivationGateway:$EnableActivationGateway `
+        -RequireTunnelToken:($TunnelMode -eq "docker_sidecar")
+
+    $resolvedEnvFile = [IO.Path]::GetFullPath([string]$envState.env_file)
+    if ($resolvedEnvFile -ne [IO.Path]::GetFullPath($EnvFile)) {
+        Fail "Canonical Staging environment helper returned an unexpected env path"
     }
 
-    $generatedLocalSecrets = @{
-        "DB_PASSWORD" = ([guid]::NewGuid().ToString("N") + [guid]::NewGuid().ToString("N"))
-        "RUNTIME_DB_ROOT_PASSWORD" = ([guid]::NewGuid().ToString("N") + [guid]::NewGuid().ToString("N"))
-        "GOVERNANCE_DB_PASSWORD" = ([guid]::NewGuid().ToString("N") + [guid]::NewGuid().ToString("N"))
-        "GOVERNANCE_DB_ROOT_PASSWORD" = ([guid]::NewGuid().ToString("N") + [guid]::NewGuid().ToString("N"))
-        "RUNTIME_PERSISTENCE_DB_PASSWORD" = ([guid]::NewGuid().ToString("N") + [guid]::NewGuid().ToString("N"))
-        "RUNTIME_PERSISTENCE_DB_ROOT_PASSWORD" = ([guid]::NewGuid().ToString("N") + [guid]::NewGuid().ToString("N"))
-        "BACKEND_API_KEY" = ([guid]::NewGuid().ToString("N") + [guid]::NewGuid().ToString("N"))
-        "JWT_SECRET" = ([guid]::NewGuid().ToString("N") + [guid]::NewGuid().ToString("N"))
-            "LOCAL_MANAGER_DEVICE_JWT_SECRET" = ([guid]::NewGuid().ToString("N") + [guid]::NewGuid().ToString("N"))
-        "TENANT_GPT_SSO_SIGNING_SECRET" = ([guid]::NewGuid().ToString("N") + [guid]::NewGuid().ToString("N"))
-        "TOKEN_ENCRYPTION_KEY" = ([guid]::NewGuid().ToString("N") + [guid]::NewGuid().ToString("N"))
-        "REMOTE_MCP_OAUTH_SIGNING_SECRET" = ([guid]::NewGuid().ToString("N") + [guid]::NewGuid().ToString("N"))
-        "TENANT_GPT_STAGING_ACTIVATION_OAUTH_CLIENT_SECRET" = ([guid]::NewGuid().ToString("N") + [guid]::NewGuid().ToString("N"))
-    }
-    $envText = Get-Content -Raw $EnvFile
-    foreach ($key in $generatedLocalSecrets.Keys) {
-        if ($envText -notmatch "(?im)^$([regex]::Escape($key))=") {
-            $envText = $envText.TrimEnd() + "`r`n$key=$($generatedLocalSecrets[$key])`r`n"
-        } elseif ($envText -match "(?im)^$([regex]::Escape($key))=\s*$" -or $envText -match "(?im)^$([regex]::Escape($key))=local_[^\r\n]*change_me\s*$") {
-            $envText = [regex]::Replace($envText, "(?im)^$([regex]::Escape($key))=.*$", "$key=$($generatedLocalSecrets[$key])")
-        }
-    }
-    Write-StagingUtf8NoBom $EnvFile $envText
     Ensure-EnvDefault $EnvFile "TENANT_GPT_STAGING_OAUTH_CLIENT_ID" "mad4b-tenant-gpt-staging"
     Ensure-EnvDefault $EnvFile "TENANT_GPT_ACTIONS_CONFIDENTIAL_CLIENT_COMPAT_ENABLED" "true"
-    $activationGatewayDesired = if ($EnableActivationGateway) { "true" } else { "false" }
-    Set-EnvValue $EnvFile "ACTIVATION_STAGING_GATEWAY_ENABLED" $activationGatewayDesired
-    Set-EnvValue $EnvFile "ACTIVATION_HOST_GATEWAY_HOST" "activation-dev.mad4b.com"
-    Set-EnvValue $EnvFile "ACTIVATION_STAGING_AUTH_HOST" "activation-dev.mad4b.com"
-    # Keep runtime deployment readback bound to the immutable commit selected above.
+
     Set-EnvValue $EnvFile "DEPLOYMENT_EXPECTED_COMMIT_SHA" $ExpectedCommit
     Set-EnvValue $EnvFile "DEPLOY_COMMIT" $ExpectedCommit
     Set-EnvValue $EnvFile "DEPLOY_BRANCH" $Ref
     Set-EnvValue $EnvFile "STAGING_BUILD_CONTEXT" (([IO.Path]::GetFullPath($BuildContextPath)) -replace '\\','/')
     Set-EnvValue $EnvFile "STAGING_BUILD_TREE" $buildTree.ToLowerInvariant()
     Set-EnvValue $EnvFile "STAGING_BUILD_CONTEXT_FILE_SET_SHA256" ([string]$buildContextMetadata.context_file_set_sha256)
-    # Reconcile only the selected tunnel transport profile. This is safe for direct
-    # Start-AutoPilot and Auto-Deploy callers and does not widen Activation Gateway,
-    # database, provider, or Production mutation authority.
-    $tunnelProfile = Set-StagingTunnelRuntimeProfile -Path $EnvFile -TunnelMode $TunnelMode
-    Write-StagingOperationBoundary -Component $LogComponent -Stage "tunnel-profile" -Outcome "success" -Message "canonical Staging tunnel runtime profile reconciled" -Data @{ tunnel_mode = [string]$tunnelProfile.tunnel_mode; tunnel_origin = [string]$tunnelProfile.tunnel_origin; app_host_bind = [string]$tunnelProfile.app_host_bind; production_mutation = [bool]$tunnelProfile.production_mutation; provider_mutation = [bool]$tunnelProfile.provider_mutation; database_mutation = [bool]$tunnelProfile.database_mutation; secrets_included = [bool]$tunnelProfile.secrets_included }
+
+    Write-StagingOperationBoundary -Component $LogComponent -Stage "environment-bootstrap" -Outcome "success" -Message "canonical Staging environment bootstrap reconciled" -Data @{
+        contract = [string]$envState.contract
+        tunnel_mode = [string]$envState.tunnel_mode
+        tunnel_origin = [string]$envState.tunnel_origin
+        generated_key_count = @($envState.generated_keys).Count
+        mcp_app_id_present = [bool]$envState.mcp_app_id_present
+        mcp_app_secret_present = [bool]$envState.mcp_app_secret_present
+        production_mutation = [bool]$envState.production_mutation
+        provider_mutation = [bool]$envState.provider_mutation
+        secrets_included = [bool]$envState.secrets_included
+    }
     Assert-UniqueEnvKeys $EnvFile
     $effectiveEnv = Get-Content -Raw $EnvFile
     if ($effectiveEnv -match '(?im)^CLOUDFLARE_TUNNEL_TOKEN=\s*$' -and $TunnelMode -eq "docker_sidecar") { Fail "docker_sidecar requested but CLOUDFLARE_TUNNEL_TOKEN is empty" }
