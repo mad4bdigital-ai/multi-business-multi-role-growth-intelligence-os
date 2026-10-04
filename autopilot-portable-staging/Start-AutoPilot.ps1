@@ -300,6 +300,7 @@ function Assert-GovernedReleaseCutResume([string]$RemoteCommit) {
     try { $comments = @($commentsRaw | ConvertFrom-Json) } catch { Fail "Governed release-cut resume comments response is invalid" }
     $resumePrefix = "GOVERNED_PRODUCTION_STAGING_RESUME_ARMED request_pr=$PromotionRequestPr request_head=$requestHead release_cut=$releaseCut Production=$production candidate=$candidate review_mode="
     $resumeMarker = @($comments | Where-Object {
+        ([string]$_.user.login) -eq "github-actions[bot]" -and
         ([string]$_.body).StartsWith($resumePrefix, [System.StringComparison]::Ordinal) -and
         ([string]$_.body).Contains("merge_executed=false") -and
         ([string]$_.body).Contains("deployment_executed=false")
