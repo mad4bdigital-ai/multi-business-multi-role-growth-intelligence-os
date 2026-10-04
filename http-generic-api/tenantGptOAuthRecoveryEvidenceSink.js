@@ -1,0 +1,685 @@
+import { createHash } from "node:crypto";
+import { readCanonicalDeploymentIdentity } from "./deploymentManifest.js";
+import { resolveRuntimeEnvironmentStrict } from "./runtimeEnvironmentResolver.js";
+import { normalizeTenantGptOAuthResource } from "./tenantGptOAuthResourceProfile.js";
+import { verifyTenantGptOAuthOperationCorrelation } from "./tenantGptOAuthOperationCorrelation.js";
+
+export const TENANT_GPT_OAUTH_RECOVERY_SERVER_EVIDENCE_CONTRACT =
+  "mad4b.tenant-gpt-oauth-recovery-server-evidence.v1";
+export const TENANT_GPT_OAUTH_RECOVERY_SERVER_READBACK_CONTRACT =
+  "mad4b.tenant-gpt-oauth-recovery-server-readback.v1";
+export const TENANT_GPT_OAUTH_RECOVERY_SERVER_EVIDENCE_ACTION_KEY =
+  "tenant_gpt_oauth_recovery_server_evidence";
+
+export const TENANT_GPT_OAUTH_RECOVERY_SERVER_EVENTS = Object.freeze([
+  "authorize_received",
+  "login_consent_completed",
+  "authorization_code_issued",
+  "token_exchange_completed",
+  "resource_request_verified",
+]);
+
+const EVENT_STAGE = Object.freeze({
+  authorize_received: "oauth_authorize",
+  login_consent_completed: "identity_verify",
+  authorization_code_issued: "oauth_code_issue",
+  token_exchange_completed: "oauth_token_exchange",
+  resource_request_verified: "gateway_verify",
+});
+
+const REPOSITORY = "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os";
+const STAGING_SOURCE_BRANCH = "main";
+const SHA40 = /^[a-f0-9]{40}$/u;
+const SHA256 = /^[a-f0-9]{64}$/u;
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
+const RECOVERY_EVIDENCE_CEILING_MILLISECONDS = 60 * 60 * 1000;
+const RECOVERY_EVIDENCE_WINDOW_MILLISECONDS = 15 * 60 * 1000;
+const RECOVERY_EVIDENCE_WRITE_BUDGET_MILLISECONDS = 1500;
+const RECOVERY_EVIDENCE_READ_BUDGET_MILLISECONDS = 1500;
+const MAX_READBACK_ROWS = 128;
+const MAX_EVENT_CANDIDATES = 32;
+const MAX_CHAIN_STATES = 256;
+const SENSITIVE_INPUT_KEY = /(^|_)(authorization|code|credential|password|secret|token|cookie|raw)(_|$)/iu;
+
+const INPUT_KEYS = new Set(["event", "correlation", "redirect_uri_sha256"]);
+
+const EVIDENCE_KEYS = new Set([
+  "contract", "schema_version", "source", "environment", "integrity", "source_authenticity",
+  "event", "oauth_stage", "operation_id", "correlation_id", "protected_resource",
+  "client_id_sha256", "subject_user_sha256", "subject_tenant_sha256",
+  "oauth_code_jti_sha256", "access_token_jti_sha256", "stage_request_id_sha256",
+  "previous_envelope_sha256", "correlation_envelope_sha256", "redirect_uri_sha256",
+  "deployment_sha", "occurred_at", "expires_at", "secrets_included", "canonical_sha256",
+]);
+
+function fail(code, message, status = 400) {
+  const error = new Error(message || code);
+  error.code = code;
+  error.status = status;
+  error.secrets_included = false;
+  throw error;
+}
+
+function stable(value) {
+  if (Array.isArray(value)) return value.map(stable);
+  if (value && typeof value === "object") {
+    return Object.fromEntries(Object.keys(value).sort().map((key) => [key, stable(value[key])]));
+  }
+  return value;
+}
+
+function sha256(value) {
+  return createHash("sha256").update(String(value ?? ""), "utf8").digest("hex");
+}
+
+function canonicalDigest(value) {
+  const material = Object.fromEntries(Object.entries(value).filter(([key]) => key !== "canonical_sha256"));
+  return sha256(JSON.stringify(stable(material)));
+}
+
+function assertPlainObject(value, label) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    fail("oauth_recovery_evidence_shape_invalid", label + " must be an object.");
+  }
+}
+
+function assertAllowedKeys(value, allowed, label) {
+  assertPlainObject(value, label);
+  for (const key of Object.keys(value)) {
+    if (allowed.has(key)) continue;
+    if (SENSITIVE_INPUT_KEY.test(key)) {
+      fail("oauth_recovery_evidence_sensitive_field_forbidden", label + "." + key + " is forbidden; persist only bounded no-secret evidence.");
+    }
+    fail("oauth_recovery_evidence_field_not_allowed", label + "." + key + " is not part of the recovery evidence contract.");
+  }
+}
+
+function requireSha40(value, field) {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (!SHA40.test(normalized)) {
+    fail("oauth_recovery_evidence_deployment_sha_invalid", field + " must be an exact lowercase 40-character SHA.");
+  }
+  return normalized;
+}
+
+function optionalSha256(value, field) {
+  if (value === null || value === undefined || value === "") return null;
+  const normalized = String(value).trim().toLowerCase();
+  if (!SHA256.test(normalized)) {
+    fail("oauth_recovery_evidence_hash_invalid", field + " must be a SHA-256 hex digest.");
+  }
+  return normalized;
+}
+
+function requireSha256(value, field) {
+  const normalized = optionalSha256(value, field);
+  if (!normalized) fail("oauth_recovery_evidence_hash_required", field + " is required for this Recovery stage.");
+  return normalized;
+}
+
+function requireUuid(value, field) {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (!UUID.test(normalized)) fail("oauth_recovery_evidence_identity_invalid", field + " must be a UUID.");
+  return normalized;
+}
+
+function normalizeTimestamp(value, field) {
+  const parsed = Date.parse(String(value || ""));
+  if (!Number.isFinite(parsed)) fail("oauth_recovery_evidence_timestamp_invalid", field + " must be ISO-8601.");
+  return new Date(parsed).toISOString();
+}
+
+function assertFreshness(occurredAt, expiresAt, nowMs) {
+  const occurred = Date.parse(occurredAt);
+  const expires = Date.parse(expiresAt);
+  if (
+    !Number.isFinite(occurred) || !Number.isFinite(expires) || expires <= occurred
+    || expires - occurred > RECOVERY_EVIDENCE_CEILING_MILLISECONDS
+    || occurred > Number(nowMs) + 60_000 || expires <= Number(nowMs)
+  ) {
+    fail("oauth_recovery_evidence_freshness_invalid", "Recovery evidence freshness window is invalid.");
+  }
+}
+
+function normalizeWriteBudgetMs(value) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 10 || parsed > 5000) {
+    fail(
+      "oauth_recovery_evidence_write_budget_invalid",
+      "Recovery evidence write budget must be between 10 and 5000 milliseconds.",
+      500,
+    );
+  }
+  return Math.floor(parsed);
+}
+
+async function queryWithinWriteBudget(query, sql, params, writeBudgetMs) {
+  const budgetMs = normalizeWriteBudgetMs(writeBudgetMs);
+  let timer = null;
+  const deadline = new Promise((_, reject) => {
+    timer = setTimeout(() => {
+      const error = new Error("Recovery evidence persistence exceeded its bounded write deadline.");
+      error.code = "oauth_recovery_evidence_write_deadline_exceeded";
+      error.status = 503;
+      error.secrets_included = false;
+      reject(error);
+    }, budgetMs);
+  });
+  try {
+    return await Promise.race([
+      Promise.resolve().then(() => query(sql, params)),
+      deadline,
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+function normalizeReadBudgetMs(value) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 10 || parsed > 5000) {
+    fail(
+      "oauth_recovery_evidence_read_budget_invalid",
+      "Recovery evidence read budget must be between 10 and 5000 milliseconds.",
+      500,
+    );
+  }
+  return Math.floor(parsed);
+}
+
+async function queryWithinReadBudget(query, sql, params, readBudgetMs) {
+  const budgetMs = normalizeReadBudgetMs(readBudgetMs);
+  let timer = null;
+  const deadline = new Promise((_, reject) => {
+    timer = setTimeout(() => {
+      const error = new Error("Recovery evidence readback exceeded its bounded read deadline.");
+      error.code = "oauth_recovery_evidence_read_deadline_exceeded";
+      error.status = 503;
+      error.secrets_included = false;
+      reject(error);
+    }, budgetMs);
+  });
+  try {
+    return await Promise.race([
+      Promise.resolve().then(() => query(sql, params)),
+      deadline,
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+function eventName(value) {
+  const normalized = String(value || "").trim();
+  if (normalized === "callback_received") {
+    fail("oauth_recovery_callback_external_authority_required", "callback_received is external authority and cannot be recorded by the server-owned sink.", 403);
+  }
+  if (!TENANT_GPT_OAUTH_RECOVERY_SERVER_EVENTS.includes(normalized)) {
+    fail("oauth_recovery_evidence_event_invalid", "Recovery event is not owned by the server evidence sink.");
+  }
+  return normalized;
+}
+
+function strictStagingRuntime(env) {
+  const runtime = resolveRuntimeEnvironmentStrict(env);
+  if (
+    runtime?.ok !== true
+    || runtime.environment_key !== "staging"
+    || runtime.runtime_class !== "local_windows_docker"
+    || runtime.runtime_class_explicit !== true
+  ) {
+    fail(
+      "oauth_recovery_evidence_staging_runtime_required",
+      "Server-owned OAuth Recovery evidence requires explicit local Windows/Docker Staging.",
+      403,
+    );
+  }
+  return runtime;
+}
+
+function configuredExpectedDeploymentSha(env) {
+  const values = [];
+  for (const key of ["REMOTE_MCP_EXPECTED_DEPLOYMENT_SHA", "DEPLOYMENT_EXPECTED_COMMIT_SHA", "DEPLOY_COMMIT"]) {
+    const raw = String(env?.[key] || "").trim().toLowerCase();
+    if (!raw) continue;
+    if (!SHA40.test(raw)) fail("oauth_recovery_evidence_expected_deployment_sha_invalid", key + " must be an exact 40-character SHA when configured.", 503);
+    values.push(raw);
+  }
+  const unique = [...new Set(values)];
+  if (unique.length === 0) fail("oauth_recovery_evidence_expected_deployment_sha_required", "Recovery evidence requires an environment-bound expected deployment SHA.", 503);
+  if (unique.length !== 1) fail("oauth_recovery_evidence_expected_deployment_sha_conflict", "Configured Staging deployment SHA signals disagree.", 409);
+  return unique[0];
+}
+
+export function resolveTenantGptOAuthRecoveryDeploymentSha(
+  env = process.env,
+  { deploymentIdentityReader = readCanonicalDeploymentIdentity } = {},
+) {
+  strictStagingRuntime(env);
+  if (typeof deploymentIdentityReader !== "function") {
+    fail("oauth_recovery_evidence_deployment_identity_reader_required", "A canonical deployment identity reader is required.", 500);
+  }
+  const identity = deploymentIdentityReader({ env, requireManifest: true });
+  const deployedSha = String(identity?.commit_sha || identity?.sha || "").trim().toLowerCase();
+  if (
+    identity?.ok !== true
+    || identity?.manifest_bound !== true
+    || identity?.repository !== REPOSITORY
+    || identity?.branch !== STAGING_SOURCE_BRANCH
+    || identity?.manifest?.secrets_included !== false
+    || !SHA40.test(deployedSha)
+  ) {
+    fail("oauth_recovery_evidence_deployment_identity_invalid", "Recovery evidence requires a no-secret, manifest-bound deployed identity.", 503);
+  }
+  const expectedSha = configuredExpectedDeploymentSha(env);
+  if (deployedSha !== expectedSha) {
+    fail("oauth_recovery_evidence_deployment_mismatch", "Observed deployment manifest SHA does not match the expected Staging deployment SHA.", 409);
+  }
+  return deployedSha;
+}
+
+function assertStageEvidenceShape(evidence) {
+  const index = TENANT_GPT_OAUTH_RECOVERY_SERVER_EVENTS.indexOf(evidence.event);
+  if (index < 0) fail("oauth_recovery_evidence_event_invalid", "Recovery evidence event is invalid.");
+  requireSha256(evidence.client_id_sha256, "client_id_sha256");
+  requireSha256(evidence.stage_request_id_sha256, "stage_request_id_sha256");
+  requireSha256(evidence.correlation_envelope_sha256, "correlation_envelope_sha256");
+
+  if (index === 0) {
+    if (evidence.previous_envelope_sha256 !== null) {
+      fail("oauth_recovery_evidence_initial_ancestry_invalid", "authorize_received must not declare a previous envelope.", 409);
+    }
+  } else {
+    requireSha256(evidence.previous_envelope_sha256, "previous_envelope_sha256");
+  }
+
+  if (index >= 1) {
+    requireSha256(evidence.subject_user_sha256, "subject_user_sha256");
+    requireSha256(evidence.subject_tenant_sha256, "subject_tenant_sha256");
+  } else if (evidence.subject_user_sha256 !== null || evidence.subject_tenant_sha256 !== null) {
+    fail("oauth_recovery_evidence_subject_stage_invalid", "Subject binding cannot precede identity verification.", 409);
+  }
+
+  if (index >= 2) {
+    requireSha256(evidence.oauth_code_jti_sha256, "oauth_code_jti_sha256");
+  } else if (evidence.oauth_code_jti_sha256 !== null) {
+    fail("oauth_recovery_evidence_code_stage_invalid", "OAuth code binding cannot precede code issuance.", 409);
+  }
+
+  if (index >= 3) {
+    requireSha256(evidence.access_token_jti_sha256, "access_token_jti_sha256");
+  } else if (evidence.access_token_jti_sha256 !== null) {
+    fail("oauth_recovery_evidence_access_stage_invalid", "Access-token binding cannot precede token exchange.", 409);
+  }
+
+  if (evidence.event === "resource_request_verified") {
+    if (evidence.redirect_uri_sha256 !== null) {
+      fail("oauth_recovery_evidence_terminal_redirect_invalid", "Protected-resource verification cannot synthesize a redirect observation.", 409);
+    }
+  } else {
+    requireSha256(evidence.redirect_uri_sha256, "redirect_uri_sha256");
+  }
+}
+
+export function buildTenantGptOAuthRecoveryServerEvidence(input = {}, {
+  nowMs = Date.now(),
+  env = process.env,
+  deploymentIdentityReader = readCanonicalDeploymentIdentity,
+} = {}) {
+  strictStagingRuntime(env);
+  assertAllowedKeys(input, INPUT_KEYS, "input");
+  const event = eventName(input.event);
+  const correlation = verifyTenantGptOAuthOperationCorrelation(input.correlation, { expected_stage: EVENT_STAGE[event] });
+  const deploymentSha = resolveTenantGptOAuthRecoveryDeploymentSha(env, { deploymentIdentityReader });
+  const occurredAt = normalizeTimestamp(correlation.updated_at, "occurred_at");
+  const expiresAt = new Date(Date.parse(occurredAt) + RECOVERY_EVIDENCE_WINDOW_MILLISECONDS).toISOString();
+  assertFreshness(occurredAt, expiresAt, nowMs);
+
+  const evidence = {
+    contract: TENANT_GPT_OAUTH_RECOVERY_SERVER_EVIDENCE_CONTRACT,
+    schema_version: 1,
+    source: "server_owned_oauth_runtime",
+    environment: "staging",
+    integrity: "canonical_digest",
+    source_authenticity: "not_established",
+    event,
+    oauth_stage: correlation.stage,
+    operation_id: requireUuid(correlation.operation_id, "operation_id"),
+    correlation_id: requireUuid(correlation.correlation_id, "correlation_id"),
+    protected_resource: correlation.protected_resource,
+    client_id_sha256: optionalSha256(correlation.client_id_sha256, "client_id_sha256"),
+    subject_user_sha256: optionalSha256(correlation.subject_user_sha256, "subject_user_sha256"),
+    subject_tenant_sha256: optionalSha256(correlation.subject_tenant_sha256, "subject_tenant_sha256"),
+    oauth_code_jti_sha256: optionalSha256(correlation.oauth_code_jti_sha256, "oauth_code_jti_sha256"),
+    access_token_jti_sha256: optionalSha256(correlation.access_token_jti_sha256, "access_token_jti_sha256"),
+    stage_request_id_sha256: optionalSha256(correlation.stage_request_id_sha256, "stage_request_id_sha256"),
+    previous_envelope_sha256: optionalSha256(correlation.previous_envelope_sha256, "previous_envelope_sha256"),
+    correlation_envelope_sha256: optionalSha256(correlation.envelope_sha256, "correlation_envelope_sha256"),
+    redirect_uri_sha256: optionalSha256(input.redirect_uri_sha256, "redirect_uri_sha256"),
+    deployment_sha: deploymentSha,
+    occurred_at: occurredAt,
+    expires_at: expiresAt,
+    secrets_included: false,
+    canonical_sha256: null,
+  };
+  assertStageEvidenceShape(evidence);
+  evidence.canonical_sha256 = canonicalDigest(evidence);
+  return Object.freeze(evidence);
+}
+
+export function verifyTenantGptOAuthRecoveryServerEvidence(evidence, {
+  expectedOperationId = null,
+  expectedCorrelationId = null,
+  expectedDeploymentSha = null,
+  nowMs = Date.now(),
+} = {}) {
+  assertAllowedKeys(evidence, EVIDENCE_KEYS, "evidence");
+  if (
+    evidence.contract !== TENANT_GPT_OAUTH_RECOVERY_SERVER_EVIDENCE_CONTRACT
+    || Number(evidence.schema_version) !== 1
+    || evidence.source !== "server_owned_oauth_runtime"
+    || evidence.environment !== "staging"
+    || evidence.integrity !== "canonical_digest"
+    || evidence.source_authenticity !== "not_established"
+    || evidence.secrets_included !== false
+  ) {
+    fail("oauth_recovery_evidence_contract_invalid", "Recovery evidence contract is invalid.");
+  }
+  const event = eventName(evidence.event);
+  if (evidence.oauth_stage !== EVENT_STAGE[event]) fail("oauth_recovery_evidence_stage_mismatch", "Recovery event does not match its OAuth runtime stage.");
+  const normalizedResource = normalizeTenantGptOAuthResource(evidence.protected_resource);
+  if (!normalizedResource || normalizedResource !== evidence.protected_resource) {
+    fail("oauth_recovery_evidence_resource_invalid", "Recovery evidence protected_resource is not canonical.", 409);
+  }
+  const operationId = requireUuid(evidence.operation_id, "operation_id");
+  const correlationId = requireUuid(evidence.correlation_id, "correlation_id");
+  if (expectedOperationId && operationId !== requireUuid(expectedOperationId, "expectedOperationId")) fail("oauth_recovery_evidence_operation_mismatch", "Recovery evidence belongs to another operation.", 409);
+  if (expectedCorrelationId && correlationId !== requireUuid(expectedCorrelationId, "expectedCorrelationId")) fail("oauth_recovery_evidence_correlation_mismatch", "Recovery evidence belongs to another correlation.", 409);
+  const deploymentSha = requireSha40(evidence.deployment_sha, "deployment_sha");
+  if (expectedDeploymentSha && deploymentSha !== requireSha40(expectedDeploymentSha, "expectedDeploymentSha")) fail("oauth_recovery_evidence_deployment_mismatch", "Recovery evidence belongs to another deployment.", 409);
+
+  for (const field of [
+    "client_id_sha256", "subject_user_sha256", "subject_tenant_sha256", "oauth_code_jti_sha256",
+    "access_token_jti_sha256", "stage_request_id_sha256", "previous_envelope_sha256",
+    "correlation_envelope_sha256", "redirect_uri_sha256",
+  ]) optionalSha256(evidence[field], field);
+
+  assertStageEvidenceShape(evidence);
+  const occurredAt = normalizeTimestamp(evidence.occurred_at, "occurred_at");
+  const expiresAt = normalizeTimestamp(evidence.expires_at, "expires_at");
+  assertFreshness(occurredAt, expiresAt, nowMs);
+  if (!SHA256.test(String(evidence.canonical_sha256 || "")) || canonicalDigest(evidence) !== evidence.canonical_sha256) {
+    fail("oauth_recovery_evidence_canonical_hash_mismatch", "Recovery evidence canonical hash does not match its content.", 409);
+  }
+  return Object.freeze({ ...evidence });
+}
+
+export async function recordTenantGptOAuthRecoveryServerEvidence({
+  query,
+  input,
+  enabled = true,
+  env = process.env,
+  nowMs = Date.now(),
+  deploymentIdentityReader = readCanonicalDeploymentIdentity,
+  writeBudgetMs = RECOVERY_EVIDENCE_WRITE_BUDGET_MILLISECONDS,
+} = {}) {
+  const runtime = resolveRuntimeEnvironmentStrict(env);
+  if (
+    enabled !== true
+    || runtime?.ok !== true
+    || runtime.environment_key !== "staging"
+    || runtime.runtime_class !== "local_windows_docker"
+    || runtime.runtime_class_explicit !== true
+  ) {
+    return Object.freeze({
+      recorded: false,
+      reason: "strict_staging_runtime_required",
+      production_mutation_performed: false,
+      secrets_included: false,
+    });
+  }
+  if (typeof query !== "function") fail("oauth_recovery_evidence_query_required", "A governed execution_log query function is required.", 500);
+
+  const evidence = buildTenantGptOAuthRecoveryServerEvidence(input, { nowMs, env, deploymentIdentityReader });
+  const now = new Date(Number(nowMs));
+  await queryWithinWriteBudget(
+    query,
+    [
+      "INSERT INTO `execution_log`",
+      "  (run_date, start_time, end_time, duration_seconds, entry_type, execution_class, source_layer,",
+      "   execution_status, failure_reason, output_summary, action_key, endpoint_key, parent_action_key,",
+      "   correlation_id, runtime_evidence_json, created_at)",
+      " VALUES (?, ?, ?, ?, 'diagnostic', 'oauth', 'tenant_gpt_oauth_recovery_evidence_sink',",
+      "   'success', NULL, ?, ?, ?, 'tenant_gpt_oauth_recovery', ?, ?, CURRENT_TIMESTAMP)",
+    ].join("\n"),
+    [
+      now.toISOString().slice(0, 10),
+      now.toISOString(),
+      now.toISOString(),
+      "0.000",
+      JSON.stringify({ ok: true, event: evidence.event, operation_id: evidence.operation_id, correlation_id: evidence.correlation_id, secrets_included: false }),
+      TENANT_GPT_OAUTH_RECOVERY_SERVER_EVIDENCE_ACTION_KEY,
+      "oauth_recovery_" + evidence.event,
+      evidence.correlation_id,
+      JSON.stringify(evidence),
+    ],
+    writeBudgetMs,
+  );
+  return Object.freeze({ recorded: true, evidence, production_mutation_performed: false, secrets_included: false });
+}
+
+function rowsFromQueryResult(result) {
+  if (Array.isArray(result?.[0])) return result[0];
+  if (Array.isArray(result)) return result;
+  return [];
+}
+
+function parseEvidenceRow(row) {
+  const raw = row?.runtime_evidence_json;
+  if (raw && typeof raw === "object") return raw;
+  try {
+    return JSON.parse(String(raw || ""));
+  } catch {
+    fail("oauth_recovery_evidence_row_invalid", "execution_log contains invalid recovery evidence JSON.", 409);
+  }
+}
+
+function assertObservedTransition(previous, current) {
+  if (current.previous_envelope_sha256 !== previous.correlation_envelope_sha256) {
+    fail("oauth_recovery_evidence_ancestry_mismatch", "Recovery envelope ancestry is not continuous.", 409);
+  }
+  if (Date.parse(current.occurred_at) < Date.parse(previous.occurred_at)) {
+    fail("oauth_recovery_evidence_time_order_invalid", "Recovery evidence time moved backwards.", 409);
+  }
+  if (
+    current.protected_resource !== previous.protected_resource
+    || current.client_id_sha256 !== previous.client_id_sha256
+  ) {
+    fail("oauth_recovery_evidence_binding_drift", "Recovery resource or client binding drifted across server stages.", 409);
+  }
+  if (
+    previous.subject_user_sha256 !== null
+    && (
+      current.subject_user_sha256 !== previous.subject_user_sha256
+      || current.subject_tenant_sha256 !== previous.subject_tenant_sha256
+    )
+  ) {
+    fail("oauth_recovery_evidence_subject_drift", "Recovery subject binding drifted across server stages.", 409);
+  }
+  if (
+    previous.oauth_code_jti_sha256 !== null
+    && current.oauth_code_jti_sha256 !== previous.oauth_code_jti_sha256
+  ) {
+    fail("oauth_recovery_evidence_code_drift", "Recovery OAuth code binding drifted across server stages.", 409);
+  }
+  if (
+    previous.access_token_jti_sha256 !== null
+    && current.access_token_jti_sha256 !== previous.access_token_jti_sha256
+  ) {
+    fail("oauth_recovery_evidence_access_drift", "Recovery access-token binding drifted across server stages.", 409);
+  }
+  if (
+    previous.redirect_uri_sha256 !== null
+    && current.redirect_uri_sha256 !== null
+    && current.redirect_uri_sha256 !== previous.redirect_uri_sha256
+  ) {
+    fail("oauth_recovery_evidence_redirect_drift", "Recovery redirect binding drifted across server stages.", 409);
+  }
+}
+
+function assertContinuousBindings(chain) {
+  if (!Array.isArray(chain) || chain.length !== TENANT_GPT_OAUTH_RECOVERY_SERVER_EVENTS.length) {
+    fail("oauth_recovery_evidence_chain_incomplete", "A complete five-stage server evidence chain is required.", 409);
+  }
+  const first = chain[0].evidence;
+  const identity = chain[1].evidence;
+  const code = chain[2].evidence;
+  const token = chain[3].evidence;
+  const resource = chain[4].evidence;
+  const redirectHashes = chain.slice(0, 4).map((item) => item.evidence.redirect_uri_sha256);
+  if (new Set(redirectHashes).size !== 1) fail("oauth_recovery_evidence_redirect_drift", "Recovery redirect binding drifted across server stages.", 409);
+
+  for (let index = 0; index < chain.length; index += 1) {
+    const current = chain[index].evidence;
+    if (current.protected_resource !== first.protected_resource || current.client_id_sha256 !== first.client_id_sha256) {
+      fail("oauth_recovery_evidence_binding_drift", "Recovery resource or client binding drifted across server stages.", 409);
+    }
+    if (index > 0) {
+      const previous = chain[index - 1].evidence;
+      if (current.previous_envelope_sha256 !== previous.correlation_envelope_sha256) fail("oauth_recovery_evidence_ancestry_mismatch", "Recovery envelope ancestry is not continuous.", 409);
+      if (Date.parse(current.occurred_at) < Date.parse(previous.occurred_at)) fail("oauth_recovery_evidence_time_order_invalid", "Recovery evidence time moved backwards.", 409);
+      if (current.subject_user_sha256 !== identity.subject_user_sha256 || current.subject_tenant_sha256 !== identity.subject_tenant_sha256) {
+        fail("oauth_recovery_evidence_subject_drift", "Recovery subject binding drifted across server stages.", 409);
+      }
+    }
+    if (index >= 2 && current.oauth_code_jti_sha256 !== code.oauth_code_jti_sha256) fail("oauth_recovery_evidence_code_drift", "Recovery OAuth code binding drifted across server stages.", 409);
+    if (index >= 3 && current.access_token_jti_sha256 !== token.access_token_jti_sha256) fail("oauth_recovery_evidence_access_drift", "Recovery access-token binding drifted across server stages.", 409);
+  }
+
+  if (resource.redirect_uri_sha256 !== null) fail("oauth_recovery_evidence_terminal_redirect_invalid", "Protected-resource verification cannot claim a redirect observation.", 409);
+}
+
+export async function readTenantGptOAuthRecoveryServerEvidence({
+  query,
+  operation_id,
+  correlation_id,
+  deployment_sha = null,
+  env = process.env,
+  deploymentIdentityReader = readCanonicalDeploymentIdentity,
+  nowMs = Date.now(),
+  readBudgetMs = RECOVERY_EVIDENCE_READ_BUDGET_MILLISECONDS,
+} = {}) {
+  if (typeof query !== "function") fail("oauth_recovery_evidence_query_required", "A governed execution_log query function is required.", 500);
+  strictStagingRuntime(env);
+  const operationId = requireUuid(operation_id, "operation_id");
+  const correlationId = requireUuid(correlation_id, "correlation_id");
+  const observedDeploymentSha = resolveTenantGptOAuthRecoveryDeploymentSha(env, { deploymentIdentityReader });
+  if (deployment_sha && requireSha40(deployment_sha, "deployment_sha") !== observedDeploymentSha) {
+    fail("oauth_recovery_evidence_deployment_mismatch", "Readback deployment hint does not match observed runtime deployment.", 409);
+  }
+
+  const result = await queryWithinReadBudget(
+    query,
+    [
+      "SELECT id, runtime_evidence_json",
+      "  FROM `execution_log`",
+      " WHERE action_key = ?",
+      "   AND correlation_id = ?",
+      "   AND created_at >= DATE_SUB(CURRENT_TIMESTAMP, INTERVAL 1 HOUR)",
+      " ORDER BY id ASC",
+      " LIMIT " + String(MAX_READBACK_ROWS + 1),
+    ].join("\n"),
+    [TENANT_GPT_OAUTH_RECOVERY_SERVER_EVIDENCE_ACTION_KEY, correlationId],
+    readBudgetMs,
+  );
+
+  const rows = rowsFromQueryResult(result);
+  if (rows.length > MAX_READBACK_ROWS) fail("oauth_recovery_evidence_readback_bound_exceeded", "Recovery evidence readback exceeded the bounded row budget.", 409);
+
+  const byEvent = new Map(TENANT_GPT_OAUTH_RECOVERY_SERVER_EVENTS.map((event) => [event, []]));
+  const rawCounts = new Map(TENANT_GPT_OAUTH_RECOVERY_SERVER_EVENTS.map((event) => [event, 0]));
+  const seenCanonical = new Map(TENANT_GPT_OAUTH_RECOVERY_SERVER_EVENTS.map((event) => [event, new Set()]));
+
+  for (const row of rows) {
+    const evidence = verifyTenantGptOAuthRecoveryServerEvidence(parseEvidenceRow(row), {
+      expectedOperationId: operationId,
+      expectedCorrelationId: correlationId,
+      expectedDeploymentSha: observedDeploymentSha,
+      nowMs,
+    });
+    rawCounts.set(evidence.event, Number(rawCounts.get(evidence.event) || 0) + 1);
+    const seen = seenCanonical.get(evidence.event);
+    if (seen.has(evidence.canonical_sha256)) continue;
+    seen.add(evidence.canonical_sha256);
+    const candidates = byEvent.get(evidence.event);
+    if (candidates.length >= MAX_EVENT_CANDIDATES) fail("oauth_recovery_evidence_event_candidate_bound_exceeded", "Recovery evidence candidate budget was exceeded for one event.", 409);
+    candidates.push({ row_id: Number(row?.id || 0), evidence });
+  }
+
+  for (const event of TENANT_GPT_OAUTH_RECOVERY_SERVER_EVENTS.slice(0, -1)) {
+    const candidates = byEvent.get(event) || [];
+    if (candidates.length > 1) {
+      fail(
+        "oauth_recovery_evidence_nonterminal_fork",
+        "More than one distinct non-terminal Recovery observation exists for the same OAuth correlation.",
+        409,
+      );
+    }
+  }
+
+  for (let index = 1; index < TENANT_GPT_OAUTH_RECOVERY_SERVER_EVENTS.length; index += 1) {
+    const previousCandidates = byEvent.get(TENANT_GPT_OAUTH_RECOVERY_SERVER_EVENTS[index - 1]) || [];
+    const currentCandidates = byEvent.get(TENANT_GPT_OAUTH_RECOVERY_SERVER_EVENTS[index]) || [];
+    if (previousCandidates.length !== 1 || currentCandidates.length === 0) continue;
+    for (const current of currentCandidates) {
+      assertObservedTransition(previousCandidates[0].evidence, current.evidence);
+    }
+  }
+
+  let states = [[]];
+  for (const event of TENANT_GPT_OAUTH_RECOVERY_SERVER_EVENTS) {
+    const nextStates = [];
+    for (const state of states) {
+      const prior = state[state.length - 1]?.evidence || null;
+      for (const candidate of byEvent.get(event) || []) {
+        if (prior && candidate.evidence.previous_envelope_sha256 !== prior.correlation_envelope_sha256) continue;
+        nextStates.push([...state, candidate]);
+        if (nextStates.length > MAX_CHAIN_STATES) fail("oauth_recovery_evidence_chain_state_bound_exceeded", "Recovery evidence chain search exceeded its bounded state budget.", 409);
+      }
+    }
+    states = nextStates;
+    if (!states.length) break;
+  }
+
+  const chains = states.filter((state) => state.length === TENANT_GPT_OAUTH_RECOVERY_SERVER_EVENTS.length);
+  let selected = null;
+  if (chains.length) {
+    const prefixHashes = new Set(chains.map((chain) => chain.slice(0, -1).map((item) => item.evidence.canonical_sha256).join(":")));
+    if (prefixHashes.size > 1) fail("oauth_recovery_evidence_multiple_chain_conflict", "More than one complete server-owned OAuth Recovery chain exists for this operation.", 409);
+    selected = [...chains].sort((left, right) => Number(left[left.length - 1]?.row_id || 0) - Number(right[right.length - 1]?.row_id || 0))[0];
+    assertContinuousBindings(selected);
+  }
+
+  const presentEvents = new Set(TENANT_GPT_OAUTH_RECOVERY_SERVER_EVENTS.filter((event) => Number(rawCounts.get(event) || 0) > 0));
+  if (!selected && presentEvents.size === TENANT_GPT_OAUTH_RECOVERY_SERVER_EVENTS.length) {
+    fail("oauth_recovery_evidence_chain_mismatch", "All Recovery stages are present but they do not form one continuous hash-linked OAuth correlation chain.", 409);
+  }
+
+  return Object.freeze({
+    contract: TENANT_GPT_OAUTH_RECOVERY_SERVER_READBACK_CONTRACT,
+    operation_id: operationId,
+    correlation_id: correlationId,
+    deployment_sha: observedDeploymentSha,
+    complete: Boolean(selected),
+    chain_verified: Boolean(selected),
+    integrity: "canonical_digest",
+    source_authenticity: "not_established",
+    missing_events: TENANT_GPT_OAUTH_RECOVERY_SERVER_EVENTS.filter((event) => !presentEvents.has(event)),
+    duplicate_observation_counts: Object.fromEntries(
+      TENANT_GPT_OAUTH_RECOVERY_SERVER_EVENTS.map((event) => [event, Math.max(0, Number(rawCounts.get(event) || 0) - 1)]),
+    ),
+    events: selected ? selected.map((item) => item.evidence) : [],
+    production_mutation_performed: false,
+    secrets_included: false,
+  });
+}

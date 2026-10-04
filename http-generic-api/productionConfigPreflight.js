@@ -1,3 +1,4 @@
+import { resolveLocalManagerWriteDbConfig } from "./localManagerWriteAuthority.js";
 import { createHash } from "node:crypto";
 
 const MIN_SECRET_LENGTH = 32;
@@ -14,6 +15,7 @@ const REQUIRED_CONTROL_PLANE_WRITE_DB_KEYS = [
   "CONTROL_PLANE_WRITE_DB_PASSWORD",
 ];
 const REQUIRED_LOCAL_MANAGER_WRITE_DB_KEYS = [
+  "LOCAL_MANAGER_WRITE_DB_ENVIRONMENT",
   "LOCAL_MANAGER_WRITE_DB_HOST",
   "LOCAL_MANAGER_WRITE_DB_NAME",
   "LOCAL_MANAGER_WRITE_DB_USER",
@@ -161,14 +163,20 @@ export function evaluateProductionConfig(env = process.env) {
   if (!localManagerWriteEnabled) {
     warnings.push("Local Manager dedicated write authority is disabled; connector-alias reconciliation and explicit n8n provisioning remain fail-closed.");
   }
+  let localManagerTargetBound = false;
+  if (localManagerWriteEnabled && !missingLocalManagerWriteKeys.length && localManagerDedicated) {
+    try { resolveLocalManagerWriteDbConfig(env); localManagerTargetBound = true; }
+    catch (error) { errors.push(error.code + ": " + error.message); }
+  }
   const localManagerWrite = {
     enabled: localManagerWriteEnabled,
     missing_keys: missingLocalManagerWriteKeys,
     dedicated_identity: localManagerDedicated,
+    runtime_target_bound: localManagerTargetBound,
     authorities: ["local_connector_alias_reconciliation_writer", "local_manager_n8n_provisioning_writer"],
     generic_runtime_fallback: false,
     status: localManagerWriteEnabled
-      ? (missingLocalManagerWriteKeys.length || !localManagerDedicated ? "invalid" : "configured")
+      ? (missingLocalManagerWriteKeys.length || !localManagerDedicated || !localManagerTargetBound ? "invalid" : "configured")
       : "disabled",
     secrets_included: false,
   };

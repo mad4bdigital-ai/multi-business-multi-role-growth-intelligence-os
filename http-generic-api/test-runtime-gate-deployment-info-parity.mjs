@@ -103,6 +103,23 @@ try {
   let hostLocalInspectionReaderInput;
   process.env.GITHUB_REPOSITORY = "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os";
   app.use(buildDeploymentInfoRoutes({
+    runtimeEnvironmentReader: async () => ({
+      contract: "mad4b.runtime-environment-resolver.v1",
+      environment_policy_contract: "mad4b.runtime-environment-policy.v1",
+      ok: true,
+      environment_key: "staging",
+      runtime_variant: "staging_local_windows_docker",
+      canonical_runtime_variant: "staging_local_windows_docker",
+      runtime_class: "local_windows_docker",
+      runtime_class_explicit: true,
+      deployment_model: "main_local_staging",
+      source_branch: "main",
+      reason: null,
+      signal_keys: ["deployment-environment", "node-environment", "remote-mcp-environment"],
+      signal_count: 3,
+      raw_values_exposed: false,
+      secrets_included: false,
+    }),
     runtimeIntegrityReader: async (input) => {
       integrityReaderInput = input;
       return ({
@@ -242,6 +259,22 @@ try {
   assert.equal(deploymentInfo.evidence.runtime_integrity_state, "degraded");
   assert.equal(deploymentInfo.evidence.runtime_integrity_verified, false);
   assert.equal(deploymentInfo.runtime_integrity.read_only_check, true);
+  assert.equal(deploymentInfo.runtime_environment.ok, true);
+  assert.equal(deploymentInfo.runtime_environment.environment_key, "staging");
+  assert.equal(deploymentInfo.runtime_environment.runtime_variant, "staging_local_windows_docker");
+  assert.equal(deploymentInfo.runtime_environment.canonical_runtime_variant, "staging_local_windows_docker");
+  assert.equal(deploymentInfo.runtime_environment.runtime_class, "local_windows_docker");
+  assert.equal(deploymentInfo.runtime_environment.runtime_class_explicit, true);
+  assert.equal(deploymentInfo.runtime_environment.deployment_model, "main_local_staging");
+  assert.equal(deploymentInfo.runtime_environment.source_branch, "main");
+  assert.equal(deploymentInfo.runtime_environment.raw_values_exposed, false);
+  assert.equal(deploymentInfo.runtime_environment.secrets_included, false);
+  assert.deepEqual(deploymentInfo.runtime_environment.signal_keys.sort(), ["deployment-environment", "node-environment", "remote-mcp-environment"].sort());
+  assert.equal(deploymentInfo.evidence.runtime_environment_resolved, true);
+  assert.equal(deploymentInfo.evidence.runtime_environment_key, "staging");
+  assert.equal(deploymentInfo.evidence.runtime_class_explicit, true);
+  assert.equal(deploymentInfo.evidence.runtime_class, "local_windows_docker");
+  assert.equal(deploymentInfo.evidence.runtime_environment_reason, null);
   assert.equal(deploymentInfo.runtime_bootstrap_status.contract, "mad4b.hostinger.runtime-bootstrap-status.v1");
   assert.equal(deploymentInfo.runtime_bootstrap_status.status, "bootstrap_required");
   assert.equal(deploymentInfo.runtime_bootstrap_status.database_mutation_performed, false);
