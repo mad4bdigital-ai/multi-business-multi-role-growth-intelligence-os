@@ -298,14 +298,50 @@ function Assert-GovernedReleaseCutResume([string]$RemoteCommit) {
     $commentsRaw = (& gh api "/repos/$ExpectedRepository/issues/$PromotionRequestPr/comments?per_page=100" 2>$null | Out-String).Trim()
     if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($commentsRaw)) { Fail "Governed release-cut resume could not read promotion request comments" }
     try { $comments = @($commentsRaw | ConvertFrom-Json) } catch { Fail "Governed release-cut resume comments response is invalid" }
-    $resumePrefix = "GOVERNED_PRODUCTION_STAGING_RESUME_ARMED request_pr=$PromotionRequestPr request_head=$requestHead release_cut=$releaseCut Production=$production candidate=$candidate review_mode="
-    $resumeMarker = @($comments | Where-Object {
+
+    function ConvertFrom-GovernedStagingResumeMarker([string]$Body) {
+        if ([string]::IsNullOrWhiteSpace($Body)) { return $null }
+        $tokens = @($Body.Trim() -split '\s+' | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) })
+        if ($tokens.Count -lt 2 -or [string]$tokens[0] -ne "GOVERNED_PRODUCTION_STAGING_RESUME_ARMED") { return $null }
+
+        $fields = @{}
+        for ($index = 1; $index -lt $tokens.Count; $index++) {
+            $token = [string]$tokens[$index]
+            $separator = $token.IndexOf("=")
+            if ($separator -le 0 -or $separator -ge ($token.Length - 1)) { return $null }
+            $key = $token.Substring(0, $separator)
+            $value = $token.Substring($separator + 1)
+            if ($key -notmatch '^[A-Za-z_][A-Za-z0-9_]*$' -or $fields.ContainsKey($key)) { return $null }
+            $fields[$key] = $value
+        }
+        return $fields
+    }
+
+    $trustedResumeMarkerCandidates = @($comments | Where-Object {
         ([string]$_.user.login) -eq "github-actions[bot]" -and
-        ([string]$_.body).StartsWith($resumePrefix, [System.StringComparison]::Ordinal) -and
-        ([string]$_.body).Contains("merge_executed=false") -and
-        ([string]$_.body).Contains("deployment_executed=false")
+        ([string]$_.body).Trim() -match '^GOVERNED_PRODUCTION_STAGING_RESUME_ARMED(?:\s|$)'
     })
-    if ($resumeMarker.Count -ne 1) { Fail "Governed release-cut resume requires exactly one matching WAITING_FOR_STAGING marker" }
+    $resumeMarker = @($trustedResumeMarkerCandidates | Where-Object {
+        $fields = ConvertFrom-GovernedStagingResumeMarker ([string]$_.body)
+        if ($null -eq $fields) { return $false }
+        return (
+            $fields.ContainsKey("request_pr") -and [string]$fields["request_pr"] -eq [string]$PromotionRequestPr -and
+            $fields.ContainsKey("request_head") -and ([string]$fields["request_head"]).ToLowerInvariant() -eq $requestHead -and
+            $fields.ContainsKey("release_cut") -and ([string]$fields["release_cut"]).ToLowerInvariant() -eq $releaseCut -and
+            $fields.ContainsKey("Production") -and ([string]$fields["Production"]).ToLowerInvariant() -eq $production -and
+            $fields.ContainsKey("candidate") -and ([string]$fields["candidate"]).ToLowerInvariant() -eq $candidate -and
+            $fields.ContainsKey("review_mode") -and -not [string]::IsNullOrWhiteSpace([string]$fields["review_mode"]) -and
+            $fields.ContainsKey("merge_executed") -and [string]$fields["merge_executed"] -eq "false" -and
+            $fields.ContainsKey("deployment_executed") -and [string]$fields["deployment_executed"] -eq "false"
+        )
+    })
+    if ($resumeMarker.Count -ne 1) {
+        Fail "Governed release-cut resume requires exactly one matching WAITING_FOR_STAGING marker" @{
+            promotion_request_pr = $PromotionRequestPr
+            trusted_marker_candidates = $trustedResumeMarkerCandidates.Count
+            matching_markers = $resumeMarker.Count
+        }
+    }
 
     $compareRaw = (& gh api "/repos/$ExpectedRepository/compare/$releaseCut...$currentMain" 2>$null | Out-String).Trim()
     if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($compareRaw)) { Fail "Governed release-cut resume could not verify main ancestry" }
