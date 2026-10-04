@@ -389,7 +389,7 @@ function Invoke-SelfUpdate {
     foreach ($marker in @("prepare-staging-build-context.mjs", "STAGING_BUILD_TREE", "STAGING_BUILD_CONTEXT_FILE_SET_SHA256")) {
         if (-not $reloadedText.Contains($marker)) { Fail "Self-update target script is missing required provenance marker: $marker" }
     }
-    Write-StagingOperationBoundary -Component $LogComponent -Stage "bootstrap-sync" -Outcome "success" -Message "reloaded governed Auto Pilot driver before local execution" -Data @{ driver_sha = $driverCommit; deployment_sha = $deploymentCommit; governed_release_cut_resume = [bool]$AllowGovernedReleaseCutAncestor; secrets_included = $false }
+    Write-StagingOperationBoundary -Component $LogComponent -Stage "bootstrap-sync" -Outcome "success" -Message "reloaded exact-commit Auto Pilot before local execution" -Data @{ driver_sha = $driverCommit; deployment_sha = $deploymentCommit; governed_release_cut_resume = [bool]$AllowGovernedReleaseCutAncestor; secrets_included = $false }
 
     $childBuildMode = if ($SkipBuild) { "Smart" } else { $BuildMode }
     $childArgs = @(
