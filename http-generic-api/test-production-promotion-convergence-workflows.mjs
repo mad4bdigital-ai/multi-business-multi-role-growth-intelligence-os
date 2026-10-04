@@ -215,6 +215,13 @@ assert.match(
   stagingAutoPilot,
   /if \(\$remoteCommit -ne \$ExpectedCommit\.ToLowerInvariant\(\)\) \{[\s\S]*?Assert-GovernedReleaseCutResume \$remoteCommit[\s\S]*?fetch", "origin", \$ExpectedCommit, "--depth=2"/u,
 );
+assert.match(stagingAutoPilot, /ConvertFrom-GovernedStagingResumeMarker/u);
+assert.match(stagingAutoPilot, /trustedResumeMarkerCandidates/u);
+assert.match(stagingAutoPilot, /ContainsKey\("request_pr"\)/u);
+assert.match(stagingAutoPilot, /ContainsKey\("merge_executed"\)/u);
+assert.match(stagingAutoPilot, /trusted_marker_candidates/u);
+assert.doesNotMatch(stagingAutoPilot, /\$resumePrefix\s*=/u);
+assert.doesNotMatch(stagingAutoPilot, /\.StartsWith\(\$resumePrefix/u);
 assert.match(stagingAutoPilot, /Compare|compare\/\$releaseCut\.\.\.\$currentMain/u);
 assert.doesNotMatch(stagingAutoPilot, /gh\s+workflow\s+run/u);
 assert.doesNotMatch(stagingAutoPilot, /gh\s+pr\s+merge/u);
