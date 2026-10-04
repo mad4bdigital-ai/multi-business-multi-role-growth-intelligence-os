@@ -62,7 +62,7 @@
     },
     {
       "path": "autopilot-portable-staging/Start-AutoPilot.ps1",
-      "sha256": "b6e227654d231ce7281c2d4325b342806281777b0234276109fcd453dca59233"
+      "sha256": "9928832114e255f1abeb7d5a8ccb017fbf42e4b7078457999cc9234b11bb9ddc"
     },
     {
       "path": "autopilot-portable-staging/Start-Staging-One-Click.cmd",
@@ -170,7 +170,7 @@
     },
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
-      "sha256": "7e9dfce144af70c6877351584d2ff9836d4ba640891e79117d018aec227bb5b3"
+      "sha256": "29cfad901cd76834964d61fb3fe8d389441e9bbabb70f731fcf977ce9f9a19e9"
     },
     {
       "path": "http-generic-api/remoteMcpConnectorRuntime.js",
