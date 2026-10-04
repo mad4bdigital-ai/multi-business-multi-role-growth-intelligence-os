@@ -85,6 +85,7 @@ jobs:
           request_head_branch=""
           main_sha=""
           production_sha=""
+          release_cut_sha=""
           if [[ "${outcome}" == "eligible" ]]; then
             pr="$(gh api -H 'Accept: application/vnd.github+json' -H 'X-GitHub-Api-Version: 2022-11-28' "repos/${REPOSITORY}/pulls/${REQUEST_PR}")"
             title="$(jq -r '.title' <<<"${pr}")"
@@ -94,8 +95,11 @@ jobs:
             head_repository="$(jq -r '.head.repo.full_name // ""' <<<"${pr}")"
             request_head_branch="$(jq -r '.head.ref' <<<"${pr}")"
             request_head_sha="$(jq -r '.head.sha' <<<"${pr}")"
+            body="$(jq -r '.body // ""' <<<"${pr}")"
             main_sha="$(gh api "/repos/${REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
             production_sha="$(gh api "/repos/${REPOSITORY}/git/ref/heads/Production" --jq '.object.sha')"
+            release_cut_sha="$(sed -n 's/^- release_cut_sha: `\([0-9a-f]\{40\}\)`$/\1/p' <<<"${body}" | head -n1)"
+            [[ -n "${release_cut_sha}" ]] || release_cut_sha="${main_sha}"
 
             if [[ "${title}" != "ops: request governed Production synchronization" ]]; then
               outcome="blocked"; reason="unexpected_request_title"
@@ -109,7 +113,7 @@ jobs:
               outcome="blocked"; reason="invalid_governed_request_branch"
             elif [[ "${request_head_branch}" == "main" || "${request_head_branch}" == "Production" ]]; then
               outcome="blocked"; reason="protected_request_branch_forbidden"
-            elif [[ ! "${request_head_sha}" =~ ^[0-9a-f]{40}$ || ! "${main_sha}" =~ ^[0-9a-f]{40}$ || ! "${production_sha}" =~ ^[0-9a-f]{40}$ ]]; then
+            elif [[ ! "${request_head_sha}" =~ ^[0-9a-f]{40}$ || ! "${main_sha}" =~ ^[0-9a-f]{40}$ || ! "${production_sha}" =~ ^[0-9a-f]{40}$ || ! "${release_cut_sha}" =~ ^[0-9a-f]{40}$ ]]; then
               outcome="blocked"; reason="invalid_exact_ref_identity"
             elif [[ "${GITHUB_SHA}" != "${main_sha}" ]]; then
               outcome="blocked"; reason="main_moved_before_bridge_execution"
@@ -128,12 +132,16 @@ jobs:
               outcome="blocked"; reason="request_branch_moved_after_api_readback"
             elif [[ "${production_readback}" != "${production_sha}" ]]; then
               outcome="blocked"; reason="production_moved_after_api_readback"
-            elif ! git merge-base --is-ancestor "${main_sha}" "${request_head_sha}"; then
-              outcome="blocked"; reason="request_head_does_not_descend_from_current_main"
-            elif ! git diff --quiet "${main_sha}" "${request_head_sha}"; then
-              outcome="blocked"; reason="request_head_tree_differs_from_current_main"
-            elif ! git merge-base --is-ancestor "${production_sha}" "${main_sha}"; then
-              outcome="blocked"; reason="production_not_contained_by_current_main"
+            elif ! git cat-file -e "${release_cut_sha}^{commit}" 2>/dev/null; then
+              outcome="blocked"; reason="release_cut_unavailable"
+            elif ! git merge-base --is-ancestor "${production_sha}" "${release_cut_sha}"; then
+              outcome="blocked"; reason="production_not_contained_by_release_cut"
+            elif ! git merge-base --is-ancestor "${release_cut_sha}" "${main_sha}"; then
+              outcome="blocked"; reason="release_cut_not_contained_by_current_main"
+            elif ! git merge-base --is-ancestor "${release_cut_sha}" "${request_head_sha}"; then
+              outcome="blocked"; reason="request_head_does_not_descend_from_release_cut"
+            elif ! git diff --quiet "${release_cut_sha}" "${request_head_sha}"; then
+              outcome="blocked"; reason="request_head_tree_differs_from_release_cut"
             fi
           fi
 
@@ -145,9 +153,10 @@ jobs:
             --arg request_head_sha "${request_head_sha}" \
             --arg main_sha "${main_sha}" \
             --arg production_sha "${production_sha}" \
+            --arg release_cut_sha "${release_cut_sha}" \
             --arg review_mode "${REVIEW_MODE}" \
             --argjson request_pr "${REQUEST_PR}" \
-            '{contract:$contract,outcome:$outcome,reason:(if ($reason|length)>0 then $reason else null end),request_pr:$request_pr,request_head_branch:(if ($request_head_branch|length)>0 then $request_head_branch else null end),request_head_sha:(if ($request_head_sha|length)>0 then $request_head_sha else null end),main_sha:(if ($main_sha|length)>0 then $main_sha else null end),production_sha:(if ($production_sha|length)>0 then $production_sha else null end),review_mode:$review_mode,dispatch_requested:false,launcher_run_id:null,evidence_comment_written:false,production_merge:false,deployment:false,migration_apply:false,grant_apply:false,provider_mutation:false,credential_payload_read:false,secrets_included:false}' \
+            '{contract:$contract,outcome:$outcome,reason:(if ($reason|length)>0 then $reason else null end),request_pr:$request_pr,request_head_branch:(if ($request_head_branch|length)>0 then $request_head_branch else null end),request_head_sha:(if ($request_head_sha|length)>0 then $request_head_sha else null end),main_sha:(if ($main_sha|length)>0 then $main_sha else null end),production_sha:(if ($production_sha|length)>0 then $production_sha else null end),release_cut_sha:(if ($release_cut_sha|length)>0 then $release_cut_sha else null end),release_cut_mode:(($release_cut_sha|length)>0 and $release_cut_sha != $main_sha),review_mode:$review_mode,dispatch_requested:false,launcher_run_id:null,evidence_comment_written:false,production_merge:false,deployment:false,migration_apply:false,grant_apply:false,provider_mutation:false,credential_payload_read:false,secrets_included:false}' \
             > "${REPORT_DIR}/decision.json"
 
           if [[ "${outcome}" == "eligible" ]]; then
@@ -155,6 +164,7 @@ jobs:
             echo "request_head_sha=${request_head_sha}" >> "$GITHUB_OUTPUT"
             echo "main_sha=${main_sha}" >> "$GITHUB_OUTPUT"
             echo "production_sha=${production_sha}" >> "$GITHUB_OUTPUT"
+            echo "release_cut_sha=${release_cut_sha}" >> "$GITHUB_OUTPUT"
           else
             echo "eligible=false" >> "$GITHUB_OUTPUT"
           fi
@@ -166,6 +176,7 @@ jobs:
           REQUEST_HEAD_SHA: ${{ steps.request.outputs.request_head_sha }}
           MAIN_SHA: ${{ steps.request.outputs.main_sha }}
           PRODUCTION_SHA: ${{ steps.request.outputs.production_sha }}
+          RELEASE_CUT_SHA: ${{ steps.request.outputs.release_cut_sha }}
         run: |
           set -Eeuo pipefail
           current_main_sha="$(gh api "/repos/${REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
@@ -176,7 +187,7 @@ jobs:
           [[ "${current_request_head}" == "${REQUEST_HEAD_SHA}" ]] || { echo "::error::request head moved before launcher dispatch"; exit 1; }
 
           existing_body="$(gh api "/repos/${REPOSITORY}/issues/${REQUEST_PR}/comments?per_page=100" \
-            --jq "[.[] | select(.body | startswith(\"GOVERNED_PRODUCTION_PROMOTION_LAUNCH \") and contains(\"main_sha=${MAIN_SHA}\") and contains(\"production_sha=${PRODUCTION_SHA}\"))] | last.body // empty")"
+            --jq "[.[] | select(.body | startswith(\"GOVERNED_PRODUCTION_PROMOTION_LAUNCH \") and contains(\"main_sha=${MAIN_SHA}\") and contains(\"production_sha=${PRODUCTION_SHA}\") and contains(\"release_cut_sha=${RELEASE_CUT_SHA}\"))] | last.body // empty")"
           if [[ -n "${existing_body}" ]]; then
             existing_run_id="$(sed -n 's/.*launcher_run_id=\([0-9][0-9]*\).*/\1/p' <<<"${existing_body}")"
             if [[ -n "${existing_run_id}" ]]; then
@@ -207,7 +218,7 @@ jobs:
             --repo "${REPOSITORY}" \
             --ref main \
             --field request_pr="${REQUEST_PR}" \
-            --field expected_head_sha="${MAIN_SHA}" \
+            --field expected_head_sha="${RELEASE_CUT_SHA}" \
             --field expected_request_head_sha="${REQUEST_HEAD_SHA}" \
             --field release_branch_prefix="${release_branch_prefix}" \
             --field validation_branch_prefix="${validation_branch_prefix}" \
@@ -229,7 +240,7 @@ jobs:
             "${REPORT_DIR}/decision.json" > "${REPORT_DIR}/decision.tmp"
           mv "${REPORT_DIR}/decision.tmp" "${REPORT_DIR}/decision.json"
 
-          body="GOVERNED_PRODUCTION_PROMOTION_LAUNCH request_pr=${REQUEST_PR} launcher_run_id=${launcher_run_id} main_sha=${MAIN_SHA} production_sha=${PRODUCTION_SHA} review_mode=${REVIEW_MODE} production_merge=false deployment=false migration_apply=false grant_apply=false provider_mutation=false credential_payload_read=false"
+          body="GOVERNED_PRODUCTION_PROMOTION_LAUNCH request_pr=${REQUEST_PR} launcher_run_id=${launcher_run_id} main_sha=${MAIN_SHA} production_sha=${PRODUCTION_SHA} release_cut_sha=${RELEASE_CUT_SHA} review_mode=${REVIEW_MODE} production_merge=false deployment=false migration_apply=false grant_apply=false provider_mutation=false credential_payload_read=false"
           if gh api --method POST "/repos/${REPOSITORY}/issues/${REQUEST_PR}/comments" -f body="${body}" >/dev/null 2>&1; then
             jq '.evidence_comment_written=true' "${REPORT_DIR}/decision.json" > "${REPORT_DIR}/decision.tmp"
             mv "${REPORT_DIR}/decision.tmp" "${REPORT_DIR}/decision.json"
