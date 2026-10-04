@@ -1,0 +1,133 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-activation-registry-schema-reconciliation-20261003",
+  "title": "Staging Activation registry Recovery-only schema reconciliation",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "secrets_included": false,
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-activation-registry-schema-reconciliation-20261003.json",
+      "http-generic-api/staging-recovery-migrations/20261003_staging_activation_registry_schema_reconciliation.sql",
+      "http-generic-api/activation-surfaces/connector_pack_catalog.json",
+      "http-generic-api/config/host-breakglass-staging-contract.json",
+      "http-generic-api/test-staging-recovery-system-tools.mjs",
+      "http-generic-api/config/repository-governance-constitution.json",
+      ".github/derived-state-governance.json",
+      "http-generic-api/stagingRuntimeBootstrapContract.js",
+      "http-generic-api/stagingSchemaRepairSystemTools.js",
+      "http-generic-api/stagingSchemaRepairHandoff.js",
+      "http-generic-api/hostBreakglassLocalRequest.js",
+      "http-generic-api/scripts/host-breakglass-local-verified.mjs",
+      "http-generic-api/scripts/host-breakglass-local.mjs",
+      "http-generic-api/config/deployment-branch-policy.json",
+      "http-generic-api/test-host-breakglass-local-request.mjs",
+      "http-generic-api/test-activation-surface-coverage-gate.mjs"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Restore the eight Activation registry tables required by Staging hard activation through the canonical Recovery-only schema-repair authority introduced by #8365, while keeping the corrective artifact outside the canonical ordered migration chain.",
+      "e2e_journeys": [
+        {
+          "id": "staging-activation-registry-recovery-schema-repair",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Local Windows Staging recovery operator through the governed Recovery System surface",
+          "entrypoint": "staging_recovery_schema_repair_prepare on the exact deployed main SHA with 20261003_staging_activation_registry_schema_reconciliation.sql.",
+          "terminal_outcome": "The eight-table Activation corrective migration is Staging-only, checksum-bound, approval-gated and executed only through the shared single-use execution-ticket + verified local Windows/Docker handoff, with same-cycle schema readback before ticket finalization and no Production/provider mutation authority.",
+          "steps": [
+            "Resolve the Activation corrective migration only from http-generic-api/staging-recovery-migrations and keep it outside http-generic-api/migrations.",
+            "Catalog the artifact as staging_recovery_only with eight CREATE TABLE IF NOT EXISTS statements targeting the runtime role.",
+            "Prepare schema repair through the shared server-derived staging_database_schema_repair authority and bind exact main deployment SHA plus Staging target fingerprint.",
+            "Require APPLY_STAGING_RUNTIME_MIGRATION:<sha>:staging-runtime:<migration> before issuing the single-use execution ticket.",
+            "Return only the verified local Windows/Docker handoff; never return the ticket signature, approval token, credentials, raw SQL or caller-selected database.",
+            "Rebuild and verify the Host Breakglass transport plan on the local Windows host before Docker/MariaDB mutation.",
+            "Verify all eight table postconditions in the same cycle and finalize the ticket only after canonical readback.",
+            "Keep activation_connector_pack_registry exposed through the admin-only connector pack Activation surface without seed/backfill rows.",
+            "Keep Production, Hostinger and provider mutation explicitly forbidden."
+          ],
+          "assertions": [
+            "The corrective SQL exists only under staging-recovery-migrations and is absent from the canonical ordered migration root.",
+            "The migration contains exactly eight additive CREATE TABLE IF NOT EXISTS statements and no INSERT, UPDATE, DELETE, REPLACE, ALTER, DROP, TRUNCATE, GRANT or REVOKE statement.",
+            "The Host Breakglass catalog records artifact_scope=staging_recovery_only, runtime role, exact checksum, exact statement count and eight postconditions.",
+            "The shared schema-repair prepare/approve path accepts this migration without adding a parallel Activation-specific mutation authority.",
+            "Approval yields the same verified local Windows/Docker handoff and single-use execution-ticket lifecycle used by the #8365 precedent.",
+            "Canonical schema-bundle ordering is unchanged by this corrective artifact.",
+            "The declaration is registered in Constitution.control_plane_paths and convergence.automation_control_paths.",
+            "Production mutation, provider mutation and secrets exposure remain false."
+          ],
+          "tests": [
+            {
+              "id": "staging-recovery-system-tools",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-recovery-system-tools.mjs",
+              "args": []
+            },
+            {
+              "id": "host-breakglass-local-request",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-host-breakglass-local-request.mjs",
+              "args": []
+            },
+            {
+              "id": "activation-surface-coverage-gate",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-activation-surface-coverage-gate.mjs",
+              "args": []
+            },
+            {
+              "id": "environment-impact-closure",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-environment-impact-closure.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/staging-activation-registry-schema-reconciliation-20261003.json",
+            "http-generic-api/staging-recovery-migrations/20261003_staging_activation_registry_schema_reconciliation.sql",
+            "http-generic-api/activation-surfaces/connector_pack_catalog.json",
+            "http-generic-api/config/host-breakglass-staging-contract.json",
+            "http-generic-api/test-staging-recovery-system-tools.mjs",
+            "http-generic-api/stagingRuntimeBootstrapContract.js",
+            "http-generic-api/stagingSchemaRepairSystemTools.js",
+            "http-generic-api/stagingSchemaRepairHandoff.js",
+            "http-generic-api/hostBreakglassLocalRequest.js",
+            "http-generic-api/scripts/host-breakglass-local-verified.mjs",
+            "http-generic-api/scripts/host-breakglass-local.mjs",
+            "http-generic-api/config/deployment-branch-policy.json"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "production",
+      "status": "blocked",
+      "objective": "Production schema mutation and release promotion remain outside this Staging corrective repair.",
+      "blockers": [
+        "Production requires a separate governed promotion and Production-authorized migration lifecycle.",
+        "This declaration grants no Production database, Hostinger, provider or deployment mutation authority."
+      ]
+    }
+  ]
+}

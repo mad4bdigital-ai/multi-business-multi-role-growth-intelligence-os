@@ -92,6 +92,8 @@ const MIGRATION = "20260902_staging_actions_runtime_contract_reconciliation.sql"
 const MIGRATION_SHA256 = "6ca8879ec300b5970f6ddc3d9eeded38eda8dee12abd6bdeb7ba7d2ffa53ee2c";
 const REMOTE_MCP_FOUNDATION_MIGRATION = "20261003_staging_remote_mcp_runtime_foundation_reconciliation.sql";
 const REMOTE_MCP_FOUNDATION_MIGRATION_SHA256 = "352414ac3c1adbd7bccd3a339760c3506ae2f8e9a223ae669a012183eeabfecc";
+const ACTIVATION_REGISTRY_MIGRATION = "20261003_staging_activation_registry_schema_reconciliation.sql";
+const ACTIVATION_REGISTRY_MIGRATION_SHA256 = "6729297dea3b7d601035c129cf912b12b3f09fd56a3319df7a20bd9ccab31b62";
 
 function stagingEnv(root) {
   return {
@@ -308,6 +310,36 @@ test("B2A Remote MCP foundation corrective migration is additive schema-only rep
   }
 });
 
+test("Staging Activation registry corrective migration is recovery-only additive schema repair", () => {
+  const canonicalPath = new URL("./migrations/20261003_staging_activation_registry_schema_reconciliation.sql", import.meta.url);
+  const recoveryPath = new URL("./staging-recovery-migrations/20261003_staging_activation_registry_schema_reconciliation.sql", import.meta.url);
+  assert.equal(existsSync(canonicalPath), false, "Activation incident repair must remain outside the canonical ordered migration chain");
+  assert.equal(existsSync(recoveryPath), true);
+  const sql = readFileSync(recoveryPath, "utf8");
+  for (const table of [
+    "activation_dynamic_tab_registry",
+    "activation_dynamic_tab_section_registry",
+    "activation_dynamic_tab_discovery_rule_registry",
+    "activation_section_action_registry",
+    "activation_attention_rule_registry",
+    "activation_freshness_policy_registry",
+    "activation_signal_subscription_registry",
+    "activation_connector_pack_registry",
+  ]) {
+    assert.match(sql, new RegExp("CREATE TABLE IF NOT EXISTS " + table + "\\b", "u"));
+  }
+  const executableSql = sql.replace(/^\s*--.*$/gmu, "");
+  const statements = executableSql
+    .split(";")
+    .map((statement) => statement.trim())
+    .filter(Boolean);
+  assert.equal(statements.length, 8);
+  for (const statement of statements) {
+    assert.match(statement, /^CREATE\s+TABLE\s+IF\s+NOT\s+EXISTS\b/iu);
+  }
+  assert.doesNotMatch(executableSql, /(?:^|;)\s*(?:INSERT|UPDATE|DELETE|REPLACE|ALTER|DROP|TRUNCATE|GRANT|REVOKE)\b/iu);
+});
+
 test("Staging schema-repair prepare derives the fixed repository migration contract and rejects caller mutation controls", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "staging-schema-repair-"));
   try {
@@ -371,6 +403,23 @@ test("Staging schema-repair prepare derives the fixed repository migration contr
     assert.equal(
       remoteMcpPrepared.approval_confirmation,
       `APPLY_STAGING_RUNTIME_MIGRATION:${SHA}:staging-runtime:${REMOTE_MCP_FOUNDATION_MIGRATION}`,
+    );
+
+    const activationPrepared = await authority.prepare({
+      expected_sha: SHA,
+      migration: ACTIVATION_REGISTRY_MIGRATION,
+      idempotency_key: "staging-schema-prepare-activation-registry-001",
+    });
+    assert.equal(activationPrepared.migration, ACTIVATION_REGISTRY_MIGRATION);
+    assert.equal(activationPrepared.migration_sha256, ACTIVATION_REGISTRY_MIGRATION_SHA256);
+    assert.equal(activationPrepared.statement_count, 8);
+    assert.equal(activationPrepared.target_role, "runtime");
+    assert.equal(_testingStagingSchemaRepairSystemTools.resolveMigration(ACTIVATION_REGISTRY_MIGRATION).migration.artifact_scope, "staging_recovery_only");
+    assert.equal(activationPrepared.raw_sql_allowed, false);
+    assert.equal(activationPrepared.caller_database_allowed, false);
+    assert.equal(
+      activationPrepared.approval_confirmation,
+      `APPLY_STAGING_RUNTIME_MIGRATION:${SHA}:staging-runtime:${ACTIVATION_REGISTRY_MIGRATION}`,
     );
 
     await assert.rejects(
@@ -487,6 +536,48 @@ test("Staging schema-repair public approval returns one verified local Windows/D
     assert.match(handoff.verified_request.execution_ticket_hash, /^[0-9a-f]{64}$/u);
     assert.equal(handoff.authority_plan_hash_separate_from_transport_plan, true);
     assert.notEqual(handoff.transport_plan_sha256, prepared.plan_hash);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("Activation registry schema repair reuses the verified local Windows/Docker execution-ticket handoff", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "staging-activation-schema-local-handoff-"));
+  try {
+    const env = stagingEnv(root);
+    const prepared = await stagingRecoverySchemaRepairPrepare({
+      expected_sha: SHA,
+      migration: ACTIVATION_REGISTRY_MIGRATION,
+      idempotency_key: "staging-activation-schema-handoff-prepare-001",
+    }, { env });
+
+    const approved = await stagingRecoverySchemaRepairApprove({
+      plan_id: prepared.plan_id,
+      plan_hash: prepared.plan_hash,
+      step_id: prepared.step_id,
+      idempotency_key: "staging-activation-schema-handoff-execute-001",
+      approval_confirmation: prepared.approval_confirmation,
+    }, { env });
+
+    assert.equal(approved.status, "execution_ticket_issued_local_handoff_ready");
+    assert.equal(approved.local_execution_required, true);
+    assert.equal(approved.execution_ticket_held_server_side, true);
+    assert.equal(approved.execution_ticket_not_returned, true);
+    assert.equal(approved.production_authority, false);
+
+    const handoff = approved.local_handoff;
+    assert.equal(handoff.status, "local_execution_required");
+    assert.equal(handoff.local_windows_docker_required, true);
+    assert.equal(handoff.verified_request.runbook_key, "database.schema_repair");
+    assert.equal(handoff.verified_request.action, "apply_migration");
+    assert.equal(handoff.verified_request.migration, ACTIVATION_REGISTRY_MIGRATION);
+    assert.equal(handoff.verified_request.expected_sha, SHA);
+    assert.equal(handoff.verified_request.authority_plan_hash, prepared.plan_hash);
+    assert.match(handoff.verified_request.execution_ticket_id, /^ticket:/u);
+    assert.match(handoff.verified_request.execution_ticket_hash, /^[0-9a-f]{64}$/u);
+    assert.equal(handoff.execution_ticket_signature_exposed, false);
+    assert.equal(handoff.database_mutation_performed, false);
+    assert.equal(handoff.production_authority, false);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
