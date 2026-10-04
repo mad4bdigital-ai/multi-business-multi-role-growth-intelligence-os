@@ -98,7 +98,8 @@
             "The operational resume path does not invoke gh workflow run, gh pr merge or git push.",
             "The path grants only local Staging payload deployment authority and cannot mutate Production.",
             "secrets_included is false.",
-            "The WAITING_FOR_STAGING resume marker must be authored by github-actions[bot]; user-authored lookalike comments are rejected."
+            "The WAITING_FOR_STAGING resume marker must be authored by github-actions[bot]; user-authored lookalike comments are rejected.",
+            "Trusted resume-marker authority is parsed as exact key/value fields rather than by a whitespace-sensitive prefix, while duplicate keys, missing bindings, non-bot authors, moved SHAs, and executed markers remain fail-closed."
           ],
           "tests": [
             {
