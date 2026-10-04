@@ -216,7 +216,11 @@ assert.match(
   /if \(\$remoteCommit -ne \$ExpectedCommit\.ToLowerInvariant\(\)\) \{[\s\S]*?Assert-GovernedReleaseCutResume \$remoteCommit[\s\S]*?fetch", "origin", \$ExpectedCommit, "--depth=2"/u,
 );
 assert.match(stagingAutoPilot, /ConvertFrom-GovernedStagingResumeMarker/u);
-assert.match(stagingAutoPilot, /trustedResumeMarkerCandidates/u);
+assert.match(stagingAutoPilot, /trustedResumeMarkerIds/u);
+assert.match(stagingAutoPilot, /--paginate/u);
+assert.match(stagingAutoPilot, /issues\/comments\/\$commentId/u);
+assert.match(stagingAutoPilot, /select\(\.user\.login == "github-actions\[bot\]"/u);
+assert.doesNotMatch(stagingAutoPilot, /\$commentsRaw\s*=/u);
 assert.match(stagingAutoPilot, /ContainsKey\("request_pr"\)/u);
 assert.match(stagingAutoPilot, /ContainsKey\("merge_executed"\)/u);
 assert.match(stagingAutoPilot, /trusted_marker_candidates/u);

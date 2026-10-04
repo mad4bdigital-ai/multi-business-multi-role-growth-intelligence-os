@@ -295,10 +295,6 @@ function Assert-GovernedReleaseCutResume([string]$RemoteCommit) {
     }
     if (([string]$pr.head.sha).ToLowerInvariant() -ne $requestHead) { Fail "Governed release-cut resume request head moved" }
 
-    $commentsRaw = (& gh api "/repos/$ExpectedRepository/issues/$PromotionRequestPr/comments?per_page=100" 2>$null | Out-String).Trim()
-    if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($commentsRaw)) { Fail "Governed release-cut resume could not read promotion request comments" }
-    try { $comments = @($commentsRaw | ConvertFrom-Json) } catch { Fail "Governed release-cut resume comments response is invalid" }
-
     function ConvertFrom-GovernedStagingResumeMarker([string]$Body) {
         if ([string]::IsNullOrWhiteSpace($Body)) { return $null }
         $tokens = @($Body.Trim() -split '\s+' | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) })
@@ -317,14 +313,38 @@ function Assert-GovernedReleaseCutResume([string]$RemoteCommit) {
         return $fields
     }
 
-    $trustedResumeMarkerCandidates = @($comments | Where-Object {
-        ([string]$_.user.login) -eq "github-actions[bot]" -and
-        ([string]$_.body).Trim() -match '^GOVERNED_PRODUCTION_STAGING_RESUME_ARMED(?:\s|$)'
-    })
-    $resumeMarker = @($trustedResumeMarkerCandidates | Where-Object {
-        $fields = ConvertFrom-GovernedStagingResumeMarker ([string]$_.body)
-        if ($null -eq $fields) { return $false }
-        return (
+    # Do not rely on Windows PowerShell array materialization for the comments collection.
+    # Let gh/gojq select trusted candidate IDs across every page, then read each comment
+    # as one JSON object and apply the exact field parser below.
+    $candidateIdsRaw = (& gh api "/repos/$ExpectedRepository/issues/$PromotionRequestPr/comments?per_page=100" --paginate --jq '.[] | select(.user.login == "github-actions[bot]" and (.body | startswith("GOVERNED_PRODUCTION_STAGING_RESUME_ARMED"))) | .id' 2>$null | Out-String).Trim()
+    if ($LASTEXITCODE -ne 0) { Fail "Governed release-cut resume could not enumerate trusted promotion request markers" }
+
+    $candidateIdLines = @()
+    if (-not [string]::IsNullOrWhiteSpace($candidateIdsRaw)) {
+        $candidateIdLines = @($candidateIdsRaw -split '\r?\n' | ForEach-Object { ([string]$_).Trim() } | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) })
+    }
+    if (@($candidateIdLines | Where-Object { [string]$_ -notmatch '^\d+$' }).Count -gt 0) {
+        Fail "Governed release-cut resume trusted marker enumeration returned an invalid comment id"
+    }
+
+    $trustedResumeMarkerIds = @($candidateIdLines)
+    $resumeMarkerIds = @()
+    foreach ($commentId in $trustedResumeMarkerIds) {
+        $commentRaw = (& gh api "/repos/$ExpectedRepository/issues/comments/$commentId" 2>$null | Out-String).Trim()
+        if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($commentRaw)) {
+            Fail "Governed release-cut resume could not read trusted promotion request marker comment"
+        }
+        try { $comment = $commentRaw | ConvertFrom-Json } catch { Fail "Governed release-cut resume trusted marker comment response is invalid" }
+
+        $commentBody = ([string]$comment.body).Trim()
+        if (([string]$comment.user.login) -ne "github-actions[bot]" -or
+            $commentBody -notmatch '^GOVERNED_PRODUCTION_STAGING_RESUME_ARMED(?:\s|$)') {
+            Fail "Governed release-cut resume trusted marker identity changed during verification"
+        }
+
+        $fields = ConvertFrom-GovernedStagingResumeMarker $commentBody
+        if ($null -eq $fields) { continue }
+        $matches = (
             $fields.ContainsKey("request_pr") -and [string]$fields["request_pr"] -eq [string]$PromotionRequestPr -and
             $fields.ContainsKey("request_head") -and ([string]$fields["request_head"]).ToLowerInvariant() -eq $requestHead -and
             $fields.ContainsKey("release_cut") -and ([string]$fields["release_cut"]).ToLowerInvariant() -eq $releaseCut -and
@@ -334,12 +354,13 @@ function Assert-GovernedReleaseCutResume([string]$RemoteCommit) {
             $fields.ContainsKey("merge_executed") -and [string]$fields["merge_executed"] -eq "false" -and
             $fields.ContainsKey("deployment_executed") -and [string]$fields["deployment_executed"] -eq "false"
         )
-    })
-    if ($resumeMarker.Count -ne 1) {
+        if ($matches) { $resumeMarkerIds += [string]$commentId }
+    }
+    if ($resumeMarkerIds.Count -ne 1) {
         Fail "Governed release-cut resume requires exactly one matching WAITING_FOR_STAGING marker" @{
             promotion_request_pr = $PromotionRequestPr
-            trusted_marker_candidates = $trustedResumeMarkerCandidates.Count
-            matching_markers = $resumeMarker.Count
+            trusted_marker_candidates = $trustedResumeMarkerIds.Count
+            matching_markers = $resumeMarkerIds.Count
         }
     }
 
