@@ -137,6 +137,76 @@ function Invoke-Native([string]$File, [string[]]$Arguments, [switch]$AllowFailur
     return $code
 }
 
+
+function Invoke-StagingDockerBuild([string[]]$Arguments, [int]$MaxAttempts = 2) {
+    if ($MaxAttempts -lt 1 -or $MaxAttempts -gt 3) { Fail "Docker build retry bound must remain between 1 and 3 attempts" }
+    $transientFrontendPattern = '(?i)(frontend grpc server closed unexpectedly|rpc error: code = Unavailable|failed to receive status: rpc error|error reading from server: EOF)'
+
+    for ($attempt = 1; $attempt -le $MaxAttempts; $attempt++) {
+        Write-Host ("> docker {0}" -f ($Arguments -join " "))
+        Write-StagingOperationBoundary -Component $LogComponent -Stage "compose-build" -Outcome "start" -Message "Staging Docker build attempt started" -Data @{
+            attempt = $attempt
+            max_attempts = $MaxAttempts
+            transient_retry_only = $true
+        }
+
+        $buildOutput = @()
+        & docker @Arguments 2>&1 |
+            Tee-Object -Variable buildOutput |
+            ForEach-Object { Write-Host ([string]$_) }
+        $code = $LASTEXITCODE
+        $outputText = (($buildOutput | ForEach-Object { [string]$_ }) -join "`n")
+
+        if ($code -eq 0) {
+            Write-StagingOperationBoundary -Component $LogComponent -Stage "compose-build" -Outcome "success" -Message "Staging Docker build completed" -Data @{
+                attempt = $attempt
+                max_attempts = $MaxAttempts
+                transient_recovered = [bool]($attempt -gt 1)
+            }
+            return [pscustomobject]@{
+                attempts = $attempt
+                transient_recovered = [bool]($attempt -gt 1)
+            }
+        }
+
+        $transientFrontendFailure = [regex]::IsMatch($outputText, $transientFrontendPattern)
+        $failureClass = if ($transientFrontendFailure) { "docker_buildkit_frontend_transient" } else { "docker_build_non_transient" }
+        Write-StagingLog -Level ($(if ($transientFrontendFailure) { "warning" } else { "error" })) -Component $LogComponent -Stage "compose-build" -Message "Staging Docker build attempt failed" -Data @{
+            attempt = $attempt
+            max_attempts = $MaxAttempts
+            exit_code = $code
+            failure_class = $failureClass
+            transient_frontend_failure = [bool]$transientFrontendFailure
+        }
+
+        if (-not $transientFrontendFailure) {
+            Fail "Docker build failed without a retryable BuildKit frontend transport signature" @{
+                failure_class = $failureClass
+                attempt = $attempt
+                exit_code = $code
+            }
+        }
+        if ($attempt -ge $MaxAttempts) {
+            Fail "Docker build failed after bounded BuildKit frontend retry" @{
+                failure_class = $failureClass
+                attempts = $attempt
+                exit_code = $code
+            }
+        }
+
+        Write-StagingLog -Level warning -Component $LogComponent -Stage "compose-build" -Message "Retrying exact Staging Docker build after transient BuildKit frontend failure" -Data @{
+            attempt = $attempt
+            next_attempt = ($attempt + 1)
+            max_attempts = $MaxAttempts
+            cache_pruned = $false
+            builder_removed = $false
+        }
+        Start-Sleep -Seconds 5
+    }
+
+    Fail "Docker build retry loop ended unexpectedly"
+}
+
 function Get-NativeText([string]$File, [string[]]$Arguments) {
     if ($File -ieq "git") {
         try {
@@ -807,7 +877,10 @@ try {
     } else {
         if ($BuildMode -eq "ForceBuild") { $buildAction = "forced_build" }
         Write-StagingLog -Level info -Component $LogComponent -Stage "compose-build" -Message "building Staging app from exact Git context" -Data @{ mode = $BuildMode; previous_image_id = $existingImageId; previous_image_exact = [bool]$imageMatchesExactProvenance }
-        Invoke-Native "docker" ($composeArgs + @("build", "app"))
+        $buildResult = Invoke-StagingDockerBuild ($composeArgs + @("build", "app")) -MaxAttempts 2
+        if ($buildResult.transient_recovered) {
+            $buildAction = if ($BuildMode -eq "ForceBuild") { "forced_build_after_transient_retry" } else { "built_after_transient_retry" }
+        }
     }
     $imageId = Find-ExactStagingImageId $ExpectedCommit $buildTree $buildContextMetadata.context_file_set_sha256 $EnvFile $composeArgs
     if ($imageId -notmatch '^sha256:[0-9a-fA-F]{64}$') { Fail "Staging app image ID is not a content-addressed sha256 digest with exact provenance" }
