@@ -16,6 +16,7 @@ const activationPolicyGenerator = read("http-generic-api/scripts/generate-activa
 const promotionGates = JSON.parse(read(".github/contracts/production-promotion-supporting-gates.v1.json"));
 const deployScript = read("autopilot-portable-staging/Auto-Deploy-Staging.ps1");
 const pilotScript = read("autopilot-portable-staging/Start-AutoPilot.ps1");
+const stagingEnvironment = read("autopilot-portable-staging/Staging-Environment.ps1");
 const certificationHelper = read("autopilot-portable-staging/Invoke-StagingCertification.ps1");
 const oneClickScript = read("autopilot-portable-staging/One-Click-Staging.ps1");
 const installer = read("autopilot-portable-staging/Install-AutoDeployTask.ps1");
@@ -251,8 +252,9 @@ assert.match(installer, /if \(\$EnableActivationGateway\) \{ \$arguments \+= " -
 assert.match(deployScript, /\[switch\]\$EnableActivationGateway/);
 assert.match(deployScript, /if \(\$EnableActivationGateway\) \{ \$pilotArgs \+= "-EnableActivationGateway" \}/);
 assert.match(pilotScript, /\[switch\]\$EnableActivationGateway/);
-assert.match(pilotScript, /\$activationGatewayDesired = if \(\$EnableActivationGateway\) \{ "true" \} else \{ "false" \}/);
-assert.match(pilotScript, /Set-EnvValue \$EnvFile "ACTIVATION_STAGING_GATEWAY_ENABLED" \$activationGatewayDesired/);
+assert.match(pilotScript, /Initialize-StagingEnvironment[\s\S]*?-EnableActivationGateway:\$EnableActivationGateway/);
+assert.match(stagingEnvironment, /function Initialize-StagingEnvironment[\s\S]*?Set-StagingEnvValue \$envFile 'ACTIVATION_STAGING_GATEWAY_ENABLED'/);
+
 assert.match(pilotScript, /if \(\$EnableActivationGateway\) \{ \$childArgs \+= "-EnableActivationGateway" \}/);
 assert.match(oneClickScript, /if \(\$EnableActivationGateway\) \{ \$args \+= "-EnableActivationGateway" \}/);
 assert.match(installer, /LogonType Interactive/);

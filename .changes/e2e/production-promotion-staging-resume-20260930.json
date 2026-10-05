@@ -104,7 +104,10 @@
             "Trusted resume-marker discovery uses gh/gojq only to emit primitive id/login TSV rows; Windows PowerShell performs the exact github-actions[bot] identity comparison, then re-reads each bot comment and ignores unrelated bot comments before exact marker-field validation.",
             "The current control-plane portable manifest is verified before any historical checkout; it protects the live driver, not the historical payload.",
             "A governed historical release-cut checkout must be tracked-clean and is bound by exact commit/tree plus git-archive build-context provenance; stale historical generated manifest hashes are not treated as payload authority.",
-            "Non-historical exact-ref operation retains post-checkout portable-manifest verification."
+            "Non-historical exact-ref operation retains post-checkout portable-manifest verification.",
+            "Direct Start-AutoPilot environment bootstrap delegates to the canonical Initialize-StagingEnvironment helper used by One-Click instead of maintaining a second local secret generator.",
+            "Canonical Staging bootstrap fills missing Staging-only OAuth/MCP/activation secrets without exposing their values, while Production/provider/database mutation authority remains false.",
+            "Exact release-cut deployment bindings are applied only after canonical environment reconciliation."
           ],
           "tests": [
             {
