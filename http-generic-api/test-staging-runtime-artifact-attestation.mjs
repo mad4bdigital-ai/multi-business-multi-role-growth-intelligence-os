@@ -77,3 +77,239 @@ function payload(overrides = {}) {
       upstream_evidence_verified: true,
       stale: false,
     },
+    trusted_ingress: {
+      key_id: "activation-staging-test-key",
+      public_key_sha256: "7".repeat(64),
+    },
+    issuer: ISSUER,
+    key_id: KEY_ID,
+    generated_at: new Date(generated).toISOString(),
+    expires_at: new Date(generated + 60 * 60 * 1000).toISOString(),
+    production_mutation_performed: false,
+    provider_mutation_performed: false,
+    database_mutation_performed: false,
+    secrets_included: false,
+    ...overrides,
+  };
+}
+
+test("runtime artifact attestation signs and verifies exact Staging identity", () => {
+  const runtimeEnv = env();
+  const record = signStagingRuntimeArtifactAttestation({
+    payload: payload(),
+    env: runtimeEnv,
+  });
+  const trust = loadStagingRuntimeArtifactAttestationTrust(runtimeEnv);
+  const verified = verifyStagingRuntimeArtifactAttestation(record, {
+    trust,
+    expectedSha: SHA,
+    expectedTree: TREE,
+    expectedContextFileSetSha256: CONTEXT,
+    expectedPolicyHash: POLICY,
+  });
+
+  assert.equal(verified.valid, true);
+  assert.equal(verified.payload.app_image_digest, IMAGE);
+  assert.equal(verified.payload.local_runtime_evidence_sha256, "a".repeat(64));
+  assert.equal(verified.payload.app_container_identity_sha256, "b".repeat(64));
+  assert.equal(verified.payload.activation_gateway.source_commit, SHA);
+  assert.equal(verified.payload.production_mutation_performed, false);
+  assert.equal(verified.payload.provider_mutation_performed, false);
+  assert.equal(verified.payload.database_mutation_performed, false);
+  assert.equal(verified.secrets_included, false);
+});
+
+test("runtime artifact attestation rejects cross-SHA verification", () => {
+  const runtimeEnv = env();
+  const record = signStagingRuntimeArtifactAttestation({
+    payload: payload(),
+    env: runtimeEnv,
+  });
+  const trust = loadStagingRuntimeArtifactAttestationTrust(runtimeEnv);
+
+  assert.throws(
+    () =>
+      verifyStagingRuntimeArtifactAttestation(record, {
+        trust,
+        expectedSha: "8".repeat(40),
+        expectedTree: TREE,
+        expectedContextFileSetSha256: CONTEXT,
+        expectedPolicyHash: POLICY,
+      }),
+    (error) => error.code === "STAGING_RUNTIME_ARTIFACT_SHA_MISMATCH",
+  );
+});
+
+test("runtime artifact attestation rejects cross-tree verification", () => {
+  const runtimeEnv = env();
+  const record = signStagingRuntimeArtifactAttestation({
+    payload: payload(),
+    env: runtimeEnv,
+  });
+  const trust = loadStagingRuntimeArtifactAttestationTrust(runtimeEnv);
+
+  assert.throws(
+    () =>
+      verifyStagingRuntimeArtifactAttestation(record, {
+        trust,
+        expectedSha: SHA,
+        expectedTree: "8".repeat(40),
+        expectedContextFileSetSha256: CONTEXT,
+        expectedPolicyHash: POLICY,
+      }),
+    (error) => error.code === "STAGING_RUNTIME_ARTIFACT_TREE_MISMATCH",
+  );
+});
+
+test("runtime artifact attestation rejects context drift", () => {
+  const runtimeEnv = env();
+  const record = signStagingRuntimeArtifactAttestation({
+    payload: payload(),
+    env: runtimeEnv,
+  });
+  const trust = loadStagingRuntimeArtifactAttestationTrust(runtimeEnv);
+
+  assert.throws(
+    () =>
+      verifyStagingRuntimeArtifactAttestation(record, {
+        trust,
+        expectedSha: SHA,
+        expectedTree: TREE,
+        expectedContextFileSetSha256: "8".repeat(64),
+        expectedPolicyHash: POLICY,
+      }),
+    (error) => error.code === "STAGING_RUNTIME_ARTIFACT_CONTEXT_MISMATCH",
+  );
+});
+
+test("runtime artifact attestation rejects policy drift", () => {
+  const runtimeEnv = env();
+  const record = signStagingRuntimeArtifactAttestation({
+    payload: payload(),
+    env: runtimeEnv,
+  });
+  const trust = loadStagingRuntimeArtifactAttestationTrust(runtimeEnv);
+
+  assert.throws(
+    () =>
+      verifyStagingRuntimeArtifactAttestation(record, {
+        trust,
+        expectedSha: SHA,
+        expectedTree: TREE,
+        expectedContextFileSetSha256: CONTEXT,
+        expectedPolicyHash: "8".repeat(64),
+      }),
+    (error) => error.code === "STAGING_RUNTIME_ARTIFACT_POLICY_MISMATCH",
+  );
+});
+
+test("runtime artifact attestation rejects a tampered signed image digest", () => {
+  const runtimeEnv = env();
+  const record = signStagingRuntimeArtifactAttestation({
+    payload: payload(),
+    env: runtimeEnv,
+  });
+  const trust = loadStagingRuntimeArtifactAttestationTrust(runtimeEnv);
+  const tampered = {
+    ...record,
+    payload: {
+      ...record.payload,
+      app_image_digest: "sha256:" + "9".repeat(64),
+    },
+  };
+
+  assert.throws(
+    () =>
+      verifyStagingRuntimeArtifactAttestation(tampered, {
+        trust,
+        expectedSha: SHA,
+        expectedTree: TREE,
+        expectedContextFileSetSha256: CONTEXT,
+        expectedPolicyHash: POLICY,
+      }),
+    (error) => error.code === "STAGING_RUNTIME_ARTIFACT_SIGNATURE_INVALID",
+  );
+});
+
+test("runtime artifact attestation rejects missing host evidence binding", () => {
+  assert.throws(
+    () =>
+      signStagingRuntimeArtifactAttestation({
+        payload: payload({ local_runtime_evidence_sha256: "" }),
+        env: env(),
+      }),
+    (error) => error.code === "STAGING_RUNTIME_ARTIFACT_LOCAL_BINDING_INVALID",
+  );
+});
+
+test("runtime artifact signer refuses non-main GitHub authority", () => {
+  assert.throws(
+    () =>
+      signStagingRuntimeArtifactAttestation({
+        payload: payload(),
+        env: env({
+          GITHUB_REF: "refs/heads/feature",
+          GITHUB_REF_NAME: "feature",
+        }),
+      }),
+    (error) => error.code === "STAGING_RUNTIME_ARTIFACT_SIGNER_REF_DENIED",
+  );
+});
+
+test("runtime artifact signer refuses cross-SHA workflow authority", () => {
+  assert.throws(
+    () =>
+      signStagingRuntimeArtifactAttestation({
+        payload: payload(),
+        env: env({ GITHUB_SHA: "8".repeat(40) }),
+      }),
+    (error) => error.code === "STAGING_RUNTIME_ARTIFACT_SIGNER_SHA_MISMATCH",
+  );
+});
+
+test("runtime artifact signer refuses stale or oversized TTL", () => {
+  const generated = Date.now() - 1_000;
+  assert.throws(
+    () =>
+      signStagingRuntimeArtifactAttestation({
+        payload: payload({
+          generated_at: new Date(generated).toISOString(),
+          expires_at: new Date(generated + 3 * 60 * 60 * 1000).toISOString(),
+        }),
+        env: env(),
+      }),
+    (error) => error.code === "STAGING_RUNTIME_ARTIFACT_FRESHNESS_INVALID",
+  );
+});
+
+test("runtime artifact trust refuses reuse of Gateway ingress key", () => {
+  const signingFingerprint = createHash("sha256")
+    .update(
+      signingPair.publicKey.export({
+        format: "der",
+        type: "spki",
+      }),
+    )
+    .digest("hex");
+
+  assert.throws(
+    () =>
+      loadStagingRuntimeArtifactAttestationTrust(
+        env({
+          ACTIVATION_GATEWAY_INGRESS_PUBLIC_KEY_SHA256: signingFingerprint,
+        }),
+      ),
+    (error) => error.code === "STAGING_RUNTIME_ARTIFACT_KEY_REUSE_FORBIDDEN",
+  );
+});
+
+test("runtime artifact payload refuses unsafe mutation flags", () => {
+  assert.throws(
+    () =>
+      signStagingRuntimeArtifactAttestation({
+        payload: payload({ provider_mutation_performed: true }),
+        env: env(),
+      }),
+    (error) => error.code === "STAGING_RUNTIME_ARTIFACT_SAFETY_INVALID",
+  );
+});
