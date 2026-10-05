@@ -1011,6 +1011,9 @@ $StateFile = Join-Path $scriptRoot "autopilot-state.json"
 $CertificationScript = Join-Path $scriptRoot "Invoke-StagingCertification.ps1"
 $BuildContextScript = Join-Path $ApiPath "scripts/prepare-staging-build-context.mjs"
 $BuildContextPath = Join-Path $RepositoryPath ".staging-build-context"
+$CertificationCompatibilityRoot = Join-Path ([IO.Path]::GetTempPath()) ("mad4b-staging-cert-compat-" + [Guid]::NewGuid().ToString("N"))
+$CertificationCompatibilityScript = ""
+$CertificationCompatibilityAuthorityCommit = ""
 
 Require-Command "git"
 if (-not (Test-Path $ComposeBase) -or -not (Test-Path $ComposeStage) -or -not (Test-Path $EnvExample)) {
@@ -1057,6 +1060,11 @@ try {
     if ($remoteCommit -ne $ExpectedCommit.ToLowerInvariant()) {
         Assert-GovernedReleaseCutResume $remoteCommit
         $governedHistoricalResume = $true
+        $CertificationCompatibilityAuthorityCommit = $remoteCommit
+        $CertificationCompatibilityScript = New-StagingCertificationCompatibilitySnapshot `
+            -RepoPath $RepositoryPath `
+            -AuthorityCommit $remoteCommit `
+            -DestinationRoot $CertificationCompatibilityRoot
         Invoke-Native "git" @("fetch", "origin", $ExpectedCommit, "--depth=2")
     }
     Invoke-Native "git" @("checkout", "--detach", $ExpectedCommit)
@@ -1250,6 +1258,7 @@ try {
     if ($LASTEXITCODE -ne 0) {
         $certificationBlockingFailures = @()
         $certificationDegradedReasons = @()
+        $failedCertificationState = $null
         try {
             $failedCertificationState = Get-Content -Raw -LiteralPath $StateFile | ConvertFrom-Json
             $blockingProperty = $failedCertificationState.PSObject.Properties["certification_blocking_failures"]
@@ -1261,10 +1270,70 @@ try {
                 $certificationDegradedReasons = @($degradedProperty.Value | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) })
             }
         } catch { }
-        $reasonSuffix = if (@($certificationBlockingFailures).Count -gt 0) { " reasons=$($certificationBlockingFailures -join ',')" } else { " reasons=unavailable" }
-        $failureMessage = "Staging certification blocked exact commit $ExpectedCommit$reasonSuffix"
-        Write-StagingOperationBoundary -Component $LogComponent -Stage "certification" -Outcome "failure" -Message $failureMessage -Data @{ commit = $ExpectedCommit; blocking_failures = $certificationBlockingFailures; degraded_reasons = $certificationDegradedReasons }
-        Fail $failureMessage
+
+        $compatibilityRecovered = $false
+        $runtimeIntegrityOnlyBlocker = (
+            $governedHistoricalResume -and
+            @($certificationBlockingFailures).Count -eq 1 -and
+            [string]$certificationBlockingFailures[0] -eq "runtime_integrity_verified"
+        )
+
+        if ($runtimeIntegrityOnlyBlocker) {
+            if ([string]::IsNullOrWhiteSpace($CertificationCompatibilityScript) -or
+                [string]::IsNullOrWhiteSpace($CertificationCompatibilityAuthorityCommit)) {
+                Fail "Historical certification compatibility authority was not pinned before checkout"
+            }
+
+            $compatibility = Invoke-StagingCertificationCompatibilityVerifier `
+                -ScriptPath $CertificationCompatibilityScript `
+                -AuthorityCommit $CertificationCompatibilityAuthorityCommit `
+                -ExpectedCommit $ExpectedCommit.ToLowerInvariant() `
+                -ExpectedTree $buildTree.ToLowerInvariant() `
+                -ExpectedContextFileSet ([string]$buildContextMetadata.context_file_set_sha256).ToLowerInvariant() `
+                -ExpectedImageDigest $imageId.ToLowerInvariant()
+
+            if ($compatibility.verified -eq $true -and $null -ne $failedCertificationState) {
+                $recoveredStatus = if (@($certificationDegradedReasons).Count -gt 0) { "degraded" } else { "ready" }
+                $failedCertificationState.certification_blocking_failures = @()
+                $failedCertificationState.certification_status = $recoveredStatus
+                $failedCertificationState.certification_ready = ($recoveredStatus -eq "ready")
+                $failedCertificationState.secrets_included = $false
+
+                foreach ($entry in @(
+                    @{ Name = "certification_compatibility_applied"; Value = $true },
+                    @{ Name = "certification_compatibility_contract"; Value = [string]$compatibility.contract },
+                    @{ Name = "certification_compatibility_authority_commit"; Value = [string]$compatibility.authority_commit },
+                    @{ Name = "certification_compatibility_mode"; Value = "runtime_integrity_immutable_artifact" },
+                    @{ Name = "certification_compatibility_checks"; Value = $compatibility.checks },
+                    @{ Name = "certification_compatibility_immutable_artifact_checks"; Value = $compatibility.immutable_artifact_checks }
+                )) {
+                    $existing = $failedCertificationState.PSObject.Properties[$entry.Name]
+                    if ($null -ne $existing) {
+                        $existing.Value = $entry.Value
+                    } else {
+                        $failedCertificationState | Add-Member -NotePropertyName $entry.Name -NotePropertyValue $entry.Value
+                    }
+                }
+
+                Set-Content -LiteralPath $StateFile -Encoding utf8 -Value ($failedCertificationState | ConvertTo-Json -Depth 12)
+                $compatibilityRecovered = $true
+                Write-StagingOperationBoundary -Component $LogComponent -Stage "certification-compatibility" -Outcome "success" -Message "Historical runtime-integrity blocker satisfied by pinned current control-plane immutable-artifact proof" -Data @{
+                    commit = $ExpectedCommit
+                    authority_commit = $CertificationCompatibilityAuthorityCommit
+                    recovered_status = $recoveredStatus
+                    remaining_degraded_reasons = $certificationDegradedReasons
+                    mutation_performed = $false
+                    secrets_included = $false
+                }
+            }
+        }
+
+        if (-not $compatibilityRecovered) {
+            $reasonSuffix = if (@($certificationBlockingFailures).Count -gt 0) { " reasons=$($certificationBlockingFailures -join ',')" } else { " reasons=unavailable" }
+            $failureMessage = "Staging certification blocked exact commit $ExpectedCommit$reasonSuffix"
+            Write-StagingOperationBoundary -Component $LogComponent -Stage "certification" -Outcome "failure" -Message $failureMessage -Data @{ commit = $ExpectedCommit; blocking_failures = $certificationBlockingFailures; degraded_reasons = $certificationDegradedReasons }
+            Fail $failureMessage
+        }
     }
     try { $certState = Get-Content -Raw -LiteralPath $StateFile | ConvertFrom-Json }
     catch { Fail "Staging certification state could not be read" }
@@ -1282,4 +1351,5 @@ try {
 } finally {
     Pop-Location
     if (Test-Path -LiteralPath $BuildContextPath) { Remove-Item -LiteralPath $BuildContextPath -Recurse -Force -ErrorAction SilentlyContinue }
+    if (Test-Path -LiteralPath $CertificationCompatibilityRoot) { Remove-Item -LiteralPath $CertificationCompatibilityRoot -Recurse -Force -ErrorAction SilentlyContinue }
 }
