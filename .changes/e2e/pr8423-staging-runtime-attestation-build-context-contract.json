@@ -8,8 +8,10 @@
   "scope": {
     "include": [
       ".changes/e2e/pr8423-staging-runtime-attestation-build-context-contract.json",
+      ".github/derived-state-governance.json",
       ".github/workflows/staging-post-deploy-verification.yml",
       "autopilot-portable-staging/Invoke-StagingRuntimeArtifactAttestation.ps1",
+      "http-generic-api/config/repository-governance-constitution.json",
       "http-generic-api/test-staging-recovery-certification-script-surface.mjs"
     ]
   },
@@ -48,7 +50,8 @@
             "No runtime attestation path uses the legacy build-context or staging-runtime-build-context basename.",
             "The generator fail-closed basename contract is preserved rather than weakened.",
             "Live Staging certification remains required after merge.",
-            "No Production, provider, database, schema, grant, DNS, credential, or signing-authority mutation is introduced."
+            "No Production, provider, database, schema, grant, DNS, credential, or signing-authority mutation is introduced.",
+            "The PR declaration is registered exactly in Constitution.control_plane_paths and convergence.automation_control_paths."
           ],
           "tests": [
             {
@@ -60,8 +63,10 @@
             }
           ],
           "evidence_paths": [
+            ".github/derived-state-governance.json",
             ".github/workflows/staging-post-deploy-verification.yml",
             "autopilot-portable-staging/Invoke-StagingRuntimeArtifactAttestation.ps1",
+            "http-generic-api/config/repository-governance-constitution.json",
             "http-generic-api/test-staging-recovery-certification-script-surface.mjs"
           ]
         }
