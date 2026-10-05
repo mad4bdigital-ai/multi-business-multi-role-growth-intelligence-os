@@ -136,7 +136,11 @@
             ".changes/e2e/production-promotion-staging-resume-20260930.json",
             ".github/workflows/governed-production-promotion-request-launcher.yml",
             "autopilot-portable-staging/Start-AutoPilot.ps1",
-            "http-generic-api/test-production-promotion-convergence-workflows.mjs"
+            "http-generic-api/test-production-promotion-convergence-workflows.mjs",
+            "http-generic-api/scripts/staging-certification-gateway-compat.mjs",
+            "docs/governance/configuration-drift-baseline-extensions.json",
+            "autopilot-portable-staging/manifest.json",
+            "http-generic-api/scripts/generate-portable-staging-manifest.mjs"
           ]
         }
       ]
