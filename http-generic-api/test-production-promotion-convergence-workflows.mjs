@@ -247,6 +247,17 @@ assert.match(stagingAutoPilot, /Invoke-StagingDockerBuild \(\$composeArgs \+ @\(
 assert.match(stagingAutoPilot, /transient_recovered/u);
 assert.match(stagingAutoPilot, /Docker build failed without a retryable BuildKit frontend transport signature/u);
 assert.match(stagingAutoPilot, /Docker build failed after bounded BuildKit frontend retry/u);
+assert.match(stagingAutoPilot, /function\s+Invoke-StagingComposeUpWithZombieRecovery\b/u);
+assert.match(stagingAutoPilot, /is zombie and can not be killed/u);
+assert.match(stagingAutoPilot, /Invoke-StagingComposeUpWithZombieRecovery \$composeArgs -MaxAttempts 2/u);
+assert.match(stagingAutoPilot, /Refusing Docker Desktop restart while non-Staging containers are running/u);
+assert.match(stagingAutoPilot, /Zombie container is not owned by the current Staging Compose project/u);
+assert.match(stagingAutoPilot, /Invoke-StagingDockerCaptured @\("desktop", "restart"\)/u);
+assert.match(stagingAutoPilot, /Wait-StagingDockerEngine -TimeoutSeconds 120/u);
+assert.match(stagingAutoPilot, /volumes_deleted = \$false/u);
+assert.match(stagingAutoPilot, /images_deleted = \$false/u);
+assert.match(stagingAutoPilot, /cache_pruned = \$false/u);
+assert.doesNotMatch(stagingAutoPilot, /docker\s+(?:container\s+)?rm\s+-f/u);
 assert.match(stagingAutoPilot, /\$previousErrorActionPreference = \$ErrorActionPreference/u);
 assert.match(stagingAutoPilot, /\$ErrorActionPreference = "Continue"[\s\S]*?& docker @Arguments 2>&1[\s\S]*?\$code = \$LASTEXITCODE[\s\S]*?finally \{[\s\S]*?\$ErrorActionPreference = \$previousErrorActionPreference/u);
 assert.match(stagingAutoPilot, /Set-StrictMode -Version Latest[\s\S]*?\$ErrorActionPreference = "Stop"/u);

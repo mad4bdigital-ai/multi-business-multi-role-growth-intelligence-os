@@ -62,7 +62,7 @@
     },
     {
       "path": "autopilot-portable-staging/Start-AutoPilot.ps1",
-      "sha256": "d4aa372d7d003222b0d2f9ed0eed29f1e3b11fd49cf3c8d81211cbd9bd344960"
+      "sha256": "91e2dfec85f54b5eceb269288c17f2f5856faddcc77ef485797ea7be068ffdbf"
     },
     {
       "path": "autopilot-portable-staging/Start-Staging-One-Click.cmd",
@@ -138,7 +138,7 @@
     },
     {
       "path": "http-generic-api/docker-compose.staging.yml",
-      "sha256": "45c88fa841f39a05a6cc9e8ff23afc7e2a6d68b23ea045175a4a85ae0b1ebb5e"
+      "sha256": "32b3db61102c0de8724e5a832ae8aa054a91cdd91e84f86647e12fa2cf72a4dd"
     },
     {
       "path": "http-generic-api/docker-compose.yml",
@@ -242,7 +242,7 @@
     },
     {
       "path": "http-generic-api/test-staging-autopilot-closure.mjs",
-      "sha256": "4eef5dbdf54b6e0d229c150a34d78cd9775f0a5f40d608c17d22bb6129d0127c"
+      "sha256": "22a7ca618bf81ccccb0abab1112330d075ff43cc503d2feefdccccc471b99b92"
     },
     {
       "path": "http-generic-api/test-staging-build-context-provenance.mjs",

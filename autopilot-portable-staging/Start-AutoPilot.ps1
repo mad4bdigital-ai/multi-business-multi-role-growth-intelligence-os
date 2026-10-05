@@ -216,6 +216,149 @@ function Invoke-StagingDockerBuild([string[]]$Arguments, [int]$MaxAttempts = 2) 
     Fail "Docker build retry loop ended unexpectedly"
 }
 
+
+function Invoke-StagingDockerCaptured([string[]]$Arguments, [switch]$Quiet) {
+    $captured = @()
+    $previousErrorActionPreference = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = "Continue"
+        & docker @Arguments 2>&1 |
+            Tee-Object -Variable captured |
+            ForEach-Object {
+                if (-not $Quiet) { Write-Host ([string]$_) }
+            }
+        $code = $LASTEXITCODE
+    } finally {
+        $ErrorActionPreference = $previousErrorActionPreference
+    }
+    return [pscustomobject]@{
+        exit_code = [int]$code
+        output = (($captured | ForEach-Object { [string]$_ }) -join "`n")
+        lines = @($captured | ForEach-Object { ([string]$_).Trim() } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+    }
+}
+
+function Test-StagingContainerIdMatch([string]$Left, [string]$Right) {
+    $leftId = ([string]$Left).Trim().ToLowerInvariant()
+    $rightId = ([string]$Right).Trim().ToLowerInvariant()
+    if ($leftId -notmatch '^[0-9a-f]{12,64}$' -or $rightId -notmatch '^[0-9a-f]{12,64}$') { return $false }
+    return $leftId.StartsWith($rightId) -or $rightId.StartsWith($leftId)
+}
+
+function Wait-StagingDockerEngine([int]$TimeoutSeconds = 120) {
+    $deadline = [DateTime]::UtcNow.AddSeconds($TimeoutSeconds)
+    do {
+        $probe = Invoke-StagingDockerCaptured @("info", "--format", "{{.ServerVersion}}") -Quiet
+        if ($probe.exit_code -eq 0 -and -not [string]::IsNullOrWhiteSpace($probe.output)) { return $true }
+        Start-Sleep -Seconds 3
+    } while ([DateTime]::UtcNow -lt $deadline)
+    return $false
+}
+
+function Invoke-StagingComposeUpWithZombieRecovery([string[]]$ComposeArgs, [int]$MaxAttempts = 2) {
+    if ($MaxAttempts -ne 2) { Fail "Staging zombie recovery is fixed to exactly two compose-up attempts" }
+    $upArgs = $ComposeArgs + @("up", "-d")
+    $zombiePattern = '(?i)cannot stop container:\s+([0-9a-f]{12,64}).*PID\s+\d+\s+is zombie and can not be killed'
+
+    for ($attempt = 1; $attempt -le $MaxAttempts; $attempt++) {
+        Write-Host ("> docker {0}" -f ($upArgs -join " "))
+        Write-StagingOperationBoundary -Component $LogComponent -Stage "compose-up" -Outcome "start" -Message "Staging compose-up attempt started" -Data @{
+            attempt = $attempt
+            max_attempts = $MaxAttempts
+            zombie_recovery_only = $true
+        }
+
+        $result = Invoke-StagingDockerCaptured $upArgs
+        if ($result.exit_code -eq 0) {
+            Write-StagingOperationBoundary -Component $LogComponent -Stage "compose-up" -Outcome "success" -Message "Staging compose-up completed" -Data @{
+                attempt = $attempt
+                max_attempts = $MaxAttempts
+                docker_desktop_restarted = [bool]($attempt -gt 1)
+            }
+            return [pscustomobject]@{
+                attempts = $attempt
+                docker_desktop_restarted = [bool]($attempt -gt 1)
+            }
+        }
+
+        $match = [regex]::Match([string]$result.output, $zombiePattern)
+        if (-not $match.Success) {
+            Fail "docker compose up failed without a retryable zombie-container signature" @{
+                attempt = $attempt
+                exit_code = $result.exit_code
+            }
+        }
+        if ($attempt -ge $MaxAttempts) {
+            Fail "docker compose up failed after bounded zombie-container recovery" @{
+                attempts = $attempt
+                exit_code = $result.exit_code
+            }
+        }
+
+        $zombieContainerId = $match.Groups[1].Value.ToLowerInvariant()
+        $projectIdsResult = Invoke-StagingDockerCaptured ($ComposeArgs + @("ps", "-aq")) -Quiet
+        if ($projectIdsResult.exit_code -ne 0) { Fail "Could not enumerate Staging Compose containers before zombie recovery" }
+        $projectIds = @($projectIdsResult.lines | Where-Object { $_ -match '^[0-9a-fA-F]{12,64}$' })
+        if ($projectIds.Count -eq 0) { Fail "Staging Compose project has no container identities during zombie recovery" }
+
+        $zombieOwnedByProject = $false
+        foreach ($projectId in $projectIds) {
+            if (Test-StagingContainerIdMatch $zombieContainerId $projectId) {
+                $zombieOwnedByProject = $true
+                break
+            }
+        }
+        if (-not $zombieOwnedByProject) {
+            Fail "Zombie container is not owned by the current Staging Compose project"
+        }
+
+        $runningResult = Invoke-StagingDockerCaptured @("ps", "-q") -Quiet
+        if ($runningResult.exit_code -ne 0) { Fail "Could not enumerate running Docker containers before zombie recovery" }
+        $runningIds = @($runningResult.lines | Where-Object { $_ -match '^[0-9a-fA-F]{12,64}$' })
+        $foreignRunningCount = 0
+        foreach ($runningId in $runningIds) {
+            $owned = $false
+            foreach ($projectId in $projectIds) {
+                if (Test-StagingContainerIdMatch $runningId $projectId) {
+                    $owned = $true
+                    break
+                }
+            }
+            if (-not $owned) { $foreignRunningCount++ }
+        }
+        if ($foreignRunningCount -gt 0) {
+            Fail "Refusing Docker Desktop restart while non-Staging containers are running" @{
+                foreign_running_container_count = $foreignRunningCount
+            }
+        }
+
+        $desktopStatus = Invoke-StagingDockerCaptured @("desktop", "status") -Quiet
+        if ($desktopStatus.exit_code -ne 0) {
+            Fail "Docker Desktop CLI restart is unavailable; automatic zombie recovery cannot proceed safely"
+        }
+
+        Write-StagingLog -Level warning -Component $LogComponent -Stage "compose-up" -Message "Restarting isolated Docker Desktop engine to clear Staging zombie container" -Data @{
+            attempt = $attempt
+            zombie_container_owned_by_staging = $true
+            foreign_running_container_count = $foreignRunningCount
+            volumes_deleted = $false
+            images_deleted = $false
+            cache_pruned = $false
+        }
+
+        $restart = Invoke-StagingDockerCaptured @("desktop", "restart")
+        if ($restart.exit_code -ne 0) {
+            Fail "Docker Desktop restart failed during bounded Staging zombie recovery" @{ exit_code = $restart.exit_code }
+        }
+        if (-not (Wait-StagingDockerEngine -TimeoutSeconds 120)) {
+            Fail "Docker engine did not become ready after bounded Staging zombie recovery"
+        }
+        Start-Sleep -Seconds 5
+    }
+
+    Fail "Staging compose-up zombie recovery loop ended unexpectedly"
+}
+
 function Get-NativeText([string]$File, [string[]]$Arguments) {
     if ($File -ieq "git") {
         try {
@@ -896,9 +1039,14 @@ try {
     Set-EnvValue $EnvFile "STAGING_APP_IMAGE_ID" $imageId.ToLowerInvariant()
     Assert-UniqueEnvKeys $EnvFile
     Invoke-Native "docker" ($composeArgs + @("config", "--quiet"))
-    $upArgs = $composeArgs + @("up", "-d")
     Write-StagingLog -Level info -Component $LogComponent -Stage "compose-up" -Message "starting local application topology"
-    Invoke-Native "docker" $upArgs
+    $composeUpResult = Invoke-StagingComposeUpWithZombieRecovery $composeArgs -MaxAttempts 2
+    if ($composeUpResult.docker_desktop_restarted) {
+        Write-StagingLog -Level warning -Component $LogComponent -Stage "compose-up" -Message "Staging topology recovered after isolated Docker Desktop restart" -Data @{
+            attempts = $composeUpResult.attempts
+            docker_desktop_restarted = $true
+        }
+    }
     foreach ($service in @("redis", "runtime-db", "governance-db", "persistence-db", "app")) { Wait-ServiceHealthy $composeArgs $service }
     Assert-WindowsHostOriginReachable $composeArgs $TunnelMode
     if ($TunnelMode -eq "windows_service") {
