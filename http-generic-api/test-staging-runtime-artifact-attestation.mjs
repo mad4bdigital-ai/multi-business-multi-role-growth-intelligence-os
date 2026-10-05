@@ -32,7 +32,7 @@ const publicPem = signingPair.publicKey.export({
 });
 const ingressFingerprint = createHash("sha256")
   .update(
-    createPublicKey(ingressPair.publicKey).export({
+    ingressPair.publicKey.export({
       format: "der",
       type: "spki",
     }),
@@ -196,7 +196,7 @@ test("runtime artifact signer refuses stale or oversized TTL", () => {
 test("runtime artifact trust refuses reuse of Gateway ingress key", () => {
   const signingFingerprint = createHash("sha256")
     .update(
-      createPublicKey(signingPair.publicKey).export({
+      signingPair.publicKey.export({
         format: "der",
         type: "spki",
       }),
