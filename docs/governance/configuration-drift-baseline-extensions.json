@@ -2213,6 +2213,39 @@
       "contains_secret_value": false,
       "grants_runtime_mutation": false,
       "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/scripts/staging-certification-gateway-compat.mjs|POLICY_PATH|literal_declaration|policy.path",
+      "owner": "repository-governance",
+      "reason": "The fixed repository-relative Gateway policy path selects the canonical packaged Staging route-policy document for read-only historical/current Git-blob parity and live identity verification. It is code-owned, contains no credential or provider endpoint override, and grants no database, provider, protected-ref, Worker deployment, or Production mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "staging_certification_policy_binding",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/scripts/staging-certification-gateway-compat.mjs|policyHistorical|literal_declaration|policyhistorical",
+      "owner": "repository-governance",
+      "reason": "policyHistorical is an in-memory object parsed read-only from the exact historical Git commit's canonical Staging Gateway policy; it is evidence state rather than operator configuration and grants no mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "staging_certification_evidence_state",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/scripts/staging-certification-gateway-compat.mjs|policy|literal_declaration|policy",
+      "owner": "repository-governance",
+      "reason": "policy is an in-memory object parsed read-only from the pinned current control-plane authority's canonical Staging Gateway policy; it is evidence state used for exact parity and live readback checks, not a mutable external configuration source.",
+      "lifecycle": "permanent",
+      "configuration_class": "staging_certification_evidence_state",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
     }
   ],
   "safety": {
