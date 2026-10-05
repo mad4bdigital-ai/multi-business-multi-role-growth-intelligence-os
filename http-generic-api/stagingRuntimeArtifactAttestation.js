@@ -220,6 +220,15 @@ function assertPayload(payload, {
       "Running Staging app image digest is invalid.",
     );
   }
+  if (
+    !SHA256.test(payload.local_runtime_evidence_sha256 || "") ||
+    !SHA256.test(payload.app_container_identity_sha256 || "")
+  ) {
+    fail(
+      "STAGING_RUNTIME_ARTIFACT_LOCAL_BINDING_INVALID",
+      "Host-side runtime evidence and container identity hashes are required.",
+    );
+  }
 
   const gateway = payload.activation_gateway;
   if (
@@ -241,6 +250,16 @@ function assertPayload(payload, {
     fail(
       "STAGING_RUNTIME_ARTIFACT_POLICY_MISMATCH",
       "Gateway policy hash does not match the repository-owned Staging policy.",
+    );
+  }
+
+  if (
+    !SAFE_ID.test(payload.trusted_ingress?.key_id || "") ||
+    !SHA256.test(payload.trusted_ingress?.public_key_sha256 || "")
+  ) {
+    fail(
+      "STAGING_RUNTIME_ARTIFACT_TRUSTED_INGRESS_INVALID",
+      "Signed runtime artifact requires bounded trusted-ingress identity.",
     );
   }
 
