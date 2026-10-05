@@ -65,6 +65,8 @@ function payload(overrides = {}) {
     tree_sha: TREE,
     context_file_set_sha256: CONTEXT,
     app_image_digest: IMAGE,
+    local_runtime_evidence_sha256: "a".repeat(64),
+    app_container_identity_sha256: "b".repeat(64),
     runtime_integrity_verified: true,
     activation_gateway: {
       source_commit: SHA,
