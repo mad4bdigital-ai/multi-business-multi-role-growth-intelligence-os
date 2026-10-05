@@ -109,7 +109,8 @@
             "Canonical Staging bootstrap fills missing Staging-only OAuth/MCP/activation secrets without exposing their values, while Production/provider/database mutation authority remains false.",
             "Exact release-cut deployment bindings are applied only after canonical environment reconciliation.",
             "Start-AutoPilot must not shadow Get-StagingEnvValue or Set-StagingEnvValue; canonical Staging-Environment owns tolerant reconciliation before fail-closed AutoPilot reads.",
-            "Exact Staging Docker builds may retry once only for recognized transient BuildKit frontend transport failures; deterministic failures or the second transient failure remain fail-closed, and recovery must not prune caches or remove builders."
+            "Exact Staging Docker builds may retry once only for recognized transient BuildKit frontend transport failures; deterministic failures or the second transient failure remain fail-closed, and recovery must not prune caches or remove builders.",
+            "Docker build stderr capture may temporarily relax ErrorActionPreference only inside the native Docker capture window, must restore the prior value in finally, and must classify success or retry from the native exit code rather than treating ordinary stderr progress as a script failure."
           ],
           "tests": [
             {
