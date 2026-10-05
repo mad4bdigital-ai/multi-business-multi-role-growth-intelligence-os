@@ -124,16 +124,18 @@ jobs:
             .safety.secrets_included == false
           ' "$STAGING_TRUST_REPORT_FILE" >/dev/null
 
-      - name: Download exact-SHA signed Recovery certification
+      - name: Download exact-SHA signed Staging runtime artifact attestation
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_CUT_SHA: ${{ steps.identity.outputs.release_cut_sha }}
         shell: bash
         run: |
           set -Eeuo pipefail
-          prefix="staging-recovery-signed-certification-${RELEASE_CUT_SHA}-"
+          prefix="staging-runtime-artifact-attestation-${RELEASE_CUT_SHA}-"
           runs_json="$(
-            gh api               -H "Accept: application/vnd.github+json"               "/repos/${GITHUB_REPOSITORY}/actions/workflows/staging-post-deploy-verification.yml/runs?branch=main&status=success&head_sha=${RELEASE_CUT_SHA}&per_page=100"
+            gh api \
+              -H "Accept: application/vnd.github+json" \
+              "/repos/${GITHUB_REPOSITORY}/actions/workflows/staging-post-deploy-verification.yml/runs?branch=main&status=success&head_sha=${RELEASE_CUT_SHA}&per_page=100"
           )"
           mapfile -t run_ids < <(
             jq -er --arg sha "$RELEASE_CUT_SHA" '
@@ -147,12 +149,15 @@ jobs:
               | .id
             ' <<<"$runs_json"
           )
-          [[ "${#run_ids[@]}" -gt 0 ]] || { echo "::error::No successful exact-SHA Recovery certification workflow run exists"; exit 1; }
+          [[ "${#run_ids[@]}" -gt 0 ]] || { echo "::error::No successful exact-SHA Staging runtime attestation workflow run exists"; exit 1; }
 
-          candidates="$RUNNER_TEMP/staging-recovery-signed-artifacts.jsonl"
+          candidates="$RUNNER_TEMP/staging-runtime-artifact-attestations.jsonl"
           : > "$candidates"
           for run_id in "${run_ids[@]}"; do
-            gh api               -H "Accept: application/vnd.github+json"               "/repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}/artifacts?per_page=100"               | jq -c --arg prefix "$prefix" --arg sha "$RELEASE_CUT_SHA" --argjson run_id "$run_id" '
+            gh api \
+              -H "Accept: application/vnd.github+json" \
+              "/repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}/artifacts?per_page=100" \
+              | jq -c --arg prefix "$prefix" --arg sha "$RELEASE_CUT_SHA" --argjson run_id "$run_id" '
                   .artifacts[]
                   | select(
                       .expired == false
@@ -172,27 +177,28 @@ jobs:
                 ' >> "$candidates"
           done
 
-          [[ -s "$candidates" ]] || { echo "::error::No non-expired signed Recovery certification artifact exists for the exact release cut"; exit 1; }
-          selected="$(
-            jq -s -er 'sort_by(.created_at) | last' "$candidates"
-          )"
+          [[ -s "$candidates" ]] || { echo "::error::No non-expired signed Staging runtime artifact attestation exists for the exact release cut"; exit 1; }
+          selected="$(jq -s -er 'sort_by(.created_at) | last' "$candidates")"
           artifact_id="$(jq -er '.id' <<<"$selected")"
           artifact_name="$(jq -er '.name' <<<"$selected")"
 
-          output_dir="$RUNNER_TEMP/staging-recovery-signed-certification"
+          output_dir="$RUNNER_TEMP/staging-runtime-artifact-attestation"
           rm -rf "$output_dir"
           mkdir -p "$output_dir"
-          gh api             -H "Accept: application/vnd.github+json"             "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip"             > "$RUNNER_TEMP/staging-recovery-signed-certification.zip"
-          unzip -qq "$RUNNER_TEMP/staging-recovery-signed-certification.zip" -d "$output_dir"
-          rm -f "$RUNNER_TEMP/staging-recovery-signed-certification.zip"
-          mapfile -t signed_files < <(find "$output_dir" -type f -name signed-certification.json -print)
-          [[ "${#signed_files[@]}" -eq 1 ]] || { echo "::error::Expected exactly one signed-certification.json"; exit 1; }
+          gh api \
+            -H "Accept: application/vnd.github+json" \
+            "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" \
+            > "$RUNNER_TEMP/staging-runtime-artifact-attestation.zip"
+          unzip -qq "$RUNNER_TEMP/staging-runtime-artifact-attestation.zip" -d "$output_dir"
+          rm -f "$RUNNER_TEMP/staging-runtime-artifact-attestation.zip"
+          mapfile -t signed_files < <(find "$output_dir" -type f -name signed-runtime-artifact-attestation.json -print)
+          [[ "${#signed_files[@]}" -eq 1 ]] || { echo "::error::Expected exactly one signed-runtime-artifact-attestation.json"; exit 1; }
           {
-            echo "RECOVERY_STAGING_SIGNED_CERTIFICATION_FILE=${signed_files[0]}"
-            echo "RECOVERY_STAGING_SIGNED_CERTIFICATION_ARTIFACT_NAME=${artifact_name}"
+            echo "STAGING_RUNTIME_ARTIFACT_ATTESTATION_FILE=${signed_files[0]}"
+            echo "STAGING_RUNTIME_ARTIFACT_ATTESTATION_ARTIFACT_NAME=${artifact_name}"
           } >> "$GITHUB_ENV"
 
-      - name: Verify signed Recovery certification and bind app image digest
+      - name: Verify signed Staging runtime artifact attestation and bind app image digest
         env:
           RELEASE_CUT_SHA: ${{ steps.identity.outputs.release_cut_sha }}
           RECOVERY_STAGING_CERTIFICATION_PUBLIC_KEY: ${{ vars.RECOVERY_STAGING_CERTIFICATION_PUBLIC_KEY }}
@@ -205,61 +211,76 @@ jobs:
           node --input-type=module <<'NODE'
           import fs from "node:fs";
           import {
-            loadStagingRecoveryCertificationPublicTrust,
-            verifyStagingRecoverySignedCertificationRecord,
-          } from "./http-generic-api/stagingRecoveryCertificationPublicTrust.js";
+            loadStagingRuntimeArtifactAttestationTrust,
+            verifyStagingRuntimeArtifactAttestation,
+          } from "./http-generic-api/stagingRuntimeArtifactAttestation.js";
 
-          const file = process.env.RECOVERY_STAGING_SIGNED_CERTIFICATION_FILE;
+          const file = process.env.STAGING_RUNTIME_ARTIFACT_ATTESTATION_FILE;
           const artifactName =
-            process.env.RECOVERY_STAGING_SIGNED_CERTIFICATION_ARTIFACT_NAME;
+            process.env.STAGING_RUNTIME_ARTIFACT_ATTESTATION_ARTIFACT_NAME;
           const expectedSha = process.env.RELEASE_CUT_SHA;
-          if (!file || !artifactName || !expectedSha) {
-            throw new Error("Signed certification verification inputs are incomplete.");
+          const expectedTree = process.env.STAGING_CERT_EXPECTED_TREE;
+          const expectedContext =
+            process.env.STAGING_CERT_EXPECTED_CONTEXT_FILE_SET_SHA256;
+          const policy = JSON.parse(
+            fs.readFileSync(
+              "edge/activation-gateway/generated/route-policy.staging.json",
+              "utf8",
+            ),
+          );
+          const expectedPolicyHash = String(
+            policy.content_hash_sha256 || "",
+          ).toLowerCase();
+
+          if (
+            !file ||
+            !artifactName ||
+            !/^[0-9a-f]{40}$/u.test(expectedSha || "") ||
+            !/^[0-9a-f]{40}$/u.test(expectedTree || "") ||
+            !/^[0-9a-f]{64}$/u.test(expectedContext || "") ||
+            !/^[0-9a-f]{64}$/u.test(expectedPolicyHash)
+          ) {
+            throw new Error(
+              "Runtime artifact attestation verification inputs are incomplete.",
+            );
           }
 
           const record = JSON.parse(fs.readFileSync(file, "utf8"));
-          const payload = record?.payload;
-          const signedTargetFingerprint =
-            String(payload?.target_fingerprint || "").toLowerCase();
-          if (
-            payload?.environment !== "staging"
-            || payload?.branch !== "main"
-            || payload?.deployment_sha !== expectedSha
-            || !/^[0-9a-f]{64}$/u.test(signedTargetFingerprint)
-          ) {
-            throw new Error("Signed certification is not bound to the exact Staging release cut.");
-          }
-
           const expectedArtifactName =
-            `staging-recovery-signed-certification-${expectedSha}-${signedTargetFingerprint}`;
+            `staging-runtime-artifact-attestation-${expectedSha}-${record?.payload_sha256 || ""}`;
           if (artifactName !== expectedArtifactName) {
-            throw new Error("Artifact name disagrees with the signed target binding.");
+            throw new Error(
+              "Runtime artifact name disagrees with the signed payload binding.",
+            );
           }
 
-          const trust = loadStagingRecoveryCertificationPublicTrust(process.env);
-          const verified = verifyStagingRecoverySignedCertificationRecord(record, {
+          const trust = loadStagingRuntimeArtifactAttestationTrust(process.env);
+          const verified = verifyStagingRuntimeArtifactAttestation(record, {
             trust,
             expectedSha,
-            expectedTargetFingerprint: signedTargetFingerprint,
-            expectedRunId: payload.certification_run_id,
-            expectedNonce: payload.nonce,
+            expectedTree,
+            expectedContextFileSetSha256: expectedContext,
+            expectedPolicyHash,
           });
-          const certification = verified.payload.stagingCertification;
-          const imageDigest = String(
-            certification?.artifact_integrity?.app_image_digest || "",
-          ).toLowerCase();
+
+          const payload = verified.payload;
+          const imageDigest = String(payload.app_image_digest || "").toLowerCase();
           if (
-            certification?.environment_key !== "staging"
-            || certification?.branch !== "main"
-            || certification?.deployment_sha !== expectedSha
-            || certification?.target_fingerprint !== signedTargetFingerprint
-            || !/^sha256:[0-9a-f]{64}$/u.test(imageDigest)
+            !/^sha256:[0-9a-f]{64}$/u.test(imageDigest) ||
+            payload.runtime_integrity_verified !== true ||
+            payload.production_mutation_performed !== false ||
+            payload.provider_mutation_performed !== false ||
+            payload.database_mutation_performed !== false ||
+            payload.secrets_included !== false
           ) {
-            throw new Error("Verified signed certification lacks exact Staging app image binding.");
+            throw new Error(
+              "Verified runtime artifact attestation crossed a safety or integrity boundary.",
+            );
           }
+
           fs.appendFileSync(
             process.env.GITHUB_ENV,
-            `RECOVERY_STAGING_EXPECTED_TARGET_FINGERPRINT=${signedTargetFingerprint}\nSTAGING_CERT_APP_IMAGE_ID=${imageDigest}\n`,
+            `STAGING_CERT_APP_IMAGE_ID=${imageDigest}\n`,
           );
           NODE
 
