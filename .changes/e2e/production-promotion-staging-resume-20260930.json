@@ -108,7 +108,8 @@
             "Direct Start-AutoPilot environment bootstrap delegates to the canonical Initialize-StagingEnvironment helper used by One-Click instead of maintaining a second local secret generator.",
             "Canonical Staging bootstrap fills missing Staging-only OAuth/MCP/activation secrets without exposing their values, while Production/provider/database mutation authority remains false.",
             "Exact release-cut deployment bindings are applied only after canonical environment reconciliation.",
-            "Start-AutoPilot must not shadow Get-StagingEnvValue or Set-StagingEnvValue; canonical Staging-Environment owns tolerant reconciliation before fail-closed AutoPilot reads."
+            "Start-AutoPilot must not shadow Get-StagingEnvValue or Set-StagingEnvValue; canonical Staging-Environment owns tolerant reconciliation before fail-closed AutoPilot reads.",
+            "Exact Staging Docker builds may retry once only for recognized transient BuildKit frontend transport failures; deterministic failures or the second transient failure remain fail-closed, and recovery must not prune caches or remove builders."
           ],
           "tests": [
             {
