@@ -11,6 +11,7 @@ const acquisitionSigner = readFileSync("../.github/scripts/staging-recovery-sign
 const networkAcquisition = readFileSync("./scripts/staging-recovery-acquire-network-evidence.mjs", "utf8");
 const runtimeAttestationScript = readFileSync("../.github/scripts/staging-runtime-artifact-attest.mjs", "utf8");
 const runtimeAttestationModule = readFileSync("./stagingRuntimeArtifactAttestation.js", "utf8");
+const runtimeAttestationPs = readFileSync("../autopilot-portable-staging/Invoke-StagingRuntimeArtifactAttestation.ps1", "utf8");
 
 assert.match(canaryPs, /git" -Arguments @\("fetch", "origin", "main"\)/u);
 assert.match(canaryPs, /\$branch -ne "main"/u);
@@ -47,6 +48,18 @@ assert.match(workflow, /staging-runtime-artifact-attest\.mjs/u);
 assert.match(workflow, /Attest exact Staging runtime artifact/u);
 assert.match(workflow, /RECOVERY_STAGING_CERTIFICATION_PRIVATE_KEY/u);
 assert.match(workflow, /ACTIVATION_GATEWAY_INGRESS_PUBLIC_KEY_SHA256/u);
+assert.match(workflow, /runtime_artifact_evidence_zip_base64/u);
+assert.match(workflow, /ATTEST_STAGING_RUNTIME_ARTIFACT/u);
+assert.match(workflow, /runtime-artifact-evidence\.json/u);
+
+assert.match(runtimeAttestationPs, /git" -Arguments @\("fetch", "origin", "main"\)/u);
+assert.match(runtimeAttestationPs, /docker inspect --format "\{\{\.Image\}\}"/u);
+assert.match(runtimeAttestationPs, /runtime-artifact-evidence\.json/u);
+assert.match(runtimeAttestationPs, /ATTEST_STAGING_RUNTIME_ARTIFACT/u);
+assert.match(runtimeAttestationPs, /runtime_artifact_evidence_zip_base64/u);
+assert.match(runtimeAttestationPs, /production_mutation_performed = \$false/u);
+assert.match(runtimeAttestationPs, /provider_mutation_performed = \$false/u);
+assert.match(runtimeAttestationPs, /database_mutation_performed = \$false/u);
 
 assert.match(liveWorkflow, /staging-runtime-artifact-attestation-/u);
 assert.match(liveWorkflow, /signed-runtime-artifact-attestation\.json/u);
