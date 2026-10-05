@@ -47,7 +47,7 @@ try {
     if ($head -ne $originMain -or $ExpectedSha -ne $head) { throw "Runtime artifact attestation requires exact local main == origin/main == ExpectedSha." }
     if (-not [string]::IsNullOrWhiteSpace($dirty)) { throw "Runtime artifact attestation requires a clean Git working tree." }
 
-    if ([string]::IsNullOrWhiteSpace($OutputDirectory)) { $OutputDirectory = Join-Path $scriptRoot ("runtime-artifact-attestation\" + $ExpectedSha) }
+    if ([string]::IsNullOrWhiteSpace($OutputDirectory)) { $OutputDirectory = Join-Path ([IO.Path]::GetTempPath()) ("mad4b-staging-runtime-artifact-attestation\" + $ExpectedSha) }
     $OutputDirectory = [IO.Path]::GetFullPath($OutputDirectory)
     if (Test-Path -LiteralPath $OutputDirectory) { Remove-Item -LiteralPath $OutputDirectory -Recurse -Force }
     New-Item -ItemType Directory -Path $OutputDirectory -Force | Out-Null
