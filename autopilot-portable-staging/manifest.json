@@ -374,7 +374,7 @@
     },
     {
       "path": "http-generic-api/scripts/staging-certification-gateway-compat.mjs",
-      "sha256": "6d71a11729c5de3341ed57577f1461209e1d7ad5655090560ea925fe80a42b4c"
+      "sha256": "93ff661c27815acbe34d514fa8ece44073d0f1b7f472c0de52257f47defead0c"
     },
     {
       "path": "http-generic-api/stagingImmutableArtifactIntegrity.js",
