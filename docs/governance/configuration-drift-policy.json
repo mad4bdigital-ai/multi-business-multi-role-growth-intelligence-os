@@ -2351,6 +2351,12 @@
       "owner": "platform-team",
       "reason": "Reviewed in PR #7638: this candidate is a quoted SQL fixture used only to prove static text-width and append-expression detection. It is not runtime configuration, contains no secret, and cannot authorize database, provider, credential, or Production mutation.",
       "expires_at": "2026-11-30T23:59:59.000Z"
+    },
+    {
+      "fingerprint": "http-generic-api/scripts/staging-certification-runtime-integrity-compat.mjs|baseUrl|environment_reference|staging.cert.app.base.url",
+      "owner": "platform-team",
+      "reason": "Reviewed in PR #8412: STAGING_CERT_APP_BASE_URL is a read-only loopback Staging certification input reused by the historical runtime-integrity compatibility verifier. It is bound to local deployment evidence only, contains no secret, and grants no database, provider, ruleset, protected-ref, or Production mutation authority. Revisit with the existing Staging certification Config Catalog binding.",
+      "expires_at": "2026-11-30T23:59:59.000Z"
     }
   ],
   "safety": {
