@@ -247,6 +247,9 @@ assert.match(stagingAutoPilot, /Invoke-StagingDockerBuild \(\$composeArgs \+ @\(
 assert.match(stagingAutoPilot, /transient_recovered/u);
 assert.match(stagingAutoPilot, /Docker build failed without a retryable BuildKit frontend transport signature/u);
 assert.match(stagingAutoPilot, /Docker build failed after bounded BuildKit frontend retry/u);
+assert.match(stagingAutoPilot, /\$previousErrorActionPreference = \$ErrorActionPreference/u);
+assert.match(stagingAutoPilot, /\$ErrorActionPreference = "Continue"[\s\S]*?& docker @Arguments 2>&1[\s\S]*?\$code = \$LASTEXITCODE[\s\S]*?finally \{[\s\S]*?\$ErrorActionPreference = \$previousErrorActionPreference/u);
+assert.match(stagingAutoPilot, /Set-StrictMode -Version Latest[\s\S]*?\$ErrorActionPreference = "Stop"/u);
 assert.doesNotMatch(stagingAutoPilot, /docker\s+(?:buildx\s+)?(?:prune|rm)\b/u);
 assert.doesNotMatch(stagingAutoPilot, /builder\s+(?:prune|rm)\b/u);
 assert.match(stagingAutoPilot, /if \(-not \$governedHistoricalResume\) \{[\s\S]*?Assert-PortableManifestIntegrity \$RepositoryPath \$Manifest "payload-manifest"/u);
