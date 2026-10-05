@@ -151,10 +151,19 @@ function Invoke-StagingDockerBuild([string[]]$Arguments, [int]$MaxAttempts = 2) 
         }
 
         $buildOutput = @()
-        & docker @Arguments 2>&1 |
-            Tee-Object -Variable buildOutput |
-            ForEach-Object { Write-Host ([string]$_) }
-        $code = $LASTEXITCODE
+        $previousErrorActionPreference = $ErrorActionPreference
+        try {
+            # Windows PowerShell 5.1 surfaces native stderr records through the error stream.
+            # Keep the script fail-closed globally, but prevent ordinary Docker stderr/progress
+            # from terminating this capture window before we can classify the native exit code.
+            $ErrorActionPreference = "Continue"
+            & docker @Arguments 2>&1 |
+                Tee-Object -Variable buildOutput |
+                ForEach-Object { Write-Host ([string]$_) }
+            $code = $LASTEXITCODE
+        } finally {
+            $ErrorActionPreference = $previousErrorActionPreference
+        }
         $outputText = (($buildOutput | ForEach-Object { [string]$_ }) -join "`n")
 
         if ($code -eq 0) {
