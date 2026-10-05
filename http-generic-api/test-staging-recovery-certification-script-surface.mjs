@@ -12,6 +12,8 @@ const networkAcquisition = readFileSync("./scripts/staging-recovery-acquire-netw
 const runtimeAttestationScript = readFileSync("../.github/scripts/staging-runtime-artifact-attest.mjs", "utf8");
 const runtimeAttestationModule = readFileSync("./stagingRuntimeArtifactAttestation.js", "utf8");
 const runtimeAttestationPs = readFileSync("../autopilot-portable-staging/Invoke-StagingRuntimeArtifactAttestation.ps1", "utf8");
+const governanceConstitution = readFileSync("../http-generic-api/config/repository-governance-constitution.json", "utf8");
+const derivedStateGovernance = readFileSync("../.github/derived-state-governance.json", "utf8");
 
 assert.match(canaryPs, /git" -Arguments @\("fetch", "origin", "main"\)/u);
 assert.match(canaryPs, /\$branch -ne "main"/u);
@@ -65,6 +67,8 @@ assert.doesNotMatch(runtimeAttestationPs, /Join-Path \$OutputDirectory "build-co
 assert.match(workflow, /--output-dir "\$RUNNER_TEMP\/\.staging-build-context"/u);
 assert.match(workflow, /\$RUNNER_TEMP\/\.staging-build-context\/\.staging-build-context\.json/u);
 assert.doesNotMatch(workflow, /staging-runtime-build-context/u);
+assert.match(governanceConstitution, /pr8423-staging-runtime-artifact-attestation-build-context-contract\\.json/u);
+assert.match(derivedStateGovernance, /pr8423-staging-runtime-artifact-attestation-build-context-contract\\.json/u);
 
 assert.match(liveWorkflow, /staging-runtime-artifact-attestation-/u);
 assert.match(liveWorkflow, /signed-runtime-artifact-attestation\.json/u);
