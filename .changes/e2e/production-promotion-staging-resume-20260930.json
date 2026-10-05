@@ -113,7 +113,10 @@
             "Docker build stderr capture may temporarily relax ErrorActionPreference only inside the native Docker capture window, must restore the prior value in finally, and must classify success or retry from the native exit code rather than treating ordinary stderr progress as a script failure.",
             "All long-running Staging Compose services run with init=true so PID 1 forwards signals and reaps child processes.",
             "A zombie-container compose-up failure may trigger one Docker Desktop restart only when the zombie belongs to the current Staging Compose project and no non-Staging containers are running; recovery never removes containers, volumes, images, or cache.",
-            "After bounded isolated Docker Desktop restart, AutoPilot waits for Docker engine readiness and retries the exact compose-up once; any second zombie failure remains fail-closed."
+            "After bounded isolated Docker Desktop restart, AutoPilot waits for Docker engine readiness and retries the exact compose-up once; any second zombie failure remains fail-closed.",
+            "Historical release-cut certification may use a pinned current-control-plane compatibility snapshot only when the historical report is blocked solely by runtime_integrity_verified; every other blocking failure remains fail-closed.",
+            "The compatibility verifier is read-only and may satisfy runtime integrity only through the current immutable-artifact proof bound to exact commit, tree, context-file-set SHA-256 and image digest; it performs no database, provider, ruleset or Production mutation.",
+            "After a successful compatibility proof, original readiness/degraded reasons are preserved and certification becomes degraded when any remain, or ready only when none remain; the temporary compatibility snapshot is deleted in finally."
           ],
           "tests": [
             {
