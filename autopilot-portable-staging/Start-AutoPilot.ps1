@@ -437,6 +437,7 @@ function New-StagingCertificationCompatibilitySnapshot(
 
     $relativeFiles = @(
         "http-generic-api/scripts/staging-certification-runtime-integrity-compat.mjs",
+        "http-generic-api/scripts/staging-certification-gateway-compat.mjs",
         "http-generic-api/stagingImmutableArtifactIntegrity.js"
     )
 
@@ -551,6 +552,68 @@ function Invoke-StagingCertificationCompatibilityVerifier(
         verifier_exit_code = $code
         read_only = $true
         mutation_performed = $false
+        secrets_included = $false
+    }
+
+    return $report
+}
+
+
+function Invoke-StagingGatewayCompatibilityVerifier(
+    [string]$ScriptPath,
+    [string]$AuthorityCommit,
+    [string]$ExpectedCommit,
+    [string]$RepositoryPath,
+    [string]$EnvFile
+) {
+    if (-not (Test-Path -LiteralPath $ScriptPath -PathType Leaf)) {
+        Fail "Gateway compatibility verifier snapshot is missing"
+    }
+
+    $bindings = [ordered]@{
+        STAGING_CERT_GATEWAY_COMPAT_AUTHORITY_COMMIT = $AuthorityCommit
+        STAGING_CERT_GATEWAY_COMPAT_EXPECTED_COMMIT = $ExpectedCommit
+        STAGING_CERT_GATEWAY_COMPAT_REPOSITORY_PATH = $RepositoryPath
+        STAGING_CERT_GATEWAY_COMPAT_ENV_FILE = $EnvFile
+    }
+    $previous = @{}
+    foreach ($name in $bindings.Keys) {
+        $previous[$name] = [Environment]::GetEnvironmentVariable($name, "Process")
+        [Environment]::SetEnvironmentVariable($name, [string]$bindings[$name], "Process")
+    }
+
+    $output = @()
+    $code = 1
+    $previousErrorActionPreference = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = "Continue"
+        $output = @(& node $ScriptPath 2>&1)
+        $code = $LASTEXITCODE
+    } finally {
+        $ErrorActionPreference = $previousErrorActionPreference
+        foreach ($name in $bindings.Keys) {
+            [Environment]::SetEnvironmentVariable($name, $previous[$name], "Process")
+        }
+    }
+
+    $text = (($output | ForEach-Object { [string]$_ }) -join "`n").Trim()
+    $report = Read-StagingLastJsonObject $text
+    if ($null -eq $report -or [string]$report.contract -ne "mad4b.staging-certification-gateway-compatibility.v1") {
+        Fail "Gateway compatibility verifier did not return the canonical contract"
+    }
+    if ($code -eq 0 -and $report.verified -ne $true) {
+        Fail "Gateway compatibility verifier returned inconsistent success"
+    }
+
+    Write-StagingOperationBoundary -Component $LogComponent -Stage "gateway-certification-compatibility" -Outcome $(if ($report.verified -eq $true) { "success" } else { "failure" }) -Message "Historical Staging Gateway compatibility verification completed" -Data @{
+        authority_commit = [string]$report.authority_commit
+        expected_commit = $ExpectedCommit
+        verified = [bool]($report.verified -eq $true)
+        verifier_exit_code = $code
+        read_only = $true
+        database_mutation_performed = $false
+        provider_mutation_performed = $false
+        production_mutation_performed = $false
         secrets_included = $false
     }
 
@@ -1013,6 +1076,7 @@ $BuildContextScript = Join-Path $ApiPath "scripts/prepare-staging-build-context.
 $BuildContextPath = Join-Path $RepositoryPath ".staging-build-context"
 $CertificationCompatibilityRoot = Join-Path ([IO.Path]::GetTempPath()) ("mad4b-staging-cert-compat-" + [Guid]::NewGuid().ToString("N"))
 $CertificationCompatibilityScript = ""
+$CertificationGatewayCompatibilityScript = ""
 $CertificationCompatibilityAuthorityCommit = ""
 
 Require-Command "git"
@@ -1065,6 +1129,7 @@ try {
             -RepoPath $RepositoryPath `
             -AuthorityCommit $remoteCommit `
             -DestinationRoot $CertificationCompatibilityRoot
+        $CertificationGatewayCompatibilityScript = Join-Path $CertificationCompatibilityRoot "http-generic-api\scripts\staging-certification-gateway-compat.mjs"
         Invoke-Native "git" @("fetch", "origin", $ExpectedCommit, "--depth=2")
     }
     Invoke-Native "git" @("checkout", "--detach", $ExpectedCommit)
@@ -1337,6 +1402,67 @@ try {
     }
     try { $certState = Get-Content -Raw -LiteralPath $StateFile | ConvertFrom-Json }
     catch { Fail "Staging certification state could not be read" }
+
+    if ($governedHistoricalResume -and [string]$certState.certification_status -eq "degraded") {
+        $gatewayCompatibilityReasonSet = @(
+            "gateway_recovery_trusted_ingress",
+            "gateway_exact_commit",
+            "gateway_upstream_ready"
+        )
+        $currentDegradedReasons = @($certState.certification_degraded_reasons | ForEach-Object { [string]$_ } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+        $gatewayCompatibilityCandidates = @($currentDegradedReasons | Where-Object { $_ -in $gatewayCompatibilityReasonSet })
+
+        if ($gatewayCompatibilityCandidates.Count -gt 0) {
+            $gatewayCompatibility = Invoke-StagingGatewayCompatibilityVerifier `
+                -ScriptPath $CertificationGatewayCompatibilityScript `
+                -AuthorityCommit $CertificationCompatibilityAuthorityCommit `
+                -ExpectedCommit $ExpectedCommit.ToLowerInvariant() `
+                -RepositoryPath $RepositoryPath `
+                -EnvFile $EnvFile
+
+            if ($gatewayCompatibility.verified -eq $true) {
+                $compatibleReasons = @($gatewayCompatibility.compatible_degraded_reasons | ForEach-Object { [string]$_ })
+                $remainingReasons = @($currentDegradedReasons | Where-Object { $_ -notin $compatibleReasons })
+                $recoveredStatus = if ($remainingReasons.Count -gt 0) { "degraded" } else { "ready" }
+                $certState.certification_degraded_reasons = $remainingReasons
+                $certState.certification_status = $recoveredStatus
+                $certState.certification_ready = ($recoveredStatus -eq "ready")
+                $certState.secrets_included = $false
+
+                foreach ($entry in @(
+                    @{ Name = "gateway_compatibility_applied"; Value = $true },
+                    @{ Name = "gateway_compatibility_contract"; Value = [string]$gatewayCompatibility.contract },
+                    @{ Name = "gateway_compatibility_authority_commit"; Value = [string]$gatewayCompatibility.authority_commit },
+                    @{ Name = "gateway_compatibility_mode"; Value = "historical_app_current_worker" },
+                    @{ Name = "gateway_compatibility_recovered_reasons"; Value = $compatibleReasons },
+                    @{ Name = "gateway_compatibility_checks"; Value = $gatewayCompatibility.checks },
+                    @{ Name = "gateway_compatibility_bundle_blob_checks"; Value = $gatewayCompatibility.bundle_blob_checks }
+                )) {
+                    $existing = $certState.PSObject.Properties[$entry.Name]
+                    if ($null -ne $existing) {
+                        $existing.Value = $entry.Value
+                    } else {
+                        $certState | Add-Member -NotePropertyName $entry.Name -NotePropertyValue $entry.Value
+                    }
+                }
+
+                Set-Content -LiteralPath $StateFile -Encoding utf8 -Value ($certState | ConvertTo-Json -Depth 14)
+                Write-StagingOperationBoundary -Component $LogComponent -Stage "gateway-certification-compatibility" -Outcome "success" -Message "Historical app/current Worker Gateway compatibility proof satisfied only the proven Gateway degraded reasons" -Data @{
+                    commit = $ExpectedCommit
+                    authority_commit = $CertificationCompatibilityAuthorityCommit
+                    recovered_reasons = $compatibleReasons
+                    remaining_degraded_reasons = $remainingReasons
+                    recovered_status = $recoveredStatus
+                    database_readiness = $certState.database_readiness
+                    mutation_performed = $false
+                    provider_mutation_performed = $false
+                    production_mutation_performed = $false
+                    secrets_included = $false
+                }
+            }
+        }
+    }
+
     if ($certState.certification_status -eq "degraded") {
         Write-StagingLog -Level warning -Component $LogComponent -Stage "certification" -Message "Staging is running but not release-ready" -Data @{ commit = $ExpectedCommit; degraded_reasons = @($certState.certification_degraded_reasons); database_readiness = $certState.database_readiness }
     } elseif ($certState.certification_status -eq "ready") {
