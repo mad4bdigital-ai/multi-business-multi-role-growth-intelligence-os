@@ -2268,6 +2268,138 @@
       "contains_secret_value": false,
       "grants_runtime_mutation": false,
       "grants_production_activation": false
+    },
+    {
+      "fingerprint": ".github/scripts/staging-runtime-artifact-attest.mjs|RECOVERY_STAGING_CERTIFICATION_ISSUER|environment_reference|recovery.staging.certification.issuer",
+      "owner": "staging-runtime-attestation-governance",
+      "reason": "Existing governed Staging certification issuer reference reused only to domain-bind the independent runtime-artifact signature; it grants no Recovery acquisition, provider, database, protected-ref, or Production mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": ".github/scripts/staging-runtime-artifact-attest.mjs|RECOVERY_STAGING_CERTIFICATION_KEY_ID|environment_reference|recovery.staging.certification.key.id",
+      "owner": "staging-runtime-attestation-governance",
+      "reason": "Existing governed Staging certification key identifier reused only as a non-secret signer identity for the distinct runtime-artifact signature domain; the private key remains environment-scoped and this reference grants no mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": ".github/scripts/staging-runtime-artifact-attest.mjs|STAGING_APP_BASE_URL|environment_reference|staging.app.base.url",
+      "owner": "staging-runtime-attestation-governance",
+      "reason": "Read-only Staging application probe origin used to independently compare public deployment identity with host-side Docker evidence before signing; it cannot select Production or authorize mutation.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": ".github/scripts/staging-runtime-artifact-attest.mjs|STAGING_GATEWAY_BASE_URL|environment_reference|staging.gateway.base.url",
+      "owner": "staging-runtime-attestation-governance",
+      "reason": "Read-only Activation Gateway probe origin used to verify exact SHA, policy, Worker bundle and upstream trust before signing; it grants no provider deployment or mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": ".github/scripts/staging-runtime-artifact-attest.mjs|STAGING_RUNTIME_ATTESTATION_OUTPUT_DIRECTORY|environment_reference|staging.runtime.attestation.output.directory",
+      "owner": "staging-runtime-attestation-governance",
+      "reason": "Ephemeral GitHub runner output directory for no-secret runtime-attestation evidence; it is not a runtime/provider/database target and grants no mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": ".github/scripts/staging-runtime-artifact-attest.mjs|STAGING_RUNTIME_LOCAL_EVIDENCE_FILE|environment_reference|staging.runtime.local.evidence.file",
+      "owner": "staging-runtime-attestation-governance",
+      "reason": "Ephemeral path to the bounded no-secret host-side Docker evidence bundle supplied to the signer; exact SHA/tree/context/image and freshness checks remain mandatory and the path grants no mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": ".github/workflows/staging-live-certification.yml|STAGING_CERT_EXPECTED_CONTEXT_FILE_SET_SHA256|environment_reference|staging.cert.expected.context.file.set.sha256",
+      "owner": "staging-runtime-attestation-governance",
+      "reason": "Exact release-cut build-context digest consumed only by read-only Staging Live Certification to reject artifact drift; it grants no deployment, provider, database, or Production mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": ".github/workflows/staging-live-certification.yml|STAGING_RUNTIME_ARTIFACT_ATTESTATION_ARTIFACT_NAME|environment_reference|staging.runtime.artifact.attestation.artifact.name",
+      "owner": "staging-runtime-attestation-governance",
+      "reason": "GitHub artifact-name binding used to require exact SHA plus signed payload hash consistency before consuming a runtime attestation; it is read-only evidence identity and grants no mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": ".github/workflows/staging-live-certification.yml|expectedTree|environment_reference|staging.cert.expected.tree",
+      "owner": "staging-runtime-attestation-governance",
+      "reason": "Local verifier binding to the exact immutable release-cut tree SHA; it rejects cross-tree runtime evidence and is not external configuration or execution authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": ".github/workflows/staging-live-certification.yml|file|environment_reference|staging.runtime.artifact.attestation.file",
+      "owner": "staging-runtime-attestation-governance",
+      "reason": "Ephemeral downloaded signed-attestation file path inside the GitHub runner; it is used only for signature verification and cannot authorize runtime, provider, database, protected-ref, or Production mutation.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/stagingRuntimeArtifactAttestation.js|MAX_TTL_MS|literal_declaration|max.ttl.ms",
+      "owner": "staging-runtime-attestation-governance",
+      "reason": "Code-owned upper bound on signed runtime-attestation lifetime. It narrows replay exposure, is not externally configurable, and grants no mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/test-staging-runtime-artifact-attestation.mjs|POLICY|literal_declaration|policy",
+      "owner": "staging-runtime-attestation-governance",
+      "reason": "Test-only deterministic policy-hash fixture used by runtime-attestation regression tests; it never enters runtime configuration and grants no authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
     }
   ],
   "safety": {

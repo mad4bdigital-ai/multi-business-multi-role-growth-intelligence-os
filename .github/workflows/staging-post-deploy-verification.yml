@@ -11,6 +11,7 @@ on:
         type: choice
         options:
           - verify
+          - attest_runtime_artifact
           - acquire_external_evidence
           - countersign_recovery
       expected_sha:
@@ -30,6 +31,10 @@ on:
         description: Optional base64 ZIP containing the exact no-secret local canary bundle; preferred local-to-GitHub countersign transport
         required: false
         type: string
+      runtime_artifact_evidence_zip_base64:
+        description: Base64 ZIP containing exact no-secret host-side Staging runtime artifact evidence
+        required: false
+        type: string
       expected_target_fingerprint:
         description: Exact Staging target fingerprint; external acquisition or countersign
         required: false
@@ -43,7 +48,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: ${{ inputs.operation == 'countersign_recovery' && format('staging-recovery-genuine-certification-{0}-{1}', inputs.expected_sha, inputs.expected_target_fingerprint) || inputs.operation == 'acquire_external_evidence' && format('staging-recovery-external-acquisition-{0}-{1}', inputs.expected_sha, inputs.expected_target_fingerprint) || 'staging-post-deploy-verification' }}
+  group: ${{ inputs.operation == 'countersign_recovery' && format('staging-recovery-genuine-certification-{0}-{1}', inputs.expected_sha, inputs.expected_target_fingerprint) || inputs.operation == 'acquire_external_evidence' && format('staging-recovery-external-acquisition-{0}-{1}', inputs.expected_sha, inputs.expected_target_fingerprint) || inputs.operation == 'attest_runtime_artifact' && format('staging-runtime-artifact-attestation-{0}', inputs.expected_sha) || 'staging-post-deploy-verification' }}
   cancel-in-progress: ${{ inputs.operation == 'verify' }}
 
 jobs:
@@ -221,6 +226,142 @@ jobs:
           path: staging-verification-artifacts/
           if-no-files-found: warn
           retention-days: 14
+
+  attest-runtime-artifact:
+    if: inputs.operation == 'attest_runtime_artifact' && github.ref == 'refs/heads/main' && inputs.confirmation == 'ATTEST_STAGING_RUNTIME_ARTIFACT'
+    name: Attest exact Staging runtime artifact
+    runs-on: ubuntu-24.04
+    environment: staging-recovery-certification
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    env:
+      EXPECTED_SHA: ${{ inputs.expected_sha }}
+      STAGING_APP_BASE_URL: https://dev.mad4b.com
+      STAGING_GATEWAY_BASE_URL: https://activation-dev.mad4b.com
+
+    steps:
+      - name: Validate exact runtime-attestation input
+        shell: bash
+        env:
+          RUNTIME_ARTIFACT_EVIDENCE_PRESENT: ${{ inputs.runtime_artifact_evidence_zip_base64 != '' && 'true' || 'false' }}
+        run: |
+          set -euo pipefail
+          [[ "$EXPECTED_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::expected_sha must be a lowercase 40-character SHA."; exit 1; }
+          [[ "$RUNTIME_ARTIFACT_EVIDENCE_PRESENT" == "true" ]] || { echo "::error::host-side runtime artifact evidence is required"; exit 1; }
+
+      - name: Checkout exact Staging main release
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ inputs.expected_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Decode exact host-side runtime artifact evidence
+        shell: bash
+        env:
+          RUNTIME_ARTIFACT_EVIDENCE_ZIP_BASE64: ${{ inputs.runtime_artifact_evidence_zip_base64 }}
+        run: |
+          set -euo pipefail
+          evidence_dir="$RUNNER_TEMP/staging-runtime-artifact-local"
+          rm -rf "$evidence_dir"
+          mkdir -p "$evidence_dir"
+          printf '%s' "$RUNTIME_ARTIFACT_EVIDENCE_ZIP_BASE64" | base64 --decode > "$RUNNER_TEMP/staging-runtime-artifact-evidence.zip"
+          unzip -qq "$RUNNER_TEMP/staging-runtime-artifact-evidence.zip" -d "$evidence_dir"
+          rm -f "$RUNNER_TEMP/staging-runtime-artifact-evidence.zip"
+          mapfile -t evidence_files < <(find "$evidence_dir" -type f -name runtime-artifact-evidence.json -print)
+          [[ "${#evidence_files[@]}" -eq 1 ]] || { echo "::error::Expected exactly one runtime-artifact-evidence.json"; exit 1; }
+          echo "STAGING_RUNTIME_LOCAL_EVIDENCE_FILE=${evidence_files[0]}" >> "$GITHUB_ENV"
+
+      - name: Prove exact main runtime-attestation authority
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main --quiet
+          test "$GITHUB_SHA" = "$EXPECTED_SHA"
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+          test "$(git rev-parse origin/main)" = "$EXPECTED_SHA"
+
+      - name: Set up Node.js for runtime attestation
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 22
+
+      - name: Derive repository-owned runtime identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf "$RUNNER_TEMP/staging-runtime-build-context"
+          node http-generic-api/scripts/prepare-staging-build-context.mjs \
+            --repository-path . \
+            --commit "$EXPECTED_SHA" \
+            --output-dir "$RUNNER_TEMP/staging-runtime-build-context"
+
+          expected_tree="$(git rev-parse "${EXPECTED_SHA}^{tree}")"
+          context_file_set="$(jq -er '.context_file_set_sha256' "$RUNNER_TEMP/staging-runtime-build-context/.staging-build-context.json")"
+          expected_policy_hash="$(jq -er '.content_hash_sha256' edge/activation-gateway/generated/route-policy.staging.json)"
+
+          [[ "$expected_tree" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$context_file_set" =~ ^[0-9a-f]{64}$ ]]
+          [[ "$expected_policy_hash" =~ ^[0-9a-f]{64}$ ]]
+
+          {
+            echo "EXPECTED_TREE=$expected_tree"
+            echo "EXPECTED_CONTEXT_FILE_SET_SHA256=$context_file_set"
+            echo "EXPECTED_POLICY_HASH=$expected_policy_hash"
+          } >> "$GITHUB_ENV"
+
+      - name: Independently probe and sign Staging runtime artifact
+        id: attestation
+        shell: bash
+        env:
+          RECOVERY_STAGING_CERTIFICATION_PRIVATE_KEY: ${{ secrets.RECOVERY_STAGING_CERTIFICATION_PRIVATE_KEY }}
+          RECOVERY_STAGING_CERTIFICATION_ISSUER: ${{ vars.RECOVERY_STAGING_CERTIFICATION_ISSUER }}
+          RECOVERY_STAGING_CERTIFICATION_KEY_ID: ${{ vars.RECOVERY_STAGING_CERTIFICATION_KEY_ID }}
+          ACTIVATION_GATEWAY_INGRESS_PUBLIC_KEY_SHA256: ${{ vars.ACTIVATION_GATEWAY_INGRESS_PUBLIC_KEY_SHA256 }}
+          STAGING_RUNTIME_ATTESTATION_OUTPUT_DIRECTORY: ${{ runner.temp }}/staging-runtime-artifact-attestation
+        run: |
+          set -euo pipefail
+          summary="$RUNNER_TEMP/staging-runtime-artifact-attestation-summary.json"
+          node .github/scripts/staging-runtime-artifact-attest.mjs | tee "$summary"
+
+          jq -e --arg sha "$EXPECTED_SHA" '
+            .ok == true
+            and .deployment_sha == $sha
+            and (.app_image_digest | test("^sha256:[0-9a-f]{64}$"))
+            and (.payload_sha256 | test("^[0-9a-f]{64}$"))
+            and .read_only_remote_probe == true
+            and .production_mutation_performed == false
+            and .provider_mutation_performed == false
+            and .database_mutation_performed == false
+            and .secrets_included == false
+          ' "$summary" >/dev/null
+
+          artifact_name="$(jq -er '.artifact_name' "$summary")"
+          expected_prefix="staging-runtime-artifact-attestation-${EXPECTED_SHA}-"
+          [[ "$artifact_name" == "${expected_prefix}"* ]] || { echo "::error::runtime attestation artifact name is not exact-SHA bound"; exit 1; }
+          echo "artifact_name=$artifact_name" >> "$GITHUB_OUTPUT"
+
+      - name: Upload signed Staging runtime artifact attestation
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ${{ steps.attestation.outputs.artifact_name }}
+          path: ${{ runner.temp }}/staging-runtime-artifact-attestation/
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Publish runtime-attestation summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "## Staging runtime artifact attestation"
+            echo
+            echo "- Exact main SHA: $EXPECTED_SHA"
+            echo "- Remote probes: read-only"
+            echo "- Production/provider/database mutation: none"
+            echo "- Full Recovery acquisition/countersign authority: not asserted"
+          } >> "$GITHUB_STEP_SUMMARY"
 
   acquire-external-evidence:
     if: inputs.operation == 'acquire_external_evidence' && github.ref == 'refs/heads/main'

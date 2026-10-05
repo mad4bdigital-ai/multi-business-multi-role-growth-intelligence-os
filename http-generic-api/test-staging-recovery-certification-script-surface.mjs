@@ -9,6 +9,9 @@ const verifier = readFileSync("../.github/scripts/staging-recovery-verify-and-co
 const negative = readFileSync("../.github/scripts/staging-recovery-negative-test-evidence.mjs", "utf8");
 const acquisitionSigner = readFileSync("../.github/scripts/staging-recovery-sign-acquisition-receipt.mjs", "utf8");
 const networkAcquisition = readFileSync("./scripts/staging-recovery-acquire-network-evidence.mjs", "utf8");
+const runtimeAttestationScript = readFileSync("../.github/scripts/staging-runtime-artifact-attest.mjs", "utf8");
+const runtimeAttestationModule = readFileSync("./stagingRuntimeArtifactAttestation.js", "utf8");
+const runtimeAttestationPs = readFileSync("../autopilot-portable-staging/Invoke-StagingRuntimeArtifactAttestation.ps1", "utf8");
 
 assert.match(canaryPs, /git" -Arguments @\("fetch", "origin", "main"\)/u);
 assert.match(canaryPs, /\$branch -ne "main"/u);
@@ -40,33 +43,58 @@ assert.match(workflow, /STAGING_RECOVERY_ACQUISITION_KEY_ID/u);
 assert.match(workflow, /STAGING_RECOVERY_ACQUISITION_ISSUER/u);
 assert.match(workflow, /test "\$\(git rev-parse origin\/main\)" = "\$\{\{ inputs\.expected_sha \}\}"/u);
 
-assert.match(liveWorkflow, /staging-recovery-signed-certification-/u);
+assert.match(workflow, /attest_runtime_artifact/u);
+assert.match(workflow, /staging-runtime-artifact-attest\.mjs/u);
+assert.match(workflow, /Attest exact Staging runtime artifact/u);
+assert.match(workflow, /RECOVERY_STAGING_CERTIFICATION_PRIVATE_KEY/u);
+assert.match(workflow, /ACTIVATION_GATEWAY_INGRESS_PUBLIC_KEY_SHA256/u);
+assert.match(workflow, /runtime_artifact_evidence_zip_base64/u);
+assert.match(workflow, /ATTEST_STAGING_RUNTIME_ARTIFACT/u);
+assert.match(workflow, /runtime-artifact-evidence\.json/u);
+
+assert.match(runtimeAttestationPs, /git" -Arguments @\("fetch", "origin", "main"\)/u);
+assert.match(runtimeAttestationPs, /docker inspect --format "\{\{\.Image\}\}"/u);
+assert.match(runtimeAttestationPs, /runtime-artifact-evidence\.json/u);
+assert.match(runtimeAttestationPs, /ATTEST_STAGING_RUNTIME_ARTIFACT/u);
+assert.match(runtimeAttestationPs, /runtime_artifact_evidence_zip_base64/u);
+assert.match(runtimeAttestationPs, /production_mutation_performed = \$false/u);
+assert.match(runtimeAttestationPs, /provider_mutation_performed = \$false/u);
+assert.match(runtimeAttestationPs, /database_mutation_performed = \$false/u);
+
+assert.match(liveWorkflow, /staging-runtime-artifact-attestation-/u);
+assert.match(liveWorkflow, /signed-runtime-artifact-attestation\.json/u);
 assert.match(liveWorkflow, /workflow_run\.head_sha/u);
 assert.match(liveWorkflow, /workflow_run\.head_branch/u);
-assert.match(liveWorkflow, /verifyStagingRecoverySignedCertificationRecord/u);
-assert.match(liveWorkflow, /loadStagingRecoveryCertificationPublicTrust/u);
+assert.match(liveWorkflow, /verifyStagingRuntimeArtifactAttestation/u);
+assert.match(liveWorkflow, /loadStagingRuntimeArtifactAttestationTrust/u);
 assert.match(liveWorkflow, /RECOVERY_STAGING_CERTIFICATION_PUBLIC_KEY/u);
 assert.match(liveWorkflow, /ACTIVATION_GATEWAY_INGRESS_PUBLIC_KEY_SHA256/u);
-assert.match(liveWorkflow, /payload\?\.deployment_sha/u);
-assert.match(liveWorkflow, /artifact_integrity\?\.app_image_digest/u);
+assert.match(liveWorkflow, /payload\.app_image_digest/u);
 assert.match(liveWorkflow, /STAGING_CERT_APP_IMAGE_ID=/u);
-assert.match(liveWorkflow, /RECOVERY_STAGING_EXPECTED_TARGET_FINGERPRINT/u);
 assert.match(liveWorkflow, /event == "workflow_dispatch"/u);
 assert.match(liveWorkflow, /startswith\(\$prefix\)/u);
 assert.match(liveWorkflow, /ltrimstr\(\$prefix\)/u);
-
 assert.match(liveWorkflow, /actions: read/u);
-assert.match(liveWorkflow, /staging-recovery-signed-certification-/u);
-assert.match(liveWorkflow, /workflow_run\.head_sha/u);
-assert.match(liveWorkflow, /RECOVERY_STAGING_EXPECTED_TARGET_FINGERPRINT/u);
-assert.match(liveWorkflow, /verifyStagingRecoverySignedCertificationRecord/u);
-assert.match(liveWorkflow, /RECOVERY_STAGING_CERTIFICATION_PUBLIC_KEY/u);
-assert.match(liveWorkflow, /artifact_integrity\?\.app_image_digest/u);
-assert.match(liveWorkflow, /STAGING_CERT_APP_IMAGE_ID/u);
-assert.match(liveWorkflow, /staging-post-deploy-verification\.yml\/runs/u);
-assert.match(liveWorkflow, /payload\?\.target_fingerprint/u);
-assert.match(liveWorkflow, /Artifact name disagrees with the signed target binding/u);
+assert.doesNotMatch(liveWorkflow, /staging-recovery-signed-certification-/u);
+assert.doesNotMatch(liveWorkflow, /verifyStagingRecoverySignedCertificationRecord/u);
+assert.doesNotMatch(liveWorkflow, /RECOVERY_STAGING_EXPECTED_TARGET_FINGERPRINT/u);
 assert.doesNotMatch(liveWorkflow, /BACKEND_API_KEY|JWT_SECRET|CLOUDFLARE_TUNNEL_TOKEN/u);
+
+assert.match(runtimeAttestationScript, /deployment-info/u);
+assert.match(runtimeAttestationScript, /activation-dev\.mad4b\.com/u);
+assert.match(runtimeAttestationScript, /runtime_integrity_verified/u);
+assert.match(runtimeAttestationScript, /workerBundleSha256/u);
+assert.match(runtimeAttestationScript, /upstreamEvidenceVerified/u);
+assert.match(runtimeAttestationScript, /signStagingRuntimeArtifactAttestation/u);
+assert.doesNotMatch(runtimeAttestationScript, /CLOUDFLARE_API_TOKEN|CLOUDFLARE_ACCOUNT_ID|BACKEND_API_KEY/u);
+
+assert.match(runtimeAttestationModule, /mad4b\.staging-runtime-artifact-attestation\.v1/u);
+assert.match(runtimeAttestationModule, /SIGNING_DOMAIN/u);
+assert.match(runtimeAttestationModule, /github_hosted_actions/u);
+assert.match(runtimeAttestationModule, /STAGING_RUNTIME_ARTIFACT_KEY_REUSE_FORBIDDEN/u);
+assert.match(runtimeAttestationModule, /production_mutation_performed/u);
+assert.match(runtimeAttestationModule, /provider_mutation_performed/u);
+assert.match(runtimeAttestationModule, /database_mutation_performed/u);
 
 assert.match(verifier, /negativeTestEvidence/u);
 assert.match(verifier, /RECOVERY_STAGING_NEGATIVE_TEST_EVIDENCE_FILE/u);
