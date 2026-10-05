@@ -31,6 +31,10 @@ on:
         description: Optional base64 ZIP containing the exact no-secret local canary bundle; preferred local-to-GitHub countersign transport
         required: false
         type: string
+      runtime_artifact_evidence_zip_base64:
+        description: Base64 ZIP containing exact no-secret host-side Staging runtime artifact evidence
+        required: false
+        type: string
       expected_target_fingerprint:
         description: Exact Staging target fingerprint; external acquisition or countersign
         required: false
@@ -224,7 +228,7 @@ jobs:
           retention-days: 14
 
   attest-runtime-artifact:
-    if: inputs.operation == 'attest_runtime_artifact' && github.ref == 'refs/heads/main'
+    if: inputs.operation == 'attest_runtime_artifact' && github.ref == 'refs/heads/main' && inputs.confirmation == 'ATTEST_STAGING_RUNTIME_ARTIFACT'
     name: Attest exact Staging runtime artifact
     runs-on: ubuntu-24.04
     environment: staging-recovery-certification
@@ -240,9 +244,12 @@ jobs:
     steps:
       - name: Validate exact runtime-attestation input
         shell: bash
+        env:
+          RUNTIME_ARTIFACT_EVIDENCE_PRESENT: ${{ inputs.runtime_artifact_evidence_zip_base64 != '' && 'true' || 'false' }}
         run: |
           set -euo pipefail
           [[ "$EXPECTED_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::expected_sha must be a lowercase 40-character SHA."; exit 1; }
+          [[ "$RUNTIME_ARTIFACT_EVIDENCE_PRESENT" == "true" ]] || { echo "::error::host-side runtime artifact evidence is required"; exit 1; }
 
       - name: Checkout exact Staging main release
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
@@ -250,6 +257,22 @@ jobs:
           ref: ${{ inputs.expected_sha }}
           fetch-depth: 0
           persist-credentials: false
+
+      - name: Decode exact host-side runtime artifact evidence
+        shell: bash
+        env:
+          RUNTIME_ARTIFACT_EVIDENCE_ZIP_BASE64: ${{ inputs.runtime_artifact_evidence_zip_base64 }}
+        run: |
+          set -euo pipefail
+          evidence_dir="$RUNNER_TEMP/staging-runtime-artifact-local"
+          rm -rf "$evidence_dir"
+          mkdir -p "$evidence_dir"
+          printf '%s' "$RUNTIME_ARTIFACT_EVIDENCE_ZIP_BASE64" | base64 --decode > "$RUNNER_TEMP/staging-runtime-artifact-evidence.zip"
+          unzip -qq "$RUNNER_TEMP/staging-runtime-artifact-evidence.zip" -d "$evidence_dir"
+          rm -f "$RUNNER_TEMP/staging-runtime-artifact-evidence.zip"
+          mapfile -t evidence_files < <(find "$evidence_dir" -type f -name runtime-artifact-evidence.json -print)
+          [[ "${#evidence_files[@]}" -eq 1 ]] || { echo "::error::Expected exactly one runtime-artifact-evidence.json"; exit 1; }
+          echo "STAGING_RUNTIME_LOCAL_EVIDENCE_FILE=${evidence_files[0]}" >> "$GITHUB_ENV"
 
       - name: Prove exact main runtime-attestation authority
         shell: bash
@@ -297,6 +320,7 @@ jobs:
           RECOVERY_STAGING_CERTIFICATION_ISSUER: ${{ vars.RECOVERY_STAGING_CERTIFICATION_ISSUER }}
           RECOVERY_STAGING_CERTIFICATION_KEY_ID: ${{ vars.RECOVERY_STAGING_CERTIFICATION_KEY_ID }}
           ACTIVATION_GATEWAY_INGRESS_PUBLIC_KEY_SHA256: ${{ vars.ACTIVATION_GATEWAY_INGRESS_PUBLIC_KEY_SHA256 }}
+          STAGING_RUNTIME_LOCAL_EVIDENCE_FILE: ${{ env.STAGING_RUNTIME_LOCAL_EVIDENCE_FILE }}
         run: |
           set -euo pipefail
           summary="$RUNNER_TEMP/staging-runtime-artifact-attestation-summary.json"
