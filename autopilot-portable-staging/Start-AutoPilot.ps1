@@ -262,8 +262,6 @@ function Ensure-EnvDefault([string]$Path, [string]$Name, [string]$Value) {
     }
     Write-StagingUtf8NoBom $Path $text
 }
-function Get-StagingEnvValue([string]$Path, [string]$Name) { return Read-EnvValue $Path $Name }
-function Set-StagingEnvValue([string]$Path, [string]$Name, [string]$Value) { Set-EnvValue $Path $Name $Value }
 function Set-EnvValue([string]$Path, [string]$Name, [string]$Value) {
     if ($Value -match '[\r\n]') { Fail "Invalid newline in environment value: $Name" }
     $text = Get-Content -LiteralPath $Path -Raw
