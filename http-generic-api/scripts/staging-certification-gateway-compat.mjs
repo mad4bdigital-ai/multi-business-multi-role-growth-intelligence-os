@@ -41,12 +41,12 @@ function runGit(repositoryPath, args, { allowFailure = false } = {}) {
   }
   return {
     status: Number.isInteger(result.status) ? result.status : 1,
-    stdout: String(result.stdout || "").trim(),
+    stdout: String(result.stdout || ""),
   };
 }
 
 function gitBlob(repositoryPath, commit, path) {
-  const value = runGit(repositoryPath, ["rev-parse", `${commit}:${path}`]).stdout.toLowerCase();
+  const value = runGit(repositoryPath, ["rev-parse", `${commit}:${path}`]).stdout.trim().toLowerCase();
   if (!SHA40.test(value)) throw new Error("git blob identity is invalid");
   return value;
 }
