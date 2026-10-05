@@ -414,7 +414,7 @@ async function assertSourceParity(expectedSha) {
   };
 }
 
-async function postIssueComment(body) {async function postIssueComment(body) {
+async function postIssueComment(body) {
   const [owner, repo] = REPO.split("/");
   return github("/repos/" + owner + "/" + repo + "/issues/" + ISSUE + "/comments", {
     method: "POST",
