@@ -1,0 +1,111 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "pr8421-staging-runtime-artifact-attestation-decoupling",
+  "title": "PR8421 Staging runtime artifact attestation decoupling",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/pr8421-staging-runtime-artifact-attestation-decoupling.json",
+      ".github/derived-state-governance.json",
+      ".github/governance/test-authority-registry.json",
+      ".github/scripts/staging-runtime-artifact-attest.mjs",
+      ".github/workflows/staging-live-certification.yml",
+      ".github/workflows/staging-post-deploy-verification.yml",
+      "autopilot-portable-staging/Invoke-StagingRuntimeArtifactAttestation.ps1",
+      "docs/governance/configuration-drift-baseline-extensions.json",
+      "http-generic-api/config/repository-governance-constitution.json",
+      "http-generic-api/stagingRuntimeArtifactAttestation.js",
+      "http-generic-api/test-staging-recovery-certification-script-surface.mjs",
+      "http-generic-api/test-staging-runtime-artifact-attestation.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Decouple Staging runtime artifact identity attestation from Full Recovery certification while preserving exact-head, live-Staging, provider, database, credential, and Production mutation boundaries.",
+      "e2e_journeys": [
+        {
+          "id": "staging-runtime-artifact-attestation-decoupling",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Governed CI",
+          "entrypoint": "Evaluate the exact PR head across runtime artifact attestation, certification script surface, environment-impact closure, and governance registration.",
+          "terminal_outcome": "The runtime artifact attestation is independently signed and exact-head bound, Staging live certification remains required, Full Recovery authority stays separate, and Production mutation remains forbidden.",
+          "steps": [
+            "Verify the runtime artifact attestation contract binds exact source SHA, tree SHA, build-context digest, app image identity, Gateway policy/source/build/bundle, and hashed container identity.",
+            "Verify Staging Live Certification consumes the runtime artifact attestation rather than Full Recovery certification for app-image binding.",
+            "Verify the changed critical declaration and staging runtime artifact attestation script are registered exactly in Constitution.control_plane_paths and convergence.automation_control_paths.",
+            "Verify staging and production environment impact is explicitly reviewed and live Staging certification remains required.",
+            "Preserve fail-closed Full Recovery acquisition, canary, countersign, provider, database, credential, and Production mutation boundaries."
+          ],
+          "assertions": [
+            "declared_targets includes staging and production.",
+            "cross_environment_reviewed is true and live_staging_certification_required is true.",
+            "production_mutation_allowed is false and secrets_included is false.",
+            "The runtime artifact attestation signing domain remains separate from Activation Gateway ingress trust.",
+            "No provider mutation, database mutation, Production mutation, Recovery acquisition authority, synthetic OAuth evidence, or autonomous merge authority is introduced."
+          ],
+          "tests": [
+            {
+              "id": "staging-runtime-artifact-attestation",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-runtime-artifact-attestation.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-recovery-certification-script-surface",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-recovery-certification-script-surface.mjs",
+              "args": []
+            },
+            {
+              "id": "pr8421-environment-impact-closure",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/scripts/environment-impact-closure.mjs",
+              "args": [
+                "--base-sha",
+                "BASE_SHA",
+                "--head-sha",
+                "HEAD_SHA"
+              ]
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/pr8421-staging-runtime-artifact-attestation-decoupling.json",
+            ".github/scripts/staging-runtime-artifact-attest.mjs",
+            ".github/workflows/staging-live-certification.yml",
+            ".github/workflows/staging-post-deploy-verification.yml",
+            "autopilot-portable-staging/Invoke-StagingRuntimeArtifactAttestation.ps1",
+            "http-generic-api/stagingRuntimeArtifactAttestation.js",
+            "http-generic-api/test-staging-runtime-artifact-attestation.mjs",
+            "http-generic-api/test-staging-recovery-certification-script-surface.mjs",
+            "http-generic-api/config/deployment-branch-policy.json",
+            "http-generic-api/config/repository-governance-constitution.json",
+            ".github/derived-state-governance.json",
+            ".github/governance/test-authority-registry.json"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}
