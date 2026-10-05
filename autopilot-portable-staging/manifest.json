@@ -62,7 +62,7 @@
     },
     {
       "path": "autopilot-portable-staging/Start-AutoPilot.ps1",
-      "sha256": "91e2dfec85f54b5eceb269288c17f2f5856faddcc77ef485797ea7be068ffdbf"
+      "sha256": "99c95b36e73b5d26c0416a199947b2dddb9adeb044d5db59ca797666870c331e"
     },
     {
       "path": "autopilot-portable-staging/Start-Staging-One-Click.cmd",
@@ -354,7 +354,7 @@
     },
     {
       "path": "http-generic-api/scripts/generate-portable-staging-manifest.mjs",
-      "sha256": "b69d8138a939b812653956568c72e5fc3f192333951200c82c7a7816ef484f72"
+      "sha256": "14de979315040b61cd8257502828ca84eb478805c0daee6e7d095199ffc9b7c8"
     },
     {
       "path": "http-generic-api/scripts/provision-remote-mcp-client.mjs",
@@ -367,6 +367,14 @@
     {
       "path": "http-generic-api/scripts/staging-authenticated-remote-readiness.mjs",
       "sha256": "c93d880dafd0eb5a40d24f144f22c68c7aa305947335e7c275187ba738c72175"
+    },
+    {
+      "path": "http-generic-api/scripts/staging-certification-runtime-integrity-compat.mjs",
+      "sha256": "68f8a9dd26c8c595ede62fc522ee30f6e8f57b0bb5671789d9f2a9a0e1ec2ae7"
+    },
+    {
+      "path": "http-generic-api/stagingImmutableArtifactIntegrity.js",
+      "sha256": "7c44733bc4cc37e83734d5d7d2df3d5be7dbafcc816f3a56be8c2405caa57fc2"
     },
     {
       "path": "http-generic-api/openapi/openapi.tenant-gpt.auth.staging.yaml",
