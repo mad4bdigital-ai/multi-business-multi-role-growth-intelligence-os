@@ -22,6 +22,7 @@ const evidenceHelper = read(".github/scripts/production-promotion-release-cut-ev
 const registry = JSON.parse(read(".github/contracts/production-promotion-supporting-gates.v1.json"));
 const stagingAutoPilot = read("autopilot-portable-staging/Start-AutoPilot.ps1");
 const stagingCertificationCompatibility = read("http-generic-api/scripts/staging-certification-runtime-integrity-compat.mjs");
+const stagingGatewayCompatibility = read("http-generic-api/scripts/staging-certification-gateway-compat.mjs");
 const stagingResumeDeclaration = JSON.parse(read(".changes/e2e/production-promotion-staging-resume-20260930.json"));
 
 const object = (digit) => String(digit).repeat(40);
@@ -251,6 +252,23 @@ assert.match(stagingCertificationCompatibility, /immutable_artifact_verified: im
 assert.match(stagingCertificationCompatibility, /mutation_performed: false/u);
 assert.match(stagingCertificationCompatibility, /secrets_included: false/u);
 assert.doesNotMatch(stagingCertificationCompatibility, /database_mutation|provider_mutation|production_deploy/u);
+assert.match(stagingAutoPilot, /staging-certification-gateway-compat\.mjs/u);
+assert.match(stagingAutoPilot, /Invoke-StagingGatewayCompatibilityVerifier/u);
+assert.match(stagingAutoPilot, /gateway_compatibility_mode"; Value = "historical_app_current_worker"/u);
+assert.match(stagingAutoPilot, /gateway_recovery_trusted_ingress[\s\S]*?gateway_exact_commit[\s\S]*?gateway_upstream_ready/u);
+assert.match(stagingAutoPilot, /remainingReasons = @\(\$currentDegradedReasons \| Where-Object \{ \$_ -notin \$compatibleReasons \}\)/u);
+assert.match(stagingGatewayCompatibility, /BUNDLE_PATHS/u);
+assert.match(stagingGatewayCompatibility, /merge-base", "--is-ancestor"/u);
+assert.match(stagingGatewayCompatibility, /ready_upstream_is_historical_release/u);
+assert.match(stagingGatewayCompatibility, /health_source_commit_is_current_worker/u);
+assert.match(stagingGatewayCompatibility, /local_trust_current_worker_sha/u);
+assert.match(stagingGatewayCompatibility, /upstreamEvidenceVerified/u);
+assert.match(stagingGatewayCompatibility, /workerBundleSha256/u);
+assert.match(stagingGatewayCompatibility, /database_connection_performed: false/u);
+assert.match(stagingGatewayCompatibility, /provider_mutation_performed: false/u);
+assert.match(stagingGatewayCompatibility, /production_mutation_performed: false/u);
+assert.match(stagingGatewayCompatibility, /secrets_included: false/u);
+assert.doesNotMatch(stagingGatewayCompatibility, /wrangler|cloudflare|deploy\s+worker|database\.query|mysql/u);
 assert.match(stagingAutoPilot, /Initialize-StagingEnvironment[\s\S]*?-RepositoryPath \$RepositoryPath[\s\S]*?-TunnelMode \$TunnelMode[\s\S]*?-EnableActivationGateway:\$EnableActivationGateway/u);
 assert.match(stagingAutoPilot, /environment-bootstrap/u);
 assert.match(stagingAutoPilot, /generated_key_count/u);

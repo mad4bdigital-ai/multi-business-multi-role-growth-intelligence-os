@@ -62,7 +62,7 @@
     },
     {
       "path": "autopilot-portable-staging/Start-AutoPilot.ps1",
-      "sha256": "99c95b36e73b5d26c0416a199947b2dddb9adeb044d5db59ca797666870c331e"
+      "sha256": "92f9772aac4c4003e341c5ed5023b48c7764a2dadcf8685316c5aa298d6f4f57"
     },
     {
       "path": "autopilot-portable-staging/Start-Staging-One-Click.cmd",
@@ -354,7 +354,7 @@
     },
     {
       "path": "http-generic-api/scripts/generate-portable-staging-manifest.mjs",
-      "sha256": "14de979315040b61cd8257502828ca84eb478805c0daee6e7d095199ffc9b7c8"
+      "sha256": "dabbee20433eeb2e0850a1ab24bd1b63d6805440fd8583b3a11edbe204218d7b"
     },
     {
       "path": "http-generic-api/scripts/provision-remote-mcp-client.mjs",
@@ -371,6 +371,10 @@
     {
       "path": "http-generic-api/scripts/staging-certification-runtime-integrity-compat.mjs",
       "sha256": "68f8a9dd26c8c595ede62fc522ee30f6e8f57b0bb5671789d9f2a9a0e1ec2ae7"
+    },
+    {
+      "path": "http-generic-api/scripts/staging-certification-gateway-compat.mjs",
+      "sha256": "93ff661c27815acbe34d514fa8ece44073d0f1b7f472c0de52257f47defead0c"
     },
     {
       "path": "http-generic-api/stagingImmutableArtifactIntegrity.js",

@@ -116,7 +116,12 @@
             "After bounded isolated Docker Desktop restart, AutoPilot waits for Docker engine readiness and retries the exact compose-up once; any second zombie failure remains fail-closed.",
             "Historical release-cut certification may use a pinned current-control-plane compatibility snapshot only when the historical report is blocked solely by runtime_integrity_verified; every other blocking failure remains fail-closed.",
             "The compatibility verifier is read-only and may satisfy runtime integrity only through the current immutable-artifact proof bound to exact commit, tree, context-file-set SHA-256 and image digest; it performs no database, provider, ruleset or Production mutation.",
-            "After a successful compatibility proof, original readiness/degraded reasons are preserved and certification becomes degraded when any remain, or ready only when none remain; the temporary compatibility snapshot is deleted in finally."
+            "After a successful compatibility proof, original readiness/degraded reasons are preserved and certification becomes degraded when any remain, or ready only when none remain; the temporary compatibility snapshot is deleted in finally.",
+            "Governed historical release-cut certification may additionally prove historical-app/current-Worker Activation Gateway compatibility only when the release cut remains an ancestor of the pinned current control-plane authority and the fixed Gateway runtime/trust source set is Git-blob identical across both commits.",
+            "Gateway compatibility is read-only: live /health must prove the current Worker exact source/build/bundle and canonical policy identity, while live /ready must independently prove upstreamReady=true, upstreamEvidenceVerified=true and upstreamSourceCommit equal to the historical release cut.",
+            "Local trusted-ingress evidence must be bound to the current Worker signing identity and exact returned public key/key id; the historical application identity remains independently bound by deployment-info and immutable artifact provenance.",
+            "A successful Gateway compatibility proof may remove only gateway_recovery_trusted_ingress, gateway_exact_commit and gateway_upstream_ready from degraded reasons; database/catalog/platform readiness reasons remain untouched.",
+            "The Gateway compatibility verifier performs no database connection, database mutation, provider mutation, Production access or Production mutation and never emits raw public-key or credential material."
           ],
           "tests": [
             {
@@ -131,7 +136,11 @@
             ".changes/e2e/production-promotion-staging-resume-20260930.json",
             ".github/workflows/governed-production-promotion-request-launcher.yml",
             "autopilot-portable-staging/Start-AutoPilot.ps1",
-            "http-generic-api/test-production-promotion-convergence-workflows.mjs"
+            "http-generic-api/test-production-promotion-convergence-workflows.mjs",
+            "http-generic-api/scripts/staging-certification-gateway-compat.mjs",
+            "docs/governance/configuration-drift-baseline-extensions.json",
+            "autopilot-portable-staging/manifest.json",
+            "http-generic-api/scripts/generate-portable-staging-manifest.mjs"
           ]
         }
       ]

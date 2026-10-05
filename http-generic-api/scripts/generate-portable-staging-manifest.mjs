@@ -37,6 +37,7 @@ const REQUIRED_PORTABLE_STAGING_FILES = [
   "http-generic-api/scripts/staging-public-schema-readiness.mjs",
   "http-generic-api/scripts/staging-authenticated-remote-readiness.mjs",
   "http-generic-api/scripts/staging-certification-runtime-integrity-compat.mjs",
+  "http-generic-api/scripts/staging-certification-gateway-compat.mjs",
   "http-generic-api/stagingImmutableArtifactIntegrity.js",
   "http-generic-api/openapi/openapi.tenant-gpt.auth.staging.yaml",
   "http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.staging.yaml",
