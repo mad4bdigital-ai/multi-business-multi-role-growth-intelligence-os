@@ -239,6 +239,8 @@ assert.match(stagingAutoPilot, /environment-bootstrap/u);
 assert.match(stagingAutoPilot, /generated_key_count/u);
 assert.doesNotMatch(stagingAutoPilot, /\$generatedLocalSecrets\s*=/u);
 assert.doesNotMatch(stagingAutoPilot, /\$localSecrets\s*=/u);
+assert.doesNotMatch(stagingAutoPilot, /function\s+Get-StagingEnvValue\b/u);
+assert.doesNotMatch(stagingAutoPilot, /function\s+Set-StagingEnvValue\b/u);
 assert.match(stagingAutoPilot, /if \(-not \$governedHistoricalResume\) \{[\s\S]*?Assert-PortableManifestIntegrity \$RepositoryPath \$Manifest "payload-manifest"/u);
 assert.doesNotMatch(stagingAutoPilot, /\$resumePrefix\s*=/u);
 assert.doesNotMatch(stagingAutoPilot, /\.StartsWith\(\$resumePrefix/u);
