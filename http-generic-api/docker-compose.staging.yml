@@ -1,5 +1,6 @@
 services:
   redis:
+    init: true
     # Base Compose publishes Redis; Staging must never expose it to the host LAN.
     # Compose merges sequence values across files, so an empty list alone does not
     # remove the base publication. Reset it explicitly before applying Staging.
@@ -8,6 +9,7 @@ services:
       - ${STAGING_DATA_ROOT:-./.staging-data}/redis:/data
 
   runtime-db:
+    init: true
     image: mariadb:11.4
     restart: unless-stopped
     command:
@@ -27,6 +29,7 @@ services:
       retries: 20
 
   governance-db:
+    init: true
     image: mariadb:11.4
     restart: unless-stopped
     command:
@@ -46,6 +49,7 @@ services:
       retries: 20
 
   persistence-db:
+    init: true
     image: mariadb:11.4
     restart: unless-stopped
     command:
@@ -65,6 +69,7 @@ services:
       retries: 20
 
   app:
+    init: true
     build:
       context: ${STAGING_BUILD_CONTEXT:?set STAGING_BUILD_CONTEXT by Start-AutoPilot}
       dockerfile: http-generic-api/Dockerfile.staging
@@ -149,6 +154,7 @@ services:
 
   # Optional local-only ingress. Start explicitly with --profile tunnel.
   cloudflared:
+    init: true
     image: cloudflare/cloudflared:2025.11.1-amd64@sha256:f751174c3d8ae54b12575af320a4aa01bb3b6e61ab82aa1e4f8ecac8a079ce61
     profiles: ["tunnel"]
     restart: unless-stopped
