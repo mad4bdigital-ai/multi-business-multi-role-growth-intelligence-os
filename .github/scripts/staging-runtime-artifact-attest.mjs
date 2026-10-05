@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { evaluateImmutableStagingArtifactIntegrity } from "../../http-generic-api/stagingImmutableArtifactIntegrity.js";
@@ -60,6 +61,68 @@ const expectedSha = required("EXPECTED_SHA", SHA40);
 const expectedTree = required("EXPECTED_TREE", SHA40);
 const expectedContext = required("EXPECTED_CONTEXT_FILE_SET_SHA256", SHA256);
 const expectedPolicyHash = required("EXPECTED_POLICY_HASH", SHA256);
+const localEvidenceFile = String(
+  process.env.STAGING_RUNTIME_LOCAL_EVIDENCE_FILE || "",
+).trim();
+if (!localEvidenceFile || !fs.existsSync(localEvidenceFile)) {
+  fail(
+    "STAGING_RUNTIME_ATTESTATION_LOCAL_EVIDENCE_MISSING",
+    "Host-side runtime artifact evidence is required.",
+  );
+}
+
+const localEvidenceRaw = fs.readFileSync(localEvidenceFile, "utf8");
+let localEvidence = null;
+try {
+  localEvidence = JSON.parse(localEvidenceRaw);
+} catch {
+  fail(
+    "STAGING_RUNTIME_ATTESTATION_LOCAL_EVIDENCE_INVALID",
+    "Host-side runtime artifact evidence is not valid JSON.",
+  );
+}
+const localEvidenceSha256 = createHash("sha256")
+  .update(localEvidenceRaw)
+  .digest("hex");
+const localImageDigest = String(
+  localEvidence?.app_image_digest || "",
+).trim().toLowerCase();
+const localGeneratedAt = Date.parse(localEvidence?.generated_at || "");
+const localExpiresAt = Date.parse(localEvidence?.expires_at || "");
+const nowForLocalEvidence = Date.now();
+
+if (
+  localEvidence?.contract !== "mad4b.staging-runtime-artifact-local-evidence.v1" ||
+  localEvidence?.environment !== "staging" ||
+  localEvidence?.branch !== "main" ||
+  localEvidence?.deployment_sha !== expectedSha ||
+  localEvidence?.tree_sha !== expectedTree ||
+  localEvidence?.context_file_set_sha256 !== expectedContext ||
+  !IMAGE_DIGEST.test(localImageDigest) ||
+  !SHA256.test(String(localEvidence?.app_container_identity_sha256 || "")) ||
+  localEvidence?.gateway_policy_hash !== expectedPolicyHash ||
+  localEvidence?.gateway_source_commit !== expectedSha ||
+  localEvidence?.gateway_worker_build_sha !== expectedSha ||
+  !SHA256.test(String(localEvidence?.gateway_worker_bundle_sha256 || "")) ||
+  localEvidence?.local_docker_observation !== true ||
+  localEvidence?.local_app_manifest_verified !== true ||
+  localEvidence?.public_gateway_verified !== true ||
+  localEvidence?.production_mutation_performed !== false ||
+  localEvidence?.provider_mutation_performed !== false ||
+  localEvidence?.database_mutation_performed !== false ||
+  localEvidence?.secrets_included !== false ||
+  !Number.isFinite(localGeneratedAt) ||
+  !Number.isFinite(localExpiresAt) ||
+  localGeneratedAt > nowForLocalEvidence + 60_000 ||
+  localExpiresAt <= nowForLocalEvidence ||
+  localExpiresAt <= localGeneratedAt ||
+  localExpiresAt - localGeneratedAt > 30 * 60 * 1000
+) {
+  fail(
+    "STAGING_RUNTIME_ATTESTATION_LOCAL_EVIDENCE_INVALID",
+    "Host-side runtime artifact evidence is stale, unsafe, or not exact-main bound.",
+  );
+}
 
 const appBase = String(
   process.env.STAGING_APP_BASE_URL || "https://dev.mad4b.com",
@@ -85,7 +148,7 @@ const observedCommit = String(
   deployment.commit_sha || deployment.commit || "",
 ).trim().toLowerCase();
 const appManifest = deployment.deployment || {};
-const observedImageDigest = String(appManifest.image_digest || "")
+const publicImageDigest = String(appManifest.image_digest || "")
   .trim()
   .toLowerCase();
 
@@ -105,7 +168,8 @@ if (
   String(appManifest.tree_sha || "").toLowerCase() !== expectedTree ||
   String(appManifest.context_file_set_sha256 || "").toLowerCase() !==
     expectedContext ||
-  !IMAGE_DIGEST.test(observedImageDigest) ||
+  !IMAGE_DIGEST.test(publicImageDigest) ||
+  publicImageDigest !== localImageDigest ||
   appManifest.secrets_included !== false
 ) {
   fail(
@@ -121,7 +185,7 @@ const immutableIntegrity = evaluateImmutableStagingArtifactIntegrity({
   expectedCommit: expectedSha,
   expectedTree,
   expectedContextFileSet: expectedContext,
-  expectedImageDigest: observedImageDigest,
+  expectedImageDigest: localImageDigest,
 });
 const runtimeIntegrityVerified =
   runtimeIntegrity?.verified === true || immutableIntegrity.verified === true;
@@ -195,7 +259,10 @@ const payload = Object.freeze({
   deployment_sha: expectedSha,
   tree_sha: expectedTree,
   context_file_set_sha256: expectedContext,
-  app_image_digest: observedImageDigest,
+  app_image_digest: localImageDigest,
+  local_runtime_evidence_sha256: localEvidenceSha256,
+  app_container_identity_sha256:
+    String(localEvidence.app_container_identity_sha256).toLowerCase(),
   runtime_integrity_verified: true,
   activation_gateway: {
     source_commit: gatewayHealth.sourceCommit,
@@ -246,7 +313,11 @@ fs.writeFileSync(
       deployment_sha: expectedSha,
       tree_sha: expectedTree,
       context_file_set_sha256: expectedContext,
-      app_image_digest: observedImageDigest,
+      app_image_digest: localImageDigest,
+      local_runtime_evidence_sha256: localEvidenceSha256,
+      app_container_identity_sha256:
+        String(localEvidence.app_container_identity_sha256).toLowerCase(),
+      public_app_image_digest_match: publicImageDigest === localImageDigest,
       gateway_source_commit: gatewayHealth.sourceCommit,
       gateway_worker_build_sha: gatewayHealth.workerBuildSha,
       gateway_worker_bundle_sha256: gatewayHealth.workerBundleSha256,
@@ -270,7 +341,7 @@ process.stdout.write(
     ok: true,
     contract: record.contract,
     deployment_sha: expectedSha,
-    app_image_digest: observedImageDigest,
+    app_image_digest: localImageDigest,
     payload_sha256: record.payload_sha256,
     artifact_name:
       `staging-runtime-artifact-attestation-${expectedSha}-${record.payload_sha256}`,
