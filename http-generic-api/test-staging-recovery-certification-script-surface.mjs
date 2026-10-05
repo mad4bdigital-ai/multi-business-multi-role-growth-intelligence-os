@@ -60,6 +60,11 @@ assert.match(runtimeAttestationPs, /runtime_artifact_evidence_zip_base64/u);
 assert.match(runtimeAttestationPs, /production_mutation_performed = \$false/u);
 assert.match(runtimeAttestationPs, /provider_mutation_performed = \$false/u);
 assert.match(runtimeAttestationPs, /database_mutation_performed = \$false/u);
+assert.match(runtimeAttestationPs, /\$buildContextDir = Join-Path \$OutputDirectory "\.staging-build-context"/u);
+assert.doesNotMatch(runtimeAttestationPs, /Join-Path \$OutputDirectory "build-context"/u);
+assert.match(workflow, /--output-dir "\$RUNNER_TEMP\/\.staging-build-context"/u);
+assert.match(workflow, /\$RUNNER_TEMP\/\.staging-build-context\/\.staging-build-context\.json/u);
+assert.doesNotMatch(workflow, /staging-runtime-build-context/u);
 
 assert.match(liveWorkflow, /staging-runtime-artifact-attestation-/u);
 assert.match(liveWorkflow, /signed-runtime-artifact-attestation\.json/u);
