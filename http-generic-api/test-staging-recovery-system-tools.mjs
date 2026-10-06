@@ -5,6 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { verifyExecutionTicket } from "./recoveryExecutionTicket.js";
+import { readRuntimeBootstrapContract } from "./runtimeBootstrapContract.js";
 import { _testingStagingRecoveryAuthorityBinding } from "./stagingRecoveryAuthorityBinding.js";
 import {
   STAGING_SCHEMA_REPAIR_CAPABILITY,
@@ -94,6 +95,8 @@ const REMOTE_MCP_FOUNDATION_MIGRATION = "20261003_staging_remote_mcp_runtime_fou
 const REMOTE_MCP_FOUNDATION_MIGRATION_SHA256 = "352414ac3c1adbd7bccd3a339760c3506ae2f8e9a223ae669a012183eeabfecc";
 const ACTIVATION_REGISTRY_MIGRATION = "20261003_staging_activation_registry_schema_reconciliation.sql";
 const ACTIVATION_REGISTRY_MIGRATION_SHA256 = "6729297dea3b7d601035c129cf912b12b3f09fd56a3319df7a20bd9ccab31b62";
+const RUNTIME_PERSISTENCE_CHUNK_RECOVERY_MIGRATION = "1048_transport_response_chunk_schema_recovery.sql";
+const RUNTIME_PERSISTENCE_CHUNK_RECOVERY_SHA256 = "aecfbd9d87dca6eba11677cd992637f55ecf3c0743f704df4bbea48c57d8d788";
 
 function stagingEnv(root) {
   return {
@@ -421,6 +424,28 @@ test("Staging schema-repair prepare derives the fixed repository migration contr
       activationPrepared.approval_confirmation,
       `APPLY_STAGING_RUNTIME_MIGRATION:${SHA}:staging-runtime:${ACTIVATION_REGISTRY_MIGRATION}`,
     );
+
+    const persistencePrepared = await authority.prepare({
+      expected_sha: SHA,
+      migration: RUNTIME_PERSISTENCE_CHUNK_RECOVERY_MIGRATION,
+      idempotency_key: "staging-schema-prepare-runtime-persistence-1048-001",
+    });
+    assert.equal(persistencePrepared.migration, RUNTIME_PERSISTENCE_CHUNK_RECOVERY_MIGRATION);
+    assert.equal(persistencePrepared.migration_sha256, RUNTIME_PERSISTENCE_CHUNK_RECOVERY_SHA256);
+    assert.equal(persistencePrepared.statement_count, 34);
+    assert.equal(persistencePrepared.target_role, "runtime_persistence");
+    assert.equal(_testingStagingSchemaRepairSystemTools.resolveMigration(RUNTIME_PERSISTENCE_CHUNK_RECOVERY_MIGRATION).migration.artifact_scope, "canonical");
+    assert.deepEqual(_testingStagingSchemaRepairSystemTools.resolveMigration(RUNTIME_PERSISTENCE_CHUNK_RECOVERY_MIGRATION).migration.requires_tables, []);
+    assert.equal(persistencePrepared.raw_sql_allowed, false);
+    assert.equal(persistencePrepared.caller_database_allowed, false);
+    assert.equal(
+      persistencePrepared.approval_confirmation,
+      `APPLY_STAGING_RUNTIME_MIGRATION:${SHA}:staging-runtime:${RUNTIME_PERSISTENCE_CHUNK_RECOVERY_MIGRATION}`,
+    );
+
+    const basePersistenceContract = readRuntimeBootstrapContract().migrations[RUNTIME_PERSISTENCE_CHUNK_RECOVERY_MIGRATION];
+    assert.deepEqual(basePersistenceContract.allowed_modes, ["dry_run"], "Production/base contract must remain dry-run-only for 1048");
+    assert.equal(basePersistenceContract.role, "verification_only", "Staging overlay must not widen the base/Production role");
 
     await assert.rejects(
       () => authority.prepare({ expected_sha: SHA, migration: "99999999_unregistered.sql", idempotency_key: "staging-schema-prepare-003" }),

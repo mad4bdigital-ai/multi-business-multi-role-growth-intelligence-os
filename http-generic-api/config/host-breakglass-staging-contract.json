@@ -115,6 +115,122 @@
         ]
       },
       {
+        "file": "1048_transport_response_chunk_schema_recovery.sql",
+        "sha256": "aecfbd9d87dca6eba11677cd992637f55ecf3c0743f704df4bbea48c57d8d788",
+        "statement_count": 34,
+        "role": "runtime_persistence",
+        "requires_tables": [],
+        "allowed_modes": [
+          "dry_run",
+          "apply_migration"
+        ],
+        "postconditions": [
+          {
+            "type": "column",
+            "table": "governed_tool_response_chunks",
+            "column": "chunk_id"
+          },
+          {
+            "type": "column",
+            "table": "governed_tool_response_chunks",
+            "column": "source_tool_key"
+          },
+          {
+            "type": "column",
+            "table": "governed_tool_response_chunks",
+            "column": "response_sha256"
+          },
+          {
+            "type": "column",
+            "table": "governed_tool_response_chunks",
+            "column": "response_bytes"
+          },
+          {
+            "type": "column",
+            "table": "governed_tool_response_chunks",
+            "column": "response_json"
+          },
+          {
+            "type": "column",
+            "table": "governed_tool_response_chunks",
+            "column": "cursor_policy"
+          },
+          {
+            "type": "column",
+            "table": "governed_tool_response_chunks",
+            "column": "redaction_status"
+          },
+          {
+            "type": "column",
+            "table": "governed_tool_response_chunks",
+            "column": "secrets_included"
+          },
+          {
+            "type": "column",
+            "table": "governed_tool_response_chunks",
+            "column": "owner_tenant_id"
+          },
+          {
+            "type": "column",
+            "table": "governed_tool_response_chunks",
+            "column": "owner_user_id"
+          },
+          {
+            "type": "column",
+            "table": "governed_tool_response_chunks",
+            "column": "owner_workspace_id"
+          },
+          {
+            "type": "column",
+            "table": "governed_tool_response_chunks",
+            "column": "owner_principal_type"
+          },
+          {
+            "type": "column",
+            "table": "governed_tool_response_chunks",
+            "column": "owner_principal_id"
+          },
+          {
+            "type": "column",
+            "table": "governed_tool_response_chunks",
+            "column": "source_surface"
+          },
+          {
+            "type": "column",
+            "table": "governed_tool_response_chunks",
+            "column": "created_at"
+          },
+          {
+            "type": "column",
+            "table": "governed_tool_response_chunks",
+            "column": "expires_at"
+          },
+          {
+            "type": "index",
+            "table": "governed_tool_response_chunks",
+            "index": "idx_governed_tool_response_chunks_expires_at"
+          },
+          {
+            "type": "index",
+            "table": "governed_tool_response_chunks",
+            "index": "idx_governed_chunk_owner_user_expiry"
+          },
+          {
+            "type": "index",
+            "table": "governed_tool_response_chunks",
+            "index": "idx_governed_chunk_principal_expiry"
+          },
+          {
+            "type": "view_row",
+            "view": "v_governed_response_chunk_transport_schema_readiness",
+            "key_column": "contract_key",
+            "key_value": "governed_response_chunk_transport_schema_v1",
+            "value_column": "readiness_status",
+            "expected_value": "ready"
+          }
+        ]
+      },
+      {
         "file": "20261003_staging_remote_mcp_runtime_foundation_reconciliation.sql",
         "sha256": "352414ac3c1adbd7bccd3a339760c3506ae2f8e9a223ae669a012183eeabfecc",
         "statement_count": 4,
