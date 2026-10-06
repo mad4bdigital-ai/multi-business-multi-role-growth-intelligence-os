@@ -1,9 +1,12 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 const source = readFileSync(new URL("../autopilot-portable-staging/Start-AutoPilot.ps1", import.meta.url), "utf8");
 const finder = source.slice(source.indexOf("function Find-ExactStagingImageId"), source.indexOf("function Seed-SchemaBundle"));
+const runtimeFinder = source.slice(source.indexOf("function Resolve-ExactStagingImageCandidate"), source.indexOf("function Seed-SchemaBundle"));
 
 assert.match(finder, /Resolve-ExactStagingImageCandidate/);
 assert.match(finder, /"env_pin"/);
@@ -89,6 +92,49 @@ if (process.platform === "win32") {
     `Windows PowerShell 5.1 provenance smoke failed with exit=${result.status}\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`,
   );
   assert.match(result.stdout, /STAGING_POWERSHELL51_IMAGE_PROVENANCE_SMOKE_OK/);
+
+  const tempRoot = mkdtempSync(join(tmpdir(), "mad4b-staging-image-reuse-"));
+  try {
+    const envPath = join(tempRoot, ".env.staging");
+    const smokePath = join(tempRoot, "image-reuse-smoke.ps1");
+    const imageId = "sha256:" + "9".repeat(64);
+    const expectedCommit = "a".repeat(40);
+    const expectedTree = "b".repeat(40);
+    const expectedContext = "c".repeat(64);
+    writeFileSync(envPath, `STAGING_APP_IMAGE_ID=${imageId}\r\n`, "utf8");
+
+    const escapedEnvPath = envPath.replaceAll("'", "''");
+    const smokeScript = [
+      "$ErrorActionPreference = 'Stop'",
+      "Set-StrictMode -Version Latest",
+      "$LogComponent = 'runtime-smoke'",
+      "function Write-StagingOperationBoundary { param($Component,$Stage,$Outcome,$Message,$Data) }",
+      "function Write-StagingLog { param($Level,$Component,$Stage,$Message,$Data) }",
+      "function Test-ExactStagingImage { param($ImageId,$ExpectedCommit,$ExpectedTree,$ExpectedContextFileSet) return $true }",
+      "function docker { throw 'DOCKER_MUST_NOT_BE_CALLED_AFTER_EXACT_ENV_PIN' }",
+      runtimeFinder,
+      `$resolved = Find-ExactStagingImageId '${expectedCommit}' '${expectedTree}' '${expectedContext}' '${escapedEnvPath}' @('compose')`,
+      `if ($resolved -ne '${imageId}') { throw "env pin short-circuit returned unexpected image: $resolved" }`,
+      "Write-Output 'STAGING_POWERSHELL51_IMAGE_REUSE_SHORT_CIRCUIT_OK'",
+    ].join("\r\n");
+    writeFileSync(smokePath, smokeScript, "utf8");
+
+    const reuse = spawnSync(
+      "powershell.exe",
+      ["-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", smokePath],
+      { encoding: "utf8", windowsHide: true },
+    );
+    if (reuse.error) throw reuse.error;
+    assert.equal(
+      reuse.status,
+      0,
+      `Windows PowerShell 5.1 exact-image reuse smoke failed with exit=${reuse.status}\nstdout:\n${reuse.stdout}\nstderr:\n${reuse.stderr}`,
+    );
+    assert.match(reuse.stdout, /STAGING_POWERSHELL51_IMAGE_REUSE_SHORT_CIRCUIT_OK/);
+    assert.doesNotMatch(reuse.stderr, /DOCKER_MUST_NOT_BE_CALLED_AFTER_EXACT_ENV_PIN/);
+  } finally {
+    rmSync(tempRoot, { recursive: true, force: true });
+  }
 }
 
 console.log("staging post-build image discovery contract tests passed");
