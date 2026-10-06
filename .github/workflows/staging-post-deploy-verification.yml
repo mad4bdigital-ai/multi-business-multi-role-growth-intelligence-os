@@ -291,14 +291,14 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          rm -rf "$RUNNER_TEMP/staging-runtime-build-context"
+          rm -rf "$RUNNER_TEMP/.staging-build-context"
           node http-generic-api/scripts/prepare-staging-build-context.mjs \
             --repository-path . \
             --commit "$EXPECTED_SHA" \
-            --output-dir "$RUNNER_TEMP/staging-runtime-build-context"
+            --output-dir "$RUNNER_TEMP/.staging-build-context"
 
           expected_tree="$(git rev-parse "${EXPECTED_SHA}^{tree}")"
-          context_file_set="$(jq -er '.context_file_set_sha256' "$RUNNER_TEMP/staging-runtime-build-context/.staging-build-context.json")"
+          context_file_set="$(jq -er '.context_file_set_sha256' "$RUNNER_TEMP/.staging-build-context/.staging-build-context.json")"
           expected_policy_hash="$(jq -er '.content_hash_sha256' edge/activation-gateway/generated/route-policy.staging.json)"
 
           [[ "$expected_tree" =~ ^[0-9a-f]{40}$ ]]

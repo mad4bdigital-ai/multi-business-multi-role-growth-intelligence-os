@@ -1,0 +1,77 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "pr8423-staging-runtime-attestation-build-context-contract",
+  "title": "PR8423 Staging runtime attestation build-context contract alignment",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/pr8423-staging-runtime-attestation-build-context-contract.json",
+      ".github/derived-state-governance.json",
+      ".github/workflows/staging-post-deploy-verification.yml",
+      "autopilot-portable-staging/Invoke-StagingRuntimeArtifactAttestation.ps1",
+      "http-generic-api/config/repository-governance-constitution.json",
+      "http-generic-api/test-staging-recovery-certification-script-surface.mjs"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Align every Staging runtime-artifact build-context consumer with the canonical .staging-build-context directory contract without weakening exact-main, signing, trusted-ingress, provider, database, or Production mutation boundaries.",
+      "e2e_journeys": [
+        {
+          "id": "runtime-attestation-build-context-contract",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Governed Staging runtime attestation",
+          "entrypoint": "autopilot-portable-staging/Invoke-StagingRuntimeArtifactAttestation.ps1 and .github/workflows/staging-post-deploy-verification.yml",
+          "terminal_outcome": "Both host-side and GitHub-hosted runtime attestation derive the exact Git build context through a directory whose basename is .staging-build-context, while the existing exact-SHA identity and no-mutation boundaries remain unchanged.",
+          "steps": [
+            "Create the host-side attestation build-context directory as <output>/.staging-build-context.",
+            "Create the GitHub-hosted attestation build-context directory as $RUNNER_TEMP/.staging-build-context.",
+            "Read .staging-build-context.json from the same canonical directory used by the generator.",
+            "Keep exact main SHA, tree, context digest, image digest, Gateway identity, trusted ingress, and signed attestation checks unchanged."
+          ],
+          "assertions": [
+            "No runtime attestation path uses the legacy build-context or staging-runtime-build-context basename.",
+            "The generator fail-closed basename contract is preserved rather than weakened.",
+            "Live Staging certification remains required after merge.",
+            "No Production, provider, database, schema, grant, DNS, credential, or signing-authority mutation is introduced.",
+            "The PR declaration is registered exactly in Constitution.control_plane_paths and convergence.automation_control_paths."
+          ],
+          "tests": [
+            {
+              "id": "staging-runtime-attestation-script-surface",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-recovery-certification-script-surface.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/derived-state-governance.json",
+            ".github/workflows/staging-post-deploy-verification.yml",
+            "autopilot-portable-staging/Invoke-StagingRuntimeArtifactAttestation.ps1",
+            "http-generic-api/config/repository-governance-constitution.json",
+            "http-generic-api/test-staging-recovery-certification-script-surface.mjs"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}

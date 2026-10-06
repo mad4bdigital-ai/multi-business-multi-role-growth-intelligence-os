@@ -65,7 +65,7 @@ try {
     try { $containerIdentitySha256 = ([BitConverter]::ToString($sha.ComputeHash($containerIdBytes))).Replace("-", "").ToLowerInvariant() }
     finally { $sha.Dispose() }
 
-    $buildContextDir = Join-Path $OutputDirectory "build-context"
+    $buildContextDir = Join-Path $OutputDirectory ".staging-build-context"
     Invoke-NativeChecked -FilePath "node" -Arguments @("http-generic-api/scripts/prepare-staging-build-context.mjs", "--repository-path", ".", "--commit", $ExpectedSha, "--output-dir", $buildContextDir)
     $contextMetaPath = Join-Path $buildContextDir ".staging-build-context.json"
     $contextMeta = Get-Content -LiteralPath $contextMetaPath -Raw | ConvertFrom-Json
