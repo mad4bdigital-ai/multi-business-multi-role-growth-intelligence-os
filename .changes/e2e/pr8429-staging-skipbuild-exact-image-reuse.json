@@ -10,6 +10,8 @@
       ".changes/e2e/pr8429-staging-skipbuild-exact-image-reuse.json",
       "autopilot-portable-staging/Start-AutoPilot.ps1",
       "autopilot-portable-staging/manifest.json",
+      "http-generic-api/config/repository-governance-constitution.json",
+      ".github/derived-state-governance.json",
       "http-generic-api/test-staging-post-build-image-discovery.mjs"
     ]
   },
@@ -49,6 +51,7 @@
             "Exact commit, tree, context file-set, and secrets-included=false provenance checks remain unchanged.",
             "A missing or non-exact image still fails closed.",
             "Live Staging certification remains required before merge.",
+            "This critical E2E declaration is registered exactly in Constitution.control_plane_paths and convergence.automation_control_paths.",
             "No Production deployment, Production mutation, provider mutation, database mutation, or secret exposure is introduced."
           ],
           "tests": [
