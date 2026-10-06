@@ -14,7 +14,7 @@ assert.match(finder, /config", "--format", "json"/);
 assert.match(finder, /composeModel\.services\.app\.image/);
 assert.match(finder, /composeModel\.name/);
 assert.match(finder, /-app:latest/);
-assert.match(finder, /docker image inspect --format '\{\{\.Id\}\}' \$effectiveImageRef/);
+assert.match(finder, /docker image inspect --format ["']\{\{\.Id\}\}["'] \$effectiveImageRef/);
 assert.match(finder, /Test-ExactStagingImage/);
 assert.match(finder, /"ps", "-q", "app"/);
 assert.match(finder, /docker inspect --format "\{\{\.Image\}\}"/);
