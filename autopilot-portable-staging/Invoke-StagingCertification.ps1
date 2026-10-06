@@ -317,7 +317,22 @@ if ($null -eq $certification -or $certification.contract -ne "mad4b.staging-live
     Fail "Staging certification did not return the canonical contract"
 }
 
+$observedCommit = ([string]$certification.observed.commit_sha).Trim().ToLowerInvariant()
+$observedBranch = ([string]$certification.observed.branch).Trim()
+$expectedCommitNormalized = $ExpectedCommit.ToLowerInvariant()
+if ($observedCommit -ne $expectedCommitNormalized) {
+    Fail "Live certification observed commit does not match ExpectedCommit"
+}
+if ($observedBranch -ne $Ref) {
+    Fail "Live certification observed branch does not match requested Ref"
+}
+
 $state = Read-State $StatePath
+$priorStateCommit = ([string]$state["commit"]).Trim().ToLowerInvariant()
+$state["commit"] = $observedCommit
+$state["ref"] = $observedBranch
+$state["runtime_state_commit_source"] = "live_certification_observed_runtime"
+$state["runtime_state_commit_reconciled"] = (-not [string]::IsNullOrWhiteSpace($priorStateCommit) -and $priorStateCommit -ne $observedCommit)
 $state["certification_contract"] = [string]$certification.contract
 $state["certification_status"] = [string]$certification.outcome
 $state["certification_ready"] = ($certification.ready -eq $true)

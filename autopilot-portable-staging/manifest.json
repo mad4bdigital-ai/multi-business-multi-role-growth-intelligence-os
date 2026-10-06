@@ -278,7 +278,7 @@
     },
     {
       "path": "autopilot-portable-staging/Invoke-StagingCertification.ps1",
-      "sha256": "dea299ff2b65dce1e8abbf8b3413ce0ca5c32f1648077b98c4c310356020c9b0"
+      "sha256": "4d143a31c84be0fc230cbe433ed270074d7fae7717196ed3b6089bd11b692eef"
     },
     {
       "path": "http-generic-api/deploymentManifest.js",
@@ -294,7 +294,7 @@
     },
     {
       "path": "http-generic-api/test-staging-auto-deploy-contract.mjs",
-      "sha256": "75babc7eb7990aba9af4f1515d75b915ddaf7b5ead5aa7eaf0d9a26ccaffaf34"
+      "sha256": "a69da5ac9c1b22ef08db01758e0887c45b71f3b1496a2b623077c1145d25ac99"
     },
     {
       "path": "http-generic-api/test-staging-environment-certification-contract.mjs",
