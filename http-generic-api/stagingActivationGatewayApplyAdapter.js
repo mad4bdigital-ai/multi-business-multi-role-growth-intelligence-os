@@ -141,15 +141,30 @@ async function resolveManagedCloudflareCredential(runtimePool, deps = {}) {
   };
 }
 
+function resolveZeroOrOneManagedRow(rows, code, message) {
+  const boundedRows = Array.isArray(rows) ? rows : [];
+  if (boundedRows.length > 1) throw adapterError(code, message, 503);
+  if (boundedRows.length === 0) return null;
+  const [row] = boundedRows;
+  return row;
+}
+
 async function resolveStagingApplyFeatureGate(runtimePool, env = process.env) {
   const [rows] = await runtimePool.query(
-    "SELECT config_key, config_json, status, updated_at FROM platform_runtime_config WHERE config_key=? LIMIT 2",
+    `SELECT config_key,
+            config_json,
+            status,
+            updated_at
+       FROM platform_runtime_config
+      WHERE config_key=?
+      LIMIT 2`,
     [STAGING_APPLY_CONFIG_KEY],
   );
-  if (Array.isArray(rows) && rows.length > 1) {
-    throw adapterError("staging_activation_gateway_feature_gate_ambiguous", "Managed Staging apply feature gate is ambiguous.", 503);
-  }
-  const row = Array.isArray(rows) ? rows[0] : null;
+  const row = resolveZeroOrOneManagedRow(
+    rows,
+    "staging_activation_gateway_feature_gate_ambiguous",
+    "Managed Staging apply feature gate is ambiguous.",
+  );
   if (row) {
     const config = parseJson(row.config_json, {});
     return {
@@ -179,10 +194,11 @@ async function resolveStagingDispatchCertification(governancePool) {
       LIMIT 2`,
     [STAGING_CERTIFICATION_KEY],
   );
-  if (Array.isArray(rows) && rows.length > 1) {
-    throw adapterError("staging_activation_gateway_dispatch_certification_ambiguous", "Staging dispatch certification is ambiguous.", 503);
-  }
-  const row = Array.isArray(rows) ? rows[0] : null;
+  const row = resolveZeroOrOneManagedRow(
+    rows,
+    "staging_activation_gateway_dispatch_certification_ambiguous",
+    "Staging dispatch certification is ambiguous.",
+  );
   const notExpired = !row?.expires_at || new Date(row.expires_at).getTime() > Date.now();
   const ready = Boolean(row && row.certification_status === "certified"
     && Number(row.dispatch_allowed || 0) === 1
