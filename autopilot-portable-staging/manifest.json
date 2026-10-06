@@ -278,7 +278,7 @@
     },
     {
       "path": "autopilot-portable-staging/Invoke-StagingCertification.ps1",
-      "sha256": "dea299ff2b65dce1e8abbf8b3413ce0ca5c32f1648077b98c4c310356020c9b0"
+      "sha256": "4d143a31c84be0fc230cbe433ed270074d7fae7717196ed3b6089bd11b692eef"
     },
     {
       "path": "http-generic-api/deploymentManifest.js",
