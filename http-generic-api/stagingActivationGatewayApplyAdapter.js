@@ -335,6 +335,7 @@ async function resolveServerResourceBinding(pool, bindingId) {
     account_id: accountId,
     script_name: scriptName,
     resource_uri: row.resource_uri,
+    permission_level: row.permission_level,
     allowed_modes: modes,
     authority_source: row.authority_source || null,
     secrets_included: false,
