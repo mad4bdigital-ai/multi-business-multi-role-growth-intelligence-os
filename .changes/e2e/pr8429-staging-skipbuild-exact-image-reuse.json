@@ -1,0 +1,75 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "pr8429-staging-skipbuild-exact-image-reuse",
+  "title": "PR8429 Staging SkipBuild exact-image reuse",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/pr8429-staging-skipbuild-exact-image-reuse.json",
+      "autopilot-portable-staging/Start-AutoPilot.ps1",
+      "autopilot-portable-staging/manifest.json",
+      "http-generic-api/test-staging-post-build-image-discovery.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging"
+    ],
+    "cross_environment_reviewed": false,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Allow SkipBuild to reuse an already verified exact Staging image while preserving fail-closed provenance validation and requiring live Staging certification before merge.",
+      "e2e_journeys": [
+        {
+          "id": "skipbuild-exact-image-reuse",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Governed CI and the local Staging operator",
+          "entrypoint": "Run the Staging post-build image discovery contract against the exact PR head after an exact image has already been discovered.",
+          "terminal_outcome": "Smart and SkipBuild modes may reuse only an exact provenance-matching image, while SkipBuild still fails closed when no exact image exists and Production remains untouched.",
+          "steps": [
+            "Resolve an existing image through the governed exact-provenance discovery path and verify commit, tree, context file-set, and secrets-included labels.",
+            "Evaluate the build-mode decision so Smart and SkipBuild can reuse the verified image before the SkipBuild missing-image failure branch.",
+            "Run the Windows PowerShell 5.1 image-reuse regression coverage and retain live Staging certification as a required non-production follow-up."
+          ],
+          "assertions": [
+            "SkipBuild exact-image reuse is evaluated before its fail-closed missing-image branch.",
+            "The old Smart-only reuse condition is absent.",
+            "Exact commit, tree, context file-set, and secrets-included=false provenance checks remain unchanged.",
+            "A missing or non-exact image still fails closed.",
+            "Live Staging certification remains required before merge.",
+            "No Production deployment, Production mutation, provider mutation, database mutation, or secret exposure is introduced."
+          ],
+          "tests": [
+            {
+              "id": "staging-post-build-image-discovery",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-post-build-image-discovery.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/pr8429-staging-skipbuild-exact-image-reuse.json",
+            "autopilot-portable-staging/Start-AutoPilot.ps1",
+            "autopilot-portable-staging/manifest.json",
+            "http-generic-api/test-staging-post-build-image-discovery.mjs",
+            "http-generic-api/config/deployment-branch-policy.json"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}
