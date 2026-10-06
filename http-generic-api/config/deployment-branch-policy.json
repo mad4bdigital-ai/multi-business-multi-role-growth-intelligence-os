@@ -131,6 +131,8 @@
           "http-generic-api/docker-compose.staging.docker-sidecar.yml",
           "http-generic-api/Dockerfile.staging",
           "http-generic-api/.env.staging.example",
+          "http-generic-api/stagingActivationGatewayApplyAdapter.js",
+          "http-generic-api/staging-governance-authority-seed-recovery-contract.mjs",
           "http-generic-api/scripts/staging-*.mjs",
           "http-generic-api/scripts/validate-staging-canonical-semantic-repair-plan.mjs",
           "http-generic-api/scripts/build-staging-worker.mjs",
@@ -207,7 +209,9 @@
         ],
         "exclude_patterns": [
           "http-generic-api/test-*.js",
-          "http-generic-api/test-*.mjs"
+          "http-generic-api/test-*.mjs",
+          "http-generic-api/stagingActivationGatewayApplyAdapter.js",
+          "http-generic-api/staging-governance-authority-seed-recovery-contract.mjs"
         ],
         "environments": [
           "staging",

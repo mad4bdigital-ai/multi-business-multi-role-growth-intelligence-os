@@ -136,6 +136,8 @@
       ".changes/e2e/pr8421-staging-runtime-artifact-attestation-decoupling.json",
       ".changes/e2e/pr8423-staging-runtime-attestation-build-context-contract.json",
       ".changes/e2e/pr8429-staging-skipbuild-exact-image-reuse.json",
+      ".changes/e2e/staging-runtime-persistence-1048-schema-repair-20261006.json",
+      ".changes/e2e/staging-cloudflare-managed-authority-readiness-20261006.json",
       ".changes/e2e/production-composition-adapter-factory-20260827.json",
       ".changes/e2e/production-full-schema-metadata-census-20260905.json",
       ".changes/e2e/production-long-term-remediation-20260824.json",

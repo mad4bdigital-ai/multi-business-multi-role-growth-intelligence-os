@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import fs from "node:fs";
 import { PLATFORM_TENANT_ID } from "./agentSkillGrantRequestService.js";
+import { resolveEffectiveCredential } from "./credentialResolver.js";
 import { createCloudflareApiClient } from "./activationGatewayRolloutTool.js";
 import { readCanonicalDeploymentIdentity } from "./deploymentManifest.js";
 import { buildStagingActivationGatewayBundle, stableJson } from "./stagingActivationGatewayBundle.js";
@@ -32,6 +33,9 @@ const STAGING_CERTIFICATION_KEY = "staging_activation_gateway_apply_v1";
 const STAGING_CAPABILITY_KEY = "admin_cloudflare_v1";
 const STAGING_OPERATION_INTENT = "activation_gateway.staging_apply";
 const STAGING_RUNTIME_SURFACE = "activation_gateway_dark_deploy";
+const STAGING_CLOUDFLARE_TARGET_KEY = "staging_activation_gateway_cloudflare";
+const STAGING_CLOUDFLARE_CREDENTIAL_ROLE = "cloudflare_api_token";
+const STAGING_APPLY_CONFIG_KEY = "staging_activation_gateway_apply";
 
 function compact(value, max = 1024) {
   return String(value ?? "").trim().slice(0, max);
@@ -74,17 +78,142 @@ function resolveServerHeldCloudflareToken(env = process.env) {
       if (!["ENOENT", "EACCES"].includes(error?.code)) {
         throw adapterError(
           "staging_activation_gateway_provider_secret_unreadable",
-          "Server-held Staging Cloudflare credential could not be read.",
+          "Legacy server-held Staging Cloudflare credential could not be read.",
           503,
           { secret_file_configured: true, secret_file_readable: false },
         );
       }
     }
   }
-  // Compatibility for non-Compose server runtimes that inject secrets directly
-  // into the process environment. The Staging .env contract forbids persisting
-  // CLOUDFLARE_API_TOKEN itself.
   return compact(env.CLOUDFLARE_API_TOKEN, 4096);
+}
+
+async function resolveManagedCloudflareCredential(runtimePool, deps = {}) {
+  if (deps.cloudflareClient) {
+    const ready = Boolean(deps.cloudflareClient.token_present);
+    return {
+      ready,
+      managed: ready,
+      token: "",
+      status: ready ? "resolved" : "blocked_missing_secret",
+      source: "injected_server_client",
+      binding_id: null,
+      owner_type: "platform",
+      secrets_included: false,
+    };
+  }
+  const result = await resolveEffectiveCredential({
+    tenantId: PLATFORM_TENANT_ID,
+    actionKey: STAGING_RUNTIME_SURFACE,
+    targetKey: STAGING_CLOUDFLARE_TARGET_KEY,
+    credentialRole: STAGING_CLOUDFLARE_CREDENTIAL_ROLE,
+    includeSecret: true,
+    allowPlatformFallback: true,
+  }, {
+    pool: runtimePool,
+    decryptToken: deps.decryptToken,
+    decryptCredentials: deps.decryptCredentials,
+    env: deps.env || process.env,
+  });
+  const token = compact(result?.secret, 4096);
+  if (result?.status === "resolved" && token && result?.source === "credential_bindings") {
+    return {
+      ready: true,
+      managed: true,
+      token,
+      status: result.status,
+      source: result.source,
+      binding_id: result.binding_id || null,
+      owner_type: result.owner_type || null,
+      secrets_included: false,
+    };
+  }
+  const legacyToken = resolveServerHeldCloudflareToken(deps.env || process.env);
+  return {
+    ready: Boolean(token || legacyToken),
+    managed: false,
+    token: token || legacyToken,
+    status: result?.status || (legacyToken ? "legacy_resolved" : "blocked_missing_secret"),
+    source: token ? (result?.source || "unmanaged_resolver_source") : (legacyToken ? "legacy_secret_file_or_env" : (result?.source || "credential_resolver")),
+    binding_id: result?.binding_id || null,
+    owner_type: result?.owner_type || null,
+    secrets_included: false,
+  };
+}
+
+function resolveZeroOrOneManagedRow(rows, code, message) {
+  const boundedRows = Array.isArray(rows) ? rows : [];
+  if (boundedRows.length > 1) throw adapterError(code, message, 503);
+  if (boundedRows.length === 0) return null;
+  const [row] = boundedRows;
+  return row;
+}
+
+async function resolveStagingApplyFeatureGate(runtimePool, env = process.env) {
+  const [rows] = await runtimePool.query(
+    `SELECT config_key,
+            config_json,
+            status,
+            updated_at
+       FROM platform_runtime_config
+      WHERE config_key=?
+      LIMIT 2`,
+    [STAGING_APPLY_CONFIG_KEY],
+  );
+  const row = resolveZeroOrOneManagedRow(
+    rows,
+    "staging_activation_gateway_feature_gate_ambiguous",
+    "Managed Staging apply feature gate is ambiguous.",
+  );
+  if (row) {
+    const config = parseJson(row.config_json, {});
+    return {
+      enabled: row.status === "active" && (config?.enabled === true || truthy(config?.enabled)),
+      managed: true,
+      source: "platform_runtime_config",
+      config_key: STAGING_APPLY_CONFIG_KEY,
+      status: row.status,
+      secrets_included: false,
+    };
+  }
+  return {
+    enabled: truthy(env.STAGING_ACTIVATION_GATEWAY_APPLY_ENABLED),
+    managed: false,
+    source: "legacy_env_bootstrap",
+    config_key: STAGING_APPLY_CONFIG_KEY,
+    status: "missing",
+    secrets_included: false,
+  };
+}
+
+async function resolveStagingDispatchCertification(governancePool) {
+  const [rows] = await governancePool.query(
+    `SELECT certification_key, certification_status, dispatch_allowed, apply_allowed, requires_readback, expires_at
+       FROM runtime_dispatch_certification_registry
+      WHERE certification_key=?
+      LIMIT 2`,
+    [STAGING_CERTIFICATION_KEY],
+  );
+  const row = resolveZeroOrOneManagedRow(
+    rows,
+    "staging_activation_gateway_dispatch_certification_ambiguous",
+    "Staging dispatch certification is ambiguous.",
+  );
+  const notExpired = !row?.expires_at || new Date(row.expires_at).getTime() > Date.now();
+  const ready = Boolean(row && row.certification_status === "certified"
+    && Number(row.dispatch_allowed || 0) === 1
+    && Number(row.apply_allowed || 0) === 1
+    && Number(row.requires_readback || 0) === 1
+    && notExpired);
+  return {
+    ready,
+    status: row?.certification_status || "missing",
+    dispatch_allowed: Boolean(row?.dispatch_allowed),
+    apply_allowed: Boolean(row?.apply_allowed),
+    requires_readback: Boolean(row?.requires_readback),
+    expires_at: row?.expires_at || null,
+    secrets_included: false,
+  };
 }
 
 function resolveStagingGatewayDataPools(deps = {}) {
@@ -222,6 +351,7 @@ async function resolveServerResourceBinding(pool, bindingId) {
     account_id: accountId,
     script_name: scriptName,
     resource_uri: row.resource_uri,
+    permission_level: row.permission_level,
     allowed_modes: modes,
     authority_source: row.authority_source || null,
     secrets_included: false,
@@ -521,20 +651,28 @@ export async function buildStagingActivationGatewayApplyPlan(input = {}, deps = 
     expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString() };
   const planSha = sha256(stableJson(planBody));
   const env = deps.env || process.env;
-  const providerToken = deps.cloudflareClient ? "" : resolveServerHeldCloudflareToken(env);
-  const providerTokenPresent = Boolean(deps.cloudflareClient?.token_present ?? providerToken);
+  const providerCredential = await resolveManagedCloudflareCredential(runtimePool, { ...deps, env });
+  const providerTokenPresent = providerCredential.ready === true;
+  const managedCredentialReady = providerCredential.managed === true && providerCredential.ready === true;
   const semanticWorkspaceReady = semanticReadiness.ready === true && Boolean(workspace?.workspace_id);
-  const client = semanticWorkspaceReady && providerTokenPresent
-    ? (deps.cloudflareClient || createCloudflareApiClient({ fetchImpl: deps.fetchImpl, token: providerToken, timeoutMs: deps.cloudflareTimeoutMs }))
+  const client = semanticWorkspaceReady && managedCredentialReady
+    ? (deps.cloudflareClient || createCloudflareApiClient({ fetchImpl: deps.fetchImpl, token: providerCredential.token, timeoutMs: deps.cloudflareTimeoutMs }))
     : null;
-  const featureEnabled = truthy(env.STAGING_ACTIVATION_GATEWAY_APPLY_ENABLED);
+  const featureGate = await resolveStagingApplyFeatureGate(runtimePool, env);
+  const dispatchCertification = await resolveStagingDispatchCertification(governancePool);
+  const allowedModes = Array.isArray(binding.allowed_modes) ? binding.allowed_modes : parseJson(binding.allowed_modes_json, []);
+  const elevatedAuthorityReady = binding.permission_level === "admin" && allowedModes.includes("staging_apply");
   const checks = [
     { key: "profile_bound", ok: true },
     { key: "server_resource_binding_valid", ok: true },
     { key: "workspace_resolved", ok: Boolean(workspace?.workspace_id) },
     { key: "platform_admin_semantic_readiness", ok: semanticReadiness.ready === true, detail: { status: semanticReadiness.status } },
-    { key: "cloudflare_token_present_server_side", ok: providerTokenPresent },
-    { key: "staging_apply_feature_gate_enabled", ok: featureEnabled },
+    { key: "cloudflare_token_present_server_side", ok: providerTokenPresent, detail: { source: providerCredential.source } },
+    { key: "managed_cloudflare_credential_binding_ready", ok: managedCredentialReady, detail: { status: providerCredential.status, binding_id: providerCredential.binding_id } },
+    { key: "staging_apply_feature_gate_enabled", ok: featureGate.enabled === true },
+    { key: "staging_apply_feature_gate_managed", ok: featureGate.managed === true, detail: { source: featureGate.source, config_key: featureGate.config_key } },
+    { key: "elevated_platform_resource_authority", ok: elevatedAuthorityReady, detail: { permission_level: binding.permission_level } },
+    { key: "dispatch_certification_ready", ok: dispatchCertification.ready === true, detail: { status: dispatchCertification.status } },
     { key: "exact_policy_hash", ok: bundle.policy_hash === expectedPolicyHash },
     { key: "exact_source_commit", ok: bundle.source_sha === expectedSourceCommit },
   ].map((item) => ({ ...item, secrets_included: false }));
@@ -574,13 +712,28 @@ export async function buildStagingActivationGatewayApplyPlan(input = {}, deps = 
       operator_acknowledgement_is_execution_authority: false,
       typed_confirmation_required_for_apply: true,
       approval_required_for_apply: false,
+      managed_credential_required_for_apply: true,
+      managed_feature_gate_required_for_apply: true,
+      dispatch_certification_required_for_apply: true,
+    },
+    managed_provider_authority: {
+      credential_source: providerCredential.source,
+      credential_status: providerCredential.status,
+      credential_binding_id: providerCredential.binding_id,
+      feature_gate_source: featureGate.source,
+      feature_gate_config_key: featureGate.config_key,
+      dispatch_certification_status: dispatchCertification.status,
+      elevated_authority_source: elevatedAuthorityReady ? "exact_platform_resource_authority" : null,
+      legacy_secret_transport_is_execution_authority: false,
+      legacy_env_feature_gate_is_execution_authority: false,
+      secrets_included: false,
     },
     checks,
     trust_bundle_contract: bundle.origin_trust.contract,
     provider_target_caller_selectable: false,
     provider_credentials_returned: false,
     workflow_dispatch: false,
-    staging_certification_ready: false,
+    staging_certification_ready: dispatchCertification.ready,
     production_mutation: false,
     business_database_mutation: false,
     schema_mutation: false,
@@ -662,7 +815,17 @@ export async function runStagingActivationGatewayApply(input = {}, deps = {}) {
     bundle_sha256: row.bundle_sha256, secret_set_sha256: row.secret_set_sha256 };
   const publicPlan = { ...plan };
   if (typeof deps.audit !== "function") throw adapterError("staging_activation_gateway_audit_required", "Durable audit sink is required before provider mutation.", 503);
-  if (!truthy(env.STAGING_ACTIVATION_GATEWAY_APPLY_ENABLED)) throw adapterError("staging_activation_gateway_apply_disabled", "Staging apply feature gate is disabled.", 403);
+  const featureGate = await resolveStagingApplyFeatureGate(runtimePool, env);
+  if (!featureGate.enabled || !featureGate.managed) throw adapterError("staging_activation_gateway_apply_disabled", "Managed Staging apply feature gate is disabled or unavailable.", 403, { feature_gate_source: featureGate.source });
+  const providerCredential = await resolveManagedCloudflareCredential(runtimePool, { ...deps, env });
+  if (!providerCredential.ready || !providerCredential.managed) {
+    throw adapterError(
+      "staging_activation_gateway_managed_cloudflare_credential_missing",
+      "Managed DB-backed Staging Cloudflare credential binding is unavailable.",
+      503,
+      { credential_status: providerCredential.status, credential_source: providerCredential.source, binding_id: providerCredential.binding_id },
+    );
+  }
   const nonce = compact(input.execution_nonce, 128);
   if (!SAFE_NONCE_RE.test(nonce)) throw adapterError("staging_activation_gateway_execution_nonce_invalid", "Apply requires execution_nonce with 8 to 128 safe characters.");
   const envelope = await assertEnvelopeForApply({ runtimePool, governancePool, auth, input, expectedCommitSha: plan.expected_source_commit, workspaceId: workspace.workspace_id, plan });
@@ -670,15 +833,7 @@ export async function runStagingActivationGatewayApply(input = {}, deps = {}) {
   const executionNonceSha256 = sha256(nonce);
   await claimStagingGatewayExecutionPlan(governancePool, { planId, planSha256: planSha, convergencePlanSha256: convergencePlanSha });
 
-  const providerToken = deps.cloudflareClient ? "" : resolveServerHeldCloudflareToken(env);
-  if (!deps.cloudflareClient && !providerToken) {
-    throw adapterError(
-      "staging_activation_gateway_cloudflare_token_missing",
-      "Server-held Staging Cloudflare credential is unavailable.",
-      503,
-    );
-  }
-  const client = deps.cloudflareClient || createCloudflareApiClient({ fetchImpl: deps.fetchImpl, token: providerToken, timeoutMs: deps.cloudflareTimeoutMs });
+  const client = deps.cloudflareClient || createCloudflareApiClient({ fetchImpl: deps.fetchImpl, token: providerCredential.token, timeoutMs: deps.cloudflareTimeoutMs });
   const accountId = plan.resource_binding.account_id;
   const scriptName = plan.resource_binding.script_name;
   const fetchImpl = deps.smokeFetch || deps.fetchImpl || globalThis.fetch;

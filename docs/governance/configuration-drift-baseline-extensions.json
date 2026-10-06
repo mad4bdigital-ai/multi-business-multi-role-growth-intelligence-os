@@ -1764,6 +1764,17 @@
       "grants_production_activation": false
     },
     {
+      "fingerprint": "http-generic-api/stagingActivationGatewayApplyAdapter.js|STAGING_APPLY_CONFIG_KEY|literal_declaration|staging.apply.config.key",
+      "owner": "gateway-governance",
+      "reason": "Canonical code-owned selector for the governed Runtime DB key staging_activation_gateway_apply. The literal names the managed Staging apply configuration record only; it contains no secret value and cannot authorize provider, database, DNS, custom-domain, protected-ref, or Production mutation by itself.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
       "fingerprint": "http-generic-api/stagingActivationGatewayApplyAdapter.js|DEFAULT_STAGING_CLOUDFLARE_API_TOKEN_FILE|literal_declaration|staging.cloudflare.api.token.file",
       "owner": "gateway-governance",
       "reason": "Canonical server-held Staging Cloudflare credential file locator. It identifies only the in-container secret-file path, contains no provider credential value, and does not grant provider, database, DNS, custom-domain, protected-ref, or Production mutation authority.",

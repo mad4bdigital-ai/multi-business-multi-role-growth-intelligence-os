@@ -1,0 +1,122 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-cloudflare-managed-authority-readiness-20261006",
+  "title": "Staging Cloudflare managed authority readiness substrate",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-cloudflare-managed-authority-readiness-20261006.json",
+      "http-generic-api/stagingActivationGatewayApplyAdapter.js",
+      "http-generic-api/config/deployment-branch-policy.json",
+      "http-generic-api/config/repository-governance-constitution.json",
+      ".github/derived-state-governance.json",
+      "docs/governance/platform-configuration-entry-registry.json",
+      "http-generic-api/test-environment-impact-closure.mjs",
+      "http-generic-api/config/staging-gateway-runtime-authority-seed.sql",
+      "http-generic-api/config/staging-gateway-governance-authority-seed.sql",
+      "http-generic-api/config/staging-gateway-authority-seed-manifest.json",
+      "http-generic-api/staging-governance-authority-seed-recovery-contract.mjs",
+      "autopilot-portable-staging/Replay-StagingGatewayAuthoritySeeds.ps1",
+      "http-generic-api/test-staging-smart-gateway-convergence-contract.mjs",
+      "docs/governance/configuration-drift-baseline-extensions.json",
+      "autopilot-portable-staging/manifest.json",
+      "http-generic-api/test-activation-gateway-rollout-surface.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Add the Staging-only managed Cloudflare credential/config readiness substrate and expose complete dry-run blockers without widening provider apply authorization.",
+      "e2e_journeys": [
+        {
+          "id": "managed-cloudflare-readiness-fail-closed",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Staging Platform Admin service principal",
+          "entrypoint": "Build the profile-bound activation_gateway_dark_deploy dry-run for admin_cloudflare_v1.",
+          "terminal_outcome": "The adapter resolves managed credential metadata and the durable Staging feature gate from Runtime DB, reports independent dispatch certification state, and remains apply_ready=false while certification or Governance authorization is not ready.",
+          "steps": [
+            "Replay Runtime-owned managed Cloudflare connected-system, DB-encrypted secret-slot/reference/binding, and durable feature-gate metadata.",
+            "Resolve provider credential readiness through credential_bindings while keeping the secret value out of dry-run output.",
+            "Resolve the Staging apply gate from platform_runtime_config.",
+            "Read independent runtime_dispatch_certification_registry state from Governance DB.",
+            "Keep apply fail-closed until all existing capability-envelope, certification, typed-confirmation, audit, readback and rollback gates are satisfied."
+          ],
+          "assertions": [
+            "No raw Cloudflare credential is committed or returned.",
+            "Legacy file/env provider settings are diagnostic compatibility only and are not sufficient for apply readiness.",
+            "Governance policy requires the managed credential binding and managed Runtime config, and forbids a no-credential apply path.",
+            "The Staging apply adapter is classified staging-only and excluded from shared Production runtime impact.",
+            "The exact profile resource binding remains server-selected; caller target override stays forbidden.",
+            "Recovery replay restores metadata only and does not perform a provider call.",
+            "Dispatch certification pending keeps apply_ready=false.",
+            "Production, DNS, custom-domain, Hostinger and automatic provider mutation remain false."
+          ],
+          "tests": [
+            {
+              "id": "staging-smart-gateway-convergence",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-smart-gateway-convergence-contract.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-gateway-authority-seed-recovery",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "staging-governance-authority-seed-recovery-contract.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-adapter-environment-impact-classification",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-environment-impact-closure.mjs",
+              "args": []
+            },
+            {
+              "id": "activation-gateway-rollout-surface",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-activation-gateway-rollout-surface.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/staging-cloudflare-managed-authority-readiness-20261006.json",
+            "http-generic-api/stagingActivationGatewayApplyAdapter.js",
+            "http-generic-api/config/deployment-branch-policy.json",
+            "http-generic-api/config/repository-governance-constitution.json",
+            ".github/derived-state-governance.json",
+            "docs/governance/platform-configuration-entry-registry.json",
+            "http-generic-api/test-environment-impact-closure.mjs",
+            "http-generic-api/config/staging-gateway-runtime-authority-seed.sql",
+            "http-generic-api/config/staging-gateway-governance-authority-seed.sql",
+            "http-generic-api/config/staging-gateway-authority-seed-manifest.json",
+            "autopilot-portable-staging/Replay-StagingGatewayAuthoritySeeds.ps1",
+            "http-generic-api/test-staging-smart-gateway-convergence-contract.mjs",
+            "docs/governance/configuration-drift-baseline-extensions.json",
+            "autopilot-portable-staging/manifest.json",
+            "http-generic-api/test-activation-gateway-rollout-surface.mjs"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}

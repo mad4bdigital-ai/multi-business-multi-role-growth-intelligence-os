@@ -309,7 +309,10 @@ assert.match(serverAdapterSource, /import fs from "node:fs"/u);
 assert.match(serverAdapterSource, /DEFAULT_STAGING_CLOUDFLARE_API_TOKEN_FILE/u);
 assert.match(serverAdapterSource, /STAGING_CLOUDFLARE_API_TOKEN_FILE/u);
 assert.match(serverAdapterSource, /staging_activation_gateway_provider_secret_unreadable/u);
-assert.match(serverAdapterSource, /staging_activation_gateway_cloudflare_token_missing/u);
+assert.match(serverAdapterSource, /resolveManagedCloudflareCredential/u);
+assert.match(serverAdapterSource, /managed_cloudflare_credential_binding_ready/u);
+assert.match(serverAdapterSource, /staging_apply_feature_gate_managed/u);
+assert.match(serverAdapterSource, /legacy_secret_file_or_env/u);
 assert.match(stagingEnvironmentSource, /Cloudflare provider credentials must never be persisted in \.env\.staging/u);
 assert.match(stagingEnvironmentSource, /C:\\ProgramData\\Mad4B\\Staging\\Cloudflared\\tunnel-token\.txt/u);
 assert.match(stagingEnvironmentSource, /C:\\ProgramData\\Mad4B\\Staging\\Cloudflared\\cloudflared\.log/u);
@@ -350,6 +353,10 @@ const dryRunQueries = [];
 const previewGovernancePool = {
   async query(sql, params = []) {
     dryRunQueries.push({ store: "governance", sql: String(sql), params });
+    if (String(sql).includes("FROM runtime_dispatch_certification_registry")) {
+      assert.deepEqual(params, ["staging_activation_gateway_apply_v1"]);
+      return [[{ certification_key: "staging_activation_gateway_apply_v1", certification_status: "pending", dispatch_allowed: 0, apply_allowed: 0, requires_readback: 1, expires_at: null }]];
+    }
     if (String(sql).includes("FROM platform_resource_authority_bindings")) {
       assert.deepEqual(params, [bindingId]);
       return [[{
@@ -380,6 +387,10 @@ const previewRuntimePool = {
     if (String(sql).includes("FROM workspace_registry")) {
       return [[{ workspace_id: platformWorkspaceId, tenant_id: platformTenantId, workspace_key: platformSeedKey, display_name: PLATFORM_ADMIN_WORKSPACE_AUTHORITY.identity.display_name, workspace_type: PLATFORM_ADMIN_WORKSPACE_AUTHORITY.identity.workspace_type, bootstrap_status: PLATFORM_ADMIN_WORKSPACE_AUTHORITY.identity.bootstrap_status, config_json: JSON.stringify({ authority_scope_key: platformAuthorityScope, platform_admin_workspace: true }) }]];
     }
+    if (String(sql).includes("FROM platform_runtime_config")) {
+      assert.deepEqual(params, ["staging_activation_gateway_apply"]);
+      return [[{ config_key: "staging_activation_gateway_apply", config_json: JSON.stringify({ enabled: true, environment: "staging" }), status: "active", updated_at: "2026-10-06T00:00:00.000Z" }]];
+    }
     throw new Error(`Unexpected Runtime SQL in Staging dry-run contract: ${sql}`);
   },
 };
@@ -400,7 +411,11 @@ const rolloutPlan = await buildActivationGatewayRolloutPlan({
   now: () => Date.parse("2026-09-11T12:00:00.000Z"),
 });
 assert.equal(rolloutPlan.adapter, "staging_activation_gateway_profile_apply");
-assert.equal(rolloutPlan.apply_ready, true);
+assert.equal(rolloutPlan.apply_ready, false);
+assert.equal(rolloutPlan.staging_certification_ready, false);
+assert.equal(rolloutPlan.checks.find((check) => check.key === "managed_cloudflare_credential_binding_ready")?.ok, true);
+assert.equal(rolloutPlan.checks.find((check) => check.key === "staging_apply_feature_gate_managed")?.ok, true);
+assert.equal(rolloutPlan.checks.find((check) => check.key === "dispatch_certification_ready")?.ok, false);
 assert.equal(rolloutPlan.resource_binding.binding_id, bindingId);
 assert.equal(rolloutPlan.resource_binding.account_id, accountId);
 assert.equal(rolloutPlan.resource_binding.script_name, scriptName);

@@ -10,11 +10,16 @@
       "root_password_env": "RUNTIME_DB_ROOT_PASSWORD",
       "container_service": "runtime-db",
       "seed_file": "http-generic-api/config/staging-gateway-runtime-authority-seed.sql",
-      "seed_sha256": "0b3d690b3a7af74cf630ff7e7b97f97e66f7b1e8ea02e21db2c244582d64b2ff",
-      "expected_statement_count": 2,
+      "seed_sha256": "762501ab130e07d3e45db0a67ab51863135aa0bc22febcd8e69f683fa7dfc33f",
+      "expected_statement_count": 7,
       "exact_rows": {
         "platform_resource_authority_requirements": "staging_activation_gateway_apply_authority_v1",
-        "resource_authority_route_family_registry": "staging_activation_gateway_apply_v1"
+        "resource_authority_route_family_registry": "staging_activation_gateway_apply_v1",
+        "connected_systems": "cloudflare_staging_activation_gateway_managed",
+        "platform_secrets": "staging_cloudflare_activation_gateway_api_token",
+        "secret_references": "staging_cloudflare_activation_gateway_api_token",
+        "credential_bindings": "84310000-0000-4000-8000-000000000003",
+        "platform_runtime_config": "staging_activation_gateway_apply"
       }
     },
     "governance": {
@@ -22,7 +27,7 @@
       "root_password_env": "GOVERNANCE_DB_ROOT_PASSWORD",
       "container_service": "governance-db",
       "seed_file": "http-generic-api/config/staging-gateway-governance-authority-seed.sql",
-      "seed_sha256": "62c4e52416e16f8a97231a862a1e7f0e2bb7d2bed2c303b0fc6f56c1c2df7134",
+      "seed_sha256": "ff9443c514913fbdbb31ce2657595f40b9e051fc4df3204839322200c4e29547",
       "expected_statement_count": 3,
       "exact_rows": {
         "capability_apply_authorization_policy_registry": "staging_activation_gateway_apply_policy_v1",

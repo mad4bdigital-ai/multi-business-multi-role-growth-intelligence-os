@@ -1,0 +1,92 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-runtime-persistence-1048-schema-repair-20261006",
+  "title": "Staging runtime-persistence response-chunk schema repair authority",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-runtime-persistence-1048-schema-repair-20261006.json",
+      "http-generic-api/config/host-breakglass-staging-contract.json",
+      "http-generic-api/test-staging-recovery-system-tools.mjs",
+      "http-generic-api/config/repository-governance-constitution.json",
+      ".github/derived-state-governance.json"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Allow the existing additive and idempotent 1048 response-chunk recovery migration to be planned through the Staging-only schema-repair authority for the runtime_persistence role without widening Production migration authority.",
+      "e2e_journeys": [
+        {
+          "id": "runtime-persistence-1048-schema-repair-authority",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Staging Recovery admin/service principal",
+          "entrypoint": "Prepare 1048_transport_response_chunk_schema_recovery.sql through staging_recovery_schema_repair_prepare on an exact main Staging deployment.",
+          "terminal_outcome": "The server derives runtime_persistence, checksum, statement count, postconditions and typed confirmation; caller DB/raw SQL selection remains forbidden and the base Production contract stays dry-run-only.",
+          "steps": [
+            "Resolve Migration 1048 through the Staging overlay and verify its canonical repository checksum and 34-statement contract.",
+            "Derive runtime_persistence as the target role with no caller-selected database or raw SQL.",
+            "Preserve the base runtime-bootstrap contract as dry-run-only verification authority outside the Staging overlay."
+          ],
+          "assertions": [
+            "Migration 1048 is allowlisted only by the Staging readiness remediation overlay for apply_migration.",
+            "The derived target role is runtime_persistence.",
+            "The migration checksum is aecfbd9d87dca6eba11677cd992637f55ecf3c0743f704df4bbea48c57d8d788 and statement count is 34.",
+            "The Staging schema-repair plan retains raw_sql_allowed=false and caller_database_allowed=false.",
+            "The base runtime-bootstrap contract retains allowed_modes=[dry_run] and role=verification_only for Migration 1048.",
+            "No provider mutation, Production mutation, credential exposure, or automatic migration apply is introduced."
+          ],
+          "tests": [
+            {
+              "id": "staging-recovery-system-tools",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-recovery-system-tools.mjs",
+              "args": []
+            },
+            {
+              "id": "transport-response-chunk-recovery-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-transport-response-chunk-schema-recovery.mjs",
+              "args": []
+            },
+            {
+              "id": "runtime-persistence-readiness",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-runtime-persistence-operational-readiness.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/staging-runtime-persistence-1048-schema-repair-20261006.json",
+            "http-generic-api/config/host-breakglass-staging-contract.json",
+            "http-generic-api/test-staging-recovery-system-tools.mjs",
+            "http-generic-api/migrations/1048_transport_response_chunk_schema_recovery.sql",
+            "http-generic-api/config/runtime-bootstrap-contract.json",
+            "http-generic-api/config/repository-governance-constitution.json",
+            ".github/derived-state-governance.json"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}
