@@ -1333,9 +1333,10 @@ try {
     $imageReused = $false
     $buildAction = "built"
     $imageMatchesExactProvenance = $existingImageId -match '^sha256:[0-9a-f]{64}$'
-    if ($BuildMode -eq "Smart" -and $imageMatchesExactProvenance) {
+    $reuseRequested = $BuildMode -in @("Smart", "SkipBuild")
+    if ($reuseRequested -and $imageMatchesExactProvenance) {
         $imageReused = $true
-        $buildAction = "reused_exact_provenance"
+        $buildAction = if ($BuildMode -eq "SkipBuild") { "skipbuild_reused_exact_provenance" } else { "reused_exact_provenance" }
         Write-StagingOperationBoundary -Component $LogComponent -Stage "compose-build" -Outcome "success" -Message "reused exact Staging image; build skipped" -Data @{ mode = $BuildMode; image_id = $existingImageId; commit = $ExpectedCommit; tree = $buildTree; context_file_set_sha256 = [string]$buildContextMetadata.context_file_set_sha256; secrets_included = $false }
     } elseif ($BuildMode -eq "SkipBuild") {
         Fail "SkipBuild requested but no local app image matches exact commit/tree/context provenance"
