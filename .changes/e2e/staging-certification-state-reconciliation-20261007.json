@@ -11,7 +11,9 @@
       ".changes/e2e/staging-certification-state-reconciliation-20261007.json",
       "autopilot-portable-staging/Invoke-StagingCertification.ps1",
       "autopilot-portable-staging/manifest.json",
-      "http-generic-api/test-staging-auto-deploy-contract.mjs"
+      "http-generic-api/test-staging-auto-deploy-contract.mjs",
+      "http-generic-api/config/repository-governance-constitution.json",
+      ".github/derived-state-governance.json"
     ]
   },
   "environment_impact": {
@@ -55,7 +57,8 @@
             "Certification cannot rewrite state.ref when observed.branch differs from Ref.",
             "The repaired state records live_certification_observed_runtime as commit authority.",
             "No database, migration, provider, DNS, ruleset, Hostinger, or Production mutation is introduced.",
-            "No secret material is persisted or returned."
+            "No secret material is persisted or returned.",
+            "The critical declaration is registered exactly in Constitution.control_plane_paths and convergence.automation_control_paths; no broad control-plane pattern is added."
           ],
           "tests": [
             {
@@ -70,7 +73,9 @@
             ".changes/e2e/staging-certification-state-reconciliation-20261007.json",
             "autopilot-portable-staging/Invoke-StagingCertification.ps1",
             "autopilot-portable-staging/manifest.json",
-            "http-generic-api/test-staging-auto-deploy-contract.mjs"
+            "http-generic-api/test-staging-auto-deploy-contract.mjs",
+            "http-generic-api/config/repository-governance-constitution.json",
+            ".github/derived-state-governance.json"
           ]
         }
       ]
