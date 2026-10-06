@@ -48,6 +48,20 @@ for (const label of [
 assert.match(source, /\$imageId -notmatch '\^sha256:/);
 assert.match(source, /Fail "Staging app image ID is not a content-addressed sha256 digest with exact provenance"/);
 
+const decisionStart = source.indexOf("$existingImageId = Find-ExactStagingImageId");
+const decisionEnd = source.indexOf("$imageId = Find-ExactStagingImageId", decisionStart + 1);
+assert.ok(decisionStart >= 0 && decisionEnd > decisionStart, "Staging image build/reuse decision block must remain discoverable");
+const buildDecision = source.slice(decisionStart, decisionEnd);
+assert.match(buildDecision, /\$reuseRequested = \$BuildMode -in @\("Smart", "SkipBuild"\)/);
+assert.match(buildDecision, /if \(\$reuseRequested -and \$imageMatchesExactProvenance\)/);
+assert.match(buildDecision, /skipbuild_reused_exact_provenance/);
+assert.doesNotMatch(buildDecision, /if \(\$BuildMode -eq "Smart" -and \$imageMatchesExactProvenance\)/);
+assert.ok(
+  buildDecision.indexOf("if ($reuseRequested -and $imageMatchesExactProvenance)") <
+    buildDecision.indexOf('elseif ($BuildMode -eq "SkipBuild")'),
+  "SkipBuild exact-image success path must be evaluated before fail-closed missing-image handling",
+);
+
 if (process.platform === "win32") {
   const fixture = JSON.stringify([{
     Id: "sha256:" + "7".repeat(64),
