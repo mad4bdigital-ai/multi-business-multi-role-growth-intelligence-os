@@ -935,24 +935,47 @@ function Invoke-SelfUpdate {
     exit 0
 }
 
+function Get-StagingImageLabelValue([object]$Labels, [string]$Name) {
+    if ($null -eq $Labels -or [string]::IsNullOrWhiteSpace($Name)) { return "" }
+    $property = $Labels.PSObject.Properties[$Name]
+    if ($null -eq $property) { return "" }
+    return ([string]$property.Value).Trim()
+}
+
 function Test-ExactStagingImage([string]$ImageId, [string]$ExpectedCommit, [string]$ExpectedTree, [string]$ExpectedContextFileSet) {
     if ($ImageId -notmatch '^sha256:[0-9a-fA-F]{64}$') { return $false }
     if ($ExpectedCommit -notmatch '^[0-9a-fA-F]{40}$' -or $ExpectedTree -notmatch '^[0-9a-fA-F]{40}$' -or $ExpectedContextFileSet -notmatch '^[0-9a-fA-F]{64}$') { return $false }
     try {
-        # Avoid Docker Go-template quoting/parsing differences on Windows PowerShell 5.1.
-        # Parse the canonical image inspect JSON once, then validate both identity and labels.
+        # Docker image inspect returns a top-level JSON array. Windows PowerShell 5.1
+        # preserves that array as a single pipeline object in ConvertFrom-Json, so parse
+        # via -InputObject and normalize cardinality explicitly before reading fields.
         $inspectJson = (& docker image inspect $ImageId 2>$null | Out-String).Trim()
         if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($inspectJson)) { return $false }
-        $inspect = @($inspectJson | ConvertFrom-Json)[0]
+        $parsed = ConvertFrom-Json -InputObject $inspectJson
+        if ($null -eq $parsed) { return $false }
+        if ($parsed -is [System.Array]) {
+            if ($parsed.Count -ne 1) { return $false }
+            $inspect = $parsed[0]
+        } else {
+            $inspect = $parsed
+        }
         if ($null -eq $inspect -or $null -eq $inspect.Config -or $null -eq $inspect.Config.Labels) { return $false }
+
         $labels = $inspect.Config.Labels
         $inspectedId = ([string]$inspect.Id).Trim().ToLowerInvariant()
         if ($inspectedId -ne $ImageId.ToLowerInvariant()) { return $false }
-        return (([string]$labels.'org.mad4b.staging.provenance.contract').Trim() -eq "mad4b.staging-build-provenance.v1" -and
-            (([string]$labels.'org.mad4b.staging.build.commit').Trim().ToLowerInvariant()) -eq $ExpectedCommit.ToLowerInvariant() -and
-            (([string]$labels.'org.mad4b.staging.build.tree').Trim().ToLowerInvariant()) -eq $ExpectedTree.ToLowerInvariant() -and
-            (([string]$labels.'org.mad4b.staging.build.context_file_set_sha256').Trim().ToLowerInvariant()) -eq $ExpectedContextFileSet.ToLowerInvariant() -and
-            (([string]$labels.'org.mad4b.staging.build.secrets_included').Trim().ToLowerInvariant()) -eq "false")
+
+        $contract = Get-StagingImageLabelValue $labels "org.mad4b.staging.provenance.contract"
+        $commit = (Get-StagingImageLabelValue $labels "org.mad4b.staging.build.commit").ToLowerInvariant()
+        $tree = (Get-StagingImageLabelValue $labels "org.mad4b.staging.build.tree").ToLowerInvariant()
+        $contextFileSet = (Get-StagingImageLabelValue $labels "org.mad4b.staging.build.context_file_set_sha256").ToLowerInvariant()
+        $secretsIncluded = (Get-StagingImageLabelValue $labels "org.mad4b.staging.build.secrets_included").ToLowerInvariant()
+
+        return ($contract -eq "mad4b.staging-build-provenance.v1" -and
+            $commit -eq $ExpectedCommit.ToLowerInvariant() -and
+            $tree -eq $ExpectedTree.ToLowerInvariant() -and
+            $contextFileSet -eq $ExpectedContextFileSet.ToLowerInvariant() -and
+            $secretsIncluded -eq "false")
     } catch {
         return $false
     }
@@ -991,8 +1014,25 @@ function Find-ExactStagingImageId([string]$ExpectedCommit, [string]$ExpectedTree
     }
     $labelQuery = (Get-NativeText "docker" @("image", "ls", "--no-trunc", "--filter", "label=org.mad4b.staging.provenance.contract=mad4b.staging-build-provenance.v1", "--format", "{{.ID}}")).Trim()
     $candidateIds += @($labelQuery -split "\s+" | Where-Object { $_ -match '^sha256:[0-9a-fA-F]{64}$' })
-    foreach ($candidate in @($candidateIds | Select-Object -Unique)) {
-        if (Test-ExactStagingImage ([string]$candidate) $ExpectedCommit $ExpectedTree $ExpectedContextFileSet) { return ([string]$candidate).ToLowerInvariant() }
+    $uniqueCandidates = @($candidateIds | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) } | Select-Object -Unique)
+    foreach ($candidate in $uniqueCandidates) {
+        $candidateId = ([string]$candidate).Trim().ToLowerInvariant()
+        if (Test-ExactStagingImage $candidateId $ExpectedCommit $ExpectedTree $ExpectedContextFileSet) { return $candidateId }
+        Write-StagingLog -Level warning -Component $LogComponent -Stage "image-provenance" -Message "exact Staging image candidate rejected after provenance validation" -Data @{
+            image_id = $candidateId
+            expected_commit = $ExpectedCommit.ToLowerInvariant()
+            expected_tree = $ExpectedTree.ToLowerInvariant()
+            expected_context_file_set_sha256 = $ExpectedContextFileSet.ToLowerInvariant()
+            secrets_included = $false
+        }
+    }
+    if ($uniqueCandidates.Count -eq 0) {
+        Write-StagingLog -Level warning -Component $LogComponent -Stage "image-provenance" -Message "no local Staging image candidates were discovered" -Data @{
+            expected_commit = $ExpectedCommit.ToLowerInvariant()
+            expected_tree = $ExpectedTree.ToLowerInvariant()
+            expected_context_file_set_sha256 = $ExpectedContextFileSet.ToLowerInvariant()
+            secrets_included = $false
+        }
     }
     return ""
 }
