@@ -8,6 +8,7 @@
   "scope": {
     "include": [
       ".changes/e2e/staging-image-provenance-discovery-ps51-20261006.json",
+      ".github/workflows/ci.yml",
       "autopilot-portable-staging/Start-AutoPilot.ps1",
       "autopilot-portable-staging/manifest.json",
       "http-generic-api/test-staging-post-build-image-discovery.mjs",
@@ -51,6 +52,7 @@
           ],
           "assertions": [
             "PowerShell 5.1-compatible image verification remains exact-SHA and strict-mode safe.",
+            "The exact-image reuse smoke executes on a Windows runner so its PowerShell 5.1 short-circuit path cannot silently skip under Linux.",
             "A verified STAGING_APP_IMAGE_ID env pin is accepted immediately without depending on later Docker discovery.",
             "A running Staging container contributes its immutable Docker .Image ID as an independently verified candidate.",
             "Compose image references and provenance-label indexes remain fallback discovery paths only.",
@@ -75,6 +77,7 @@
           ],
           "evidence_paths": [
             "autopilot-portable-staging/Start-AutoPilot.ps1",
+            ".github/workflows/ci.yml",
             "autopilot-portable-staging/manifest.json",
             "http-generic-api/test-staging-post-build-image-discovery.mjs",
             "docs/remote-mcp-write-scope-inventory.md",
