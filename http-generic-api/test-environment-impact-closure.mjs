@@ -58,6 +58,7 @@ assert.ok(sharedRuntimeClass.patterns.includes("local-connector/**"));
 assert.ok(sharedRuntimeClass.exclude_patterns.includes("http-generic-api/test-*.mjs"));
 assert.ok(sharedRuntimeClass.exclude_patterns.includes("http-generic-api/test-*.js"));
 assert.ok(sharedRuntimeClass.exclude_patterns.includes("http-generic-api/stagingActivationGatewayApplyAdapter.js"));
+assert.ok(sharedRuntimeClass.exclude_patterns.includes("http-generic-api/staging-governance-authority-seed-recovery-contract.mjs"));
 assert.ok(repositoryGovernanceClass.patterns.includes("http-generic-api/test-*.mjs"));
 assert.ok(repositoryGovernanceClass.patterns.includes("http-generic-api/test-*.js"));
 assert.ok(repositoryGovernanceClass.patterns.includes("AI_Agent_Knowledge_Guide.md"));
@@ -80,6 +81,7 @@ assert.deepEqual(classifyPath("http-generic-api/schemas/http-generic-api/http-ge
 assert.deepEqual(classifyPath("autopilot-portable-production/Deploy.ps1", classes).map((entry) => entry.id), ["production_only"]);
 assert.deepEqual(classifyPath("http-generic-api/.env.staging.example", classes).map((entry) => entry.id), ["staging_only"]);
 assert.deepEqual(classifyPath("http-generic-api/stagingActivationGatewayApplyAdapter.js", classes).map((entry) => entry.id), ["staging_only"]);
+assert.deepEqual(classifyPath("http-generic-api/staging-governance-authority-seed-recovery-contract.mjs", classes).map((entry) => entry.id), ["staging_only"]);
 assert.deepEqual(classifyPath("http-generic-api/staging-recovery-migrations/20261003_staging_remote_mcp_runtime_foundation_reconciliation.sql", classes).map((entry) => entry.id), ["staging_only"]);
 assert.deepEqual(classifyPath("http-generic-api/frontend-surface-dispatch.generated.json", classes).map((entry) => entry.id), ["shared_runtime"]);
 assert.deepEqual(classifyPath("http-generic-api/auth.mjs", classes).map((entry) => entry.id), ["shared_runtime"]);
