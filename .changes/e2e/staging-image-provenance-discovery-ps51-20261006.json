@@ -8,6 +8,7 @@
   "scope": {
     "include": [
       ".changes/e2e/staging-image-provenance-discovery-ps51-20261006.json",
+      ".github/workflows/ci.yml",
       "autopilot-portable-staging/Start-AutoPilot.ps1",
       "autopilot-portable-staging/manifest.json",
       "http-generic-api/test-staging-post-build-image-discovery.mjs",
@@ -17,7 +18,9 @@
   },
   "environment_impact": {
     "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
-    "declared_targets": ["staging"],
+    "declared_targets": [
+      "staging"
+    ],
     "cross_environment_reviewed": false,
     "live_staging_certification_required": true,
     "production_mutation_allowed": false
@@ -37,17 +40,23 @@
           "level": "live_non_production",
           "actor": "Local Staging AutoPilot operator",
           "entrypoint": "Run the Staging AutoPilot against an exact governed source SHA after the Docker build completes",
-          "terminal_outcome": "AutoPilot resolves the exact locally built Staging image through bounded Docker metadata discovery, verifies commit/tree/build-context provenance, and fails closed on ambiguity or mismatch without any Production mutation.",
+          "terminal_outcome": "AutoPilot reuses any already-proven exact local Staging image immediately from authoritative local sources, falls back through bounded Docker discovery only when needed, verifies commit/tree/build-context provenance, and fails closed on missing or mismatched identity without any Production mutation.",
           "steps": [
             "Build the Staging application image from the exact governed source tree and canonical build context.",
-            "Discover post-build candidate images without relying on PowerShell 7-only syntax.",
-            "Require one exact matching image identity and reject missing, ambiguous, stale, or provenance-mismatched candidates.",
+            "On the next run, verify and short-circuit on the persisted exact image pin before consulting weaker discovery sources.",
+            "If needed, verify the immutable image ID of the already-running Staging app container before consulting Compose tags or repository-wide label indexes.",
+            "Treat Compose/tag/label discovery as bounded fallback sources whose failure cannot invalidate an already-proven exact image.",
+            "Require exact commit/tree/context provenance for every accepted candidate and fail closed when no candidate proves exact identity.",
             "Preserve the existing deployment-info and runtime attestation checks against the same source SHA.",
             "Do not dispatch, promote, mutate, or otherwise authorize Production from this declaration."
           ],
           "assertions": [
-            "PowerShell 5.1-compatible image discovery replaces syntax that cannot execute on the supported Windows host.",
-            "Image selection remains exact-SHA and provenance-bound rather than tag-only or newest-image based.",
+            "PowerShell 5.1-compatible image verification remains exact-SHA and strict-mode safe.",
+            "The exact-image reuse smoke executes on a Windows runner so its PowerShell 5.1 short-circuit path cannot silently skip under Linux.",
+            "A verified STAGING_APP_IMAGE_ID env pin is accepted immediately without depending on later Docker discovery.",
+            "A running Staging container contributes its immutable Docker .Image ID as an independently verified candidate.",
+            "Compose image references and provenance-label indexes remain fallback discovery paths only.",
+            "Failure of a later optional discovery source cannot invalidate an image that already passed exact provenance verification.",
             "The portable Staging manifest is updated to the exact Start-AutoPilot.ps1 content hash.",
             "Generated Remote MCP inventory refresh remains repository-derived evidence and is not an independent environment source.",
             "Production mutation, Production deployment, provider mutation, database mutation, force push, and secret inclusion remain false."
@@ -68,6 +77,7 @@
           ],
           "evidence_paths": [
             "autopilot-portable-staging/Start-AutoPilot.ps1",
+            ".github/workflows/ci.yml",
             "autopilot-portable-staging/manifest.json",
             "http-generic-api/test-staging-post-build-image-discovery.mjs",
             "docs/remote-mcp-write-scope-inventory.md",

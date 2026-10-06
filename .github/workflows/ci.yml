@@ -619,6 +619,7 @@ jobs:
           node .\\test-staging-recovery-authority-binding.mjs
           node .\\test-staging-recovery-certification-protocol.mjs
           node .\\test-platform-recovery-convergence.mjs
+          node .\\test-staging-post-build-image-discovery.mjs
 
   staging-semantic-portability:
     name: Staging Semantic Portability
