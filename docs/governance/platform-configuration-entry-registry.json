@@ -1240,6 +1240,23 @@
       "secrets_included": false
     },
     {
+      "config_key": "staging.apply.config.key",
+      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
+      "owner": "gateway-governance",
+      "risk_class": "critical",
+      "scope_types": [
+        "platform",
+        "staging"
+      ],
+      "binding_ref": "http-generic-api/stagingActivationGatewayApplyAdapter.js",
+      "resolver_ref": "http-generic-api/stagingActivationGatewayApplyAdapter.js",
+      "readback_ref": "http-generic-api/test-staging-smart-gateway-convergence-contract.mjs",
+      "shadow_evidence_ref": ".changes/e2e/staging-cloudflare-managed-authority-readiness-20261006.json",
+      "classification": "runtime_setting",
+      "status": "staged",
+      "secrets_included": false
+    },
+    {
       "config_key": "staging.cloudflare.api.token.file",
       "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
       "owner": "gateway-governance",
