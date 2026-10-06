@@ -82,6 +82,9 @@ assert.match(runtimeSeed, /INSERT INTO platform_runtime_config/u);
 assert.match(runtimeSeed, /staging_cloudflare_activation_gateway_api_token/u);
 assert.match(runtimeSeed, /staging_activation_gateway_cloudflare/u);
 assert.match(runtimeSeed, /staging_activation_gateway_apply/u);
+assert.match(runtimeSeed, /managed_cloudflare_credential_binding/u);
+assert.match(runtimeSeed, /managed_staging_runtime_config/u);
+assert.doesNotMatch(runtimeSeed, /staging_feature_flag/u);
 assert.doesNotMatch(runtimeSeed, /INSERT INTO platform_resource_authority_bindings/u);
 assert.doesNotMatch(runtimeSeed, /INSERT INTO capability_apply_authorization_policy_registry/u);
 assert.doesNotMatch(runtimeSeed, /INSERT INTO runtime_dispatch_certification_registry/u);
@@ -89,6 +92,14 @@ assert.doesNotMatch(runtimeSeed, /INSERT INTO runtime_dispatch_certification_reg
 assert.match(governanceSeed, /INSERT INTO capability_apply_authorization_policy_registry/u);
 assert.match(governanceSeed, /INSERT INTO platform_resource_authority_bindings/u);
 assert.match(governanceSeed, /INSERT INTO runtime_dispatch_certification_registry/u);
+assert.match(governanceSeed, /\n 1, 1, 0,\n/u);
+assert.match(governanceSeed, /'managed_credential_binding_required', TRUE/u);
+assert.match(governanceSeed, /'managed_credential_target_key', 'staging_activation_gateway_cloudflare'/u);
+assert.match(governanceSeed, /'managed_credential_role', 'cloudflare_api_token'/u);
+assert.match(governanceSeed, /'managed_runtime_config_required', TRUE/u);
+assert.match(governanceSeed, /'managed_runtime_config_key', 'staging_activation_gateway_apply'/u);
+assert.match(governanceSeed, /'legacy_feature_flag_execution_authority', FALSE/u);
+assert.doesNotMatch(governanceSeed, /'feature_flag', 'STAGING_ACTIVATION_GATEWAY_APPLY_ENABLED'/u);
 assert.doesNotMatch(governanceSeed, /INSERT INTO platform_resource_authority_requirements/u);
 assert.doesNotMatch(governanceSeed, /INSERT INTO resource_authority_route_family_registry/u);
 for (const exact of [
