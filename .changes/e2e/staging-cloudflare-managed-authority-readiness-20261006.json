@@ -21,7 +21,8 @@
       "autopilot-portable-staging/Replay-StagingGatewayAuthoritySeeds.ps1",
       "http-generic-api/test-staging-smart-gateway-convergence-contract.mjs",
       "docs/governance/configuration-drift-baseline-extensions.json",
-      "autopilot-portable-staging/manifest.json"
+      "autopilot-portable-staging/manifest.json",
+      "http-generic-api/test-activation-gateway-rollout-surface.mjs"
     ]
   },
   "merge_contract": {
@@ -87,6 +88,13 @@
               "working_directory": "http-generic-api",
               "path": "test-environment-impact-closure.mjs",
               "args": []
+            },
+            {
+              "id": "activation-gateway-rollout-surface",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-activation-gateway-rollout-surface.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
@@ -103,7 +111,8 @@
             "autopilot-portable-staging/Replay-StagingGatewayAuthoritySeeds.ps1",
             "http-generic-api/test-staging-smart-gateway-convergence-contract.mjs",
             "docs/governance/configuration-drift-baseline-extensions.json",
-            "autopilot-portable-staging/manifest.json"
+            "autopilot-portable-staging/manifest.json",
+            "http-generic-api/test-activation-gateway-rollout-surface.mjs"
           ]
         }
       ]
