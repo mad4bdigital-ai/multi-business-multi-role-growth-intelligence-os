@@ -39,7 +39,7 @@ assert.equal(manifest.roles.runtime.database_env, "DB_NAME");
 assert.equal(manifest.roles.runtime.root_password_env, "RUNTIME_DB_ROOT_PASSWORD");
 assert.equal(manifest.roles.runtime.seed_file, "http-generic-api/config/staging-gateway-runtime-authority-seed.sql");
 assert.equal(manifest.roles.runtime.seed_sha256, sha256(runtimeSeed));
-assert.equal(manifest.roles.runtime.expected_statement_count, 2);
+assert.equal(manifest.roles.runtime.expected_statement_count, 7);
 assert.equal(manifest.roles.governance.container_service, "governance-db");
 assert.equal(manifest.roles.governance.database_env, "GOVERNANCE_DB_NAME");
 assert.equal(manifest.roles.governance.root_password_env, "GOVERNANCE_DB_ROOT_PASSWORD");
@@ -65,7 +65,7 @@ assert.deepEqual(manifest.safety, {
 
 assert.match(attributes, /^http-generic-api\/config\/staging-gateway-runtime-authority-seed\.sql text eol=lf$/mu);
 assert.match(attributes, /^http-generic-api\/config\/staging-gateway-governance-authority-seed\.sql text eol=lf$/mu);
-assert.equal((runtimeSeed.match(/^\s*INSERT\s+INTO\b/gimu) || []).length, 2);
+assert.equal((runtimeSeed.match(/^\s*INSERT\s+INTO\b/gimu) || []).length, 7);
 assert.equal((governanceSeed.match(/^\s*INSERT\s+INTO\b/gimu) || []).length, 3);
 assert.doesNotMatch(runtimeSeed, forbiddenSeedSql);
 assert.doesNotMatch(governanceSeed, forbiddenSeedSql);
@@ -74,6 +74,14 @@ assert.doesNotMatch(governanceSeed, /\bINTO\s+(?:OUTFILE|DUMPFILE)\b/iu);
 
 assert.match(runtimeSeed, /INSERT INTO platform_resource_authority_requirements/u);
 assert.match(runtimeSeed, /INSERT INTO resource_authority_route_family_registry/u);
+assert.match(runtimeSeed, /INSERT INTO connected_systems/u);
+assert.match(runtimeSeed, /INSERT INTO platform_secrets/u);
+assert.match(runtimeSeed, /INSERT INTO secret_references/u);
+assert.match(runtimeSeed, /INSERT INTO credential_bindings/u);
+assert.match(runtimeSeed, /INSERT INTO platform_runtime_config/u);
+assert.match(runtimeSeed, /staging_cloudflare_activation_gateway_api_token/u);
+assert.match(runtimeSeed, /staging_activation_gateway_cloudflare/u);
+assert.match(runtimeSeed, /staging_activation_gateway_apply/u);
 assert.doesNotMatch(runtimeSeed, /INSERT INTO platform_resource_authority_bindings/u);
 assert.doesNotMatch(runtimeSeed, /INSERT INTO capability_apply_authorization_policy_registry/u);
 assert.doesNotMatch(runtimeSeed, /INSERT INTO runtime_dispatch_certification_registry/u);
@@ -103,9 +111,19 @@ const governanceOwned = [
   "platform_resource_authority_bindings",
   "runtime_dispatch_certification_registry",
 ];
+const runtimeManagedAuthorityOwned = [
+  "connected_systems",
+  "platform_secrets",
+  "secret_references",
+  "credential_bindings",
+];
 for (const table of governanceOwned) {
   assert.ok(roleManifest.roles.governance.required_tables.includes(table), `${table} must remain Governance-owned`);
   assert.ok(roleManifest.roles.runtime.excluded_tables.includes(table), `${table} must remain Runtime-excluded`);
+}
+for (const table of runtimeManagedAuthorityOwned) {
+  assert.ok(roleManifest.roles.runtime.required_tables.includes(table), `${table} must remain Runtime-owned for managed Staging authority`);
+  assert.ok(!roleManifest.roles.runtime.excluded_tables.includes(table), `${table} must not be Runtime-excluded`);
 }
 assert.ok(!roleManifest.roles.governance.required_tables.includes("platform_resource_authority_requirements"));
 assert.ok(!roleManifest.roles.governance.required_tables.includes("resource_authority_route_family_registry"));
