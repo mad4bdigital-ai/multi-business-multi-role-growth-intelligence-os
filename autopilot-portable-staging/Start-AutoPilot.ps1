@@ -980,18 +980,74 @@ function Test-ExactStagingImage([string]$ImageId, [string]$ExpectedCommit, [stri
         return $false
     }
 }
-function Find-ExactStagingImageId([string]$ExpectedCommit, [string]$ExpectedTree, [string]$ExpectedContextFileSet, [string]$EnvPath, [object[]]$ComposeArgs) {
-    $candidateIds = @()
-    $fromEnvLine = Get-Content -LiteralPath $EnvPath | Where-Object { $_ -match '^STAGING_APP_IMAGE_ID=(.*)$' } | Select-Object -First 1
-    if ($fromEnvLine) {
-        $fromEnv = ($fromEnvLine -replace '^STAGING_APP_IMAGE_ID=', '').Trim().ToLowerInvariant()
-        if ($fromEnv -match '^sha256:[0-9a-f]{64}$') { $candidateIds += $fromEnv }
+function Resolve-ExactStagingImageCandidate([string]$CandidateId, [string]$Source, [string]$ExpectedCommit, [string]$ExpectedTree, [string]$ExpectedContextFileSet) {
+    if ([string]::IsNullOrWhiteSpace($CandidateId)) { return "" }
+    $candidate = $CandidateId.Trim().ToLowerInvariant()
+    if ($candidate -notmatch '^sha256:[0-9a-f]{64}$') { return "" }
+    if (Test-ExactStagingImage $candidate $ExpectedCommit $ExpectedTree $ExpectedContextFileSet) {
+        Write-StagingOperationBoundary -Component $LogComponent -Stage "image-provenance" -Outcome "success" -Message "accepted exact Staging image candidate" -Data @{
+            source = $Source
+            image_id = $candidate
+            commit = $ExpectedCommit.ToLowerInvariant()
+            tree = $ExpectedTree.ToLowerInvariant()
+            context_file_set_sha256 = $ExpectedContextFileSet.ToLowerInvariant()
+            secrets_included = $false
+        }
+        return $candidate
     }
-    # Compose owns the effective app image name. Resolve it from the interpolated
-    # model instead of `compose images -q`: that command dereferences the image of
-    # an existing container and exits nonzero when Docker GC has removed it, which
-    # is a normal pre-build condition rather than an Auto Pilot failure.
+    Write-StagingLog -Level warning -Component $LogComponent -Stage "image-provenance" -Message "Staging image candidate rejected after exact provenance validation" -Data @{
+        source = $Source
+        image_id = $candidate
+        expected_commit = $ExpectedCommit.ToLowerInvariant()
+        expected_tree = $ExpectedTree.ToLowerInvariant()
+        expected_context_file_set_sha256 = $ExpectedContextFileSet.ToLowerInvariant()
+        secrets_included = $false
+    }
+    return ""
+}
+
+function Find-ExactStagingImageId([string]$ExpectedCommit, [string]$ExpectedTree, [string]$ExpectedContextFileSet, [string]$EnvPath, [object[]]$ComposeArgs) {
+    # Prefer authoritative local pins and short-circuit as soon as one exact
+    # content-addressed image is proven. A failure in a later discovery source
+    # must never invalidate an already verified exact image.
+    try {
+        $fromEnvLine = Get-Content -LiteralPath $EnvPath | Where-Object { $_ -match '^STAGING_APP_IMAGE_ID=(.*)$' } | Select-Object -First 1
+        if ($fromEnvLine) {
+            $fromEnv = ($fromEnvLine -replace '^STAGING_APP_IMAGE_ID=', '').Trim().ToLowerInvariant()
+            $resolved = Resolve-ExactStagingImageCandidate $fromEnv "env_pin" $ExpectedCommit $ExpectedTree $ExpectedContextFileSet
+            if (-not [string]::IsNullOrWhiteSpace($resolved)) { return $resolved }
+        }
+    } catch {
+        Write-StagingLog -Level warning -Component $LogComponent -Stage "image-provenance" -Message "Staging env image pin discovery was unavailable" -Data @{
+            source = "env_pin"
+            error = $_.Exception.Message
+            secrets_included = $false
+        }
+    }
+
+    # If the Staging app is already running, Docker's container .Image field is
+    # the exact immutable image content ID. Verify it before consulting tags or
+    # repository-wide label indexes.
     if ($null -ne $ComposeArgs -and $ComposeArgs.Count -gt 0) {
+        try {
+            $runningContainerId = (& docker @($ComposeArgs + @("ps", "-q", "app")) 2>$null | Out-String).Trim()
+            if ($LASTEXITCODE -eq 0 -and -not [string]::IsNullOrWhiteSpace($runningContainerId)) {
+                $runningImageId = (& docker inspect --format "{{.Image}}" $runningContainerId 2>$null | Out-String).Trim()
+                if ($LASTEXITCODE -eq 0) {
+                    $resolved = Resolve-ExactStagingImageCandidate $runningImageId "running_container" $ExpectedCommit $ExpectedTree $ExpectedContextFileSet
+                    if (-not [string]::IsNullOrWhiteSpace($resolved)) { return $resolved }
+                }
+            }
+        } catch {
+            Write-StagingLog -Level warning -Component $LogComponent -Stage "image-provenance" -Message "running Staging container image discovery was unavailable" -Data @{
+                source = "running_container"
+                error = $_.Exception.Message
+                secrets_included = $false
+            }
+        }
+
+        # Compose owns the effective app image name. Resolve it from the
+        # interpolated model and verify the resulting immutable content ID.
         try {
             $composeModelJson = (& docker @($ComposeArgs + @("config", "--format", "json")) 2>$null | Out-String).Trim()
             if ($LASTEXITCODE -eq 0 -and -not [string]::IsNullOrWhiteSpace($composeModelJson)) {
@@ -1001,41 +1057,50 @@ function Find-ExactStagingImageId([string]$ExpectedCommit, [string]$ExpectedTree
                     $effectiveImageRef = "{0}-app:latest" -f [string]$composeModel.name
                 }
                 if (-not [string]::IsNullOrWhiteSpace($effectiveImageRef)) {
-                    $effectiveImageId = (& docker image inspect --format '{{.Id}}' $effectiveImageRef 2>$null | Out-String).Trim()
-                    if ($LASTEXITCODE -eq 0 -and $effectiveImageId -match '^sha256:[0-9a-fA-F]{64}$') {
-                        $candidateIds += $effectiveImageId.ToLowerInvariant()
+                    $effectiveImageId = (& docker image inspect --format "{{.Id}}" $effectiveImageRef 2>$null | Out-String).Trim()
+                    if ($LASTEXITCODE -eq 0) {
+                        $resolved = Resolve-ExactStagingImageCandidate $effectiveImageId "compose_image_ref" $ExpectedCommit $ExpectedTree $ExpectedContextFileSet
+                        if (-not [string]::IsNullOrWhiteSpace($resolved)) { return $resolved }
                     }
                 }
             }
         } catch {
-            # Continue to the label-index fallback. Candidate acceptance remains
-            # fail-closed in Test-ExactStagingImage.
+            Write-StagingLog -Level warning -Component $LogComponent -Stage "image-provenance" -Message "effective Compose image discovery was unavailable" -Data @{
+                source = "compose_image_ref"
+                error = $_.Exception.Message
+                secrets_included = $false
+            }
         }
     }
-    $labelQuery = (Get-NativeText "docker" @("image", "ls", "--no-trunc", "--filter", "label=org.mad4b.staging.provenance.contract=mad4b.staging-build-provenance.v1", "--format", "{{.ID}}")).Trim()
-    $candidateIds += @($labelQuery -split "\s+" | Where-Object { $_ -match '^sha256:[0-9a-fA-F]{64}$' })
-    $uniqueCandidates = @($candidateIds | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) } | Select-Object -Unique)
-    foreach ($candidate in $uniqueCandidates) {
-        $candidateId = ([string]$candidate).Trim().ToLowerInvariant()
-        if (Test-ExactStagingImage $candidateId $ExpectedCommit $ExpectedTree $ExpectedContextFileSet) { return $candidateId }
-        Write-StagingLog -Level warning -Component $LogComponent -Stage "image-provenance" -Message "exact Staging image candidate rejected after provenance validation" -Data @{
-            image_id = $candidateId
-            expected_commit = $ExpectedCommit.ToLowerInvariant()
-            expected_tree = $ExpectedTree.ToLowerInvariant()
-            expected_context_file_set_sha256 = $ExpectedContextFileSet.ToLowerInvariant()
+
+    # Final fallback: search locally indexed provenance labels. Failure of this
+    # optional discovery source remains fail-closed by returning no candidate.
+    try {
+        $labelQuery = (& docker image ls --no-trunc --filter "label=org.mad4b.staging.provenance.contract=mad4b.staging-build-provenance.v1" --format "{{.ID}}" 2>$null | Out-String).Trim()
+        if ($LASTEXITCODE -eq 0 -and -not [string]::IsNullOrWhiteSpace($labelQuery)) {
+            foreach ($candidate in @($labelQuery -split "\s+" | Where-Object { $_ -match '^sha256:[0-9a-fA-F]{64}$' } | Select-Object -Unique)) {
+                $resolved = Resolve-ExactStagingImageCandidate ([string]$candidate) "label_index" $ExpectedCommit $ExpectedTree $ExpectedContextFileSet
+                if (-not [string]::IsNullOrWhiteSpace($resolved)) { return $resolved }
+            }
+        }
+    } catch {
+        Write-StagingLog -Level warning -Component $LogComponent -Stage "image-provenance" -Message "local Staging image label index discovery was unavailable" -Data @{
+            source = "label_index"
+            error = $_.Exception.Message
             secrets_included = $false
         }
     }
-    if ($uniqueCandidates.Count -eq 0) {
-        Write-StagingLog -Level warning -Component $LogComponent -Stage "image-provenance" -Message "no local Staging image candidates were discovered" -Data @{
-            expected_commit = $ExpectedCommit.ToLowerInvariant()
-            expected_tree = $ExpectedTree.ToLowerInvariant()
-            expected_context_file_set_sha256 = $ExpectedContextFileSet.ToLowerInvariant()
-            secrets_included = $false
-        }
+
+    Write-StagingLog -Level warning -Component $LogComponent -Stage "image-provenance" -Message "no local Staging image matched exact provenance" -Data @{
+        expected_commit = $ExpectedCommit.ToLowerInvariant()
+        expected_tree = $ExpectedTree.ToLowerInvariant()
+        expected_context_file_set_sha256 = $ExpectedContextFileSet.ToLowerInvariant()
+        sources = @("env_pin", "running_container", "compose_image_ref", "label_index")
+        secrets_included = $false
     }
     return ""
 }
+
 function Seed-SchemaBundle([string]$RepoPath, [string]$Sha) {
     $dumpDir = Join-Path $RepoPath "autopilot-portable-staging\staging-db-dumps"
     $required = @("runtime.schema.sql.gz", "governance.schema.sql.gz", "persistence.schema.sql.gz")
