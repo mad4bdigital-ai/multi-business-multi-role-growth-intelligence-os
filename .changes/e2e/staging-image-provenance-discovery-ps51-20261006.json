@@ -1,0 +1,81 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-image-provenance-discovery-ps51-20261006",
+  "title": "PowerShell 5.1-safe Staging image provenance discovery",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-image-provenance-discovery-ps51-20261006.json",
+      "autopilot-portable-staging/Start-AutoPilot.ps1",
+      "autopilot-portable-staging/manifest.json",
+      "http-generic-api/test-staging-post-build-image-discovery.mjs",
+      "docs/remote-mcp-write-scope-inventory.md",
+      "http-generic-api/remote-mcp-write-scope-inventory.generated.json"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": ["staging"],
+    "cross_environment_reviewed": false,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Make local Staging post-build image provenance discovery deterministic and PowerShell 5.1-safe while preserving exact-SHA fail-closed identity checks and leaving Production authority unchanged.",
+      "e2e_journeys": [
+        {
+          "id": "staging-post-build-image-provenance-discovery",
+          "end_to_end": true,
+          "level": "live_non_production",
+          "actor": "Local Staging AutoPilot operator",
+          "entrypoint": "Run the Staging AutoPilot against an exact governed source SHA after the Docker build completes",
+          "terminal_outcome": "AutoPilot resolves the exact locally built Staging image through bounded Docker metadata discovery, verifies commit/tree/build-context provenance, and fails closed on ambiguity or mismatch without any Production mutation.",
+          "steps": [
+            "Build the Staging application image from the exact governed source tree and canonical build context.",
+            "Discover post-build candidate images without relying on PowerShell 7-only syntax.",
+            "Require one exact matching image identity and reject missing, ambiguous, stale, or provenance-mismatched candidates.",
+            "Preserve the existing deployment-info and runtime attestation checks against the same source SHA.",
+            "Do not dispatch, promote, mutate, or otherwise authorize Production from this declaration."
+          ],
+          "assertions": [
+            "PowerShell 5.1-compatible image discovery replaces syntax that cannot execute on the supported Windows host.",
+            "Image selection remains exact-SHA and provenance-bound rather than tag-only or newest-image based.",
+            "The portable Staging manifest is updated to the exact Start-AutoPilot.ps1 content hash.",
+            "Generated Remote MCP inventory refresh remains repository-derived evidence and is not an independent environment source.",
+            "Production mutation, Production deployment, provider mutation, database mutation, force push, and secret inclusion remain false."
+          ],
+          "tests": [
+            {
+              "id": "staging-post-build-image-discovery",
+              "runner": "node",
+              "path": "http-generic-api/test-staging-post-build-image-discovery.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-autopilot-closure",
+              "runner": "node",
+              "path": "http-generic-api/test-staging-autopilot-closure.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "autopilot-portable-staging/Start-AutoPilot.ps1",
+            "autopilot-portable-staging/manifest.json",
+            "http-generic-api/test-staging-post-build-image-discovery.mjs",
+            "docs/remote-mcp-write-scope-inventory.md",
+            "http-generic-api/remote-mcp-write-scope-inventory.generated.json"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}
