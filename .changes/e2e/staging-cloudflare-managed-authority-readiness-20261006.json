@@ -9,7 +9,13 @@
     "include": [
       ".changes/e2e/staging-cloudflare-managed-authority-readiness-20261006.json",
       "http-generic-api/stagingActivationGatewayApplyAdapter.js",
+      "http-generic-api/config/deployment-branch-policy.json",
+      "http-generic-api/config/repository-governance-constitution.json",
+      ".github/derived-state-governance.json",
+      "docs/governance/platform-configuration-entry-registry.json",
+      "http-generic-api/test-environment-impact-closure.mjs",
       "http-generic-api/config/staging-gateway-runtime-authority-seed.sql",
+      "http-generic-api/config/staging-gateway-governance-authority-seed.sql",
       "http-generic-api/config/staging-gateway-authority-seed-manifest.json",
       "http-generic-api/staging-governance-authority-seed-recovery-contract.mjs",
       "autopilot-portable-staging/Replay-StagingGatewayAuthoritySeeds.ps1",
@@ -51,6 +57,8 @@
           "assertions": [
             "No raw Cloudflare credential is committed or returned.",
             "Legacy file/env provider settings are diagnostic compatibility only and are not sufficient for apply readiness.",
+            "Governance policy requires the managed credential binding and managed Runtime config, and forbids a no-credential apply path.",
+            "The Staging apply adapter is classified staging-only and excluded from shared Production runtime impact.",
             "The exact profile resource binding remains server-selected; caller target override stays forbidden.",
             "Recovery replay restores metadata only and does not perform a provider call.",
             "Dispatch certification pending keeps apply_ready=false.",
@@ -70,12 +78,25 @@
               "working_directory": "http-generic-api",
               "path": "staging-governance-authority-seed-recovery-contract.mjs",
               "args": []
+            },
+            {
+              "id": "staging-adapter-environment-impact-classification",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-environment-impact-closure.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
             ".changes/e2e/staging-cloudflare-managed-authority-readiness-20261006.json",
             "http-generic-api/stagingActivationGatewayApplyAdapter.js",
+            "http-generic-api/config/deployment-branch-policy.json",
+            "http-generic-api/config/repository-governance-constitution.json",
+            ".github/derived-state-governance.json",
+            "docs/governance/platform-configuration-entry-registry.json",
+            "http-generic-api/test-environment-impact-closure.mjs",
             "http-generic-api/config/staging-gateway-runtime-authority-seed.sql",
+            "http-generic-api/config/staging-gateway-governance-authority-seed.sql",
             "http-generic-api/config/staging-gateway-authority-seed-manifest.json",
             "autopilot-portable-staging/Replay-StagingGatewayAuthoritySeeds.ps1",
             "http-generic-api/test-staging-smart-gateway-convergence-contract.mjs"
