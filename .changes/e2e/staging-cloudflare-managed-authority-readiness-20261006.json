@@ -19,7 +19,9 @@
       "http-generic-api/config/staging-gateway-authority-seed-manifest.json",
       "http-generic-api/staging-governance-authority-seed-recovery-contract.mjs",
       "autopilot-portable-staging/Replay-StagingGatewayAuthoritySeeds.ps1",
-      "http-generic-api/test-staging-smart-gateway-convergence-contract.mjs"
+      "http-generic-api/test-staging-smart-gateway-convergence-contract.mjs",
+      "docs/governance/configuration-drift-baseline-extensions.json",
+      "autopilot-portable-staging/manifest.json"
     ]
   },
   "merge_contract": {
@@ -99,7 +101,9 @@
             "http-generic-api/config/staging-gateway-governance-authority-seed.sql",
             "http-generic-api/config/staging-gateway-authority-seed-manifest.json",
             "autopilot-portable-staging/Replay-StagingGatewayAuthoritySeeds.ps1",
-            "http-generic-api/test-staging-smart-gateway-convergence-contract.mjs"
+            "http-generic-api/test-staging-smart-gateway-convergence-contract.mjs",
+            "docs/governance/configuration-drift-baseline-extensions.json",
+            "autopilot-portable-staging/manifest.json"
           ]
         }
       ]
