@@ -8,6 +8,8 @@
   "scope": {
     "include": [
       ".changes/e2e/pr8444-staging-gateway-system-scope.json",
+      ".github/derived-state-governance.json",
+      "http-generic-api/config/repository-governance-constitution.json",
       "http-generic-api/stagingActivationGatewayApplyAdapter.js",
       "http-generic-api/config/staging-gateway-runtime-authority-seed.sql",
       "http-generic-api/test-staging-smart-gateway-convergence-contract.mjs"
@@ -61,6 +63,8 @@
           ],
           "evidence_paths": [
             ".changes/e2e/pr8444-staging-gateway-system-scope.json",
+            ".github/derived-state-governance.json",
+            "http-generic-api/config/repository-governance-constitution.json",
             "http-generic-api/stagingActivationGatewayApplyAdapter.js",
             "http-generic-api/config/staging-gateway-runtime-authority-seed.sql",
             "http-generic-api/test-staging-smart-gateway-convergence-contract.mjs",
