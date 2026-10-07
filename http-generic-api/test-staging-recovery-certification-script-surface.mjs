@@ -95,6 +95,11 @@ assert.match(runtimeAttestationScript, /runtime_integrity_verified/u);
 assert.match(runtimeAttestationScript, /workerBundleSha256/u);
 assert.match(runtimeAttestationScript, /upstreamEvidenceVerified/u);
 assert.match(runtimeAttestationScript, /signStagingRuntimeArtifactAttestation/u);
+assert.match(runtimeAttestationScript, /canonicalPublicKeyPem/u);
+assert.match(runtimeAttestationScript, /trustedIngressPublicKeySha256/u);
+assert.match(runtimeAttestationScript, /gatewayTrust\.public_key/u);
+assert.match(runtimeAttestationScript, /gatewayTrustedIngressPublicKeySha256/u);
+assert.doesNotMatch(runtimeAttestationScript, /public_key_sha256:\s*String\(gatewayTrust\.public_key_sha256/u);
 assert.doesNotMatch(runtimeAttestationScript, /CLOUDFLARE_API_TOKEN|CLOUDFLARE_ACCOUNT_ID|BACKEND_API_KEY/u);
 
 assert.match(runtimeAttestationModule, /mad4b\.staging-runtime-artifact-attestation\.v1/u);
