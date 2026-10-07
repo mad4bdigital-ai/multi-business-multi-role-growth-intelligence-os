@@ -170,7 +170,7 @@
     },
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
-      "sha256": "a149467b59384ccba4915b21445c4bd4d37e97a7eb9a01fbdba84b42df0427e0"
+      "sha256": "90912bdf593f01f6b30d4911b943c50ba17c8ca0aa941aa8692a91d25c3d86a1"
     },
     {
       "path": "http-generic-api/remoteMcpConnectorRuntime.js",
@@ -338,7 +338,7 @@
     },
     {
       "path": "autopilot-portable-staging/Staging-Environment.ps1",
-      "sha256": "5f6f2aa8715552774eb3d62e27a93f9a722e226ca338cb2562aabcdf4a32ed31"
+      "sha256": "331613e9384d30c96f909ceaad80005d4508806e087b5388a5b731b7783b47b1"
     },
     {
       "path": "autopilot-portable-staging/Staging-WindowsCloudflared.ps1",
