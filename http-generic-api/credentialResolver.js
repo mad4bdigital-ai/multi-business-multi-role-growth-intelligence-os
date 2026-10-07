@@ -248,7 +248,7 @@ async function resolveSecretReferenceRef(ref, context, deps) {
     deps.pool,
     "SELECT * FROM `secret_references` WHERE secret_key = ? AND status = 'active' LIMIT 1",
     [secretKey]
-  ).catch(() => []);
+  );
   const row = rows[0];
 
   if (!row) return resolveLegacyEnvRef(ref, context, deps);
@@ -286,7 +286,7 @@ async function resolveTenantSecretRef(ref, context, deps) {
     deps.pool,
     "SELECT * FROM `tenant_secrets` WHERE tenant_id = ? AND secret_key = ? LIMIT 1",
     [tenantId, secretKey]
-  ).catch(() => []);
+  );
   const row = rows[0];
   if (!row) {
     return safeResult({
@@ -330,7 +330,7 @@ async function resolvePlatformSecretRef(ref, context, deps) {
     deps.pool,
     "SELECT * FROM `platform_secrets` WHERE secret_key = ? LIMIT 1",
     [secretKey]
-  ).catch(() => []);
+  );
   const row = rows[0];
   if (!row) {
     return safeResult({
@@ -415,7 +415,7 @@ async function loadCredentialBindings(context, deps) {
       ORDER BY resolution_priority ASC, updated_at DESC
       LIMIT 100`,
     [context.tenantId, context.credentialRole]
-  ).catch(() => []);
+  );
 
   return rows
     .filter(row => bindingMatches(row, context))
