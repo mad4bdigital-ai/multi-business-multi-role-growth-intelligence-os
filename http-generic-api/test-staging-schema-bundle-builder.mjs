@@ -461,6 +461,7 @@ test("schema bundle manifest declares exactly three isolated roles", () => {
     "20260920_platform_admin_workspace_canonical_seed.sql",
     "20260920_wordpress_staging_plugin_deploy_v2_canonical_seed.sql",
   "20260922_local_manager_control_templates_registry.sql",
+  "20261007_credential_platform_binding_policy.sql",
   ]);
   assert.deepEqual(manifest.canonical_seed_lifecycle.mcp_catalog_required_columns, [
     "admin_platform_endpoint_tools.mcp_catalog_level",
@@ -1419,6 +1420,7 @@ test("generator plan-only mode inventories the exact migration chain", () => {
     "20260922_local_manager_desktop_commands.sql",
     "20260922_local_manager_device_link_authority.sql",
     "20260922_local_manager_control_templates_registry.sql",
+  "20261007_credential_platform_binding_policy.sql",
   ];
   for (const file of localManagerMigrationFiles) {
     assert.equal(canonicalMigrationFiles.includes(file), true, `missing Local Manager migration from ordered plan: ${file}`);
@@ -1596,6 +1598,7 @@ test("generator plan-only mode inventories the exact migration chain", () => {
     "20260920_platform_admin_workspace_canonical_seed.sql",
     "20260920_wordpress_staging_plugin_deploy_v2_canonical_seed.sql",
     "20260922_local_manager_control_templates_registry.sql",
+  "20261007_credential_platform_binding_policy.sql",
   ]);
   assert.equal(plan.canonical_seed_lifecycle.readback_required, true);
   assert.equal(plan.ordered_preuse_audit.missing_table_gaps, 0);
