@@ -126,6 +126,7 @@ async function upsertPlatformSecret(pool, reference, value, note) {
     provisioning_status: "stored",
     required_for: TENANT_GPT_OAUTH_CLIENT_CONFIG_KEY,
     source: "tenant_gpt_oauth_client_upsert",
+    environment: TENANT_GPT_IS_STAGING_RUNTIME ? "staging" : "production",
   });
 
   await pool.query(
