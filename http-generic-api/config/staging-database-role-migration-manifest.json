@@ -35,6 +35,7 @@
       "bundle_file": "runtime.schema.sql.gz",
       "required_tables": [
         "connected_systems",
+        "user_app_connections",
         "platform_contract_surfaces",
         "platform_endpoint_tool_exports",
         "tenant_secrets",
