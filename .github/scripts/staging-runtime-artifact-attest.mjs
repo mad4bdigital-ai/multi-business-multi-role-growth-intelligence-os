@@ -18,6 +18,21 @@ function fail(code, message) {
   });
 }
 
+function canonicalPublicKeyPem(value) {
+  const expanded = String(value || "")
+    .replaceAll("\\n", "\n")
+    .replaceAll("\r", "")
+    .trim();
+  return expanded ? `${expanded}\n` : "";
+}
+
+function trustedIngressPublicKeySha256(value) {
+  const pem = canonicalPublicKeyPem(value);
+  return pem
+    ? createHash("sha256").update(pem, "utf8").digest("hex")
+    : "";
+}
+
 function required(name, pattern = null) {
   const value = String(process.env[name] || "").trim().toLowerCase();
   if (!value || (pattern && !pattern.test(value))) {
@@ -213,6 +228,8 @@ if (
 }
 
 const gatewayTrust = gatewayReady.recoveryTrustedIngress || {};
+const gatewayTrustedIngressPublicKeySha256 =
+  trustedIngressPublicKeySha256(gatewayTrust.public_key);
 const gatewayUpstreamSource = String(
   gatewayReady.upstreamSourceCommit ||
     gatewayTrust.source_commit ||
@@ -229,6 +246,8 @@ if (
   gatewayTrust.deployment_sha !== expectedSha ||
   gatewayTrust.source_commit !== expectedSha ||
   gatewayTrust.worker_build_sha !== expectedSha ||
+  !String(gatewayTrust.key_id || "").trim() ||
+  !SHA256.test(gatewayTrustedIngressPublicKeySha256) ||
   gatewayTrust.provider_credentials_included !== false ||
   gatewayTrust.secrets_included !== false
 ) {
@@ -276,7 +295,7 @@ const payload = Object.freeze({
   },
   trusted_ingress: {
     key_id: String(gatewayTrust.key_id || ""),
-    public_key_sha256: String(gatewayTrust.public_key_sha256 || ""),
+    public_key_sha256: gatewayTrustedIngressPublicKeySha256,
   },
   issuer,
   key_id: keyId,
