@@ -445,6 +445,7 @@
     ".changes/e2e/pr8429-staging-skipbuild-exact-image-reuse.json",
     ".changes/e2e/pr8438-staging-runtime-attestation-trusted-ingress-digest.json",
     ".changes/e2e/pr8440-managed-credential-authority-closure.json",
+    ".changes/e2e/pr8444-staging-gateway-system-scope.json",
     ".changes/e2e/production-composition-adapter-factory-20260827.json",
     ".changes/e2e/production-full-schema-metadata-census-20260905.json",
     ".changes/e2e/production-long-term-remediation-20260824.json",
