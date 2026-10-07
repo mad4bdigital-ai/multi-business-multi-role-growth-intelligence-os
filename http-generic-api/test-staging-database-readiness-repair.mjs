@@ -82,6 +82,14 @@ assert.deepEqual(
   ["SELECT", "INSERT", "UPDATE"],
 );
 assert.deepEqual(
+  STAGING_ROLE_GRANT_POLICIES.runtime.required_operations_by_table.tenant_secrets,
+  ["SELECT"],
+);
+assert.deepEqual(
+  STAGING_ROLE_GRANT_POLICIES.runtime.required_operations_by_table.user_app_connections,
+  ["SELECT"],
+);
+assert.deepEqual(
   STAGING_ROLE_GRANT_POLICIES.runtime.required_operations_by_table.local_manager_device_link_sessions,
   ["SELECT", "INSERT", "UPDATE"],
 );
