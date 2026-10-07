@@ -19,7 +19,7 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 ## Scope
 
-- Migrations with detected surfaces: 483
+- Migrations with detected surfaces: 484
 - Migrations reported here: 80
 - OpenAPI operations detected: 1087
 - OpenAPI paths detected: 1072
@@ -32,11 +32,11 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 ## Coverage Summary
 
-- Documentation complete migrations: 473/483 (97.93%)
+- Documentation complete migrations: 474/484 (97.93%)
 - Documentation gap migrations: 10
 - Gap severity: high=5, medium=1, low=4
-- SQL route coverage in OpenAPI: 32/34 (94.12%)
-- SQL route-like literals exempted from OpenAPI scoring: 678/712
+- SQL route coverage in OpenAPI: 33/35 (94.29%)
+- SQL route-like literals exempted from OpenAPI scoring: 678/713
 - SQL routes missing OpenAPI path coverage: 2
 - Migrations without explicit `secrets_included=false` marker: 3
 
@@ -45,10 +45,10 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 | Surface type | Discovered items | Migrations with type |
 |---|---:|---:|
 | plugins | 16 | 13 |
-| tools | 754 | 275 |
+| tools | 755 | 276 |
 | views | 536 | 219 |
 | policies | 199 | 138 |
-| routes | 712 | 297 |
+| routes | 713 | 298 |
 
 ### Documentation Target Gaps
 
@@ -64,18 +64,18 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 | Safety marker | Migrations with marker |
 |---|---:|
-| no_provider_call | 476 |
-| no_credential_payload_read | 474 |
-| no_raw_secrets | 475 |
-| no_external_send | 474 |
-| no_external_write | 476 |
-| secrets_included_false | 480 |
+| no_provider_call | 477 |
+| no_credential_payload_read | 475 |
+| no_raw_secrets | 476 |
+| no_external_send | 475 |
+| no_external_write | 477 |
+| secrets_included_false | 481 |
 
 ### Route Classification Coverage
 
 | Route class | SQL route-like literals |
 |---|---:|
-| http_route | 34 |
+| http_route | 35 |
 | admin_tool_registry_route | 219 |
 | tenant_tool_registry_route | 42 |
 | system_tool_dispatch_route | 15 |
