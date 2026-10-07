@@ -449,7 +449,11 @@ async function resolveSecretReferenceRef(ref, context, deps) {
 
   if (row.store_type === "db_encrypted") {
     if (row.owner_type === "platform") return resolvePlatformSecretRef(`platform_secret:${secretKey}`, context, deps);
-    return resolveTenantSecretRef(`tenant_secret:${row.tenant_id}:${secretKey}`, context, deps);
+    return resolveTenantSecretRef(
+      `tenant_secret:${row.tenant_id}:${secretKey}`,
+      { ...context, expectedOwnerType: "tenant", expectedOwnerId: row.tenant_id },
+      deps,
+    );
   }
 
   if (row.store_type === "vault" || row.store_type === "external") {
