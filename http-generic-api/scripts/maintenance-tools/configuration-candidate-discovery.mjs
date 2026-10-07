@@ -8,7 +8,12 @@ const execFileAsync = promisify(execFile);
 const CONTRACT = "mad4b.configuration-candidate-discovery.v1";
 const DEFAULT_INVENTORY = "docs/repository-inventory.json";
 const DEFAULT_OUTPUT_DIR = ".artifacts/configuration-candidate-discovery";
-const SCAN_EXTENSIONS = new Set([".js", ".mjs", ".cjs", ".sql", ".yml", ".yaml", ".json"]);
+const SCAN_EXTENSIONS = new Set([".js", ".mjs", ".cjs", ".sql", ".yml", ".yaml", ".json", ".ps1"]);
+const GOVERNED_POWERSHELL_CONFIG_PATHS = new Set([
+  "autopilot-portable-staging/Staging-Environment.ps1",
+  "autopilot-portable-staging/One-Click-Staging.ps1",
+]);
+const POWERSHELL_SECRET_SYMBOL = /(?:secret|password|passwd|api[_-]?key|private[_-]?key|encryption[_-]?key|signing[_-]?key|credential|(?:access|refresh)[_-]?token|(?:^|[_-])token(?:$|[_-]))/iu;
 const SENSITIVE_KEY = /(?:secret|password|passwd|private[_-]?key|client[_-]?secret|api[_-]?key|cookie|credential|authorization[_-]?(?:code|token|secret)|(?:refresh|access)[_-]?token(?![_-]?(?:ttl|url|host|id|endpoint|type))|(?:^|[_-])token(?:$|[_-]?(?:value|secret|hash)))/iu;
 const POLICY_KEY = /(?:approval|allowlist|denylist|production|live|write[_-]?scope|policy|permission|authorization|role|scope|canary|kill[_-]?switch)/iu;
 const AUTHORIZATION_METADATA_KEY = /authorization.*(?:server|url)|(?:server|url).*authorization/iu;
@@ -63,6 +68,7 @@ function candidateClass({ path, symbol, line, expressionKind }) {
   const text = `${path} ${symbol} ${line}`;
   if (GENERATED_PATH.test(path) || /(?:generated|work[-_]?map|openapi)/iu.test(symbol)) return { candidate_class: "generated_artifact", risk_class: "medium", migration_action: "exclude_from_migration" };
   if (path === "http-generic-api/tenantGptOAuthClientConfig.js" && (symbol === "config" || expressionKind === "migration_seed")) return { candidate_class: "generated_artifact", risk_class: "medium", migration_action: "exclude_from_migration" };
+  if (expressionKind === "powershell_secret_generator") return { candidate_class: "secret_candidate", risk_class: "critical", migration_action: "secret_inventory_and_rotation_review" };
   if (/^(?:DEFAULT|MAX|MIN)_/u.test(symbol) || symbol === "TURN_CONTENT_STRING_LIMIT") return { candidate_class: "runtime_setting", risk_class: "medium", migration_action: "catalog_review_then_shadow_parity" };
   if (symbol === "allowedHost") return { candidate_class: "policy_candidate", risk_class: "high", migration_action: "specialized_registry_review" };
   if (SENSITIVE_KEY.test(text)) return { candidate_class: "secret_candidate", risk_class: "critical", migration_action: "secret_inventory_and_rotation_review" };
@@ -84,6 +90,9 @@ function extractSymbol(line, expressionKind) {
 
 export function extractCandidates(path, content) {
   const findings = [];
+  const normalizedPath = normalizePath(path);
+  const isPowerShell = extname(normalizedPath).toLowerCase() === ".ps1";
+  if (isPowerShell && !GOVERNED_POWERSHELL_CONFIG_PATHS.has(normalizedPath)) return findings;
   const lines = String(content).split(/\r?\n/u);
   for (let index = 0; index < lines.length; index += 1) {
     const line = lines[index];
@@ -91,10 +100,20 @@ export function extractCandidates(path, content) {
     const envMatch = line.match(/process\.env\.([A-Z][A-Z0-9_]*)/u);
     const declarationMatch = line.match(/\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*([^;]+)/u);
     const configSeed = /platform_runtime_config/iu.test(line) && /(?:INSERT|UPDATE)\s+platform_runtime_config|(?:config_key|config_json)\s*[,)]/iu.test(line);
-    if (!envMatch && !declarationMatch && !configSeed) continue;
-    const expressionKind = envMatch ? "environment_reference" : configSeed ? "migration_seed" : "literal_declaration";
-    const symbol = extractSymbol(line, expressionKind);
-    if (!envMatch && !configSeed && (!declarationMatch || !CONFIG_SYMBOL.test(symbol) || !LITERAL.test(line))) continue;
+    const powerShellSecretMatch = isPowerShell
+      ? line.match(/^\s*["']([A-Z][A-Z0-9_]*)["']\s*=\s*(.+)$/u)
+      : null;
+    const governedPowerShellSecret = powerShellSecretMatch && POWERSHELL_SECRET_SYMBOL.test(powerShellSecretMatch[1]);
+    if (!envMatch && !declarationMatch && !configSeed && !governedPowerShellSecret) continue;
+    const expressionKind = governedPowerShellSecret
+      ? "powershell_secret_generator"
+      : envMatch
+        ? "environment_reference"
+        : configSeed
+          ? "migration_seed"
+          : "literal_declaration";
+    const symbol = governedPowerShellSecret ? powerShellSecretMatch[1] : extractSymbol(line, expressionKind);
+    if (!envMatch && !configSeed && !governedPowerShellSecret && (!declarationMatch || !CONFIG_SYMBOL.test(symbol) || !LITERAL.test(line))) continue;
     if (!envMatch && !configSeed && /^(?:config|host)$/iu.test(symbol)) continue;
     if (!envMatch && !configSeed && /(?:callback[_-]?host|preset[_-]?host)/iu.test(symbol)) continue;
     const context = lines.slice(Math.max(0, index - 1), Math.min(lines.length, index + 2)).join(" ");
@@ -111,7 +130,7 @@ export function extractCandidates(path, content) {
       candidate_class: classification.candidate_class,
       risk_class: classification.risk_class,
       migration_action: classification.migration_action,
-      value_type: envMatch ? "environment_reference" : literal?.[3] ? "number" : literal?.[4] ? "boolean_or_null" : "string_or_expression",
+      value_type: envMatch ? "environment_reference" : governedPowerShellSecret ? "generator_expression" : literal?.[3] ? "number" : literal?.[4] ? "boolean_or_null" : "string_or_expression",
       value_preview: safePreview(line, sensitive),
       evidence: redact(context).trim().slice(0, 600),
       suggested_config_key: envMatch ? envMatch[1].toLowerCase().replaceAll("_", ".") : symbol.replace(/^DEFAULT_/u, "").toLowerCase().replaceAll("_", "."),
