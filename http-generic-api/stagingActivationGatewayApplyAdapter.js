@@ -39,7 +39,7 @@ const STAGING_CLOUDFLARE_CREDENTIAL_ROLE = "cloudflare_api_token";
 const STAGING_APPLY_CONFIG_KEY = "staging_activation_gateway_apply";
 const STAGING_PLAN_PURPOSE_APPLY = "apply";
 const STAGING_PLAN_PURPOSE_CERTIFICATION = "transaction_certification";
-const STAGING_CERTIFICATION_TTL_SECONDS = 24 * 60 * 60;
+const STAGING_CERTIFICATION_TTL_SECONDS = 6 * 60 * 60;
 
 function stagingCertificationEvidencePrefix(expectedSourceCommit, expectedPolicyHash) {
   const source = compact(expectedSourceCommit, 64).toLowerCase();
