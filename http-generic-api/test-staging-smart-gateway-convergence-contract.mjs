@@ -34,6 +34,7 @@ const portableManifest = JSON.parse(fs.readFileSync(path.join(portable, "manifes
 const workerBuilder = fs.readFileSync(path.join(root, "http-generic-api/scripts/build-staging-worker.mjs"), "utf8");
 const serverBundleSource = fs.readFileSync(path.join(root, "http-generic-api/stagingActivationGatewayBundle.js"), "utf8");
 const serverAdapterSource = fs.readFileSync(path.join(root, "http-generic-api/stagingActivationGatewayApplyAdapter.js"), "utf8");
+const stagingGatewayRuntimeAuthoritySeed = fs.readFileSync(path.join(root, "http-generic-api/config/staging-gateway-runtime-authority-seed.sql"), "utf8");
 const convergenceEngineSource = fs.readFileSync(path.join(root, "http-generic-api/environmentConvergenceEngine.js"), "utf8");
 const convergenceRegistrySource = fs.readFileSync(path.join(root, "http-generic-api/environmentConvergenceRegistry.js"), "utf8");
 assert.match(convergenceEngineSource, /execution_ready_scope:\s*"server_governed_handoff"/u);
@@ -310,6 +311,9 @@ assert.match(serverAdapterSource, /DEFAULT_STAGING_CLOUDFLARE_API_TOKEN_FILE/u);
 assert.match(serverAdapterSource, /STAGING_CLOUDFLARE_API_TOKEN_FILE/u);
 assert.match(serverAdapterSource, /staging_activation_gateway_provider_secret_unreadable/u);
 assert.match(serverAdapterSource, /resolveManagedCloudflareCredential/u);
+assert.match(serverAdapterSource, /const STAGING_CLOUDFLARE_SYSTEM_ID = "84310000-0000-4000-8000-000000000001"/u);
+assert.match(serverAdapterSource, /systemId:\s*STAGING_CLOUDFLARE_SYSTEM_ID/u);
+assert.match(stagingGatewayRuntimeAuthoritySeed, /\x2784310000-0000-4000-8000-000000000001\x27/u);
 assert.match(serverAdapterSource, /managed_cloudflare_credential_binding_ready/u);
 assert.match(serverAdapterSource, /staging_apply_feature_gate_managed/u);
 assert.match(serverAdapterSource, /legacy_secret_file_or_env/u);
