@@ -518,6 +518,7 @@ async function maybeAutoPromotePlatformSecrets({ session, credentials = {}, meta
       providerFamily: String(metadata.provider_family || "").trim() || null,
       connectorFamily: String(metadata.connector_family || "").trim() || null,
       targetKey: String(metadata.target_key || "").trim() || null,
+      environmentKey: String(metadata.environment || metadata.environment_key || "").trim().toLowerCase() || null,
       promotionReason,
     },
   });
