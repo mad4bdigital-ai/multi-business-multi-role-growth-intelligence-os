@@ -27,6 +27,7 @@ function metadataJson(input = {}) {
     provider_family: str(input.provider_family),
     connector_family: str(input.connector_family),
     credential_type: str(input.credential_type || input.secret_type),
+    environment: str(input.environment || input.environment_key || input.environmentKey),
     source: "credential_routes.upsert"
   });
 }
