@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { resolveEffectiveCredential, getEffectiveCredentialStatus, __test__ } from "./credentialResolver.js";
+import { resolveCredentialReference, resolveEffectiveCredential, getEffectiveCredentialStatus, __test__ } from "./credentialResolver.js";
 
 function makePool({ bindings = [], connections = [], actions = [], tenantSecrets = [], platformSecrets = [] } = {}) {
   return {
