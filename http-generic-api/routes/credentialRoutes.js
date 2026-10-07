@@ -54,6 +54,19 @@ function roleCandidateField(role = "", authType = "") {
 
 function candidateEligibility(candidate = {}, context = {}) {
   const reasons = [];
+  const ownerType = str(candidate.owner_type).toLowerCase();
+  const ownerId = str(candidate.owner_id);
+  if (ownerType === "user") {
+    if (!str(context.userId)) reasons.push("user_owner_context_required");
+    else if (ownerId && ownerId !== str(context.userId)) reasons.push("user_owner_context_mismatch");
+  }
+  if (ownerType === "connection") {
+    if (!str(context.connectionId)) reasons.push("connection_owner_context_required");
+    else if (ownerId && ownerId !== str(context.connectionId)) reasons.push("connection_owner_context_mismatch");
+  }
+  if (ownerType === "tenant" && ownerId && ownerId !== str(context.tenantId)) {
+    reasons.push("tenant_owner_context_mismatch");
+  }
   for (const [field, contextField, label] of [
     ["user_id", "userId", "user_context_required"],
     ["connection_id", "connectionId", "connection_context_required"],
@@ -147,13 +160,20 @@ async function buildCredentialResolutionPlan(input = {}) {
     [tenantId, credentialRole]
   );
 
-  const matchingBindings = bindings.filter((row) =>
-    (!row.user_id || !userId || row.user_id === userId) &&
-    (!row.connection_id || !connectionId || row.connection_id === connectionId) &&
-    (!row.action_key || !actionKey || row.action_key === actionKey) &&
-    (!row.target_key || !targetKey || row.target_key === targetKey) &&
-    (allowPlatformBinding || row.owner_type !== "platform")
-  );
+  const matchingBindings = bindings.filter((row) => {
+    const ownerType = str(row.owner_type).toLowerCase();
+    const ownerId = str(row.owner_id);
+    if (ownerType === "user" && (!userId || ownerId !== userId)) return false;
+    if (ownerType === "connection" && (!connectionId || ownerId !== connectionId)) return false;
+    if (ownerType === "tenant" && ownerId && ownerId !== tenantId) return false;
+    return (
+      (!row.user_id || !userId || row.user_id === userId) &&
+      (!row.connection_id || !connectionId || row.connection_id === connectionId) &&
+      (!row.action_key || !actionKey || row.action_key === actionKey) &&
+      (!row.target_key || !targetKey || row.target_key === targetKey) &&
+      (allowPlatformBinding || ownerType !== "platform")
+    );
+  });
 
   const fallbackCandidates = [];
   if (connectionId) {
@@ -165,6 +185,12 @@ async function buildCredentialResolutionPlan(input = {}) {
       [connectionId, tenantId]
     );
     const connection = connections[0];
+    if (connection && userId && str(connection.user_id) !== userId) {
+      const err = new Error("Requested connection is not owned by the supplied user context.");
+      err.status = 409;
+      err.code = "credential_connection_user_scope_mismatch";
+      throw err;
+    }
     if (connection?.status === "active") {
       fallbackCandidates.push({
         source: "user_app_connections_fallback",
