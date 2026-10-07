@@ -4,6 +4,17 @@ import {
   decryptToken as defaultDecryptToken
 } from "./tokenEncryption.js";
 
+const PLATFORM_TENANT_ID = "00000000-0000-0000-0000-000000000000";
+
+export const CREDENTIAL_RESOLUTION_AUTHORITY = Object.freeze({
+  credential_bindings: Object.freeze({ operations: Object.freeze(["SELECT"]), scope: "exact_tenant_role" }),
+  user_app_connections: Object.freeze({ operations: Object.freeze(["SELECT"]), scope: "exact_tenant_user_connection" }),
+  actions: Object.freeze({ operations: Object.freeze(["SELECT"]), scope: "exact_action" }),
+  secret_references: Object.freeze({ operations: Object.freeze(["SELECT"]), scope: "exact_owner_tenant_secret_key" }),
+  tenant_secrets: Object.freeze({ operations: Object.freeze(["SELECT"]), scope: "exact_tenant_secret_key" }),
+  platform_secrets: Object.freeze({ operations: Object.freeze(["SELECT"]), scope: "platform_secret_key" }),
+});
+
 function str(value) {
   return String(value ?? "").trim();
 }
@@ -55,14 +66,88 @@ async function query(pool, sql, params = []) {
   return Array.isArray(rows) ? rows : [];
 }
 
-async function loadConnection(pool, connectionId) {
+async function loadConnection(pool, connectionId, context = {}) {
   if (!connectionId) return null;
+  const where = ["connection_id = ?"];
+  const params = [connectionId];
+  if (str(context.tenantId)) {
+    where.push("tenant_id = ?");
+    params.push(str(context.tenantId));
+  }
+  if (str(context.userId)) {
+    where.push("user_id = ?");
+    params.push(str(context.userId));
+  }
   const rows = await query(
     pool,
-    "SELECT * FROM `user_app_connections` WHERE connection_id = ? LIMIT 1",
-    [connectionId]
-  ).catch(() => []);
+    `SELECT * FROM \`user_app_connections\` WHERE ${where.join(" AND ")} LIMIT 2`,
+    params
+  );
+  if (rows.length > 1) {
+    const error = new Error("Credential connection identity is ambiguous.");
+    error.code = "credential_connection_ambiguous";
+    throw error;
+  }
   return rows[0] || null;
+}
+
+function blockedScopeResult(ref, context, source, detail = {}) {
+  return safeResult({
+    status: "blocked_scope_mismatch",
+    credential_ref: ref,
+    source,
+    error_code: "credential_reference_scope_mismatch",
+    ...detail,
+  }, Boolean(context.includeSecret));
+}
+
+function validateCandidateReferenceScope(candidate = {}, context = {}) {
+  const ref = str(candidate.credential_ref);
+  const ownerType = str(candidate.owner_type).toLowerCase();
+  const tenantMatch = ref.match(/^tenant_secret:([^:]+):/);
+  if (tenantMatch) {
+    if (tenantMatch[1] !== str(context.tenantId) || (ownerType && ownerType !== "tenant")) {
+      return blockedScopeResult(ref, context, "credential_bindings", {
+        expected_tenant_id: str(context.tenantId),
+        observed_tenant_id: tenantMatch[1],
+        binding_owner_type: ownerType || null,
+      });
+    }
+  }
+  if (ref.startsWith("platform_secret:") && ownerType && ownerType !== "platform") {
+    return blockedScopeResult(ref, context, "credential_bindings", {
+      binding_owner_type: ownerType,
+      expected_owner_type: "platform",
+    });
+  }
+  const connectionMatch = ref.match(/^user_app_connection:([^:]+):/);
+  if (connectionMatch) {
+    if (str(candidate.connection_id) && str(candidate.connection_id) !== connectionMatch[1]) {
+      return blockedScopeResult(ref, context, "credential_bindings", {
+        binding_connection_id: str(candidate.connection_id),
+        referenced_connection_id: connectionMatch[1],
+      });
+    }
+    if (str(context.connectionId) && str(context.connectionId) !== connectionMatch[1]) {
+      return blockedScopeResult(ref, context, "credential_bindings", {
+        requested_connection_id: str(context.connectionId),
+        referenced_connection_id: connectionMatch[1],
+      });
+    }
+    if (ownerType && !["connection", "tenant"].includes(ownerType)) {
+      return blockedScopeResult(ref, context, "credential_bindings", {
+        binding_owner_type: ownerType,
+        expected_owner_type: "connection_or_promoted_tenant",
+      });
+    }
+  }
+  if (ref.startsWith("ref:secret:") && ownerType === "connection") {
+    return blockedScopeResult(ref, context, "credential_bindings", {
+      binding_owner_type: ownerType,
+      expected_owner_type: "tenant_or_platform",
+    });
+  }
+  return null;
 }
 
 function externalReferenceResult(row, context, source) {
@@ -143,7 +228,7 @@ async function resolveUserAppConnectionRef(ref, context, deps) {
   }
 
   const [, connectionId, requestedField] = match;
-  const conn = await loadConnection(deps.pool, connectionId);
+  const conn = await loadConnection(deps.pool, connectionId, context);
   if (!conn) {
     return safeResult({
       status: "blocked_missing_connection",
@@ -244,14 +329,47 @@ async function resolveSecretReferenceRef(ref, context, deps) {
     return safeResult({ status: "invalid_credential_ref", credential_ref: ref, source: "secret_references" }, Boolean(context.includeSecret));
   }
 
+  const expectedOwnerType = str(context.expectedOwnerType).toLowerCase();
+  const scopeTenantId = expectedOwnerType === "platform" ? PLATFORM_TENANT_ID : str(context.tenantId);
+  if (!scopeTenantId) {
+    return blockedScopeResult(ref, context, "secret_references", {
+      error_code: "credential_reference_scope_required",
+    });
+  }
+
   const rows = await query(
     deps.pool,
-    "SELECT * FROM `secret_references` WHERE secret_key = ? AND status = 'active' LIMIT 1",
-    [secretKey]
+    "SELECT * FROM `secret_references` WHERE tenant_id = ? AND secret_key = ? AND status = 'active' LIMIT 2",
+    [scopeTenantId, secretKey]
   );
+  if (rows.length > 1) {
+    return safeResult({
+      status: "blocked_ambiguous_reference",
+      credential_ref: ref,
+      source: "secret_references",
+      error_code: "credential_reference_ambiguous",
+      tenant_id: scopeTenantId,
+      secret_key: secretKey,
+    }, Boolean(context.includeSecret));
+  }
   const row = rows[0];
 
-  if (!row) return resolveLegacyEnvRef(ref, context, deps);
+  if (!row) return context.allowLegacyEnvFallback === false
+    ? safeResult({
+        status: "blocked_missing_secret",
+        credential_ref: ref,
+        missing_secret_key: secretKey,
+        source: "secret_references",
+      }, Boolean(context.includeSecret))
+    : resolveLegacyEnvRef(ref, context, deps);
+
+  if (expectedOwnerType && str(row.owner_type).toLowerCase() !== expectedOwnerType) {
+    return blockedScopeResult(ref, context, "secret_references", {
+      expected_owner_type: expectedOwnerType,
+      observed_owner_type: str(row.owner_type).toLowerCase(),
+      tenant_id: scopeTenantId,
+    });
+  }
 
   if (row.store_type === "db_encrypted") {
     if (row.owner_type === "platform") return resolvePlatformSecretRef(`platform_secret:${secretKey}`, context, deps);
@@ -280,6 +398,18 @@ async function resolveTenantSecretRef(ref, context, deps) {
   const [, tenantId, secretKey] = str(ref).match(/^tenant_secret:([^:]+):(.+)$/) || [];
   if (!tenantId || !secretKey) {
     return safeResult({ status: "invalid_credential_ref", credential_ref: ref, source: "tenant_secrets" }, includeSecret);
+  }
+  if (str(context.tenantId) && tenantId !== str(context.tenantId)) {
+    return blockedScopeResult(ref, context, "tenant_secrets", {
+      expected_tenant_id: str(context.tenantId),
+      observed_tenant_id: tenantId,
+    });
+  }
+  if (str(context.expectedOwnerType) && str(context.expectedOwnerType).toLowerCase() !== "tenant") {
+    return blockedScopeResult(ref, context, "tenant_secrets", {
+      expected_owner_type: str(context.expectedOwnerType).toLowerCase(),
+      observed_owner_type: "tenant",
+    });
   }
 
   const rows = await query(
@@ -324,6 +454,12 @@ async function resolvePlatformSecretRef(ref, context, deps) {
   const [, secretKey] = str(ref).match(/^platform_secret:(.+)$/) || [];
   if (!secretKey) {
     return safeResult({ status: "invalid_credential_ref", credential_ref: ref, source: "platform_secrets" }, includeSecret);
+  }
+  if (str(context.expectedOwnerType) && str(context.expectedOwnerType).toLowerCase() !== "platform") {
+    return blockedScopeResult(ref, context, "platform_secrets", {
+      expected_owner_type: str(context.expectedOwnerType).toLowerCase(),
+      observed_owner_type: "platform",
+    });
   }
 
   const rows = await query(
@@ -386,7 +522,14 @@ export async function resolveCredentialReference(reference, options = {}, deps =
     decryptToken: deps.decryptToken || defaultDecryptToken,
     env: deps.env || process.env
   };
-  return resolveCredentialRef(reference, { includeSecret: options.includeSecret === true }, runtimeDeps);
+  return resolveCredentialRef(reference, {
+    includeSecret: options.includeSecret === true,
+    tenantId: str(options.tenantId || options.tenant_id),
+    userId: str(options.userId || options.user_id),
+    expectedOwnerType: str(options.expectedOwnerType || options.expected_owner_type),
+    expectedOwnerId: str(options.expectedOwnerId || options.expected_owner_id),
+    allowLegacyEnvFallback: options.allowLegacyEnvFallback !== false && options.allow_legacy_env_fallback !== false,
+  }, runtimeDeps);
 }
 
 function bindingSpecificityScore(binding = {}) {
@@ -428,7 +571,7 @@ async function loadCredentialBindings(context, deps) {
 
 async function fallbackUserConnection(context, deps) {
   if (!context.connectionId) return null;
-  const conn = await loadConnection(deps.pool, context.connectionId);
+  const conn = await loadConnection(deps.pool, context.connectionId, context);
   if (!conn || conn.status !== "active") return null;
   const fields = roleCandidateFields(context.credentialRole, conn.auth_type);
   return {
@@ -445,7 +588,7 @@ async function fallbackActionSecret(context, deps) {
     deps.pool,
     "SELECT action_key, secret_store_ref, api_key_storage_mode, api_key_mode FROM `actions` WHERE action_key = ? LIMIT 1",
     [context.actionKey]
-  ).catch(() => []);
+  );
   const action = rows[0];
   if (!action?.secret_store_ref) return null;
   return {
@@ -482,7 +625,8 @@ export async function resolveEffectiveCredential(input = {}, deps = {}) {
     targetKey: str(input.targetKey || input.target_key),
     credentialRole: str(input.credentialRole || input.credential_role || input.role),
     includeSecret: Boolean(input.includeSecret || input.include_secret),
-    allowPlatformFallback: input.allowPlatformFallback !== false && input.allow_platform_fallback !== false
+    allowPlatformFallback: input.allowPlatformFallback !== false && input.allow_platform_fallback !== false,
+    allowLegacyEnvFallback: input.allowLegacyEnvFallback !== false && input.allow_legacy_env_fallback !== false
   };
 
   if (!context.tenantId) return safeResult({ status: "missing_tenant_id", source: "credential_resolver" }, context.includeSecret);
@@ -511,25 +655,45 @@ export async function resolveEffectiveCredential(input = {}, deps = {}) {
 
   let firstMissing = null;
   for (const candidate of candidates) {
-    const resolved = await resolveCredentialRef(candidate.credential_ref, context, runtimeDeps);
+    const scopeFailure = validateCandidateReferenceScope(candidate, context);
+    if (scopeFailure) return scopeFailure;
+
+    const resolved = await resolveCredentialRef(candidate.credential_ref, {
+      ...context,
+      expectedOwnerType: candidate.owner_type || "",
+      expectedOwnerId: candidate.owner_id || "",
+    }, runtimeDeps);
+    if (resolved.status === "blocked_scope_mismatch" || resolved.status === "blocked_ambiguous_reference") {
+      return resolved;
+    }
     if (resolved.status === "resolved" || resolved.status === "resolved_reference_only") {
       return safeResult({
         ...resolved,
         credential_role: context.credentialRole,
+        binding_owner_type: candidate.owner_type || "",
+        binding_owner_id: candidate.owner_id || "",
+        resolved_owner_type: resolved.owner_type || "",
+        resolved_owner_id: resolved.owner_id || "",
+        resolved_source: resolved.source || "",
         owner_type: candidate.owner_type || resolved.owner_type || "",
-        owner_id: candidate.owner_id || "",
+        owner_id: candidate.owner_id || resolved.owner_id || "",
         binding_id: candidate.binding_id || "",
         source: candidate.source || resolved.source,
         resolution_priority: candidate.resolution_priority ?? null
       }, context.includeSecret);
     }
 
-    if (resolved.status === "blocked_missing_secret" && !firstMissing) {
+    if ((resolved.status === "blocked_missing_secret" || resolved.status === "blocked_missing_connection") && !firstMissing) {
       firstMissing = {
         ...resolved,
         credential_role: context.credentialRole,
+        binding_owner_type: candidate.owner_type || "",
+        binding_owner_id: candidate.owner_id || "",
+        resolved_owner_type: resolved.owner_type || "",
+        resolved_owner_id: resolved.owner_id || "",
+        resolved_source: resolved.source || "",
         owner_type: candidate.owner_type || resolved.owner_type || "",
-        owner_id: candidate.owner_id || "",
+        owner_id: candidate.owner_id || resolved.owner_id || "",
         binding_id: candidate.binding_id || "",
         source: candidate.source || resolved.source
       };
@@ -554,5 +718,6 @@ export const __test__ = {
   pickCredentialField,
   roleCandidateFields,
   resolveCredentialRef,
+  validateCandidateReferenceScope,
   upperEnvKey
 };
