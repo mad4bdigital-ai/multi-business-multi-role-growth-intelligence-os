@@ -43,7 +43,11 @@ assert(
   stagingRoleManifest.canonical_seed_lifecycle?.seed_files?.includes('20261007_credential_platform_binding_policy.sql'),
   'credential platform-binding policy migration must remain registered as a canonical Staging replay seed',
 );
-assert(bindingPolicyMigration.includes("tool_key\` = 'credential_effective_plan'") || bindingPolicyMigration.includes("tool_key = 'credential_effective_plan'"), 'forward migration must remain scoped to credential_effective_plan');
+assert.match(
+  bindingPolicyMigration,
+  /INSERT\s+INTO\s+`?admin_platform_endpoint_tools`?[\s\S]*['"]credential_effective_plan['"][\s\S]*ON\s+DUPLICATE\s+KEY\s+UPDATE/i,
+  'forward migration must remain a canonical idempotent UPSERT scoped to credential_effective_plan',
+);
 
 const operation = openapi?.paths?.['/credentials/effective/plan']?.post;
 const schemas = openapi?.components?.schemas || {};
