@@ -190,7 +190,7 @@ export async function readTenantGptOAuthClientConfig(options = null) {
     if (config.client_secret_ref) {
       const credential = await resolveCredentialReference(
         config.client_secret_ref,
-        { includeSecret: true },
+        { includeSecret: true, expectedOwnerType: "platform" },
         {
           pool: { query: execute },
           decryptToken: options?.decryptToken,
@@ -251,7 +251,7 @@ export async function getTenantGptOAuthClientConfigStatus(options = {}) {
     if (clientSecretRef) {
       credential = await resolveCredentialReference(
         clientSecretRef,
-        { includeSecret: false },
+        { includeSecret: false, expectedOwnerType: "platform" },
         {
           pool,
           decryptToken: options.decryptToken,
