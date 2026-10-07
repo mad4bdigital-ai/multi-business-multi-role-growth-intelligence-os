@@ -4,6 +4,7 @@ import YAML from 'yaml';
 
 const routeFile = readFileSync('routes/credentialRoutes.js', 'utf8');
 const migration = readFileSync('migrations/160_sprint65_credential_resolution_plan_tool.sql', 'utf8');
+const bindingPolicyMigration = readFileSync('migrations/20261007_credential_platform_binding_policy.sql', 'utf8');
 const openapi = YAML.parse(readFileSync('openapi.yaml', 'utf8'));
 
 assert(routeFile.includes('/credentials/effective/plan'), 'credential resolution plan route must exist');
@@ -14,6 +15,8 @@ assert(routeFile.includes('user_app_connections_fallback'), 'plan must include u
 assert(routeFile.includes('actions.secret_store_ref'), 'plan must include action secret fallback');
 assert(routeFile.includes('target_tenant_secret_convention'), 'plan must include target tenant secret convention');
 assert(routeFile.includes('tenant_integration_policies'), 'plan must include tenant integration policies');
+assert(routeFile.includes('allow_platform_binding'), 'plan must separate platform binding permission from fallback permission');
+assert(routeFile.includes('platform_binding_allowed_by_request'), 'plan response must expose explicit platform-binding policy');
 assert(routeFile.includes('getEffectiveCredentialStatus'), 'plan must include effective safe status');
 assert(routeFile.includes('credential_values_returned: false'), 'plan must not return credential values');
 assert(routeFile.includes('candidateEligibility'), 'plan must annotate candidate eligibility');
@@ -29,6 +32,8 @@ assert(migration.includes('/credentials/effective/plan'), 'credential plan tool 
 assert(migration.includes('read_only'), 'credential plan tool must be read_only');
 assert(migration.includes('no_secrets'), 'credential plan tool must be tagged no_secrets');
 assert(migration.includes('no_token_returned'), 'credential plan tool must be tagged no_token_returned');
+assert(bindingPolicyMigration.includes('allow_platform_binding'), 'forward migration must expose allow_platform_binding');
+assert(bindingPolicyMigration.includes("tool_key\` = 'credential_effective_plan'") || bindingPolicyMigration.includes("tool_key = 'credential_effective_plan'"), 'forward migration must remain scoped to credential_effective_plan');
 
 const operation = openapi?.paths?.['/credentials/effective/plan']?.post;
 const schemas = openapi?.components?.schemas || {};
@@ -51,6 +56,9 @@ assert.equal(
 assert(requestSchema, 'CredentialEffectivePlanRequest schema must exist');
 assert(responseSchema, 'CredentialEffectivePlanResponse schema must exist');
 assert(candidateSchema, 'CredentialResolutionCandidate schema must exist');
+assert.equal(requestSchema.properties?.allow_platform_binding?.type, 'boolean', 'OpenAPI must expose allow_platform_binding');
+assert.equal(requestSchema.properties?.allow_platform_binding?.default, true, 'platform binding compatibility default must remain true');
+assert.equal(responseSchema.properties?.policy?.properties?.platform_binding_allowed_by_request?.type, 'boolean', 'OpenAPI response must expose binding policy');
 assert.deepEqual(
   responseSchema.properties?.policy?.properties?.secret_values_returned?.enum,
   [false],
