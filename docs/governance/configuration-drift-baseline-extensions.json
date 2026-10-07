@@ -2270,6 +2270,17 @@
       "grants_production_activation": false
     },
     {
+      "fingerprint": "http-generic-api/stagingActivationGatewayApplyAdapter.js|STAGING_CERTIFICATION_TTL_SECONDS|literal_declaration|staging.certification.ttl.seconds",
+      "owner": "gateway-governance",
+      "reason": "Code-owned six-hour maximum lifetime for the high-risk Staging Gateway transaction certification. It narrows the validity window of exact-build dispatch/apply authority, contains no secret value, and grants no provider, database, DNS, custom-domain, protected-ref, or Production authority by itself.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
       "fingerprint": "http-generic-api/stagingRecoveryAuthorityBindingPhaseB.js|STAGING_RECOVERY_PHASE_B_APPROVAL_TOKEN_CONTRACT|literal_declaration|staging.recovery.phase.b.approval.token.contract",
       "owner": "staging-recovery-governance",
       "reason": "Static Phase B single-issuance approval-token handle contract identifier; it is not runtime configuration and grants no approval, repository, provider, database, or Production mutation authority.",
