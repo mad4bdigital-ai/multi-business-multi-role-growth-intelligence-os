@@ -269,4 +269,37 @@ const decryptCredentials = (stored) => JSON.parse(stored);
   assert.deepEqual(__test__.roleCandidateFields("mcp_bearer_token", "mcp").slice(0, 2), ["mcp_token", "mcp_bearer"]);
 }
 
+{
+  const deniedPool = {
+    async query(sql) {
+      const error = new Error(`SELECT command denied for ${String(sql).includes("credential_bindings") ? "credential_bindings" : "credential_store"}`);
+      error.code = "ER_TABLEACCESS_DENIED_ERROR";
+      throw error;
+    }
+  };
+
+  await assert.rejects(
+    () => resolveEffectiveCredential(
+      {
+        tenantId: "00000000-0000-0000-0000-000000000000",
+        actionKey: "activation_gateway_dark_deploy",
+        targetKey: "staging_activation_gateway_cloudflare",
+        credentialRole: "cloudflare_api_token",
+        includeSecret: true
+      },
+      { pool: deniedPool, env: {} }
+    ),
+    (error) => error?.code === "ER_TABLEACCESS_DENIED_ERROR",
+  );
+
+  await assert.rejects(
+    () => resolveCredentialReference(
+      "platform_secret:staging_cloudflare_activation_gateway_api_token",
+      { includeSecret: true },
+      { pool: deniedPool, env: {} }
+    ),
+    (error) => error?.code === "ER_TABLEACCESS_DENIED_ERROR",
+  );
+}
+
 console.log("credential resolver tests passed");
