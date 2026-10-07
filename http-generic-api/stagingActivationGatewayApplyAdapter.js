@@ -1378,7 +1378,9 @@ export async function runStagingActivationGatewayTransactionCertification(input 
       apiPath: `/accounts/${accountId}/workers/scripts/${scriptName}/deployments`,
       method: "GET",
     }, "certification_inventory_read");
-    previousDeployment = deploymentList(deploymentsBefore)[0] || null;
+    const baselineDeployments = deploymentList(deploymentsBefore);
+    const [resolvedPreviousDeployment] = baselineDeployments;
+    previousDeployment = resolvedPreviousDeployment || null;
     if (!previousDeployment?.id || !deploymentVersions(previousDeployment).length) {
       throw adapterError(
         "staging_activation_gateway_certification_baseline_unresolved",
@@ -1441,11 +1443,14 @@ export async function runStagingActivationGatewayTransactionCertification(input 
       apiPath: `/accounts/${accountId}/workers/scripts/${scriptName}/deployments`,
       method: "GET",
     }, "certification_deployment_readback");
-    const candidateDeployment = deploymentList(deploymentsAfter)[0] || null;
+    const candidateDeployments = deploymentList(deploymentsAfter);
+    const [candidateDeployment] = candidateDeployments;
+    const candidateVersions = deploymentVersions(candidateDeployment);
+    const [candidateVersion] = candidateVersions;
     if (!candidateDeployment?.id
-      || deploymentVersions(candidateDeployment).length !== 1
-      || deploymentVersions(candidateDeployment)[0].version_id !== candidateVersionId
-      || deploymentVersions(candidateDeployment)[0].percentage !== 100) {
+      || candidateVersions.length !== 1
+      || candidateVersion?.version_id !== candidateVersionId
+      || candidateVersion?.percentage !== 100) {
       throw adapterError(
         "staging_activation_gateway_certification_candidate_readback_failed",
         "Certification provider readback did not prove the exact candidate version at 100%.",
@@ -1585,15 +1590,16 @@ export async function runStagingActivationGatewayTransactionCertification(input 
     }
     let planFailure = null;
     try {
-      const [current] = await governancePool.query(
+      const [currentRows] = await governancePool.query(
         `SELECT status FROM staging_activation_gateway_execution_plans WHERE plan_id=?`,
         [planId],
       );
-      if (["claimed", "executing", "succeeded"].includes(current?.[0]?.status)) {
+      const [currentPlanState] = Array.isArray(currentRows) ? currentRows : [];
+      if (["claimed", "executing", "succeeded"].includes(currentPlanState?.status)) {
         await transitionStagingGatewayExecutionPlan(
           governancePool,
           planId,
-          current[0].status,
+          currentPlanState.status,
           "failed",
         );
       }
