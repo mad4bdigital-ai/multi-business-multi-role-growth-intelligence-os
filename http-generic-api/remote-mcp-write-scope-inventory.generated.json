@@ -8,7 +8,7 @@
     "7eaf87af3c9df2a3aa55a9f6adbd93d4d7bc4334c58084cb382d851af888e4a2"
   ],
   "db_catalog_fingerprint_match": true,
-  "file_count": 7944,
+  "file_count": 7953,
   "route_count": 1118,
   "write_route_count": 683,
   "classified_write_surface_count": 44,
@@ -16,7 +16,7 @@
   "unclassified_write_route_count": 0,
   "intentionally_unmapped_write_route_count": 639,
   "sensitive_intentionally_unmapped_write_route_count": 639,
-  "migration_count": 450,
+  "migration_count": 451,
   "registry_evidence_count": 118,
   "write_scope_count": 6,
   "bound_write_scope_count": 0,
@@ -2056,8 +2056,8 @@
     },
     {
       "route_id": "http-generic-api/routes/connectorProxyRoutes.js#POST:/local-manager/device/agent-runtime:0",
-      "source_line": 901,
-      "source_offset": 36140,
+      "source_line": 902,
+      "source_offset": 36137,
       "method": "POST",
       "path": "/local-manager/device/agent-runtime",
       "file": "http-generic-api/routes/connectorProxyRoutes.js",
@@ -2065,8 +2065,8 @@
     },
     {
       "route_id": "http-generic-api/routes/connectorProxyRoutes.js#GET:/connector/:device_id/diagnostics:1",
-      "source_line": 936,
-      "source_offset": 37256,
+      "source_line": 937,
+      "source_offset": 37253,
       "method": "GET",
       "path": "/connector/:device_id/diagnostics",
       "file": "http-generic-api/routes/connectorProxyRoutes.js",
@@ -2074,8 +2074,8 @@
     },
     {
       "route_id": "http-generic-api/routes/connectorProxyRoutes.js#GET:/connector/:device_id/policy:2",
-      "source_line": 941,
-      "source_offset": 37558,
+      "source_line": 942,
+      "source_offset": 37555,
       "method": "GET",
       "path": "/connector/:device_id/policy",
       "file": "http-generic-api/routes/connectorProxyRoutes.js",
@@ -2083,8 +2083,8 @@
     },
     {
       "route_id": "http-generic-api/routes/connectorProxyRoutes.js#GET:/connector/:device_id/health:3",
-      "source_line": 946,
-      "source_offset": 37842,
+      "source_line": 947,
+      "source_offset": 37839,
       "method": "GET",
       "path": "/connector/:device_id/health",
       "file": "http-generic-api/routes/connectorProxyRoutes.js",
@@ -2092,8 +2092,8 @@
     },
     {
       "route_id": "http-generic-api/routes/connectorProxyRoutes.js#POST:/connector/:device_id/shell:4",
-      "source_line": 951,
-      "source_offset": 38126,
+      "source_line": 952,
+      "source_offset": 38123,
       "method": "POST",
       "path": "/connector/:device_id/shell",
       "file": "http-generic-api/routes/connectorProxyRoutes.js",
@@ -2101,8 +2101,8 @@
     },
     {
       "route_id": "http-generic-api/routes/connectorProxyRoutes.js#POST:/connector/:device_id/files:5",
-      "source_line": 958,
-      "source_offset": 38457,
+      "source_line": 959,
+      "source_offset": 38454,
       "method": "POST",
       "path": "/connector/:device_id/files",
       "file": "http-generic-api/routes/connectorProxyRoutes.js",
@@ -2110,8 +2110,8 @@
     },
     {
       "route_id": "http-generic-api/routes/connectorProxyRoutes.js#POST:/connector/:device_id/dependencies:6",
-      "source_line": 965,
-      "source_offset": 38796,
+      "source_line": 966,
+      "source_offset": 38793,
       "method": "POST",
       "path": "/connector/:device_id/dependencies",
       "file": "http-generic-api/routes/connectorProxyRoutes.js",
@@ -2119,8 +2119,8 @@
     },
     {
       "route_id": "http-generic-api/routes/connectorProxyRoutes.js#POST:/connector/:device_id/agent-runtime:7",
-      "source_line": 970,
-      "source_offset": 39093,
+      "source_line": 971,
+      "source_offset": 39090,
       "method": "POST",
       "path": "/connector/:device_id/agent-runtime",
       "file": "http-generic-api/routes/connectorProxyRoutes.js",
@@ -2128,8 +2128,8 @@
     },
     {
       "route_id": "http-generic-api/routes/connectorProxyRoutes.js#POST:/connector/:device_id/apps:8",
-      "source_line": 975,
-      "source_offset": 39392,
+      "source_line": 976,
+      "source_offset": 39389,
       "method": "POST",
       "path": "/connector/:device_id/apps",
       "file": "http-generic-api/routes/connectorProxyRoutes.js",
@@ -2137,8 +2137,8 @@
     },
     {
       "route_id": "http-generic-api/routes/connectorProxyRoutes.js#POST:/connector/:device_id/browser:9",
-      "source_line": 980,
-      "source_offset": 39673,
+      "source_line": 981,
+      "source_offset": 39670,
       "method": "POST",
       "path": "/connector/:device_id/browser",
       "file": "http-generic-api/routes/connectorProxyRoutes.js",
@@ -2146,8 +2146,8 @@
     },
     {
       "route_id": "http-generic-api/routes/connectorProxyRoutes.js#POST:/connector/:device_id/browser4:10",
-      "source_line": 985,
-      "source_offset": 39960,
+      "source_line": 986,
+      "source_offset": 39957,
       "method": "POST",
       "path": "/connector/:device_id/browser4",
       "file": "http-generic-api/routes/connectorProxyRoutes.js",
@@ -2155,8 +2155,8 @@
     },
     {
       "route_id": "http-generic-api/routes/connectorProxyRoutes.js#POST:/connector/:device_id/auto-browser:11",
-      "source_line": 990,
-      "source_offset": 40260,
+      "source_line": 991,
+      "source_offset": 40257,
       "method": "POST",
       "path": "/connector/:device_id/auto-browser",
       "file": "http-generic-api/routes/connectorProxyRoutes.js",
@@ -2164,8 +2164,8 @@
     },
     {
       "route_id": "http-generic-api/routes/connectorProxyRoutes.js#POST:/connector/:device_id/ps:12",
-      "source_line": 995,
-      "source_offset": 40568,
+      "source_line": 996,
+      "source_offset": 40565,
       "method": "POST",
       "path": "/connector/:device_id/ps",
       "file": "http-generic-api/routes/connectorProxyRoutes.js",
@@ -2173,8 +2173,8 @@
     },
     {
       "route_id": "http-generic-api/routes/connectorProxyRoutes.js#POST:/connector/:device_id/win:13",
-      "source_line": 1000,
-      "source_offset": 40856,
+      "source_line": 1001,
+      "source_offset": 40853,
       "method": "POST",
       "path": "/connector/:device_id/win",
       "file": "http-generic-api/routes/connectorProxyRoutes.js",
@@ -2182,8 +2182,8 @@
     },
     {
       "route_id": "http-generic-api/routes/connectorProxyRoutes.js#POST:/connector/:device_id/n8n:14",
-      "source_line": 1005,
-      "source_offset": 41146,
+      "source_line": 1006,
+      "source_offset": 41143,
       "method": "POST",
       "path": "/connector/:device_id/n8n",
       "file": "http-generic-api/routes/connectorProxyRoutes.js",
@@ -2191,8 +2191,8 @@
     },
     {
       "route_id": "http-generic-api/routes/connectorProxyRoutes.js#POST:/connector/:device_id/cf:15",
-      "source_line": 1012,
-      "source_offset": 41474,
+      "source_line": 1013,
+      "source_offset": 41471,
       "method": "POST",
       "path": "/connector/:device_id/cf",
       "file": "http-generic-api/routes/connectorProxyRoutes.js",
@@ -2200,8 +2200,8 @@
     },
     {
       "route_id": "http-generic-api/routes/connectorProxyRoutes.js#POST:/connector/:device_id/fetch-upload:16",
-      "source_line": 1019,
-      "source_offset": 41818,
+      "source_line": 1020,
+      "source_offset": 41815,
       "method": "POST",
       "path": "/connector/:device_id/fetch-upload",
       "file": "http-generic-api/routes/connectorProxyRoutes.js",
@@ -2209,8 +2209,8 @@
     },
     {
       "route_id": "http-generic-api/routes/connectorProxyRoutes.js#POST:/connector/:device_id/github:17",
-      "source_line": 1024,
-      "source_offset": 42115,
+      "source_line": 1025,
+      "source_offset": 42112,
       "method": "POST",
       "path": "/connector/:device_id/github",
       "file": "http-generic-api/routes/connectorProxyRoutes.js",
@@ -2218,8 +2218,8 @@
     },
     {
       "route_id": "http-generic-api/routes/connectorProxyRoutes.js#POST:/connector/:device_id/gcloud:18",
-      "source_line": 1029,
-      "source_offset": 42400,
+      "source_line": 1030,
+      "source_offset": 42397,
       "method": "POST",
       "path": "/connector/:device_id/gcloud",
       "file": "http-generic-api/routes/connectorProxyRoutes.js",
@@ -2227,8 +2227,8 @@
     },
     {
       "route_id": "http-generic-api/routes/connectorProxyRoutes.js#POST:/connector/:device_id/shell-fetch-upload:19",
-      "source_line": 1034,
-      "source_offset": 42685,
+      "source_line": 1035,
+      "source_offset": 42682,
       "method": "POST",
       "path": "/connector/:device_id/shell-fetch-upload",
       "file": "http-generic-api/routes/connectorProxyRoutes.js",
@@ -2299,8 +2299,8 @@
     },
     {
       "route_id": "http-generic-api/routes/credentialIntakeRoutes.js#POST:/credential-intake/sessions:0",
-      "source_line": 783,
-      "source_offset": 36140,
+      "source_line": 784,
+      "source_offset": 36255,
       "method": "POST",
       "path": "/credential-intake/sessions",
       "file": "http-generic-api/routes/credentialIntakeRoutes.js",
@@ -2308,8 +2308,8 @@
     },
     {
       "route_id": "http-generic-api/routes/credentialIntakeRoutes.js#GET:/credential-intake/:token/schema:1",
-      "source_line": 816,
-      "source_offset": 37606,
+      "source_line": 817,
+      "source_offset": 37721,
       "method": "GET",
       "path": "/credential-intake/:token/schema",
       "file": "http-generic-api/routes/credentialIntakeRoutes.js",
@@ -2317,8 +2317,8 @@
     },
     {
       "route_id": "http-generic-api/routes/credentialIntakeRoutes.js#GET:/credential-intake/:token:2",
-      "source_line": 833,
-      "source_offset": 38361,
+      "source_line": 834,
+      "source_offset": 38476,
       "method": "GET",
       "path": "/credential-intake/:token",
       "file": "http-generic-api/routes/credentialIntakeRoutes.js",
@@ -2326,8 +2326,8 @@
     },
     {
       "route_id": "http-generic-api/routes/credentialIntakeRoutes.js#POST:/credential-intake/:token:3",
-      "source_line": 859,
-      "source_offset": 39714,
+      "source_line": 860,
+      "source_offset": 39829,
       "method": "POST",
       "path": "/credential-intake/:token",
       "file": "http-generic-api/routes/credentialIntakeRoutes.js",
@@ -2335,8 +2335,8 @@
     },
     {
       "route_id": "http-generic-api/routes/credentialRoutes.js#POST:/credentials/effective/status:0",
-      "source_line": 322,
-      "source_offset": 12777,
+      "source_line": 354,
+      "source_offset": 14501,
       "method": "POST",
       "path": "/credentials/effective/status",
       "file": "http-generic-api/routes/credentialRoutes.js",
@@ -2344,8 +2344,8 @@
     },
     {
       "route_id": "http-generic-api/routes/credentialRoutes.js#POST:/credentials/effective/plan:1",
-      "source_line": 336,
-      "source_offset": 13473,
+      "source_line": 368,
+      "source_offset": 15197,
       "method": "POST",
       "path": "/credentials/effective/plan",
       "file": "http-generic-api/routes/credentialRoutes.js",
@@ -2353,8 +2353,8 @@
     },
     {
       "route_id": "http-generic-api/routes/credentialRoutes.js#POST:/credentials/secrets/upsert:2",
-      "source_line": 350,
-      "source_offset": 14213,
+      "source_line": 382,
+      "source_offset": 15937,
       "method": "POST",
       "path": "/credentials/secrets/upsert",
       "file": "http-generic-api/routes/credentialRoutes.js",
@@ -2362,8 +2362,8 @@
     },
     {
       "route_id": "http-generic-api/routes/credentialRoutes.js#POST:/credentials/intake/promote-platform-secrets:3",
-      "source_line": 465,
-      "source_offset": 19935,
+      "source_line": 497,
+      "source_offset": 21659,
       "method": "POST",
       "path": "/credentials/intake/promote-platform-secrets",
       "file": "http-generic-api/routes/credentialRoutes.js",
@@ -2371,8 +2371,8 @@
     },
     {
       "route_id": "http-generic-api/routes/credentialRoutes.js#POST:/credentials/intake/promote-local-connector-key:4",
-      "source_line": 590,
-      "source_offset": 26479,
+      "source_line": 624,
+      "source_offset": 28378,
       "method": "POST",
       "path": "/credentials/intake/promote-local-connector-key",
       "file": "http-generic-api/routes/credentialRoutes.js",
@@ -2380,8 +2380,8 @@
     },
     {
       "route_id": "http-generic-api/routes/credentialRoutes.js#POST:/credentials/bindings/promote:5",
-      "source_line": 671,
-      "source_offset": 30865,
+      "source_line": 705,
+      "source_offset": 32764,
       "method": "POST",
       "path": "/credentials/bindings/promote",
       "file": "http-generic-api/routes/credentialRoutes.js",
@@ -2389,8 +2389,8 @@
     },
     {
       "route_id": "http-generic-api/routes/credentialRoutes.js#GET:/credentials/bindings:6",
-      "source_line": 828,
-      "source_offset": 38577,
+      "source_line": 862,
+      "source_offset": 40476,
       "method": "GET",
       "path": "/credentials/bindings",
       "file": "http-generic-api/routes/credentialRoutes.js",
@@ -18713,10 +18713,10 @@
       "operation_class": "execute",
       "evidence": {
         "file": "http-generic-api/routes/connectorProxyRoutes.js",
-        "source_line": 901,
+        "source_line": 902,
         "handler_window_lines": [
-          901,
-          934
+          902,
+          935
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -18777,10 +18777,10 @@
       "operation_class": "execute",
       "evidence": {
         "file": "http-generic-api/routes/connectorProxyRoutes.js",
-        "source_line": 951,
+        "source_line": 952,
         "handler_window_lines": [
-          951,
-          956
+          952,
+          957
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -18843,10 +18843,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/connectorProxyRoutes.js",
-        "source_line": 958,
+        "source_line": 959,
         "handler_window_lines": [
-          958,
-          963
+          959,
+          964
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -18907,10 +18907,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/connectorProxyRoutes.js",
-        "source_line": 965,
+        "source_line": 966,
         "handler_window_lines": [
-          965,
-          968
+          966,
+          969
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -18969,10 +18969,10 @@
       "operation_class": "execute",
       "evidence": {
         "file": "http-generic-api/routes/connectorProxyRoutes.js",
-        "source_line": 970,
+        "source_line": 971,
         "handler_window_lines": [
-          970,
-          973
+          971,
+          974
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -19031,10 +19031,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/connectorProxyRoutes.js",
-        "source_line": 975,
+        "source_line": 976,
         "handler_window_lines": [
-          975,
-          978
+          976,
+          979
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -19093,10 +19093,10 @@
       "operation_class": "execute",
       "evidence": {
         "file": "http-generic-api/routes/connectorProxyRoutes.js",
-        "source_line": 980,
+        "source_line": 981,
         "handler_window_lines": [
-          980,
-          983
+          981,
+          984
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -19157,10 +19157,10 @@
       "operation_class": "execute",
       "evidence": {
         "file": "http-generic-api/routes/connectorProxyRoutes.js",
-        "source_line": 985,
+        "source_line": 986,
         "handler_window_lines": [
-          985,
-          988
+          986,
+          989
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -19223,10 +19223,10 @@
       "operation_class": "execute",
       "evidence": {
         "file": "http-generic-api/routes/connectorProxyRoutes.js",
-        "source_line": 990,
+        "source_line": 991,
         "handler_window_lines": [
-          990,
-          993
+          991,
+          994
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -19289,10 +19289,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/connectorProxyRoutes.js",
-        "source_line": 995,
+        "source_line": 996,
         "handler_window_lines": [
-          995,
-          998
+          996,
+          999
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -19353,10 +19353,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/connectorProxyRoutes.js",
-        "source_line": 1000,
+        "source_line": 1001,
         "handler_window_lines": [
-          1000,
-          1003
+          1001,
+          1004
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -19417,10 +19417,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/connectorProxyRoutes.js",
-        "source_line": 1005,
+        "source_line": 1006,
         "handler_window_lines": [
-          1005,
-          1010
+          1006,
+          1011
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -19481,10 +19481,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/connectorProxyRoutes.js",
-        "source_line": 1012,
+        "source_line": 1013,
         "handler_window_lines": [
-          1012,
-          1017
+          1013,
+          1018
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -19547,10 +19547,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/connectorProxyRoutes.js",
-        "source_line": 1019,
+        "source_line": 1020,
         "handler_window_lines": [
-          1019,
-          1022
+          1020,
+          1023
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -19609,10 +19609,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/connectorProxyRoutes.js",
-        "source_line": 1024,
+        "source_line": 1025,
         "handler_window_lines": [
-          1024,
-          1027
+          1025,
+          1028
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -19669,10 +19669,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/connectorProxyRoutes.js",
-        "source_line": 1029,
+        "source_line": 1030,
         "handler_window_lines": [
-          1029,
-          1032
+          1030,
+          1033
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -19731,10 +19731,10 @@
       "operation_class": "execute",
       "evidence": {
         "file": "http-generic-api/routes/connectorProxyRoutes.js",
-        "source_line": 1034,
+        "source_line": 1035,
         "handler_window_lines": [
-          1034,
-          1043
+          1035,
+          1044
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -19865,10 +19865,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/credentialIntakeRoutes.js",
-        "source_line": 783,
+        "source_line": 784,
         "handler_window_lines": [
-          783,
-          814
+          784,
+          815
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -19927,10 +19927,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/credentialIntakeRoutes.js",
-        "source_line": 859,
+        "source_line": 860,
         "handler_window_lines": [
-          859,
-          951
+          860,
+          952
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -19989,10 +19989,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/credentialRoutes.js",
-        "source_line": 322,
+        "source_line": 354,
         "handler_window_lines": [
-          322,
-          335
+          354,
+          367
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -20051,10 +20051,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/credentialRoutes.js",
-        "source_line": 336,
+        "source_line": 368,
         "handler_window_lines": [
-          336,
-          349
+          368,
+          381
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -20116,10 +20116,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/credentialRoutes.js",
-        "source_line": 350,
+        "source_line": 382,
         "handler_window_lines": [
-          350,
-          464
+          382,
+          496
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -20186,10 +20186,10 @@
       "operation_class": "deploy",
       "evidence": {
         "file": "http-generic-api/routes/credentialRoutes.js",
-        "source_line": 465,
+        "source_line": 497,
         "handler_window_lines": [
-          465,
-          589
+          497,
+          623
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -20254,10 +20254,10 @@
       "operation_class": "deploy",
       "evidence": {
         "file": "http-generic-api/routes/credentialRoutes.js",
-        "source_line": 590,
+        "source_line": 624,
         "handler_window_lines": [
-          590,
-          670
+          624,
+          704
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -20323,10 +20323,10 @@
       "operation_class": "deploy",
       "evidence": {
         "file": "http-generic-api/routes/credentialRoutes.js",
-        "source_line": 671,
+        "source_line": 705,
         "handler_window_lines": [
-          671,
-          827
+          705,
+          861
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -58140,6 +58140,16 @@
         "admin_platform_endpoint_tools",
         "execution_policies",
         "policy_value"
+      ],
+      "write_scopes": [],
+      "catalog_fingerprints": []
+    },
+    {
+      "path": "http-generic-api/migrations/20261007_credential_platform_binding_policy.sql",
+      "tables": [
+        "implicit",
+        "admin_platform_endpoint_tools",
+        "display_name"
       ],
       "write_scopes": [],
       "catalog_fingerprints": []

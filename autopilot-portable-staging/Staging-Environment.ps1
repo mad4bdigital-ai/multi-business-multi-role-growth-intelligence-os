@@ -27,6 +27,26 @@ function New-StagingRandomValue([int]$ByteCount = 32, [string]$Prefix = '') {
     return $Prefix + (ConvertTo-StagingBase64Url $bytes)
 }
 
+function New-StagingHexValue([int]$ByteCount = 32) {
+    if ($ByteCount -lt 16) {
+        throw 'Staging generated hexadecimal secrets require at least 16 random bytes.'
+    }
+
+    $bytes = New-Object byte[] $ByteCount
+    $rng = [Security.Cryptography.RandomNumberGenerator]::Create()
+
+    try {
+        $rng.GetBytes($bytes)
+    }
+    finally {
+        if ($null -ne $rng) {
+            $rng.Dispose()
+        }
+    }
+
+    return (($bytes | ForEach-Object { $_.ToString('x2') }) -join '')
+}
+
 function New-StagingMcpAppId { return New-StagingRandomValue -ByteCount 18 -Prefix 'mcp_stg_' }
 function New-StagingMcpAppSecret { return New-StagingRandomValue -ByteCount 32 -Prefix 'm4b_rmcp_' }
 
@@ -102,6 +122,10 @@ function Assert-StagingEnvironmentSafety([string]$Path) {
     if ($metrics -and $metrics -notmatch '^127\.0\.0\.1:\d{2,5}$') { throw 'Cloudflared metrics must remain loopback-only.' }
     $appId = Get-StagingEnvValue $Path 'REMOTE_MCP_APP_ID'
     if ($appId -and $appId -notmatch '^mcp_stg_[A-Za-z0-9_-]{16,128}$') { throw 'REMOTE_MCP_APP_ID is not a Staging-scoped MCP client identity.' }
+    $tokenEncryptionKey = Get-StagingEnvValue $Path 'TOKEN_ENCRYPTION_KEY'
+    if ($tokenEncryptionKey -notmatch '^[0-9a-fA-F]{64}$') {
+        throw 'TOKEN_ENCRYPTION_KEY must be exactly 64 hexadecimal characters (32 bytes).'
+    }
     $appSecret = Get-StagingEnvValue $Path 'REMOTE_MCP_APP_SECRET'
     if ($appSecret -and $appSecret.Length -lt 32) { throw 'REMOTE_MCP_APP_SECRET must be at least 32 characters.' }
     if ((Get-StagingEnvValue $Path 'REMOTE_MCP_OAUTH_SIGNING_SECRET') -eq (Get-StagingEnvValue $Path 'JWT_SECRET')) {
@@ -209,7 +233,7 @@ function Initialize-StagingEnvironment {
         'JWT_SECRET' = { New-StagingRandomValue 48 }
         'LOCAL_MANAGER_DEVICE_JWT_SECRET' = { New-StagingRandomValue 48 -Prefix 'stg_lm_device_' }
         'TENANT_GPT_SSO_SIGNING_SECRET' = { New-StagingRandomValue 48 }
-        'TOKEN_ENCRYPTION_KEY' = { New-StagingRandomValue 48 }
+        'TOKEN_ENCRYPTION_KEY' = { New-StagingHexValue 32 }
         'TENANT_GPT_STAGING_OAUTH_CLIENT_SECRET' = { New-StagingRandomValue 32 -Prefix 'stg_tenant_' }
         'TENANT_GPT_STAGING_ACTIVATION_OAUTH_CLIENT_SECRET' = { New-StagingRandomValue 32 -Prefix 'stg_activation_' }
         'REMOTE_MCP_OAUTH_SIGNING_SECRET' = { New-StagingRandomValue 48 -Prefix 'stg_rmcp_sign_' }

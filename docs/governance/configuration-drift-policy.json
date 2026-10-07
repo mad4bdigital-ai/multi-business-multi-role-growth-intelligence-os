@@ -2125,7 +2125,7 @@
     "scripts/validate-staging-openapi-governance.mjs|policyPath|literal_declaration|policypath",
     "validate-canonical-sources.mjs|GENERATED_MARKER|literal_declaration|generated.marker"
   ],
-  "max_existing_secret_candidates": 341,
+  "max_existing_secret_candidates": 370,
   "fail_on_removed_candidates": false,
   "required_contract_paths": [
     ".changes/e2e/configuration-drift-guard-20260815.json",

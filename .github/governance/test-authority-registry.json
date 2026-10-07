@@ -70,6 +70,23 @@
       ]
     },
     {
+      "id": "credential_resolution_secret_store_fail_closed",
+      "test_paths": [
+        "http-generic-api/test-credential-intake-platform-secret-promotion.mjs",
+        "http-generic-api/test-credential-resolution-authority.mjs",
+        "http-generic-api/test-credential-resolution-plan.mjs",
+        "http-generic-api/test-credential-resolver.mjs",
+        "http-generic-api/test-tenant-gpt-oauth-secret-ref.mjs"
+      ]
+    },
+    {
+      "id": "staging_environment_secret_generation",
+      "test_paths": [
+        "http-generic-api/test-staging-environment-secret-governance.mjs",
+        "http-generic-api/scripts/staging-dual-mode-one-click-contract.mjs"
+      ]
+    },
+    {
       "id": "custom_gpt_live_registration_readback",
       "test_paths": [
         "canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -287,6 +304,14 @@
         "http-generic-api/test-platform-admin-workspace-authority-parity.mjs",
         "http-generic-api/test-platform-admin-workspace-readiness.mjs",
         "http-generic-api/test-runtime-persistence-wiring.mjs"
+      ]
+    },
+    {
+      "id": "repository_configuration_drift_governance",
+      "test_paths": [
+        "http-generic-api/scripts/maintenance-tools/configuration-candidate-discovery.mjs",
+        "http-generic-api/scripts/maintenance-tools/configuration-drift-guard.mjs",
+        "http-generic-api/scripts/test-configuration-drift-guard.mjs"
       ]
     },
     {

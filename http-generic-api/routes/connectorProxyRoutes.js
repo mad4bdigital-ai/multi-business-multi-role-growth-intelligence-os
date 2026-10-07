@@ -530,7 +530,7 @@ async function loadPreferredN8nApiConnection({ tenantId, userId }) {
       ORDER BY is_primary DESC, connected_at DESC
       LIMIT 1`,
     [tenantId, userId]
-  ).catch(() => [[]]);
+  );
   return rows[0] || null;
 }
 
@@ -543,8 +543,9 @@ async function resolveN8nApiBridge({ tenantId, userId }) {
     connectionId: conn.connection_id,
     credentialRole: "n8n_api_key",
     includeSecret: true,
+    allowPlatformBinding: false,
     allowPlatformFallback: false,
-  }).catch(() => null);
+  });
   if (resolved?.status !== "resolved" || !resolved.secret) return null;
 
   let credentials = {};

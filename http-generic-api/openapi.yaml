@@ -2534,7 +2534,8 @@ components:
         action_key: { type: string }
         target_key: { type: string }
         credential_role: { type: string }
-        allow_platform_fallback: { type: boolean, default: true }
+        allow_platform_binding: { type: boolean, default: true, description: "Allow explicit platform-owned credential bindings independently of fallback." }
+        allow_platform_fallback: { type: boolean, default: true, description: "Allow implicit platform credential fallback candidates." }
 
     CredentialEffectivePlanResponse:
       type: object
@@ -2549,6 +2550,7 @@ components:
           type: object
           additionalProperties: true
           properties:
+            platform_binding_allowed_by_request: { type: boolean }
             platform_fallback_allowed_by_request: { type: boolean }
             credential_values_returned: { type: boolean, enum: [false] }
             secret_values_returned: { type: boolean, enum: [false] }

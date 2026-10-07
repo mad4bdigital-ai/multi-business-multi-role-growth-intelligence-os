@@ -256,6 +256,14 @@ function New-Secret {
     return ([guid]::NewGuid().ToString("N") + [guid]::NewGuid().ToString("N"))
 }
 
+function New-TokenEncryptionKey {
+    $bytes = New-Object byte[] 32
+    $rng = [Security.Cryptography.RandomNumberGenerator]::Create()
+    try { $rng.GetBytes($bytes) }
+    finally { if ($null -ne $rng) { $rng.Dispose() } }
+    return (($bytes | ForEach-Object { $_.ToString("x2") }) -join "")
+}
+
 function Invoke-BootstrapSync([string]$RepoPath) {
     if ($SkipBootstrap) { return }
     $bootstrap = Join-Path $scriptRoot "Bootstrap-Staging-One-Click.ps1"
@@ -328,7 +336,7 @@ function Initialize-Environment([string]$RepoPath, [string]$ScriptRoot) {
         "JWT_SECRET" = New-Secret
         "LOCAL_MANAGER_DEVICE_JWT_SECRET" = New-Secret
         "TENANT_GPT_SSO_SIGNING_SECRET" = New-Secret
-        "TOKEN_ENCRYPTION_KEY" = New-Secret
+        "TOKEN_ENCRYPTION_KEY" = New-TokenEncryptionKey
         "TENANT_GPT_STAGING_OAUTH_CLIENT_SECRET" = New-Secret
         "TENANT_GPT_STAGING_ACTIVATION_OAUTH_CLIENT_SECRET" = New-Secret
         "REMOTE_MCP_OAUTH_SIGNING_SECRET" = New-Secret
@@ -337,6 +345,11 @@ function Initialize-Environment([string]$RepoPath, [string]$ScriptRoot) {
     foreach ($key in $generated.Keys) {
         $current = Get-EnvValue $envFile $key
         if ([string]::IsNullOrWhiteSpace($current) -or $current -match "change_me") { Set-EnvValue $envFile $key $generated[$key] }
+    }
+
+    $tokenEncryptionKey = Get-EnvValue $envFile "TOKEN_ENCRYPTION_KEY"
+    if ($tokenEncryptionKey -notmatch '^[0-9a-fA-F]{64}$') {
+        Fail "TOKEN_ENCRYPTION_KEY must be exactly 64 hexadecimal characters (32 bytes); refusing implicit key rotation."
     }
 
     if ($EnableActivationGateway) {

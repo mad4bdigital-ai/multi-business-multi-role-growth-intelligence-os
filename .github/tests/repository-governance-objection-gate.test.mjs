@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const constitution = JSON.parse(fs.readFileSync(path.join(root, "http-generic-api/config/repository-governance-constitution.json"), "utf8"));
+const derivedStateGovernance = JSON.parse(fs.readFileSync(path.join(root, ".github/derived-state-governance.json"), "utf8"));
 const evidence = JSON.parse(fs.readFileSync(path.join(root, ".github/governance/evidence-producers.json"), "utf8"));
 const waivers = JSON.parse(fs.readFileSync(path.join(root, ".github/governance/waiver-ledger.json"), "utf8"));
 assert.equal(constitution.authority.objection_execution_mode, "typed_policy_objections");
@@ -60,6 +61,9 @@ assert.ok(constitution.control_plane_paths.includes(criticalPath));
 assert.ok(constitution.control_plane_paths.includes(".changes/e2e/staging-production-access-repair-execution-20260909.json"));
 assert.ok(constitution.control_plane_paths.includes(".changes/e2e/critical-declaration-registration-closure-20260910.json"));
 assert.ok(constitution.control_plane_paths.includes(".changes/e2e/production-promotion-staging-resume-20260930.json"));
+const pr8440Declaration = ".changes/e2e/pr8440-managed-credential-authority-closure.json";
+assert.ok(constitution.control_plane_paths.includes(pr8440Declaration));
+assert.ok(derivedStateGovernance.convergence.automation_control_paths.includes(pr8440Declaration));
 canonicalGovernance.change_inventory.changes = [{
   raw_status: "M",
   status: "M",

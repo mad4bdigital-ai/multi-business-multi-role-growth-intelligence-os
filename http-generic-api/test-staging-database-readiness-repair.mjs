@@ -67,6 +67,28 @@ assert.deepEqual(
   STAGING_ROLE_GRANT_POLICIES.runtime.required_operations_by_table.local_manager_desktop_commands,
   ["SELECT", "INSERT", "UPDATE"],
 );
+assert.equal(STAGING_ROLE_GRANT_POLICIES.runtime.required_tables.includes("credential_bindings"), true);
+assert.equal(STAGING_ROLE_GRANT_POLICIES.runtime.required_tables.includes("secret_references"), true);
+assert.deepEqual(
+  STAGING_ROLE_GRANT_POLICIES.runtime.required_operations_by_table.credential_bindings,
+  ["SELECT"],
+);
+assert.deepEqual(
+  STAGING_ROLE_GRANT_POLICIES.runtime.required_operations_by_table.secret_references,
+  ["SELECT", "INSERT", "UPDATE"],
+);
+assert.deepEqual(
+  STAGING_ROLE_GRANT_POLICIES.runtime.required_operations_by_table.platform_secrets,
+  ["SELECT", "INSERT", "UPDATE"],
+);
+assert.deepEqual(
+  STAGING_ROLE_GRANT_POLICIES.runtime.required_operations_by_table.tenant_secrets,
+  ["SELECT"],
+);
+assert.deepEqual(
+  STAGING_ROLE_GRANT_POLICIES.runtime.required_operations_by_table.user_app_connections,
+  ["SELECT"],
+);
 assert.deepEqual(
   STAGING_ROLE_GRANT_POLICIES.runtime.required_operations_by_table.local_manager_device_link_sessions,
   ["SELECT", "INSERT", "UPDATE"],
@@ -203,6 +225,7 @@ assert.deepEqual(roleManifest.canonical_seed_lifecycle.seed_files, [
   "20260920_platform_admin_workspace_canonical_seed.sql",
   "20260920_wordpress_staging_plugin_deploy_v2_canonical_seed.sql",
   "20260922_local_manager_control_templates_registry.sql",
+  "20261007_credential_platform_binding_policy.sql",
 ]);
 assert.match(platformAdminWorkspaceSeed, /WHERE NOT EXISTS[\s\S]*workspace_id[\s\S]*workspace_key/i);
 assert.doesNotMatch(platformAdminWorkspaceSeed, /ON DUPLICATE KEY UPDATE/i);
