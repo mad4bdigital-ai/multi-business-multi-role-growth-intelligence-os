@@ -318,7 +318,7 @@
     },
     {
       "path": "autopilot-portable-staging/Clone-StagingDatabases.Legacy.ps1",
-      "sha256": "3644f994e18eb0676502bad6cabfe8a26d36b276fd864d10ba8f85d751dc38c8"
+      "sha256": "10737e3e76c8a870c6ea796bacfd1b7221f1c9577526fe62e23d29ffeb9f2b75"
     },
     {
       "path": "http-generic-api/scripts/prepare-staging-role-schema-replay.mjs",
@@ -330,7 +330,7 @@
     },
     {
       "path": "http-generic-api/config/staging-database-role-migration-manifest.json",
-      "sha256": "dabddcba982e1bb196b80b1e2e40c25a7746f41278699c5f1b1c01d051b160b3"
+      "sha256": "0f9a1ec1523f53987d796fccdae2c75173f929a1db3caedefde19798a1ef4a31"
     },
     {
       "path": "autopilot-portable-staging/Invoke-Staging-One-Click.ps1",
