@@ -40,6 +40,10 @@
         "autopilot-portable-staging/One-Click-Staging.ps1",
         "http-generic-api/stagingActivationGatewayApplyAdapter.js",
         "http-generic-api/routes/connectorProxyRoutes.js"
+      ],
+      "content_patterns": [
+        "\\b(?:credential_bindings|secret_references|tenant_secrets|platform_secrets|user_app_connections)\\b",
+        "\\b(?:resolveEffectiveCredential|resolveCredentialReference|encryptToken|decryptToken|decryptCredentials)\\s*\\("
       ]
     },
     {
@@ -109,7 +113,8 @@
       ".yaml",
       ".yml",
       ".sql",
-      ".md"
+      ".md",
+      ".ps1"
     ],
     "max_file_bytes": 2097152
   },
