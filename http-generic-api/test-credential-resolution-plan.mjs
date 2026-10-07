@@ -5,6 +5,7 @@ import YAML from 'yaml';
 const routeFile = readFileSync('routes/credentialRoutes.js', 'utf8');
 const migration = readFileSync('migrations/160_sprint65_credential_resolution_plan_tool.sql', 'utf8');
 const bindingPolicyMigration = readFileSync('migrations/20261007_credential_platform_binding_policy.sql', 'utf8');
+const stagingRoleManifest = JSON.parse(readFileSync('config/staging-database-role-migration-manifest.json', 'utf8'));
 const openapi = YAML.parse(readFileSync('openapi.yaml', 'utf8'));
 
 assert(routeFile.includes('/credentials/effective/plan'), 'credential resolution plan route must exist');
@@ -38,6 +39,10 @@ assert(migration.includes('read_only'), 'credential plan tool must be read_only'
 assert(migration.includes('no_secrets'), 'credential plan tool must be tagged no_secrets');
 assert(migration.includes('no_token_returned'), 'credential plan tool must be tagged no_token_returned');
 assert(bindingPolicyMigration.includes('allow_platform_binding'), 'forward migration must expose allow_platform_binding');
+assert(
+  stagingRoleManifest.canonical_seed_lifecycle?.seed_files?.includes('20261007_credential_platform_binding_policy.sql'),
+  'credential platform-binding policy migration must remain registered as a canonical Staging replay seed',
+);
 assert(bindingPolicyMigration.includes("tool_key\` = 'credential_effective_plan'") || bindingPolicyMigration.includes("tool_key = 'credential_effective_plan'"), 'forward migration must remain scoped to credential_effective_plan');
 
 const operation = openapi?.paths?.['/credentials/effective/plan']?.post;
