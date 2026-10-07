@@ -70,6 +70,12 @@
       ]
     },
     {
+      "id": "credential_resolution_secret_store_fail_closed",
+      "test_paths": [
+        "http-generic-api/test-credential-resolver.mjs"
+      ]
+    },
+    {
       "id": "custom_gpt_live_registration_readback",
       "test_paths": [
         "canonicals/openapi/custom-gpt-surfaces.yaml",
