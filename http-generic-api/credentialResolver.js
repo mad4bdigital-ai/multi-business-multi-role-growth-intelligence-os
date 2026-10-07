@@ -170,7 +170,21 @@ function validateCandidateReferenceScope(candidate = {}, context = {}) {
   if (ref.startsWith("ref:secret:") && ownerType === "connection") {
     return blockedScopeResult(ref, context, "credential_bindings", {
       binding_owner_type: ownerType,
-      expected_owner_type: "tenant_or_platform",
+      expected_owner_type: "tenant_user_or_platform",
+    });
+  }
+  if (ownerType === "user" && (!str(context.userId) || str(candidate.owner_id) !== str(context.userId))) {
+    return blockedScopeResult(ref, context, "credential_bindings", {
+      binding_owner_type: ownerType,
+      binding_owner_id: str(candidate.owner_id),
+      requested_user_id: str(context.userId),
+    });
+  }
+  if (ownerType === "tenant" && str(candidate.owner_id) && str(candidate.owner_id) !== str(context.tenantId)) {
+    return blockedScopeResult(ref, context, "credential_bindings", {
+      binding_owner_type: ownerType,
+      binding_owner_id: str(candidate.owner_id),
+      requested_tenant_id: str(context.tenantId),
     });
   }
   return null;
@@ -605,6 +619,12 @@ function bindingSpecificityScore(binding = {}) {
 }
 
 function bindingMatches(binding = {}, context = {}) {
+  const ownerType = str(binding.owner_type).toLowerCase();
+  const ownerId = str(binding.owner_id);
+  if (ownerType === "user" && (!str(context.userId) || ownerId !== str(context.userId))) return false;
+  if (ownerType === "connection" && (!str(context.connectionId) || ownerId !== str(context.connectionId))) return false;
+  if (ownerType === "tenant" && ownerId && ownerId !== str(context.tenantId)) return false;
+
   const tests = [
     [binding.user_id, context.userId],
     [binding.connection_id, context.connectionId],
