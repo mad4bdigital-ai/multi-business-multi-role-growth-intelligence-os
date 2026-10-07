@@ -23,6 +23,11 @@ assert(routeFile.includes('candidateEligibility'), 'plan must annotate candidate
 assert(routeFile.includes('eligible_for_request'), 'plan candidates must include eligibility flag');
 assert(routeFile.includes('ineligibility_reasons'), 'plan candidates must include ineligibility reasons');
 assert(routeFile.includes('private_connection_user_context_required'), 'plan must explain private connection user-context requirements');
+assert(routeFile.includes('user_owner_context_required'), 'plan must reject user-owned bindings without user context');
+assert(routeFile.includes('user_owner_context_mismatch'), 'plan must reject user-owned bindings for another user');
+assert(routeFile.includes('connection_owner_context_mismatch'), 'plan must reject connection-owned bindings for another connection');
+assert(routeFile.includes('tenant_owner_context_mismatch'), 'plan must reject tenant-owned bindings for another tenant');
+assert(routeFile.includes('credential_connection_user_scope_mismatch'), 'plan must reject a connection owned by another user');
 assert(routeFile.includes('secret_values_returned: false'), 'plan must not return secret values');
 assert(routeFile.includes('secrets_included: false'), 'plan must return secrets_included=false');
 assert(!routeFile.includes('includeSecret: true'), 'plan must not request secret inclusion');
