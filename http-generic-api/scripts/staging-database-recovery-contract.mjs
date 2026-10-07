@@ -204,7 +204,7 @@ assert.match(legacyClone, /if \(\$LASTEXITCODE -ne 0\) \{ Fail "Schema import fa
 
 assert.equal(roleManifest.contract, "mad4b.staging.database-role-migration-manifest.v1");
 assert.equal(roleManifest.validation.required_runtime_table_census.length, 18);
-assert.equal(roleManifest.validation.required_runtime_support_tables.length, 29);
+assert.equal(roleManifest.validation.required_runtime_support_tables.length, 30);
 for (const table of [
   "local_manager_desktop_commands",
   "local_connector_device_aliases",
