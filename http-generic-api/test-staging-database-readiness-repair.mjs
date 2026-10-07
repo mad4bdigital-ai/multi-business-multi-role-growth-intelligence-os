@@ -225,6 +225,7 @@ assert.deepEqual(roleManifest.canonical_seed_lifecycle.seed_files, [
   "20260920_platform_admin_workspace_canonical_seed.sql",
   "20260920_wordpress_staging_plugin_deploy_v2_canonical_seed.sql",
   "20260922_local_manager_control_templates_registry.sql",
+  "20261007_credential_platform_binding_policy.sql",
 ]);
 assert.match(platformAdminWorkspaceSeed, /WHERE NOT EXISTS[\s\S]*workspace_id[\s\S]*workspace_key/i);
 assert.doesNotMatch(platformAdminWorkspaceSeed, /ON DUPLICATE KEY UPDATE/i);
