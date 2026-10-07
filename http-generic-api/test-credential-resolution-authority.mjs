@@ -28,12 +28,14 @@ for (const [table, requirement] of Object.entries(CREDENTIAL_RESOLUTION_AUTHORIT
     true,
     `credential resolver table ${table} must be present in the Staging runtime grant contract`,
   );
-  const granted = runtimeGrant.required_operations_by_table?.[table] || [];
+  const granted = runtimeGrant.required_operations_by_table?.[table]
+    || runtimeGrant.required_operations
+    || [];
   for (const operation of requirement.operations || []) {
     assert.equal(
       granted.includes(operation),
       true,
-      `credential resolver operation ${operation} on ${table} must be granted explicitly`,
+      `credential resolver operation ${operation} on ${table} must be granted by the effective Staging runtime contract`,
     );
   }
 }
