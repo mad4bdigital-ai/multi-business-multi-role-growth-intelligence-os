@@ -9,7 +9,9 @@
     "include": [
       ".changes/e2e/pr8438-staging-runtime-attestation-trusted-ingress-digest.json",
       ".github/scripts/staging-runtime-artifact-attest.mjs",
-      "http-generic-api/test-staging-recovery-certification-script-surface.mjs"
+      "http-generic-api/test-staging-recovery-certification-script-surface.mjs",
+      "http-generic-api/config/repository-governance-constitution.json",
+      ".github/derived-state-governance.json"
     ]
   },
   "environment_impact": {
@@ -50,7 +52,8 @@
             "The legacy direct gatewayTrust.public_key_sha256 read is absent.",
             "The existing distinct runtime-signing-key versus Gateway-ingress-key invariant remains unchanged.",
             "Live Staging certification is required after merge.",
-            "No Production, provider, Cloudflare, database, schema, DNS, or credential mutation is introduced by this PR."
+            "No Production, provider, Cloudflare, database, schema, DNS, or credential mutation is introduced by this PR.",
+            "The PR declaration is registered in Constitution.control_plane_paths and the convergence automation control surface."
           ],
           "tests": [
             {
@@ -63,7 +66,9 @@
           ],
           "evidence_paths": [
             ".github/scripts/staging-runtime-artifact-attest.mjs",
-            "http-generic-api/test-staging-recovery-certification-script-surface.mjs"
+            "http-generic-api/test-staging-recovery-certification-script-surface.mjs",
+            "http-generic-api/config/repository-governance-constitution.json",
+            ".github/derived-state-governance.json"
           ]
         }
       ]
