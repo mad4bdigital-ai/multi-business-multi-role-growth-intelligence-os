@@ -43,7 +43,7 @@
       ],
       "content_patterns": [
         "\\b(?:credential_bindings|secret_references|tenant_secrets|platform_secrets|user_app_connections)\\b",
-        "\\b(?:resolveEffectiveCredential|resolveCredentialReference|encryptToken|decryptToken|decryptCredentials)\\s*\\("
+        "\\b(?:resolveEffectiveCredential|resolveCredentialReference|promoteCredentialIntakePlatformSecrets|encryptToken|decryptToken|decryptCredentials)\\s*\\("
       ]
     },
     {
