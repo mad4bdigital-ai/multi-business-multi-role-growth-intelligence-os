@@ -34,6 +34,7 @@ const STAGING_CAPABILITY_KEY = "admin_cloudflare_v1";
 const STAGING_OPERATION_INTENT = "activation_gateway.staging_apply";
 const STAGING_RUNTIME_SURFACE = "activation_gateway_dark_deploy";
 const STAGING_CLOUDFLARE_TARGET_KEY = "staging_activation_gateway_cloudflare";
+const STAGING_CLOUDFLARE_SYSTEM_ID = "84310000-0000-4000-8000-000000000001";
 const STAGING_CLOUDFLARE_CREDENTIAL_ROLE = "cloudflare_api_token";
 const STAGING_APPLY_CONFIG_KEY = "staging_activation_gateway_apply";
 
@@ -104,6 +105,7 @@ async function resolveManagedCloudflareCredential(runtimePool, deps = {}) {
   }
   const result = await resolveEffectiveCredential({
     tenantId: PLATFORM_TENANT_ID,
+    systemId: STAGING_CLOUDFLARE_SYSTEM_ID,
     actionKey: STAGING_RUNTIME_SURFACE,
     targetKey: STAGING_CLOUDFLARE_TARGET_KEY,
     credentialRole: STAGING_CLOUDFLARE_CREDENTIAL_ROLE,
