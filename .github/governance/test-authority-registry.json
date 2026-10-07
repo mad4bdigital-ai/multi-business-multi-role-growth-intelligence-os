@@ -72,7 +72,8 @@
     {
       "id": "credential_resolution_secret_store_fail_closed",
       "test_paths": [
-        "http-generic-api/test-credential-resolver.mjs"
+        "http-generic-api/test-credential-resolver.mjs",
+        "http-generic-api/test-credential-resolution-authority.mjs"
       ]
     },
     {
