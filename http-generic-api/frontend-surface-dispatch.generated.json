@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "7a34ae5e924a660080a9ff400ff101d50bfaefc35e810e790f3b138b2c144095",
+    "source_digest": "cd6eb557b7d1606d2f7b82f3228ed67b03306bad54750c03722734848437eb35",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -26,7 +26,7 @@
       },
       {
         "file": "openapi.yaml",
-        "sha256": "61a013b32cfbb53d1572171f2041f7c4052dc9ae061c431e393ed69192d3fa09",
+        "sha256": "e2d6546ce541455437efb02e8c9e6facec279069cc5bb7adb023cea033631d18",
         "present": true
       },
       {
@@ -131,7 +131,7 @@
       },
       {
         "file": "openapi/openapi.custom-gpt.staging-admin.yaml",
-        "sha256": "f78a9ec8926af841dc6edc439fd6f763f33a4aaba5236dc381a3238f035893ec",
+        "sha256": "153ecae1489de73ac44d170b6d4ce4be2d26ff9857dfcb21c7f5b4b81d491473",
         "present": true
       },
       {
@@ -516,7 +516,7 @@
       },
       {
         "file": "routes/connectorProxyRoutes.js",
-        "sha256": "33de5817c68a97f1ac02099b954a6b35180a6e43f4e2ec01976cd6bff3d53a74",
+        "sha256": "03146900404da29fb17e54e91f1060f7182fe0cc5cfc1ceb7e42a19ed902ff0e",
         "present": true
       },
       {
@@ -531,12 +531,12 @@
       },
       {
         "file": "routes/credentialIntakeRoutes.js",
-        "sha256": "0c32f0a633095279883871072d5a8fd4b30d8c4052c6a463a3e2e9e064c4c583",
+        "sha256": "7e8452286998811dd1dcf8a194f88feb739330d5dbeda4541d8c37a2bbc2c09a",
         "present": true
       },
       {
         "file": "routes/credentialRoutes.js",
-        "sha256": "afdf0ca17f851790e0bfcfe731baa125d52f7e1f884b07acf746098c712a4367",
+        "sha256": "93508a39e1a763caeb1b28c3112b5664cb16b399e8299ac3f11066d111168f2c",
         "present": true
       },
       {
@@ -9354,7 +9354,7 @@
       "family_key": "credential-intake.developer",
       "label": "credential intake (developer)",
       "source_file": "routes/credentialIntakeRoutes.js",
-      "source_digest": "0c32f0a633095279883871072d5a8fd4b30d8c4052c6a463a3e2e9e064c4c583",
+      "source_digest": "7e8452286998811dd1dcf8a194f88feb739330d5dbeda4541d8c37a2bbc2c09a",
       "mount_prefix": "/",
       "mount_order": 14789,
       "split_from_mixed_scope_file": true,
@@ -9501,7 +9501,7 @@
       "family_key": "credential-intake.public",
       "label": "credential intake (public)",
       "source_file": "routes/credentialIntakeRoutes.js",
-      "source_digest": "0c32f0a633095279883871072d5a8fd4b30d8c4052c6a463a3e2e9e064c4c583",
+      "source_digest": "7e8452286998811dd1dcf8a194f88feb739330d5dbeda4541d8c37a2bbc2c09a",
       "mount_prefix": "/",
       "mount_order": 14789,
       "split_from_mixed_scope_file": true,
@@ -76264,7 +76264,7 @@
       "family_key": "credential",
       "label": "credential",
       "source_file": "routes/credentialRoutes.js",
-      "source_digest": "afdf0ca17f851790e0bfcfe731baa125d52f7e1f884b07acf746098c712a4367",
+      "source_digest": "93508a39e1a763caeb1b28c3112b5664cb16b399e8299ac3f11066d111168f2c",
       "mount_prefix": "/",
       "mount_order": 22810,
       "split_from_mixed_scope_file": false,
@@ -90642,7 +90642,7 @@
       "family_key": "connector-proxy.developer",
       "label": "connector proxy (developer)",
       "source_file": "routes/connectorProxyRoutes.js",
-      "source_digest": "33de5817c68a97f1ac02099b954a6b35180a6e43f4e2ec01976cd6bff3d53a74",
+      "source_digest": "03146900404da29fb17e54e91f1060f7182fe0cc5cfc1ceb7e42a19ed902ff0e",
       "mount_prefix": "/",
       "mount_order": 23645,
       "split_from_mixed_scope_file": true,
@@ -92171,7 +92171,7 @@
       "family_key": "connector-proxy.local_device",
       "label": "connector proxy (local_device)",
       "source_file": "routes/connectorProxyRoutes.js",
-      "source_digest": "33de5817c68a97f1ac02099b954a6b35180a6e43f4e2ec01976cd6bff3d53a74",
+      "source_digest": "03146900404da29fb17e54e91f1060f7182fe0cc5cfc1ceb7e42a19ed902ff0e",
       "mount_prefix": "/",
       "mount_order": 23645,
       "split_from_mixed_scope_file": true,
