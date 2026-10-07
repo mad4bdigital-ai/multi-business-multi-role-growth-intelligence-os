@@ -138,6 +138,30 @@
         {
           "type": "node",
           "cwd": "http-generic-api",
+          "path": "test-credential-resolution-plan.mjs",
+          "args": []
+        },
+        {
+          "type": "node",
+          "cwd": "http-generic-api",
+          "path": "test-credential-tenant-promotion.mjs",
+          "args": []
+        },
+        {
+          "type": "node",
+          "cwd": "http-generic-api",
+          "path": "test-credential-intake-platform-secret-promotion.mjs",
+          "args": []
+        },
+        {
+          "type": "node",
+          "cwd": "http-generic-api",
+          "path": "test-tenant-gpt-oauth-secret-ref.mjs",
+          "args": []
+        },
+        {
+          "type": "node",
+          "cwd": "http-generic-api",
           "path": "test-staging-environment-secret-governance.mjs",
           "args": []
         }
