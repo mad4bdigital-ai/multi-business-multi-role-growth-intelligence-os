@@ -1125,7 +1125,7 @@ async function promoteStagingDispatchCertification(governancePool, {
         503,
       );
     }
-    const row = rows[0];
+    const [row] = rows;
     const ready = row.certification_status === "certified"
       && row.smoke_strategy === "independent_same_cycle_staging_gateway_transaction_certification"
       && Number(row.dispatch_allowed || 0) === 1
