@@ -8,6 +8,9 @@ import { STAGING_ROLE_GRANT_POLICIES } from "./databasePrivilegeContracts.js";
 const here = dirname(fileURLToPath(import.meta.url));
 const manifest = JSON.parse(readFileSync(resolve(here, "config/staging-database-role-migration-manifest.json"), "utf8"));
 const resolverSource = readFileSync(resolve(here, "credentialResolver.js"), "utf8");
+const credentialPlanSource = readFileSync(resolve(here, "routes/credentialRoutes.js"), "utf8");
+const credentialIntakeSource = readFileSync(resolve(here, "credentialIntakeEnforcement.js"), "utf8");
+const connectorProxySource = readFileSync(resolve(here, "routes/connectorProxyRoutes.js"), "utf8");
 const runtimeGrant = STAGING_ROLE_GRANT_POLICIES.runtime;
 const manifestRuntimeTables = new Set([
   ...(manifest.roles?.runtime?.required_tables || []),
@@ -40,6 +43,23 @@ assert.equal(
   false,
   "credential resolver DB reads must not collapse authority failures into empty results",
 );
+for (const [name, source] of [
+  ["credential plan", credentialPlanSource],
+  ["credential intake", credentialIntakeSource],
+  ["connector credential bridge", connectorProxySource],
+]) {
+  assert.equal(
+    source.includes(".catch(() => [[]])"),
+    false,
+    `${name} DB authority reads must not collapse failures into empty rowsets`,
+  );
+}
+assert.equal(
+  /resolveEffectiveCredential\([\s\S]{0,700}?\)\.catch\(\(\) => null\)/u.test(connectorProxySource),
+  false,
+  "connector credential resolution must not collapse resolver failures into null",
+);
+
 assert.match(
   resolverSource,
   /secret_references\` WHERE tenant_id = \? AND secret_key = \?/,
