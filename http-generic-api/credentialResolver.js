@@ -254,6 +254,19 @@ async function resolveUserAppConnectionRef(ref, context, deps) {
   }
 
   const [, connectionId, requestedField] = match;
+  const expectedOwnerType = str(context.expectedOwnerType).toLowerCase();
+  if (expectedOwnerType === "connection" && !str(context.userId)) {
+    return blockedScopeResult(ref, context, "user_app_connections", {
+      error_code: "credential_user_context_required",
+      connection_id: connectionId,
+    });
+  }
+  if (expectedOwnerType === "connection" && str(context.expectedOwnerId) && str(context.expectedOwnerId) !== connectionId) {
+    return blockedScopeResult(ref, context, "user_app_connections", {
+      expected_owner_id: str(context.expectedOwnerId),
+      referenced_connection_id: connectionId,
+    });
+  }
   const conn = await loadConnection(deps.pool, connectionId, context);
   if (!conn) {
     return safeResult({
@@ -386,20 +399,37 @@ async function resolveSecretReferenceRef(ref, context, deps) {
   }
   const row = rows[0];
 
-  if (!row) return context.allowLegacyEnvFallback === false
-    ? safeResult({
-        status: "blocked_missing_secret",
-        credential_ref: ref,
-        missing_secret_key: secretKey,
-        source: "secret_references",
-      }, Boolean(context.includeSecret))
-    : resolveLegacyEnvRef(ref, context, deps);
+  if (!row) {
+    const legacyAllowed = expectedOwnerType === "platform"
+      ? context.allowLegacyEnvFallback !== false
+      : context.allowTenantLegacyEnvFallback === true;
+    return legacyAllowed
+      ? resolveLegacyEnvRef(ref, context, deps)
+      : safeResult({
+          status: "blocked_missing_secret",
+          credential_ref: ref,
+          missing_secret_key: secretKey,
+          source: "secret_references",
+        }, Boolean(context.includeSecret));
+  }
 
   if (expectedOwnerType && str(row.owner_type).toLowerCase() !== expectedOwnerType) {
     return blockedScopeResult(ref, context, "secret_references", {
       expected_owner_type: expectedOwnerType,
       observed_owner_type: str(row.owner_type).toLowerCase(),
       tenant_id: expectedOwnerType === "platform" ? null : scopeTenantId,
+    });
+  }
+  if (
+    expectedOwnerType !== "platform"
+    && str(context.expectedOwnerId)
+    && str(row.owner_id)
+    && str(row.owner_id) !== str(context.expectedOwnerId)
+  ) {
+    return blockedScopeResult(ref, context, "secret_references", {
+      expected_owner_id: str(context.expectedOwnerId),
+      observed_owner_id: str(row.owner_id),
+      tenant_id: scopeTenantId,
     });
   }
 
@@ -446,7 +476,7 @@ async function resolveTenantSecretRef(ref, context, deps) {
 
   const rows = await query(
     deps.pool,
-    "SELECT * FROM `tenant_secrets` WHERE tenant_id = ? AND secret_key = ? LIMIT 1",
+    "SELECT * FROM `tenant_secrets` WHERE tenant_id = ? AND secret_key = ? AND status = 'active' LIMIT 1",
     [tenantId, secretKey]
   );
   const row = rows[0];
@@ -498,7 +528,7 @@ async function resolvePlatformSecretRef(ref, context, deps) {
 
   const rows = await query(
     deps.pool,
-    "SELECT * FROM `platform_secrets` WHERE secret_key = ? LIMIT 1",
+    "SELECT * FROM `platform_secrets` WHERE secret_key = ? AND status = 'active' LIMIT 1",
     [secretKey]
   );
   const row = rows[0];
@@ -566,6 +596,7 @@ export async function resolveCredentialReference(reference, options = {}, deps =
     expectedOwnerId: str(options.expectedOwnerId || options.expected_owner_id),
     environmentKey: str(options.environmentKey || options.environment_key),
     allowLegacyEnvFallback: options.allowLegacyEnvFallback !== false && options.allow_legacy_env_fallback !== false,
+    allowTenantLegacyEnvFallback: options.allowTenantLegacyEnvFallback === true || options.allow_tenant_legacy_env_fallback === true,
   }, runtimeDeps);
 }
 
@@ -665,7 +696,8 @@ export async function resolveEffectiveCredential(input = {}, deps = {}) {
     environmentKey: str(input.environmentKey || input.environment_key),
     allowPlatformBinding: input.allowPlatformBinding !== false && input.allow_platform_binding !== false,
     allowPlatformFallback: input.allowPlatformFallback !== false && input.allow_platform_fallback !== false,
-    allowLegacyEnvFallback: input.allowLegacyEnvFallback !== false && input.allow_legacy_env_fallback !== false
+    allowLegacyEnvFallback: input.allowLegacyEnvFallback !== false && input.allow_legacy_env_fallback !== false,
+    allowTenantLegacyEnvFallback: input.allowTenantLegacyEnvFallback === true || input.allow_tenant_legacy_env_fallback === true
   };
 
   if (!context.tenantId) return safeResult({ status: "missing_tenant_id", source: "credential_resolver" }, context.includeSecret);
