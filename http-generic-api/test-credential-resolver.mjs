@@ -482,6 +482,130 @@ const decryptCredentials = (stored) => JSON.parse(stored);
 }
 
 {
+  const pool = makePool({
+    bindings: [{
+      binding_id: "user-owned-binding",
+      tenant_id: "tenant-1",
+      owner_type: "user",
+      owner_id: "user-2",
+      credential_role: "api_key",
+      credential_ref: "ref:secret:USER_KEY",
+      resolution_priority: 1,
+      status: "active"
+    }],
+    secretReferences: [{
+      tenant_id: "tenant-1",
+      owner_type: "user",
+      owner_id: "user-2",
+      secret_key: "USER_KEY",
+      store_type: "db_encrypted",
+      status: "active"
+    }],
+    tenantSecrets: [{
+      tenant_id: "tenant-1",
+      secret_key: "USER_KEY",
+      storage_backend: "db_encrypted",
+      value_ciphertext: "cipher-user-2",
+      status: "active"
+    }]
+  });
+
+  const mismatched = await resolveEffectiveCredential(
+    { tenantId: "tenant-1", userId: "user-1", credentialRole: "api_key", includeSecret: true },
+    { pool, decryptToken: () => "wrong-user-secret", env: {} }
+  );
+  assert.equal(mismatched.status, "blocked_missing_secret");
+  assert.equal(Object.prototype.hasOwnProperty.call(mismatched, "secret"), false);
+}
+
+{
+  const pool = makePool({
+    secretReferences: [{
+      tenant_id: "tenant-1",
+      owner_type: "user",
+      owner_id: "user-2",
+      secret_key: "USER_SCOPED_KEY",
+      store_type: "db_encrypted",
+      status: "active"
+    }],
+    tenantSecrets: [{
+      tenant_id: "tenant-1",
+      secret_key: "USER_SCOPED_KEY",
+      storage_backend: "db_encrypted",
+      value_ciphertext: "cipher-user-2",
+      status: "active"
+    }]
+  });
+
+  const blocked = await resolveCredentialReference(
+    "ref:secret:USER_SCOPED_KEY",
+    { tenantId: "tenant-1", userId: "user-1", expectedOwnerType: "user", expectedOwnerId: "user-1", includeSecret: true },
+    { pool, decryptToken: () => "wrong-user-secret", env: {} }
+  );
+  assert.equal(blocked.status, "blocked_scope_mismatch");
+  assert.equal(blocked.error_code, "credential_reference_scope_mismatch");
+
+  const allowed = await resolveCredentialReference(
+    "ref:secret:USER_SCOPED_KEY",
+    { tenantId: "tenant-1", userId: "user-2", expectedOwnerType: "user", expectedOwnerId: "user-2", includeSecret: true },
+    { pool, decryptToken: () => "user-2-secret", env: {} }
+  );
+  assert.equal(allowed.status, "resolved");
+  assert.equal(allowed.secret, "user-2-secret");
+}
+
+{
+  const pool = makePool({
+    connections: [{
+      connection_id: "conn-private",
+      tenant_id: "tenant-1",
+      user_id: "user-2",
+      auth_type: "api_key",
+      encrypted_credentials: JSON.stringify({ api_key: "private-secret" }),
+      status: "active"
+    }]
+  });
+  const blocked = await resolveCredentialReference(
+    "user_app_connection:conn-private:encrypted_credentials.api_key",
+    { tenantId: "tenant-1", expectedOwnerType: "connection", expectedOwnerId: "conn-private", includeSecret: true },
+    { pool, decryptCredentials, env: {} }
+  );
+  assert.equal(blocked.status, "blocked_scope_mismatch");
+  assert.equal(blocked.error_code, "credential_user_context_required");
+}
+
+{
+  const pool = makePool({
+    tenantSecrets: [{
+      tenant_id: "tenant-1",
+      secret_key: "DISABLED_TENANT_KEY",
+      storage_backend: "db_encrypted",
+      value_ciphertext: "cipher-disabled",
+      status: "disabled"
+    }],
+    platformSecrets: [{
+      secret_key: "DISABLED_PLATFORM_KEY",
+      storage_backend: "db_encrypted",
+      value_ciphertext: "cipher-disabled",
+      status: "disabled"
+    }]
+  });
+  const tenantResult = await resolveCredentialReference(
+    "tenant_secret:tenant-1:DISABLED_TENANT_KEY",
+    { tenantId: "tenant-1", expectedOwnerType: "tenant", includeSecret: true },
+    { pool, decryptToken: () => "must-not-resolve", env: {} }
+  );
+  assert.equal(tenantResult.status, "blocked_missing_secret");
+
+  const platformResult = await resolveCredentialReference(
+    "platform_secret:DISABLED_PLATFORM_KEY",
+    { expectedOwnerType: "platform", includeSecret: true },
+    { pool, decryptToken: () => "must-not-resolve", env: {} }
+  );
+  assert.equal(platformResult.status, "blocked_missing_secret");
+}
+
+{
   assert.equal(__test__.upperEnvKey("allroyalegypt_wp"), "ALLROYALEGYPT_WP");
   assert.deepEqual(__test__.roleCandidateFields("mcp_bearer_token", "mcp").slice(0, 2), ["mcp_token", "mcp_bearer"]);
 }
