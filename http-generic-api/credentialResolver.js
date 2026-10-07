@@ -4,7 +4,6 @@ import {
   decryptToken as defaultDecryptToken
 } from "./tokenEncryption.js";
 
-const PLATFORM_TENANT_ID = "00000000-0000-0000-0000-000000000000";
 
 export const CREDENTIAL_RESOLUTION_AUTHORITY = Object.freeze({
   credential_bindings: Object.freeze({ operations: Object.freeze(["SELECT"]), scope: "exact_tenant_role" }),
