@@ -108,6 +108,8 @@ async function resolveManagedCloudflareCredential(runtimePool, deps = {}) {
     targetKey: STAGING_CLOUDFLARE_TARGET_KEY,
     credentialRole: STAGING_CLOUDFLARE_CREDENTIAL_ROLE,
     includeSecret: true,
+    environmentKey: "staging",
+    allowPlatformBinding: true,
     allowPlatformFallback: true,
   }, {
     pool: runtimePool,
