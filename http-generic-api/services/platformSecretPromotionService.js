@@ -27,6 +27,7 @@ export async function promoteCredentialIntakePlatformSecrets({ session, credenti
     providerFamily = null,
     connectorFamily = null,
     targetKey = null,
+    environmentKey = null,
     promotionReason = "",
     createMissingReference = false,
     referenceTenantId = null,
@@ -95,6 +96,7 @@ export async function promoteCredentialIntakePlatformSecrets({ session, credenti
         source: metadataSource,
         connection_id: connectionId,
         target_key: targetKey,
+        environment: String(environmentKey || "").trim().toLowerCase(),
         promotion_reason: promotionReason,
       });
 
