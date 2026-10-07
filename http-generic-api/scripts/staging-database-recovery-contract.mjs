@@ -232,7 +232,7 @@ for (const table of [
 }
 assert.match(
   legacyClone,
-  /\$requiredRuntimeSupportTables\.Count -eq 29/,
+  /\$requiredRuntimeSupportTables\.Count -eq 30/,
 );
 assert.doesNotMatch(
   legacyClone,
