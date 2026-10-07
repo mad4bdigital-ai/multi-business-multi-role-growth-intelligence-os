@@ -2335,8 +2335,8 @@
     },
     {
       "route_id": "http-generic-api/routes/credentialRoutes.js#POST:/credentials/effective/status:0",
-      "source_line": 328,
-      "source_offset": 13154,
+      "source_line": 354,
+      "source_offset": 14501,
       "method": "POST",
       "path": "/credentials/effective/status",
       "file": "http-generic-api/routes/credentialRoutes.js",
@@ -2344,8 +2344,8 @@
     },
     {
       "route_id": "http-generic-api/routes/credentialRoutes.js#POST:/credentials/effective/plan:1",
-      "source_line": 342,
-      "source_offset": 13850,
+      "source_line": 368,
+      "source_offset": 15197,
       "method": "POST",
       "path": "/credentials/effective/plan",
       "file": "http-generic-api/routes/credentialRoutes.js",
@@ -2353,8 +2353,8 @@
     },
     {
       "route_id": "http-generic-api/routes/credentialRoutes.js#POST:/credentials/secrets/upsert:2",
-      "source_line": 356,
-      "source_offset": 14590,
+      "source_line": 382,
+      "source_offset": 15937,
       "method": "POST",
       "path": "/credentials/secrets/upsert",
       "file": "http-generic-api/routes/credentialRoutes.js",
@@ -2362,8 +2362,8 @@
     },
     {
       "route_id": "http-generic-api/routes/credentialRoutes.js#POST:/credentials/intake/promote-platform-secrets:3",
-      "source_line": 471,
-      "source_offset": 20312,
+      "source_line": 497,
+      "source_offset": 21659,
       "method": "POST",
       "path": "/credentials/intake/promote-platform-secrets",
       "file": "http-generic-api/routes/credentialRoutes.js",
@@ -2371,8 +2371,8 @@
     },
     {
       "route_id": "http-generic-api/routes/credentialRoutes.js#POST:/credentials/intake/promote-local-connector-key:4",
-      "source_line": 598,
-      "source_offset": 27031,
+      "source_line": 624,
+      "source_offset": 28378,
       "method": "POST",
       "path": "/credentials/intake/promote-local-connector-key",
       "file": "http-generic-api/routes/credentialRoutes.js",
@@ -2380,8 +2380,8 @@
     },
     {
       "route_id": "http-generic-api/routes/credentialRoutes.js#POST:/credentials/bindings/promote:5",
-      "source_line": 679,
-      "source_offset": 31417,
+      "source_line": 705,
+      "source_offset": 32764,
       "method": "POST",
       "path": "/credentials/bindings/promote",
       "file": "http-generic-api/routes/credentialRoutes.js",
@@ -2389,8 +2389,8 @@
     },
     {
       "route_id": "http-generic-api/routes/credentialRoutes.js#GET:/credentials/bindings:6",
-      "source_line": 836,
-      "source_offset": 39129,
+      "source_line": 862,
+      "source_offset": 40476,
       "method": "GET",
       "path": "/credentials/bindings",
       "file": "http-generic-api/routes/credentialRoutes.js",
@@ -19989,10 +19989,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/credentialRoutes.js",
-        "source_line": 328,
+        "source_line": 354,
         "handler_window_lines": [
-          328,
-          341
+          354,
+          367
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -20051,10 +20051,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/credentialRoutes.js",
-        "source_line": 342,
+        "source_line": 368,
         "handler_window_lines": [
-          342,
-          355
+          368,
+          381
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -20116,10 +20116,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/credentialRoutes.js",
-        "source_line": 356,
+        "source_line": 382,
         "handler_window_lines": [
-          356,
-          470
+          382,
+          496
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -20186,10 +20186,10 @@
       "operation_class": "deploy",
       "evidence": {
         "file": "http-generic-api/routes/credentialRoutes.js",
-        "source_line": 471,
+        "source_line": 497,
         "handler_window_lines": [
-          471,
-          597
+          497,
+          623
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -20254,10 +20254,10 @@
       "operation_class": "deploy",
       "evidence": {
         "file": "http-generic-api/routes/credentialRoutes.js",
-        "source_line": 598,
+        "source_line": 624,
         "handler_window_lines": [
-          598,
-          678
+          624,
+          704
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -20323,10 +20323,10 @@
       "operation_class": "deploy",
       "evidence": {
         "file": "http-generic-api/routes/credentialRoutes.js",
-        "source_line": 679,
+        "source_line": 705,
         "handler_window_lines": [
-          679,
-          835
+          705,
+          861
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -58148,7 +58148,8 @@
       "path": "http-generic-api/migrations/20261007_credential_platform_binding_policy.sql",
       "tables": [
         "implicit",
-        "admin_platform_endpoint_tools"
+        "admin_platform_endpoint_tools",
+        "display_name"
       ],
       "write_scopes": [],
       "catalog_fingerprints": []
