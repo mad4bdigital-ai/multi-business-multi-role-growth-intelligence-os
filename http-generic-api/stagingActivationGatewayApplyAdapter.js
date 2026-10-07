@@ -37,6 +37,9 @@ const STAGING_CLOUDFLARE_TARGET_KEY = "staging_activation_gateway_cloudflare";
 const STAGING_CLOUDFLARE_SYSTEM_ID = "84310000-0000-4000-8000-000000000001";
 const STAGING_CLOUDFLARE_CREDENTIAL_ROLE = "cloudflare_api_token";
 const STAGING_APPLY_CONFIG_KEY = "staging_activation_gateway_apply";
+const STAGING_PLAN_PURPOSE_APPLY = "apply";
+const STAGING_PLAN_PURPOSE_CERTIFICATION = "transaction_certification";
+const STAGING_CERTIFICATION_TTL_SECONDS = 24 * 60 * 60;
 
 function compact(value, max = 1024) {
   return String(value ?? "").trim().slice(0, max);
@@ -624,6 +627,10 @@ async function rollback({ client, accountId, scriptName, previousDeployment, scr
 }
 
 export async function buildStagingActivationGatewayApplyPlan(input = {}, deps = {}) {
+  const planPurpose = deps.planPurpose === STAGING_PLAN_PURPOSE_CERTIFICATION
+    ? STAGING_PLAN_PURPOSE_CERTIFICATION
+    : STAGING_PLAN_PURPOSE_APPLY;
+  const certificationPurpose = planPurpose === STAGING_PLAN_PURPOSE_CERTIFICATION;
   const registry = deps.registry || readEnvironmentConvergenceRegistry();
   const { gateway, target, binding_id: bindingId } = requiredProfile(registry);
   const { runtimePool, governancePool } = resolveStagingGatewayDataPools(deps);
@@ -647,6 +654,7 @@ export async function buildStagingActivationGatewayApplyPlan(input = {}, deps = 
   const secretSetSha = sha256(stableJson(bundle.worker_secrets));
   const planId = crypto.randomUUID();
   const planBody = { contract: "mad4b.staging.activation-gateway-execution-plan.v1", plan_id: planId,
+    purpose: planPurpose,
     environment_convergence_plan_sha256: convergencePlanSha, expected_source_commit: expectedSourceCommit,
     expected_policy_hash: expectedPolicyHash, resource_binding_id: binding.binding_id,
     workspace_id: workspace?.workspace_id || null, account_id: binding.account_id, script_name: binding.script_name,
@@ -676,20 +684,30 @@ export async function buildStagingActivationGatewayApplyPlan(input = {}, deps = 
     { key: "staging_apply_feature_gate_enabled", ok: featureGate.enabled === true },
     { key: "staging_apply_feature_gate_managed", ok: featureGate.managed === true, detail: { source: featureGate.source, config_key: featureGate.config_key } },
     { key: "elevated_platform_resource_authority", ok: elevatedAuthorityReady, detail: { permission_level: binding.permission_level } },
-    { key: "dispatch_certification_ready", ok: dispatchCertification.ready === true, detail: { status: dispatchCertification.status } },
+    ...(certificationPurpose
+      ? [
+        { key: "dispatch_certification_registry_present", ok: dispatchCertification.status !== "missing", detail: { status: dispatchCertification.status } },
+        { key: "dispatch_certification_requires_certification", ok: dispatchCertification.ready !== true, detail: { status: dispatchCertification.status } },
+      ]
+      : [{ key: "dispatch_certification_ready", ok: dispatchCertification.ready === true, detail: { status: dispatchCertification.status } }]),
     { key: "exact_policy_hash", ok: bundle.policy_hash === expectedPolicyHash },
     { key: "exact_source_commit", ok: bundle.source_sha === expectedSourceCommit },
   ].map((item) => ({ ...item, secrets_included: false }));
+  const planReady = checks.every((check) => check.ok);
   return {
     ok: true,
-    tool: "activation_gateway_dark_deploy",
-    adapter: "staging_activation_gateway_profile_apply",
+    tool: certificationPurpose ? "activation_gateway_transaction_certification" : "activation_gateway_dark_deploy",
+    adapter: certificationPurpose ? "staging_activation_gateway_transaction_certification" : "staging_activation_gateway_profile_apply",
     mode: "dry_run",
     environment: "staging",
+    plan_purpose: planPurpose,
     classification: semanticReadiness.ready !== true
       ? `staging_activation_gateway_${semanticReadiness.status}`
-      : (checks.every((check) => check.ok) ? "staging_activation_gateway_apply_ready" : "staging_activation_gateway_apply_blocked"),
-    apply_ready: checks.every((check) => check.ok),
+      : (planReady
+        ? (certificationPurpose ? "staging_activation_gateway_certification_ready" : "staging_activation_gateway_apply_ready")
+        : (certificationPurpose ? "staging_activation_gateway_certification_blocked" : "staging_activation_gateway_apply_blocked")),
+    apply_ready: certificationPurpose ? false : planReady,
+    certification_ready: certificationPurpose ? planReady : dispatchCertification.ready === true,
     ...planBody,
     plan_sha256: planSha,
     envelope_binding: { binding_sha256: planSha, capability_sha256: convergencePlanSha },
@@ -705,7 +723,9 @@ export async function buildStagingActivationGatewayApplyPlan(input = {}, deps = 
     resource_binding: binding,
     workspace: workspace ? { workspace_id: workspace.workspace_id, workspace_key: workspace.workspace_key, workspace_type: workspace.workspace_type } : null,
     workspace_readiness: semanticReadiness,
-    required_confirmation: `DEPLOY_STAGING_GATEWAY_${expectedSourceCommit.slice(0, 12).toUpperCase()}_${planSha.slice(0, 12).toUpperCase()}`,
+    required_confirmation: certificationPurpose
+      ? `CERTIFY_STAGING_GATEWAY_TRANSACTION_${expectedSourceCommit.slice(0, 12).toUpperCase()}_${planSha.slice(0, 12).toUpperCase()}`
+      : `DEPLOY_STAGING_GATEWAY_${expectedSourceCommit.slice(0, 12).toUpperCase()}_${planSha.slice(0, 12).toUpperCase()}`,
     required_capability: {
       app_key: "cloudflare",
       capability_key: STAGING_CAPABILITY_KEY,
@@ -718,7 +738,8 @@ export async function buildStagingActivationGatewayApplyPlan(input = {}, deps = 
       approval_required_for_apply: false,
       managed_credential_required_for_apply: true,
       managed_feature_gate_required_for_apply: true,
-      dispatch_certification_required_for_apply: true,
+      dispatch_certification_required_for_apply: !certificationPurpose,
+      independent_transaction_certification: certificationPurpose,
     },
     managed_provider_authority: {
       credential_source: providerCredential.source,
@@ -738,6 +759,7 @@ export async function buildStagingActivationGatewayApplyPlan(input = {}, deps = 
     provider_credentials_returned: false,
     workflow_dispatch: false,
     staging_certification_ready: dispatchCertification.ready,
+    certification_transaction_required: dispatchCertification.ready !== true,
     production_mutation: false,
     business_database_mutation: false,
     schema_mutation: false,
@@ -748,13 +770,20 @@ export async function buildStagingActivationGatewayApplyPlan(input = {}, deps = 
   };
 }
 
+export async function buildStagingActivationGatewayCertificationPlan(input = {}, deps = {}) {
+  return buildStagingActivationGatewayApplyPlan(input, {
+    ...deps,
+    planPurpose: STAGING_PLAN_PURPOSE_CERTIFICATION,
+  });
+}
+
 export async function runStagingActivationGatewayApply(input = {}, deps = {}) {
   const mode = compact(input.mode || "dry_run", 16).toLowerCase();
   if (!["dry_run", "apply"].includes(mode)) throw adapterError("staging_activation_gateway_mode_invalid", "mode must be dry_run or apply.");
   const { runtimePool, governancePool } = resolveStagingGatewayDataPools(deps);
   const env = deps.env || process.env;
   if (mode === "dry_run") {
-    const plan = await buildStagingActivationGatewayApplyPlan(input, { ...deps, includeInternal: true });
+    const plan = await buildStagingActivationGatewayApplyPlan(input, { ...deps, includeInternal: true, planPurpose: STAGING_PLAN_PURPOSE_APPLY });
     const { _internal, _planBody, ...publicPlan } = plan;
     if (plan.apply_ready) await saveStagingGatewayExecutionPlan(governancePool, plan, _internal.bundle, { env });
     return { ...publicPlan, mode, execution: { will_execute: false, executed: false }, governance_state_mutation: plan.apply_ready };
@@ -769,6 +798,7 @@ export async function runStagingActivationGatewayApply(input = {}, deps = {}) {
   const planBody = parseJson(row.plan_body_json);
   if (!planBody || sha256(stableJson(planBody)) !== planSha || planBody.plan_id !== planId
     || planBody.contract !== "mad4b.staging.activation-gateway-execution-plan.v1"
+    || planBody.purpose !== STAGING_PLAN_PURPOSE_APPLY
     || row.bundle_ref !== `staging-gateway:${planId}`
     || new Date(planBody.expires_at).getTime() !== new Date(row.expires_at).getTime()
     || planBody.environment_convergence_plan_sha256 !== convergencePlanSha
