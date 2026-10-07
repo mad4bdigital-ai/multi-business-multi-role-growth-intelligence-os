@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
-import { buildReport, classifyChange, classifyPath, parseNameStatusLine } from "./scripts/environment-impact-closure.mjs";
+import { buildReport, classifyChange, classifyPath, declarationCoversPath, parseNameStatusLine } from "./scripts/environment-impact-closure.mjs";
 
 const apiRoot = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(apiRoot, "..");
@@ -47,6 +47,22 @@ assert.equal(policy.fail_closed.unclassified_paths, true);
 assert.equal(policy.fail_closed.rename_previous_path, true);
 assert.equal(policy.fail_closed.copy_previous_path, true);
 assert.ok(policy.impact_declarations.patterns.includes(".changes/e2e/*.json"));
+assert.equal(
+  declarationCoversPath({ scope_include: ["http-generic-api/credentialResolver.js"] }, "http-generic-api/credentialResolver.js"),
+  true,
+);
+assert.equal(
+  declarationCoversPath({ scope_include: ["http-generic-api/**"] }, "http-generic-api/credentialResolver.js"),
+  true,
+);
+assert.equal(
+  declarationCoversPath({ scope_include: ["http-generic-api/routes/**"] }, "http-generic-api/credentialResolver.js"),
+  false,
+);
+const environmentImpactSource = fs.readFileSync(path.join(apiRoot, "scripts/environment-impact-closure.mjs"), "utf8");
+assert.match(environmentImpactSource, /environment_impact_production_mutation_must_be_false/);
+assert.match(environmentImpactSource, /environment_impact_source_path_uncovered/);
+
 assert.equal(policy.derived_outputs.registry, ".github/derived-state-governance.json");
 assert.equal(policy.derived_outputs.contract, "mad4b.repository-derived-state-governance.v1");
 assert.equal(policy.derived_outputs.mode, "registered_outputs_are_not_independent_environment_sources");
