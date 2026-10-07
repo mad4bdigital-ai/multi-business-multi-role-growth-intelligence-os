@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "cd6eb557b7d1606d2f7b82f3228ed67b03306bad54750c03722734848437eb35",
+    "source_digest": "b3d0798ea26f26b3a502aa927c7e64c1d80ba735c2560c1370c03d35811cf61a",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -536,7 +536,7 @@
       },
       {
         "file": "routes/credentialRoutes.js",
-        "sha256": "93508a39e1a763caeb1b28c3112b5664cb16b399e8299ac3f11066d111168f2c",
+        "sha256": "9e40eb462d1d1723f623cdc5d82909161d1b102e2955ced465a62800ca26e5e0",
         "present": true
       },
       {
@@ -76264,7 +76264,7 @@
       "family_key": "credential",
       "label": "credential",
       "source_file": "routes/credentialRoutes.js",
-      "source_digest": "93508a39e1a763caeb1b28c3112b5664cb16b399e8299ac3f11066d111168f2c",
+      "source_digest": "9e40eb462d1d1723f623cdc5d82909161d1b102e2955ced465a62800ca26e5e0",
       "mount_prefix": "/",
       "mount_order": 22810,
       "split_from_mixed_scope_file": false,
