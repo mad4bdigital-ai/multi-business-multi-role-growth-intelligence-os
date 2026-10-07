@@ -12,11 +12,13 @@
     "include": [
       ".changes/e2e/staging-gateway-transaction-certification-20261007.json",
       ".github/derived-state-governance.json",
+      "docs/governance/configuration-drift-baseline-extensions.json",
+      "docs/governance/platform-configuration-entry-registry.json",
       "http-generic-api/config/repository-governance-constitution.json",
+      "http-generic-api/migrations/20260912_staging_activation_gateway_transaction_hardening.sql",
+      "http-generic-api/scripts/staging-gateway-transaction-certification.mjs",
       "http-generic-api/stagingActivationGatewayApplyAdapter.js",
       "http-generic-api/stagingGatewayExecutionPlanStore.js",
-      "http-generic-api/scripts/staging-gateway-transaction-certification.mjs",
-      "http-generic-api/migrations/20260912_staging_activation_gateway_transaction_hardening.sql",
       "http-generic-api/test-staging-smart-gateway-convergence-contract.mjs"
     ]
   },
@@ -73,11 +75,13 @@
           "evidence_paths": [
             ".changes/e2e/staging-gateway-transaction-certification-20261007.json",
             ".github/derived-state-governance.json",
+            "docs/governance/configuration-drift-baseline-extensions.json",
+            "docs/governance/platform-configuration-entry-registry.json",
             "http-generic-api/config/repository-governance-constitution.json",
+            "http-generic-api/migrations/20260912_staging_activation_gateway_transaction_hardening.sql",
+            "http-generic-api/scripts/staging-gateway-transaction-certification.mjs",
             "http-generic-api/stagingActivationGatewayApplyAdapter.js",
             "http-generic-api/stagingGatewayExecutionPlanStore.js",
-            "http-generic-api/scripts/staging-gateway-transaction-certification.mjs",
-            "http-generic-api/migrations/20260912_staging_activation_gateway_transaction_hardening.sql",
             "http-generic-api/test-staging-smart-gateway-convergence-contract.mjs"
           ]
         }
