@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { resolveCredentialReference, resolveEffectiveCredential, getEffectiveCredentialStatus, __test__ } from "./credentialResolver.js";
 
-function makePool({ bindings = [], connections = [], actions = [], tenantSecrets = [], platformSecrets = [] } = {}) {
+function makePool({ bindings = [], connections = [], actions = [], secretReferences = [], tenantSecrets = [], platformSecrets = [] } = {}) {
   return {
     async query(sql, params = []) {
       const compact = String(sql).replace(/\s+/g, " ");
@@ -12,13 +12,26 @@ function makePool({ bindings = [], connections = [], actions = [], tenantSecrets
       }
 
       if (compact.includes("FROM `user_app_connections`")) {
-        const [connectionId] = params;
-        return [connections.filter(row => row.connection_id === connectionId).slice(0, 1)];
+        const [connectionId, tenantId, userId] = params;
+        return [connections.filter(row =>
+          row.connection_id === connectionId
+          && (!compact.includes("tenant_id = ?") || row.tenant_id === tenantId)
+          && (!compact.includes("user_id = ?") || row.user_id === userId)
+        ).slice(0, 2)];
       }
 
       if (compact.includes("FROM `actions`")) {
         const [actionKey] = params;
         return [actions.filter(row => row.action_key === actionKey).slice(0, 1)];
+      }
+
+      if (compact.includes("FROM `secret_references`")) {
+        const [tenantId, secretKey] = params;
+        return [secretReferences.filter(row =>
+          row.tenant_id === tenantId
+          && row.secret_key === secretKey
+          && row.status === "active"
+        ).slice(0, 2)];
       }
 
       if (compact.includes("FROM `tenant_secrets`")) {
@@ -265,6 +278,108 @@ const decryptCredentials = (stored) => JSON.parse(stored);
 }
 
 {
+  const pool = makePool({
+    bindings: [{
+      binding_id: "tenant-2-shared-ref",
+      tenant_id: "tenant-2",
+      owner_type: "tenant",
+      owner_id: "tenant-2",
+      action_key: "shared_ref_action",
+      credential_role: "api_key",
+      credential_ref: "ref:secret:SHARED_KEY",
+      resolution_priority: 10,
+      status: "active"
+    }],
+    secretReferences: [
+      { tenant_id: "tenant-1", owner_type: "tenant", owner_id: "tenant-1", secret_key: "SHARED_KEY", store_type: "db_encrypted", status: "active" },
+      { tenant_id: "tenant-2", owner_type: "tenant", owner_id: "tenant-2", secret_key: "SHARED_KEY", store_type: "db_encrypted", status: "active" }
+    ],
+    tenantSecrets: [
+      { tenant_id: "tenant-1", secret_key: "SHARED_KEY", storage_backend: "db_encrypted", value_ciphertext: "cipher-1", status: "active" },
+      { tenant_id: "tenant-2", secret_key: "SHARED_KEY", storage_backend: "db_encrypted", value_ciphertext: "cipher-2", status: "active" }
+    ]
+  });
+  const resolved = await resolveEffectiveCredential(
+    { tenantId: "tenant-2", actionKey: "shared_ref_action", credentialRole: "api_key", includeSecret: true },
+    { pool, decryptToken: (ciphertext) => ciphertext === "cipher-2" ? "tenant-2-secret" : "wrong-tenant-secret", env: {} }
+  );
+  assert.equal(resolved.status, "resolved");
+  assert.equal(resolved.secret, "tenant-2-secret");
+  assert.equal(resolved.resolved_source, "tenant_secrets");
+}
+
+{
+  const pool = makePool({
+    bindings: [{
+      binding_id: "foreign-tenant-secret",
+      tenant_id: "tenant-1",
+      owner_type: "tenant",
+      owner_id: "tenant-1",
+      credential_role: "api_key",
+      credential_ref: "tenant_secret:tenant-2:FOREIGN_KEY",
+      resolution_priority: 1,
+      status: "active"
+    }]
+  });
+  const result = await resolveEffectiveCredential(
+    { tenantId: "tenant-1", credentialRole: "api_key", includeSecret: true },
+    { pool, env: {} }
+  );
+  assert.equal(result.status, "blocked_scope_mismatch");
+  assert.equal(result.error_code, "credential_reference_scope_mismatch");
+}
+
+{
+  const pool = makePool({
+    bindings: [{
+      binding_id: "foreign-connection",
+      tenant_id: "tenant-1",
+      owner_type: "tenant",
+      owner_id: "tenant-1",
+      connection_id: "conn-foreign",
+      credential_role: "api_key",
+      credential_ref: "user_app_connection:conn-foreign:encrypted_credentials.api_key",
+      resolution_priority: 1,
+      status: "active"
+    }],
+    connections: [{
+      connection_id: "conn-foreign",
+      tenant_id: "tenant-2",
+      user_id: "user-2",
+      auth_type: "api_key",
+      encrypted_credentials: JSON.stringify({ api_key: "foreign-secret" }),
+      status: "active"
+    }]
+  });
+  const result = await resolveEffectiveCredential(
+    { tenantId: "tenant-1", connectionId: "conn-foreign", credentialRole: "api_key", includeSecret: true },
+    { pool, decryptCredentials, env: {} }
+  );
+  assert.equal(result.status, "blocked_missing_connection");
+  assert.equal(Object.prototype.hasOwnProperty.call(result, "secret"), false);
+}
+
+{
+  const pool = makePool({
+    bindings: [{
+      binding_id: "tenant-to-platform-mismatch",
+      tenant_id: "tenant-1",
+      owner_type: "tenant",
+      owner_id: "tenant-1",
+      credential_role: "api_key",
+      credential_ref: "platform_secret:PLATFORM_ONLY_KEY",
+      resolution_priority: 1,
+      status: "active"
+    }]
+  });
+  const result = await resolveEffectiveCredential(
+    { tenantId: "tenant-1", credentialRole: "api_key" },
+    { pool, env: {} }
+  );
+  assert.equal(result.status, "blocked_scope_mismatch");
+}
+
+{
   assert.equal(__test__.upperEnvKey("allroyalegypt_wp"), "ALLROYALEGYPT_WP");
   assert.deepEqual(__test__.roleCandidateFields("mcp_bearer_token", "mcp").slice(0, 2), ["mcp_token", "mcp_bearer"]);
 }
@@ -272,7 +387,7 @@ const decryptCredentials = (stored) => JSON.parse(stored);
 {
   const deniedPool = {
     async query(sql) {
-      const error = new Error(`SELECT command denied for ${String(sql).includes("credential_bindings") ? "credential_bindings" : "credential_store"}`);
+      const error = new Error(`SELECT command denied for ${String(sql).match(/FROM \`([^\`]+)\`/)?.[1] || "credential_store"}`);
       error.code = "ER_TABLEACCESS_DENIED_ERROR";
       throw error;
     }
@@ -292,11 +407,34 @@ const decryptCredentials = (stored) => JSON.parse(stored);
     (error) => error?.code === "ER_TABLEACCESS_DENIED_ERROR",
   );
 
+  const directCases = [
+    ["platform_secret:staging_cloudflare_activation_gateway_api_token", { includeSecret: true, expectedOwnerType: "platform" }],
+    ["tenant_secret:tenant-1:TENANT_KEY", { includeSecret: true, tenantId: "tenant-1", expectedOwnerType: "tenant" }],
+    ["user_app_connection:conn-1:encrypted_credentials.api_key", { includeSecret: true, tenantId: "tenant-1", userId: "user-1", expectedOwnerType: "connection" }],
+    ["ref:secret:TENANT_KEY", { includeSecret: true, tenantId: "tenant-1", expectedOwnerType: "tenant" }],
+  ];
+  for (const [reference, options] of directCases) {
+    await assert.rejects(
+      () => resolveCredentialReference(reference, options, { pool: deniedPool, env: {} }),
+      (error) => error?.code === "ER_TABLEACCESS_DENIED_ERROR",
+    );
+  }
+
+  const actionDeniedPool = {
+    async query(sql) {
+      if (String(sql).includes("credential_bindings")) return [[]];
+      if (String(sql).includes("actions")) {
+        const error = new Error("SELECT command denied for actions");
+        error.code = "ER_TABLEACCESS_DENIED_ERROR";
+        throw error;
+      }
+      return [[]];
+    }
+  };
   await assert.rejects(
-    () => resolveCredentialReference(
-      "platform_secret:staging_cloudflare_activation_gateway_api_token",
-      { includeSecret: true },
-      { pool: deniedPool, env: {} }
+    () => resolveEffectiveCredential(
+      { tenantId: "tenant-1", actionKey: "action-with-secret", credentialRole: "api_key", includeSecret: true },
+      { pool: actionDeniedPool, env: {} }
     ),
     (error) => error?.code === "ER_TABLEACCESS_DENIED_ERROR",
   );
