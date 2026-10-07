@@ -26,6 +26,14 @@ function makePool({ bindings = [], connections = [], actions = [], secretReferen
       }
 
       if (compact.includes("FROM `secret_references`")) {
+        if (compact.includes("owner_type = 'platform'")) {
+          const [secretKey] = params;
+          return [secretReferences.filter(row =>
+            row.owner_type === "platform"
+            && row.secret_key === secretKey
+            && row.status === "active"
+          ).slice(0, 2)];
+        }
         const [tenantId, secretKey] = params;
         return [secretReferences.filter(row =>
           row.tenant_id === tenantId
@@ -377,6 +385,100 @@ const decryptCredentials = (stored) => JSON.parse(stored);
     { pool, env: {} }
   );
   assert.equal(result.status, "blocked_scope_mismatch");
+}
+
+{
+  const pool = makePool({
+    secretReferences: [{
+      tenant_id: "f2795a7f-8d06-4053-8bee-35ca9af8b460",
+      owner_type: "platform",
+      owner_id: "platform",
+      secret_key: "LEGACY_PLATFORM_KEY",
+      store_type: "db_encrypted",
+      status: "active"
+    }],
+    platformSecrets: [{
+      secret_key: "LEGACY_PLATFORM_KEY",
+      storage_backend: "db_encrypted",
+      value_ciphertext: "legacy-platform-cipher",
+      status: "active"
+    }]
+  });
+  const resolved = await resolveCredentialReference(
+    "ref:secret:LEGACY_PLATFORM_KEY",
+    { includeSecret: true, expectedOwnerType: "platform", environmentKey: "staging" },
+    { pool, decryptToken: () => "legacy-platform-secret", env: {} }
+  );
+  assert.equal(resolved.status, "resolved");
+  assert.equal(resolved.secret, "legacy-platform-secret");
+}
+
+{
+  const pool = makePool({
+    secretReferences: [
+      { tenant_id: "00000000-0000-0000-0000-000000000000", owner_type: "platform", secret_key: "AMBIGUOUS_PLATFORM_KEY", store_type: "db_encrypted", status: "active" },
+      { tenant_id: "f2795a7f-8d06-4053-8bee-35ca9af8b460", owner_type: "platform", secret_key: "AMBIGUOUS_PLATFORM_KEY", store_type: "db_encrypted", status: "active" }
+    ]
+  });
+  const result = await resolveCredentialReference(
+    "ref:secret:AMBIGUOUS_PLATFORM_KEY",
+    { expectedOwnerType: "platform" },
+    { pool, env: {} }
+  );
+  assert.equal(result.status, "blocked_ambiguous_reference");
+  assert.equal(result.error_code, "credential_reference_ambiguous");
+}
+
+{
+  const pool = makePool({
+    platformSecrets: [{
+      secret_key: "STAGING_ONLY_KEY",
+      storage_backend: "db_encrypted",
+      value_ciphertext: "cipher",
+      metadata_json: JSON.stringify({ environment: "staging" }),
+      status: "active"
+    }]
+  });
+  const result = await resolveCredentialReference(
+    "platform_secret:STAGING_ONLY_KEY",
+    { expectedOwnerType: "platform", environmentKey: "production" },
+    { pool, decryptToken: () => "secret", env: {} }
+  );
+  assert.equal(result.status, "blocked_environment_mismatch");
+  assert.equal(result.error_code, "credential_environment_mismatch");
+}
+
+{
+  const pool = makePool({
+    bindings: [{
+      binding_id: "explicit-platform-binding",
+      tenant_id: "tenant-1",
+      owner_type: "platform",
+      owner_id: "platform",
+      credential_role: "api_key",
+      credential_ref: "platform_secret:PLATFORM_KEY",
+      resolution_priority: 1,
+      status: "active"
+    }],
+    platformSecrets: [{
+      secret_key: "PLATFORM_KEY",
+      storage_backend: "db_encrypted",
+      value_ciphertext: "cipher",
+      status: "active"
+    }]
+  });
+  const blocked = await resolveEffectiveCredential(
+    { tenantId: "tenant-1", credentialRole: "api_key", allowPlatformBinding: false, includeSecret: true },
+    { pool, decryptToken: () => "platform-secret", env: {} }
+  );
+  assert.equal(blocked.status, "blocked_missing_secret");
+
+  const allowed = await resolveEffectiveCredential(
+    { tenantId: "tenant-1", credentialRole: "api_key", allowPlatformBinding: true, allowPlatformFallback: false, includeSecret: true },
+    { pool, decryptToken: () => "platform-secret", env: {} }
+  );
+  assert.equal(allowed.status, "resolved");
+  assert.equal(allowed.secret, "platform-secret");
 }
 
 {
