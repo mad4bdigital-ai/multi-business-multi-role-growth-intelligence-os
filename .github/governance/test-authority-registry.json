@@ -77,6 +77,13 @@
       ]
     },
     {
+      "id": "staging_environment_secret_generation",
+      "test_paths": [
+        "http-generic-api/test-staging-environment-secret-governance.mjs",
+        "http-generic-api/scripts/staging-dual-mode-one-click-contract.mjs"
+      ]
+    },
+    {
       "id": "custom_gpt_live_registration_readback",
       "test_paths": [
         "canonicals/openapi/custom-gpt-surfaces.yaml",
