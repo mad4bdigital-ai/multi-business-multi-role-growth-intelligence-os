@@ -91,6 +91,33 @@ async function loadConnection(pool, connectionId, context = {}) {
   return rows[0] || null;
 }
 
+function parseMetadata(value) {
+  if (!value) return {};
+  if (typeof value === "object") return value;
+  try {
+    const parsed = JSON.parse(String(value));
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function validateCredentialEnvironment(row, context, ref, source) {
+  const requested = str(context.environmentKey).toLowerCase();
+  const observed = str(parseMetadata(row?.metadata_json).environment).toLowerCase();
+  if (requested && observed && requested !== observed) {
+    return safeResult({
+      status: "blocked_environment_mismatch",
+      credential_ref: ref,
+      source,
+      error_code: "credential_environment_mismatch",
+      requested_environment: requested,
+      credential_environment: observed,
+    }, Boolean(context.includeSecret));
+  }
+  return null;
+}
+
 function blockedScopeResult(ref, context, source, detail = {}) {
   return safeResult({
     status: "blocked_scope_mismatch",
@@ -330,25 +357,31 @@ async function resolveSecretReferenceRef(ref, context, deps) {
   }
 
   const expectedOwnerType = str(context.expectedOwnerType).toLowerCase();
-  const scopeTenantId = expectedOwnerType === "platform" ? PLATFORM_TENANT_ID : str(context.tenantId);
-  if (!scopeTenantId) {
+  const scopeTenantId = str(context.tenantId);
+  if (expectedOwnerType !== "platform" && !scopeTenantId) {
     return blockedScopeResult(ref, context, "secret_references", {
       error_code: "credential_reference_scope_required",
     });
   }
 
-  const rows = await query(
-    deps.pool,
-    "SELECT * FROM `secret_references` WHERE tenant_id = ? AND secret_key = ? AND status = 'active' LIMIT 2",
-    [scopeTenantId, secretKey]
-  );
+  const rows = expectedOwnerType === "platform"
+    ? await query(
+        deps.pool,
+        "SELECT * FROM `secret_references` WHERE owner_type = 'platform' AND secret_key = ? AND status = 'active' LIMIT 2",
+        [secretKey]
+      )
+    : await query(
+        deps.pool,
+        "SELECT * FROM `secret_references` WHERE tenant_id = ? AND secret_key = ? AND status = 'active' LIMIT 2",
+        [scopeTenantId, secretKey]
+      );
   if (rows.length > 1) {
     return safeResult({
       status: "blocked_ambiguous_reference",
       credential_ref: ref,
       source: "secret_references",
       error_code: "credential_reference_ambiguous",
-      tenant_id: scopeTenantId,
+      tenant_id: expectedOwnerType === "platform" ? null : scopeTenantId,
       secret_key: secretKey,
     }, Boolean(context.includeSecret));
   }
@@ -367,7 +400,7 @@ async function resolveSecretReferenceRef(ref, context, deps) {
     return blockedScopeResult(ref, context, "secret_references", {
       expected_owner_type: expectedOwnerType,
       observed_owner_type: str(row.owner_type).toLowerCase(),
-      tenant_id: scopeTenantId,
+      tenant_id: expectedOwnerType === "platform" ? null : scopeTenantId,
     });
   }
 
@@ -427,6 +460,8 @@ async function resolveTenantSecretRef(ref, context, deps) {
       source: "tenant_secrets"
     }, includeSecret);
   }
+  const environmentFailure = validateCredentialEnvironment(row, context, ref, "tenant_secrets");
+  if (environmentFailure) return environmentFailure;
 
   const storage = str(row.storage_backend);
   if (storage === "db_encrypted" || (storage === "manual" && str(row.value_ciphertext))) {
@@ -477,6 +512,8 @@ async function resolvePlatformSecretRef(ref, context, deps) {
       source: "platform_secrets"
     }, includeSecret);
   }
+  const environmentFailure = validateCredentialEnvironment(row, context, ref, "platform_secrets");
+  if (environmentFailure) return environmentFailure;
 
   const storage = str(row.storage_backend);
   if (storage === "db_encrypted" || (storage === "manual" && str(row.value_ciphertext))) {
@@ -528,6 +565,7 @@ export async function resolveCredentialReference(reference, options = {}, deps =
     userId: str(options.userId || options.user_id),
     expectedOwnerType: str(options.expectedOwnerType || options.expected_owner_type),
     expectedOwnerId: str(options.expectedOwnerId || options.expected_owner_id),
+    environmentKey: str(options.environmentKey || options.environment_key),
     allowLegacyEnvFallback: options.allowLegacyEnvFallback !== false && options.allow_legacy_env_fallback !== false,
   }, runtimeDeps);
 }
@@ -625,6 +663,8 @@ export async function resolveEffectiveCredential(input = {}, deps = {}) {
     targetKey: str(input.targetKey || input.target_key),
     credentialRole: str(input.credentialRole || input.credential_role || input.role),
     includeSecret: Boolean(input.includeSecret || input.include_secret),
+    environmentKey: str(input.environmentKey || input.environment_key),
+    allowPlatformBinding: input.allowPlatformBinding !== false && input.allow_platform_binding !== false,
     allowPlatformFallback: input.allowPlatformFallback !== false && input.allow_platform_fallback !== false,
     allowLegacyEnvFallback: input.allowLegacyEnvFallback !== false && input.allow_legacy_env_fallback !== false
   };
@@ -647,9 +687,14 @@ export async function resolveEffectiveCredential(input = {}, deps = {}) {
     fallbackTargetSecret(context)
   ].filter(Boolean);
 
-  if (!context.allowPlatformFallback) {
-    for (let i = candidates.length - 1; i >= 0; i -= 1) {
-      if (candidates[i]?.owner_type === "platform" && candidates[i]?.source !== "credential_bindings") candidates.splice(i, 1);
+  for (let i = candidates.length - 1; i >= 0; i -= 1) {
+    const platformCandidate = candidates[i]?.owner_type === "platform";
+    if (platformCandidate && !context.allowPlatformBinding) {
+      candidates.splice(i, 1);
+      continue;
+    }
+    if (platformCandidate && !context.allowPlatformFallback && candidates[i]?.source !== "credential_bindings") {
+      candidates.splice(i, 1);
     }
   }
 
@@ -663,7 +708,7 @@ export async function resolveEffectiveCredential(input = {}, deps = {}) {
       expectedOwnerType: candidate.owner_type || "",
       expectedOwnerId: candidate.owner_id || "",
     }, runtimeDeps);
-    if (resolved.status === "blocked_scope_mismatch" || resolved.status === "blocked_ambiguous_reference") {
+    if (["blocked_scope_mismatch", "blocked_ambiguous_reference", "blocked_environment_mismatch"].includes(resolved.status)) {
       return resolved;
     }
     if (resolved.status === "resolved" || resolved.status === "resolved_reference_only") {
