@@ -477,6 +477,7 @@ export function buildCredentialRoutes(deps) {
       const requestedProviderFamily = str(body.provider_family || body.providerFamily);
       const requestedConnectorFamily = str(body.connector_family || body.connectorFamily);
       const requestedTargetKey = str(body.target_key || body.targetKey);
+      const requestedEnvironment = str(body.environment || body.environment_key || body.environmentKey).toLowerCase();
       const approved = body.promotion_approved === true || body.promotionApproved === true;
       const promotionReason = str(body.promotion_reason || body.promotionReason);
       const createdBy = str(body.created_by || body.createdBy || "credential_intake_platform_secret_promotion");
@@ -563,6 +564,7 @@ export function buildCredentialRoutes(deps) {
           providerFamily,
           connectorFamily,
           targetKey,
+          environmentKey: requestedEnvironment || null,
           promotionReason,
           createMissingReference: true,
           referenceTenantId: connection.tenant_id || "f2795a7f-8d06-4053-8bee-35ca9af8b460",
