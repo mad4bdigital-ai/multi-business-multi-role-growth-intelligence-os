@@ -34,7 +34,7 @@
     },
     {
       "path": "autopilot-portable-staging/One-Click-Staging.ps1",
-      "sha256": "08268928297148ff39338f6c4843c39c87a0a74831ba5b7055891cea5477130a"
+      "sha256": "b410f40b9b74946bb0118abda2161f41597d5338ba9c6e2ad3465567850c3800"
     },
     {
       "path": "autopilot-portable-staging/README.md",
@@ -74,7 +74,7 @@
     },
     {
       "path": "autopilot-portable-staging/auto-deploy-policy.json",
-      "sha256": "abeffafbd351a62773b4be5e873ab7771e35a44b1c6cb81133e49fc9216825d0"
+      "sha256": "9c3a291ddf895a351990bc9b8710ed0e76f87e066214139fb1d43455f0dcc3fa"
     },
     {
       "path": "autopilot-portable-staging/autopilot-one-click-policy.json",
@@ -294,7 +294,7 @@
     },
     {
       "path": "http-generic-api/test-staging-auto-deploy-contract.mjs",
-      "sha256": "a69da5ac9c1b22ef08db01758e0887c45b71f3b1496a2b623077c1145d25ac99"
+      "sha256": "4c005a50d626659cb8b3766df16deeb0535dbfe3bf684e36159103d973c919fc"
     },
     {
       "path": "http-generic-api/test-staging-environment-certification-contract.mjs",
