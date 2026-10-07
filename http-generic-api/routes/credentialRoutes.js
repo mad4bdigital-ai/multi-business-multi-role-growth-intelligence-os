@@ -107,6 +107,7 @@ async function buildCredentialResolutionPlan(input = {}) {
   const actionKey = str(input.action_key || input.actionKey);
   const targetKey = str(input.target_key || input.targetKey);
   const credentialRole = str(input.credential_role || input.credentialRole || input.role);
+  const allowPlatformBinding = input.allow_platform_binding !== false && input.allowPlatformBinding !== false;
   const allowPlatformFallback = input.allow_platform_fallback !== false && input.allowPlatformFallback !== false;
   const requestContext = { tenantId, userId, connectionId, actionKey, targetKey, credentialRole };
   if (!tenantId) {
@@ -129,7 +130,7 @@ async function buildCredentialResolutionPlan(input = {}) {
       WHERE tenant_id = ? AND status = 'active'
       ORDER BY app_key ASC`,
     [tenantId]
-  ).catch(() => [[]]);
+  );
 
   const [bindings] = await pool.query(
     `SELECT binding_id, tenant_id, owner_type, owner_id, user_id, system_id, installation_id,
@@ -149,7 +150,8 @@ async function buildCredentialResolutionPlan(input = {}) {
     (!row.user_id || !userId || row.user_id === userId) &&
     (!row.connection_id || !connectionId || row.connection_id === connectionId) &&
     (!row.action_key || !actionKey || row.action_key === actionKey) &&
-    (!row.target_key || !targetKey || row.target_key === targetKey)
+    (!row.target_key || !targetKey || row.target_key === targetKey) &&
+    (allowPlatformBinding || row.owner_type !== "platform")
   );
 
   const fallbackCandidates = [];
@@ -160,7 +162,7 @@ async function buildCredentialResolutionPlan(input = {}) {
         WHERE connection_id = ? AND tenant_id = ?
         LIMIT 1`,
       [connectionId, tenantId]
-    ).catch(() => [[]]);
+    );
     const connection = connections[0];
     if (connection?.status === "active") {
       fallbackCandidates.push({
@@ -183,7 +185,7 @@ async function buildCredentialResolutionPlan(input = {}) {
         WHERE action_key = ?
         LIMIT 1`,
       [actionKey]
-    ).catch(() => [[]]);
+    );
     const action = actions[0];
     if (action?.secret_store_ref) {
       fallbackCandidates.push({
@@ -223,6 +225,7 @@ async function buildCredentialResolutionPlan(input = {}) {
     action_key: actionKey,
     target_key: targetKey,
     credential_role: credentialRole,
+    allow_platform_binding: allowPlatformBinding,
     allow_platform_fallback: allowPlatformFallback,
   });
 
@@ -235,10 +238,12 @@ async function buildCredentialResolutionPlan(input = {}) {
       action_key: actionKey || null,
       target_key: targetKey || null,
       credential_role: credentialRole,
+      allow_platform_binding: allowPlatformBinding,
       allow_platform_fallback: allowPlatformFallback,
     },
     policy: {
       tenant_integration_policies: policies,
+      platform_binding_allowed_by_request: allowPlatformBinding,
       platform_fallback_allowed_by_request: allowPlatformFallback,
       credential_values_returned: false,
       secret_values_returned: false,
