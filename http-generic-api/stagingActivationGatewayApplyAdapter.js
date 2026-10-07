@@ -41,6 +41,13 @@ const STAGING_PLAN_PURPOSE_APPLY = "apply";
 const STAGING_PLAN_PURPOSE_CERTIFICATION = "transaction_certification";
 const STAGING_CERTIFICATION_TTL_SECONDS = 24 * 60 * 60;
 
+function stagingCertificationEvidencePrefix(expectedSourceCommit, expectedPolicyHash) {
+  const source = compact(expectedSourceCommit, 64).toLowerCase();
+  const policy = compact(expectedPolicyHash, 64).toLowerCase();
+  if (!SHA_RE.test(source) || !SHA256_RE.test(policy)) return "";
+  return `staging-gateway-certification:${source}:${policy}:`;
+}
+
 function compact(value, max = 1024) {
   return String(value ?? "").trim().slice(0, max);
 }
@@ -193,9 +200,15 @@ async function resolveStagingApplyFeatureGate(runtimePool, env = process.env) {
   };
 }
 
-async function resolveStagingDispatchCertification(governancePool) {
+async function resolveStagingDispatchCertification(governancePool, {
+  expectedSourceCommit = "",
+  expectedPolicyHash = "",
+} = {}) {
   const [rows] = await governancePool.query(
-    `SELECT certification_key, certification_status, dispatch_allowed, apply_allowed, requires_readback, expires_at
+    `SELECT certification_key, certification_status, smoke_strategy,
+            dispatch_allowed, apply_allowed, requires_resource_authority,
+            requires_dry_run, requires_audit_evidence, requires_readback,
+            last_evidence_ref, last_certified_at, expires_at
        FROM runtime_dispatch_certification_registry
       WHERE certification_key=?
       LIMIT 2`,
@@ -206,11 +219,21 @@ async function resolveStagingDispatchCertification(governancePool) {
     "staging_activation_gateway_dispatch_certification_ambiguous",
     "Staging dispatch certification is ambiguous.",
   );
-  const notExpired = !row?.expires_at || new Date(row.expires_at).getTime() > Date.now();
-  const ready = Boolean(row && row.certification_status === "certified"
+  const evidencePrefix = stagingCertificationEvidencePrefix(expectedSourceCommit, expectedPolicyHash);
+  const evidenceBound = Boolean(evidencePrefix && compact(row?.last_evidence_ref, 255).startsWith(evidencePrefix)
+    && /^[0-9a-f]{64}$/u.test(compact(row?.last_evidence_ref, 255).slice(evidencePrefix.length)));
+  const notExpired = Boolean(row?.expires_at && new Date(row.expires_at).getTime() > Date.now());
+  const contractReady = Boolean(row
+    && row.smoke_strategy === "independent_same_cycle_staging_gateway_transaction_certification"
+    && Number(row.requires_resource_authority || 0) === 1
+    && Number(row.requires_dry_run || 0) === 1
+    && Number(row.requires_audit_evidence || 0) === 1
+    && Number(row.requires_readback || 0) === 1);
+  const ready = Boolean(contractReady
+    && row.certification_status === "certified"
     && Number(row.dispatch_allowed || 0) === 1
     && Number(row.apply_allowed || 0) === 1
-    && Number(row.requires_readback || 0) === 1
+    && evidenceBound
     && notExpired);
   return {
     ready,
@@ -218,6 +241,10 @@ async function resolveStagingDispatchCertification(governancePool) {
     dispatch_allowed: Boolean(row?.dispatch_allowed),
     apply_allowed: Boolean(row?.apply_allowed),
     requires_readback: Boolean(row?.requires_readback),
+    smoke_strategy: row?.smoke_strategy || null,
+    evidence_bound: evidenceBound,
+    last_evidence_ref: row?.last_evidence_ref || null,
+    last_certified_at: row?.last_certified_at || null,
     expires_at: row?.expires_at || null,
     secrets_included: false,
   };
@@ -533,19 +560,23 @@ async function assertEnvelopeForApply({ runtimePool, governancePool, auth, input
     || binding.principal_type !== principalType || binding.principal_id !== principalId) {
     throw adapterError("staging_activation_gateway_envelope_plan_binding_mismatch", "Capability envelope is not bound to this exact execution and convergence plan.", 403);
   }
-  const [certRows] = await governancePool.query(
-    `SELECT certification_key, certification_status, dispatch_allowed, apply_allowed, requires_readback, expires_at
-       FROM runtime_dispatch_certification_registry
-      WHERE certification_key=?
-        AND dispatch_allowed=1
-        AND apply_allowed=1
-        AND requires_readback=1
-        AND (expires_at IS NULL OR expires_at>NOW())
-      LIMIT 1`,
-    [STAGING_CERTIFICATION_KEY],
-  );
-  if (!certRows?.[0] || certRows[0].certification_status !== "certified") throw adapterError("staging_activation_gateway_dispatch_certification_missing", "Independent Staging Activation Gateway apply certification is missing or expired.", 403);
-  return { ...envelope, certification: certRows[0] };
+  const certification = await resolveStagingDispatchCertification(governancePool, {
+    expectedSourceCommit: plan.expected_source_commit,
+    expectedPolicyHash: plan.expected_policy_hash,
+  });
+  if (!certification.ready) {
+    throw adapterError(
+      "staging_activation_gateway_dispatch_certification_missing",
+      "Independent exact-build Staging Activation Gateway apply certification is missing, stale, or expired.",
+      403,
+      {
+        certification_status: certification.status,
+        evidence_bound: certification.evidence_bound,
+        expires_at: certification.expires_at,
+      },
+    );
+  }
+  return { ...envelope, certification };
 }
 
 function deploymentList(response) {
@@ -671,7 +702,10 @@ export async function buildStagingActivationGatewayApplyPlan(input = {}, deps = 
     ? (deps.cloudflareClient || createCloudflareApiClient({ fetchImpl: deps.fetchImpl, token: providerCredential.token, timeoutMs: deps.cloudflareTimeoutMs }))
     : null;
   const featureGate = await resolveStagingApplyFeatureGate(runtimePool, env);
-  const dispatchCertification = await resolveStagingDispatchCertification(governancePool);
+  const dispatchCertification = await resolveStagingDispatchCertification(governancePool, {
+    expectedSourceCommit,
+    expectedPolicyHash,
+  });
   const allowedModes = Array.isArray(binding.allowed_modes) ? binding.allowed_modes : parseJson(binding.allowed_modes_json, []);
   const elevatedAuthorityReady = binding.permission_level === "admin" && allowedModes.includes("staging_apply");
   const checks = [
@@ -1015,9 +1049,22 @@ export async function runStagingActivationGatewayApply(input = {}, deps = {}) {
 
 
 async function promoteStagingDispatchCertification(governancePool, {
+  planId,
   evidenceRef,
+  expectedSourceCommit,
+  expectedPolicyHash,
   expiresAt,
 } = {}) {
+  const evidencePrefix = stagingCertificationEvidencePrefix(expectedSourceCommit, expectedPolicyHash);
+  if (!/^[a-f0-9-]{36}$/u.test(compact(planId, 36))
+    || !evidencePrefix
+    || !compact(evidenceRef, 255).startsWith(evidencePrefix)) {
+    throw adapterError(
+      "staging_activation_gateway_certification_evidence_binding_invalid",
+      "Certification promotion requires exact plan, source, policy, and evidence bindings.",
+      400,
+    );
+  }
   if (!governancePool?.getConnection) {
     throw adapterError(
       "staging_activation_gateway_certification_store_unavailable",
@@ -1039,6 +1086,10 @@ async function promoteStagingDispatchCertification(governancePool, {
               expires_at=?,
               notes='Independent same-cycle Staging Gateway provider transaction and verified rollback certification.'
         WHERE certification_key=?
+          AND surface_key='activation_gateway_dark_deploy'
+          AND tool_or_action_key='activation_gateway_dark_deploy'
+          AND risk_class='D'
+          AND smoke_strategy='independent_same_cycle_staging_gateway_transaction_certification'
           AND requires_resource_authority=1
           AND requires_dry_run=1
           AND requires_audit_evidence=1
@@ -1058,9 +1109,10 @@ async function promoteStagingDispatchCertification(governancePool, {
       );
     }
     const [rows] = await connection.query(
-      `SELECT certification_key, certification_status, dispatch_allowed, apply_allowed,
-              requires_resource_authority, requires_dry_run, requires_audit_evidence,
-              requires_readback, last_evidence_ref, last_certified_at, expires_at
+      `SELECT certification_key, certification_status, smoke_strategy,
+              dispatch_allowed, apply_allowed, requires_resource_authority, requires_dry_run,
+              requires_audit_evidence, requires_readback, last_evidence_ref,
+              last_certified_at, expires_at
          FROM runtime_dispatch_certification_registry
         WHERE certification_key=?
         LIMIT 2`,
@@ -1075,6 +1127,7 @@ async function promoteStagingDispatchCertification(governancePool, {
     }
     const row = rows[0];
     const ready = row.certification_status === "certified"
+      && row.smoke_strategy === "independent_same_cycle_staging_gateway_transaction_certification"
       && Number(row.dispatch_allowed || 0) === 1
       && Number(row.apply_allowed || 0) === 1
       && Number(row.requires_resource_authority || 0) === 1
@@ -1087,6 +1140,19 @@ async function promoteStagingDispatchCertification(governancePool, {
       throw adapterError(
         "staging_activation_gateway_certification_readback_failed",
         "Same-cycle Staging Gateway certification readback did not prove exact dispatch and apply authority.",
+        500,
+      );
+    }
+    const [planUpdate] = await connection.query(
+      `UPDATE staging_activation_gateway_execution_plans
+          SET status='succeeded', completed_at=NOW()
+        WHERE plan_id=? AND status='executing'`,
+      [planId],
+    );
+    if (Number(planUpdate?.affectedRows || 0) !== 1) {
+      throw adapterError(
+        "staging_activation_gateway_certification_plan_finalize_failed",
+        "Certification row and execution-plan success could not be finalized atomically.",
         500,
       );
     }
@@ -1255,7 +1321,10 @@ export async function runStagingActivationGatewayTransactionCertification(input 
       { credential_status: providerCredential.status, credential_source: providerCredential.source },
     );
   }
-  const currentCertification = await resolveStagingDispatchCertification(governancePool);
+  const currentCertification = await resolveStagingDispatchCertification(governancePool, {
+    expectedSourceCommit: planBody.expected_source_commit,
+    expectedPolicyHash: planBody.expected_policy_hash,
+  });
   if (currentCertification.ready) {
     throw adapterError(
       "staging_activation_gateway_certification_already_ready",
@@ -1425,7 +1494,11 @@ export async function runStagingActivationGatewayTransactionCertification(input 
       secrets_included: false,
     };
     const evidenceDigest = sha256(stableJson(evidence));
-    const evidenceRef = `staging-gateway-certification:${evidenceDigest}`;
+    const evidencePrefix = stagingCertificationEvidencePrefix(
+      planBody.expected_source_commit,
+      planBody.expected_policy_hash,
+    );
+    const evidenceRef = `${evidencePrefix}${evidenceDigest}`;
     await deps.audit({
       action: "activation_gateway.staging_transaction_certification",
       resource_type: "cloudflare_worker",
@@ -1434,10 +1507,12 @@ export async function runStagingActivationGatewayTransactionCertification(input 
     });
     const expiresAt = new Date(Date.now() + STAGING_CERTIFICATION_TTL_SECONDS * 1000);
     const certification = await promoteStagingDispatchCertification(governancePool, {
+      planId,
       evidenceRef,
+      expectedSourceCommit: planBody.expected_source_commit,
+      expectedPolicyHash: planBody.expected_policy_hash,
       expiresAt,
     });
-    await transitionStagingGatewayExecutionPlan(governancePool, planId, "executing", "succeeded");
 
     return {
       ok: true,
