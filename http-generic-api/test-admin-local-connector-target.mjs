@@ -137,8 +137,8 @@ test("installer requires explicit canonical device and rejects revoked target",a
     scope,intent:"installer",requestedDeviceId:"current-pc",now}),"device_target_not_trusted");
 });
 test("recovery probes require exact trusted host, tunnel and config identity",()=>{
-  assert.equal(validateAdminRecoveryEndpoint("https://lc-config-a.mad4b.com","", "config-a"),
-    "https://lc-config-a.mad4b.com");
+  assert.equal(validateAdminRecoveryEndpoint("https://lc-config.mad4b.com","", "config-a"),
+    "https://lc-config.mad4b.com");
   assert.equal(validateAdminRecoveryEndpoint("https://12345678-1234-1234-1234-123456789abc.cfargotunnel.com",
     "12345678-1234-1234-1234-123456789abc"),"https://12345678-1234-1234-1234-123456789abc.cfargotunnel.com");
   for(const bad of ["http://127.0.0.1","https://lc-other.mad4b.com",
