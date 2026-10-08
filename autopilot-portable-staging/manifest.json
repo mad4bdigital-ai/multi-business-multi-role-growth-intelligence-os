@@ -82,7 +82,7 @@
     },
     {
       "path": "autopilot-portable-staging/staging-maintenance-policy.json",
-      "sha256": "4be5e35003c20fc4a929a6844c828568e4530f492571535ebbc6cd922c768525"
+      "sha256": "a265220f7ed32645c20e32a47526e333f7efafa7980c464755d996fb3c1210f4"
     },
     {
       "path": "docs/staging-openapi-mcp-db-copy.md",
@@ -262,7 +262,7 @@
     },
     {
       "path": "http-generic-api/test-staging-operations-logging-contract.mjs",
-      "sha256": "849908170dc018ec899c3d79efd84547b040c8e83bafad334b4af74fb6834b10"
+      "sha256": "45d1a06f5506623d067fcb0155662b55a60fbd989fb1fa22770b95e482543f38"
     },
     {
       "path": "http-generic-api/test-staging-runtime-oauth-profile.mjs",
