@@ -80,3 +80,17 @@ DISCOVER -> CANONICAL_TARGET -> READ_ONLY_DIAGNOSE
 - **Live deployment:** No verified Staging/Production schema, tunnel ownership, adapter version, exact HEAD or end-to-end recovery execution is included in this PR's local tests.
 - **Schema artifacts:** Hand-edited Admin Core OpenAPI projections need generator byte-for-byte parity and OpenAPI validation on the exact HEAD.
 - **Backward compatibility:** Rejecting platform backend keys for device heartbeat may require upgrading old connector agents to scoped device credentials before deploying.
+
+
+## Watchdog and device-origin fixes (code complete, runtime acceptance pending)
+
+- Removed the hard-coded shared Admin Recovery health probe `connector.mad4b.com/health`. Watchdog resolves `CONNECTOR_PUBLIC_HEALTH_URL` only from the signed, config-scoped installer environment.
+- Watchdog validates the exact `lc-<config-prefix>.mad4b.com` or tunnel-ID-owned `cfargotunnel.com` route, HTTPS, no credentials/query/redirect and forbids touching Staging service ownership.
+- Replaced Windows hostname-based heartbeat identity with `CONNECTOR_CONFIG_ID` and `CONNECTOR_DEVICE_ID`; watchdog reads `CONNECTOR_SECRET_FILE` in its restricted `secrets` directory instead of assuming a plaintext `.env` secret.
+- The heartbeat response acknowledgement is `response.event.event_id`; both local runtime `/policy` and post-install policy checks now expose the canonical IDs.
+- Watchdog emits `health_ok` after a successfully verified service restart or rollback, while failed attempts do not promote health freshness.
+- Script reconstructed from the clean `main` source after detecting and correcting a duplicated PowerShell section during review. Source-level checks enforce one definition of each critical function and bounded file length.
+
+**Deployment compatibility gate:** Preexisting connectors without generated `CONNECTOR_CONFIG_ID`, `CONNECTOR_DEVICE_ID`, `CONNECTOR_PUBLIC_HEALTH_URL`, `CONNECTOR_TUNNEL_ID` and scoped secret file cannot pass the new watchdog policy. Upgrade through the canonical signed installer after independently proving its exact target; do not disable validation to preserve old agents.
+
+**Recovery authority still blocked without proof:** Device generation / Windows install instance fencing, durable attempt leases, explicit fresh Admin step-up for legacy BAT, and independent same-cycle Staging acceptance must all be certified before Production. In particular, a legitimate Stale device may be diagnosed, but cannot inherit a past hostname, alias or signed credential as proof of a new physical generation.
