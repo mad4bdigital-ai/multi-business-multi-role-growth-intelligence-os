@@ -731,14 +731,17 @@ async function resolveHeartbeatConfig(req, body = {}) {
   if (!body.config_id && !body.device_id) throw httpError(400, "connector_identity_required", "config_id or device_id is required.");
   const backendToken = String(process.env.BACKEND_API_KEY || "").trim();
   if (backendToken && token === backendToken) {
-    sql += " ORDER BY updated_at DESC LIMIT 1";
-  } else {
-    const authPredicate = await connectorAuthPredicateForToken(token);
-    sql += ` AND ${authPredicate.sql} ORDER BY updated_at DESC LIMIT 1`;
-    params.push(...authPredicate.params);
+    throw httpError(403, "device_owned_heartbeat_credential_required",
+      "A platform backend key cannot attest a physical connector heartbeat.");
   }
+  const authPredicate = await connectorAuthPredicateForToken(token);
+  sql += ` AND ${authPredicate.sql}`;
+  sql += " AND lifecycle_state = 'active' AND revoked_at IS NULL AND archived_at IS NULL LIMIT 2";
+  params.push(...authPredicate.params);
   const [rows] = await getPool().query(sql, params);
-  if (rows[0]) return rows[0];
+  if (rows.length > 1) throw httpError(409, "heartbeat_device_ambiguous",
+    "Multiple connector configurations match this heartbeat; resolve identity first.");
+  if (rows.length === 1) return rows[0];
   throw httpError(403, "connector_auth_failed", "Connector heartbeat auth failed.");
 }
 
@@ -861,7 +864,7 @@ async function writeHeartbeat(config, body = {}) {
             watchdog_version = COALESCE(?, watchdog_version),
             agent_version = COALESCE(?, agent_version),
             active_slot = ?,
-            last_health_at = NOW(),
+            last_health_at = IF(? = 'health_ok' AND ? = 'ok', NOW(), last_health_at),
             last_reconnect_at = IF(? IN ('service_restart','cloudflared_restart'), NOW(), last_reconnect_at),
             last_repair_at = IF(? IN ('safe_upgrade','rollback','repair_bundle','manual_recovery'), NOW(), last_repair_at),
             last_repair_status = IF(? IN ('safe_upgrade','rollback','repair_bundle','manual_recovery'), ?, last_repair_status),
@@ -875,6 +878,8 @@ async function writeHeartbeat(config, body = {}) {
       watchdogVersion,
       agentVersion,
       activeSlot,
+      eventType,
+      status,
       eventType,
       eventType,
       eventType,
