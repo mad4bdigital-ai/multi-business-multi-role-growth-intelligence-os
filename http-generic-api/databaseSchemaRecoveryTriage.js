@@ -1,3 +1,5 @@
+import { readRuntimeBootstrapContract } from "./runtimeBootstrapContract.js";
+
 // Source-only, read-only decision contract. Never infers physical absence from
 // information_schema rows returned by an unprivileged application identity.
 // Does not plan or execute SQL, grant authority, or mutate a Production target.
@@ -5,6 +7,12 @@ export const DATABASE_SCHEMA_RECOVERY_TRIAGE_CONTRACT = "mad4b.database-schema-r
 const ROLES = Object.freeze(["runtime", "governance", "runtime_persistence"]);
 const SHA_RE = /^[0-9a-f]{40}$/u;
 const OBJECT_TYPES = Object.freeze(["tables", "views", "triggers", "routines", "events"]);
+const schemaBaseline = readRuntimeBootstrapContract().baseline_bundle;
+const REQUIRED_SOURCE_TABLES = Object.freeze({
+  runtime: Object.freeze([...schemaBaseline.required_runtime_tables]),
+  governance: Object.freeze([...schemaBaseline.required_governance_tables]),
+  runtime_persistence: Object.freeze([...schemaBaseline.required_runtime_persistence_tables]),
+});
 const number = (value) => Number.isSafeInteger(value) && value >= 0 ? value : null;
 const text = (value) => String(value ?? "").trim();
 
@@ -45,9 +53,25 @@ function validCensus(census, role, exactSha, databaseKey) {
   const present = number(census.required_tables_present);
   const missing = number(census.required_tables_missing);
   const expected = number(census.required_tables_expected);
-  if (present === null || missing === null || expected === null || expected !== present + missing) return false;
-  if (counts.tables < present) return false;
-  if (census.required_objects_physically_checked !== true) return false;
+  const sourceTables = REQUIRED_SOURCE_TABLES[role] || [];
+  if (present === null || missing === null || expected === null
+    || expected !== sourceTables.length || expected !== present + missing) return false;
+  if (counts.tables < present || census.required_objects_physically_checked !== true) return false;
+
+  // Counts alone cannot prove that each source-required table was inspected.
+  // The independent census must name each exact baseline table once and
+  // retain the boolean physically-observed presence bit, never an estimate.
+  const observed = census.required_table_evidence;
+  if (!Array.isArray(observed) || observed.length !== sourceTables.length) return false;
+  const byTable = new Map();
+  for (const row of observed) {
+    const table = text(row?.table);
+    if (!sourceTables.includes(table) || byTable.has(table) || typeof row?.present !== "boolean") return false;
+    byTable.set(table, row.present);
+  }
+  if (sourceTables.some((table) => !byTable.has(table))) return false;
+  const countedPresent = [...byTable.values()].filter(Boolean).length;
+  if (countedPresent !== present || expected - countedPresent !== missing) return false;
   return true;
 }
 
