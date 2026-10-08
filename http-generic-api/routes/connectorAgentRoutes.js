@@ -761,6 +761,16 @@ async function resolveHeartbeatConfig(req, body = {}) {
 async function syncPrimaryRouteFromHeartbeat(config, { status, errorCode = null, errorMessage = null } = {}) {
   const primaryUrl = String(config?.device_runtime_url || config?.tunnel_url || "").trim().replace(/\/$/, "");
   if (!config?.config_id || !primaryUrl) return;
+  // The device route may be intentionally disabled. An authenticated health
+  // event cannot silently re-enable a disabled route or bypass a revocation.
+  const [activeRows] = await getPool().query(
+    "SELECT config_id FROM local_connector_user_configs " +
+    "WHERE config_id = ? AND user_id = ? AND tenant_id = ? AND device_id = ? " +
+    "AND is_enabled = 1 AND lifecycle_state = 'active' " +
+    "AND revoked_at IS NULL AND archived_at IS NULL LIMIT 2",
+    [config.config_id, config.user_id, config.tenant_id, config.device_id]
+  );
+  if (activeRows.length !== 1) return;
   const routeHealth = status === "failed" ? "degraded" : "healthy";
   const params = status === "failed"
     ? [routeHealth, String(errorCode || "heartbeat_failed").slice(0, 128), String(errorMessage || "Connector heartbeat reported failure.").slice(0, 1000), config.config_id, primaryUrl]
@@ -816,7 +826,6 @@ async function syncPrimaryRouteFromHeartbeat(config, { status, errorCode = null,
          user_id = VALUES(user_id),
          tenant_id = VALUES(tenant_id),
          device_id = VALUES(device_id),
-         is_enabled = 1,
          health_status = VALUES(health_status),
          last_health_at = NOW(),
          last_failure_at = NOW(),
@@ -847,7 +856,6 @@ async function syncPrimaryRouteFromHeartbeat(config, { status, errorCode = null,
        user_id = VALUES(user_id),
        tenant_id = VALUES(tenant_id),
        device_id = VALUES(device_id),
-       is_enabled = 1,
        health_status = VALUES(health_status),
        last_health_at = NOW(),
        last_success_at = NOW(),
