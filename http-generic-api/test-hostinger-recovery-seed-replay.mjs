@@ -10,6 +10,7 @@ const oneClick = json("../autopilot-portable-staging/autopilot-one-click-policy.
 const hostinger = sql("./migrations/20261009_hostinger_recovery_allowlist_discovery.sql");
 const admin = sql("./migrations/20261008_admin_local_connector_target_catalog_alignment.sql");
 const foundation = sql("./migrations/150_sprint65_remote_ssh_runtime_foundation.sql");
+const importer = sql("../autopilot-portable-staging/Clone-StagingDatabases.Legacy.ps1");
 const names = [
   "hostinger_recovery_database_inventory", "hostinger_recovery_control_store_plan",
   "hostinger_recovery_database_create", "hostinger_recovery_environment_binding_plan",
@@ -64,4 +65,34 @@ test("catalog replay remains incapable of authorizing execution, secrets or Prod
   assert.match(hostinger, /'remote_runtime_hostinger_recovery_allowlist_discover'/);
   assert.match(admin, /'admin_local_connector_devices'/);
   assert.doesNotMatch(admin, /(?:connector_secret|cf_token|password_value)/i);
+});
+
+test("eight canonical catalog rows have independent readback on first import and resume", () => {
+  const contract = role.canonical_catalog_readback;
+  assert.equal(contract.contract, "mad4b.staging.canonical-catalog-readback.v1");
+  assert.equal(contract.target_role, "runtime");
+  assert.equal(contract.read_only, true);
+  assert.equal(contract.production_access_forbidden, true);
+  assert.equal(contract.provider_access_forbidden, true);
+  assert.equal(contract.secrets_included, false);
+  assert.equal(contract.rows.length, names.length + 1);
+  assert.deepEqual(
+    contract.rows.filter(row => row.table === "remote_runtime_command_allowlists")
+      .map(row => row.command_key),
+    names,
+  );
+  assert(contract.rows.every(row => row.table !== "remote_runtime_command_allowlists"
+    || (row.plugin_key === "remote_ssh_runtime" && row.status === "planned")));
+  assert.deepEqual(contract.rows.at(-1), {
+    table: "admin_platform_endpoint_tools",
+    tool_key: "remote_runtime_hostinger_recovery_allowlist_discover",
+    is_enabled: 0,
+  });
+  assert.match(importer, /function Assert-CanonicalCatalogRows/);
+  assert.match(importer, /Duplicate canonical catalog readback identity/);
+  assert.match(importer, /SELECT COUNT\(\*\) FROM remote_runtime_command_allowlists WHERE/);
+  assert.match(importer, /SELECT COUNT\(\*\) FROM admin_platform_endpoint_tools WHERE/);
+  assert.match(importer, /catalog_registry_row_counts = \$catalogRowCounts/);
+  assert.match(importer, /\$CatalogReadbackContract/);
+  assert.match(importer, /\$roleMigrationManifest\.canonical_catalog_readback/);
 });
