@@ -305,6 +305,19 @@ const stagingRequiredSchemaTableCount = Object.keys(stagingPrivilegeMatrix).leng
   assert.equal(result.schema_readiness?.observed_required_table_count, requiredSchemaTableCount - 1);
   assert.equal(result.schema_readiness?.missing_required_table_count, 1);
   assert.equal(result.schema_readiness?.table_names_exposed, false);
+  assert.equal(result.production_preflight_evaluated, true);
+  assert.equal(result.production_preflight_ready, true);
+  assert.equal(result.privilege_matrix_evaluated, false);
+  const schemaBlockedProjection = projectGovernanceDbPrivilegeReadiness(result);
+  assert.equal(schemaBlockedProjection.production_preflight_ready, true);
+  assert.equal(schemaBlockedProjection.production_preflight_evaluated, true);
+  assert.equal(schemaBlockedProjection.schema_objects_evaluated, true);
+  assert.equal(schemaBlockedProjection.privilege_matrix_evaluated, false);
+  assert.equal(schemaBlockedProjection.privilege_matrix_exact, false);
+  assert.equal(schemaBlockedProjection.ready, false);
+  assert.equal(schemaBlockedProjection.missing_required_schema_table_count, 1);
+  assert.equal(schemaBlockedProjection.secrets_included, false);
+  assert.equal(JSON.stringify(schemaBlockedProjection).includes("capability_resolution_envelope_ledger"), false);
   assert.equal(result.database_connection_performed, true);
   assert.equal(result.sql_readback_performed, true);
   assert.equal(result.sql_mutation_performed, false);
@@ -339,6 +352,8 @@ const stagingRequiredSchemaTableCount = Object.keys(stagingPrivilegeMatrix).leng
   assert.equal(projected.missing_required_schema_table_count, 1);
   assert.equal(projected.table_names_exposed, false);
   assert.equal(projected.privilege_matrix_exact, true);
+  assert.equal(projected.privilege_matrix_evaluated, true);
+  assert.equal(projected.schema_objects_evaluated, true);
   assert.equal(serialized.includes("must-not-be-public"), false);
   assert.equal(projected.secrets_included, false);
 }
