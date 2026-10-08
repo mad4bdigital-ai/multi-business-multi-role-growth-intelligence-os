@@ -542,8 +542,24 @@ function findingsFromInspection(inspection = {}) {
     finding.candidate_capability = candidate;
     findings.push(finding);
   }
+  // Inspection-provider notes are observations, never authoritative
+  // Recovery Kernel capability grants. Discard any provider-supplied candidate,
+  // authority reference, finding_id, or mutation flag; derive a fresh safe ID.
   if (Array.isArray(inspection.findings)) {
-    for (const item of inspection.findings.slice(0, 100)) findings.push(sanitizeEvidence(item));
+    for (const item of inspection.findings.slice(0, 100)) {
+      findings.push(inspectionFinding({
+        targetRole: ["runtime", "governance", "runtime_persistence"].includes(item?.subject?.target_role)
+          ? item.subject.target_role : "unknown",
+        resource: "untrusted inspection provider finding",
+        category: "inspection_provider_observation_unverified",
+        severity: "high",
+        expected: { canonical_recovery_classification_required: true },
+        actual: { observation_reported: true, provider_candidate_ignored: Boolean(item?.candidate_capability) },
+        authorityRef: null,
+        repairability: "unknown_fail_closed",
+        mutationRequired: false,
+      }));
+    }
   }
   if (findings.length === 0 && inspection.ok === false) {
     findings.push(inspectionFinding({ targetRole: "unknown", resource: "recovery inspection", category: "unknown_fail_closed", severity: "critical", expected: { ok: true }, actual: { ok: false }, authorityRef: null, repairability: "unknown_fail_closed", mutationRequired: false }));
