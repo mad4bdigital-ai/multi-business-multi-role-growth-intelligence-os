@@ -144,7 +144,9 @@ The required read-only order is:
 exact Production ref → public deployment identity parity → provider capability claim vs
 live preflight → database identity/schema census → exact principal grants and effective
 roles → dedicated-writer contract checks → backup/recovery store inspection →
-independent owner-reviewed plan (if needed). No absent or stale evidence becomes
+independent owner-reviewed plan (if needed). Any later grant mutation requires an
+independent exact-step approval and same-cycle privilege readback against the executing
+Production database identity. No absent or stale evidence becomes
 permission to apply.
 
 ## Runtime evidence boundary
