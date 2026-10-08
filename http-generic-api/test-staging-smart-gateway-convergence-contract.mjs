@@ -947,10 +947,11 @@ dispatchCertificationState = {
 let driftCandidateDeployed = false;
 let driftPreparedBundle = null;
 let delayedPermanentCandidateHealthReads = 0;
+let driftBaselineBundleOverride = null;
 const driftSmokeFetch = async (url) => {
   const health = driftCandidateDeployed
     ? { ...certificationExactHealth, workerBundleSha256: driftPreparedBundle.worker_bundle_sha256 }
-    : driftHealth;
+    : { ...driftHealth, workerBundleSha256: driftBaselineBundleOverride || driftHealth.workerBundleSha256 };
   if (url.endsWith("/health")) {
     if (driftCandidateDeployed && delayedPermanentCandidateHealthReads > 0) {
       delayedPermanentCandidateHealthReads--;
@@ -978,8 +979,18 @@ const driftPrepared = await runStagingActivationGatewayTransactionCertification(
   expected_policy_hash: staging.expected_policy_hash,
   environment_convergence_plan_sha256: convergencePlanSha,
 }, driftDeps);
-assert.equal(JSON.parse(savedPlans.get(driftPrepared.plan_id).plan_body_json)
-  .certification_baseline.observed_source_commit, sourceDrift);
+const boundDriftBaseline = JSON.parse(savedPlans.get(driftPrepared.plan_id).plan_body_json).certification_baseline;
+assert.equal(boundDriftBaseline.observed_source_commit, sourceDrift);
+assert.equal(boundDriftBaseline.observed_worker_bundle_sha256, driftHealth.workerBundleSha256);
+// Replacing Worker bytes with the same source SHA must invalidate the exact prepared plan.
+driftBaselineBundleOverride = "c".repeat(64);
+await assert.rejects(runStagingActivationGatewayTransactionCertification({
+  mode: "apply", plan_id: driftPrepared.plan_id, plan_sha256: driftPrepared.plan_sha256,
+  environment_convergence_plan_sha256: convergencePlanSha, confirm: driftPrepared.required_confirmation,
+}, { ...driftDeps, audit: async () => {} }),
+(error) => error?.code === "staging_activation_gateway_certification_baseline_drifted");
+assert.equal(savedPlans.get(driftPrepared.plan_id).status, "ready", "stale baseline must fail before plan claim or Cloudflare writes");
+driftBaselineBundleOverride = null;
 driftPreparedBundle = openStagingGatewayArtifact(savedArtifacts.get(driftPrepared.bundle_ref),
   { env: executionEnv, planId: driftPrepared.plan_id }).bundle;
 const driftCalls = [];
