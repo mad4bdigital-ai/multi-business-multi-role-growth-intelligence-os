@@ -268,7 +268,7 @@ function Test-PublicConnectorHealth {
     return [pscustomobject]@{ ok = $false; http_status = $null; error = "dns_resolution_failed"; tunnel_restart_allowed = $false }
   }
   try {
-    $res = Invoke-WebRequest -Uri $PublicHealthUrl -UseBasicParsing -TimeoutSec 15 -ErrorAction Stop
+    $res = Invoke-WebRequest -Uri $PublicHealthUrl -UseBasicParsing -MaximumRedirection 0 -TimeoutSec 15 -ErrorAction Stop
     return [pscustomobject]@{ ok = ([int]$res.StatusCode -eq 200); http_status = [int]$res.StatusCode; error = $null; tunnel_restart_allowed = $false }
   } catch {
     $statusCode = $null
