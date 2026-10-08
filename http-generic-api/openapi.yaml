@@ -13795,83 +13795,61 @@ paths:
       security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: getLocalConnectorInstallBundle
       x-custom-gpt-surfaces: [admin_core]
-      summary: Resolve or download a local connector installer
-      description: "Generate a pre-filled Windows .bat installer for the local connector stack (cloudflared + Node.js service via NSSM). Reads cf_token and connector_secret from local_connector_user_configs in DB for the given user_id + device_id. Never substitutes server-wide credentials or writes them to device records. The default JSON mode returns metadata before credential lookup. The installer is generated only when format=bat is requested on the authenticated route and is never uploaded to shared or public storage. User saves the .bat and runs as Administrator â€” cloudflared and NSSM are installed automatically if missing. Both services auto-restart on failure and reboot."
+      summary: Resolve a canonical connector device and a protected signed-installer handoff
+      description: Legacy format=bat direct credential delivery is retired (410). JSON returns no secrets and references the separate signed, scoped, expiring installer authorization POST workflow.
       parameters:
         - name: user_id
           in: query
           required: false
           schema: { type: string }
-          description: User ID whose device config to load from DB. Defaults to platform admin.
         - name: tenant_id
           in: query
           required: false
           schema: { type: string }
-          description: Tenant scope, required for a non-platform user unless supplied by signed identity.
         - name: device_id
           in: query
-          required: false
-          schema: { type: string, minLength: 1, maxLength: 128 }
-          description: Explicit canonical device ID required for recovery. No historical aliases or implicit stale target selection.
-        - name: expected_config_id
-          in: query
-          required: false
-          schema: { type: string }
-          description: Exact current config ID required for a protected BAT download.
-        - name: confirm_device_id
-          in: query
-          required: false
-          schema: { type: string }
-          description: Explicit canonical device confirmation required for a protected BAT download.
+          required: true
+          schema: { type: string, minLength: 2, maxLength: 128 }
         - name: format
           in: query
           required: false
           schema: { type: string, enum: [json, bat], default: json }
-          description: json returns a no-secret handoff; bat returns the authenticated binary installer.
+          description: bat returns 410 with the secure migration route; only json returns 200.
       responses:
         "200":
-          description: Metadata-only secure handoff or authenticated installer attachment
+          description: Read-only scoped diagnosis and installer workflow metadata
           content:
             application/json:
               schema:
                 type: object
-                additionalProperties: false
-                required: [ok, artifact_delivery, script_content_omitted, credential_materialized, public_storage_allowed, secure_download, secrets_included]
+                required: [ok, user_id, tenant_id, device_id, config_id, device_state, credential_materialized, signed_installer, secrets_included]
                 properties:
                   ok: { type: boolean, const: true }
-                  artifact_delivery: { type: string, const: authenticated_direct_download_only }
-                  script_content_omitted: { type: boolean, const: true }
-                  script_content_reason: { type: string }
+                  user_id: { type: string }
+                  tenant_id: { type: string }
+                  device_id: { type: string }
+                  config_id: { type: string }
+                  device_state: { type: string, enum: [ACTIVE, STALE] }
                   credential_materialized: { type: boolean, const: false }
+                  script_content_omitted: { type: boolean, const: true }
                   public_storage_allowed: { type: boolean, const: false }
-                  secure_download:
+                  signed_installer:
                     type: object
-                    additionalProperties: false
-                    required: [method, path, query, requires_backend_api_key, requires_admin_principal]
+                    required: [method, path, format, requires_authenticated_principal, requires_explicit_canonical_target, direct_admin_bat_disabled]
                     properties:
-                      method: { type: string, const: GET }
-                      path: { type: string, const: /admin/cli/local-connector/install-bundle }
-                      query:
-                        type: object
-                        additionalProperties: false
-                        required: [user_id, device_id, expected_config_id, format]
-                        properties:
-                          user_id: { type: string }
-                          device_id: { type: string }
-                          expected_config_id: { type: string }
-                          format: { type: string, const: bat }
-                      requires_backend_api_key: { type: boolean, const: true }
-                      requires_admin_principal: { type: boolean, const: true }
+                      method: { type: string, const: POST }
+                      path: { type: string, const: /local-connector/install/download-link }
+                      format: { type: string, const: ps1 }
+                      requires_authenticated_principal: { type: boolean, const: true }
+                      requires_explicit_canonical_target: { type: boolean, const: true }
+                      direct_admin_bat_disabled: { type: boolean, const: true }
                   secrets_included: { type: boolean, const: false }
-            application/octet-stream:
-              schema:
-                type: string
-                format: binary
+        "400": { description: Invalid device or format }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
-        "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
-        "500": { $ref: "#/components/responses/InternalError" }
+        "410": { description: Legacy direct BAT credential generation is retired }
+        "503": { description: Device inventory unavailable }
 
   /admin/cli/local-connector/self-repair:
     post:
