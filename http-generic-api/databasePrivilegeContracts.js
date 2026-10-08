@@ -130,9 +130,11 @@ const STAGING_RUNTIME_READ_ONLY_MATRIX = Object.freeze(Object.fromEntries(
 
 const STAGING_RUNTIME_OPERATION_MATRIX = Object.freeze({
   ...STAGING_RUNTIME_READ_ONLY_MATRIX,
-  // Append-only Gateway certification events are mandatory Staging audit evidence.
-  // No SELECT, UPDATE, DELETE, schema-wide, or Production privilege is granted.
-  audit_log: Object.freeze(["INSERT"]),
+  // Gateway certification appends durable audit evidence, while Dynamic Audit
+  // reads audit_log using the same Runtime identity when dedicated Control Plane
+  // write authority is disabled. SELECT never permits modifying audit records.
+  // No UPDATE, DELETE, schema-wide, or Production privilege is granted.
+  audit_log: Object.freeze(["SELECT", "INSERT"]),
   platform_runtime_config: Object.freeze(["SELECT", "INSERT", "UPDATE"]),
   platform_secrets: Object.freeze(["SELECT", "INSERT", "UPDATE"]),
   secret_references: Object.freeze(["SELECT", "INSERT", "UPDATE"]),
