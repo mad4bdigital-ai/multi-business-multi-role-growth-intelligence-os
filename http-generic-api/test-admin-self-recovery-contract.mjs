@@ -27,8 +27,10 @@ test("heartbeat cannot inherit the global backend key or resurrect revoked devic
 });
 test("only verified health_ok heartbeats can refresh health or promote a route", () => {
   assert.match(agent, /last_health_at = IF\(\? = 'health_ok' AND \? = 'ok', NOW\(\), last_health_at\)/);
-  assert.match(agent, /verifiedHealth = eventType === "health_ok" && status === "ok"/);
-  assert.match(agent, /status: verifiedHealth \? "ok" : "failed"/);
+  assert.match(agent, /healthTransition = eventType === "health_ok" && status === "ok"/);
+  assert.match(agent, /eventType === "health_failed" && status === "failed"/);
+  assert.match(agent, /if \(healthTransition\)/);
+  assert.doesNotMatch(agent, /status: verifiedHealth \? "ok" : "failed"/);
 });
 test("signed installer and redemption routes reject revoked or archived identity", () => {
   assert.match(install, /device_reenrollment_required/);
@@ -145,4 +147,10 @@ test("final redemption and heartbeat update are fenced against concurrent identi
   assert.match(agent, /healthWrite\?\.affectedRows/);
   assert.match(agent, /last_reconnect_at = IF\(\? IN/);
   assert.match(agent, /last_health_at = IF\(\? = 'health_ok' AND \? = 'ok'/);
+});
+
+test("idempotent heartbeat update checks live unique lifecycle instead of inferring revocation",()=>{
+  assert.match(agent, /verifiedRows\.length !== 1/);
+  assert.match(agent, /SELECT config_id FROM local_connector_user_configs/);
+  assert.match(agent, /device_lifecycle_changed_during_heartbeat/);
 });
