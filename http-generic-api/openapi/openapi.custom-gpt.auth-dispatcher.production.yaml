@@ -2178,45 +2178,21 @@ paths:
                       secure_download:
                         type: object
                         additionalProperties: false
-                        required:
-                          - method
-                          - path
-                          - query
-                          - requires_backend_api_key
-                          - requires_admin_principal
+                        required: [method, path, body, requires_authenticated_principal, requires_signed_expiring_capability, direct_admin_bat_disabled]
                         properties:
-                          method:
-                            type: string
-                            const: GET
-                          path:
-                            type: string
-                            const: /admin/cli/local-connector/install-bundle
-                          query:
+                          method: { type: string, const: POST }
+                          path: { type: string, const: /local-connector/install/download-link }
+                          body:
                             type: object
-                            additionalProperties: false
-                            required:
-                              - user_id
-                              - device_id
-                              - expected_config_id
-                              - format
+                            required: [user_id, tenant_id, device_id, format]
                             properties:
-                              user_id:
-                                type: string
-                              device_id:
-                                type: string
-                              expected_config_id:
-                                type: string
-                              format:
-                                type: string
-                                const: bat
-                          requires_backend_api_key:
-                            type: boolean
-                            const: true
-                          requires_admin_principal:
-                            type: boolean
-                            const: true
-                          requires_explicit_device_confirmation:
-                            type: boolean
+                              user_id: { type: string }
+                              tenant_id: { type: string }
+                              device_id: { type: string }
+                              format: { type: string, const: ps1 }
+                          requires_authenticated_principal: { type: boolean, const: true }
+                          requires_signed_expiring_capability: { type: boolean, const: true }
+                          direct_admin_bat_disabled: { type: boolean, const: true }
                       secrets_included:
                         type: boolean
                         const: false
