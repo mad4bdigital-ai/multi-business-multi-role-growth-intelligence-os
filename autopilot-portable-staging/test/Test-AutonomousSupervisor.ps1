@@ -54,6 +54,11 @@ try {
     $action = [pscustomobject]@{ Execute = "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe"; Arguments = $arguments; WorkingDirectory = $PSScriptRoot }
     $task = [pscustomobject]@{ Actions = @($action); Principal = [pscustomobject]@{ UserId = $expectedPrincipal }; State = "Running"; Settings = [pscustomobject]@{ Enabled = $true } }
     Assert (Test-WatcherTaskIdentity $task) "valid task rejected"
+    $action.WorkingDirectory = $RepositoryPath
+    Assert (Test-WatcherTaskIdentity $task) "valid repo-root task rejected"
+    $action.WorkingDirectory = Join-Path $env:TEMP "alien-workdir"
+    Assert (-not (Test-WatcherTaskIdentity $task)) "foreign workdir accepted"
+    $action.WorkingDirectory = $PSScriptRoot
     $action.Arguments += " -EncodedCommand Zg=="
     Assert (-not (Test-WatcherTaskIdentity $task)) "extra command accepted"
     $action.Arguments = $arguments -replace '-Watch', '-ValidateOnly'
