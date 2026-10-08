@@ -87,11 +87,11 @@ function Invoke-Status {
         $envDetail = if ($actual -eq $expected) { $expected } else { "drift_or_missing" }
         Add-Check $checks "env:$key" ($actual -eq $expected) $envDetail $false
     }
-    foreach ($host in $Policy.forbidden_hosts) {
+    foreach ($forbiddenHostname in $Policy.forbidden_hosts) {
         $found = $false
-        if (Test-Path $envFile) { $found = (Get-Content -Raw $envFile) -match [regex]::Escape($host) }
+        if (Test-Path $envFile) { $found = (Get-Content -Raw $envFile) -match [regex]::Escape($forbiddenHostname) }
         $hostDetail = if ($found) { "found" } else { "absent" }
-        Add-Check $checks "forbidden-host:$host" (-not $found) $hostDetail $false
+        Add-Check $checks "forbidden-host:$forbiddenHostname" (-not $found) $hostDetail $false
     }
     Add-Check $checks "logs:directory" (Test-Path $logRoot) $logRoot $true
     Add-Check $checks "logs:latest-status" (Test-Path (Join-Path $logRoot "latest-status.json")) "latest-status.json" $false

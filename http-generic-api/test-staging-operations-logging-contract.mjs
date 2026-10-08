@@ -77,6 +77,11 @@ assert.match(doctor, /Repair/);
 assert.match(doctor, /\$gitCommand = Get-Command git -ErrorAction SilentlyContinue/);
 assert.match(doctor, /if \(\$null -ne \$gitCommand -and \(Test-Path/);
 assert.doesNotMatch(doctor, /Get-Command git -ErrorAction SilentlyContinue -and/);
+// PowerShell binds $host to the read-only automatic $Host variable (case-insensitive).
+assert.doesNotMatch(doctor, /\bforeach\s*\(\s*\$host\b/i);
+assert.match(doctor, /foreach\s*\(\s*\$forbiddenHostname\s+in\s+\$Policy\.forbidden_hosts\s*\)/);
+assert.match(doctor, /\[regex\]::Escape\(\$forbiddenHostname\)/);
+assert.match(doctor, /forbidden-host:\$forbiddenHostname/);
 assert.equal(maintenancePolicy.maintenance.repair_may_delete_data, false);
 assert.match(maintenanceCmd, /Staging-Doctor\.ps1/);
 assert.equal(maintenancePolicy.contract, "mad4b.staging-maintenance.v1");

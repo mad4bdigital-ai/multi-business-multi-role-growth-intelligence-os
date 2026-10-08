@@ -56,6 +56,7 @@
           ],
           "assertions": [
             "Staging Doctor PowerShell command detection is syntactically valid and guarded.",
+            "The Staging Doctor forbidden-host scan must not bind the case-insensitive read-only automatic $Host variable, and the read-only Status mode continues to completion; a regression check rejects forbidden-host variable shadowing.",
             "One-Click convergence uses exact-current read-only evidence before plan creation.",
             "deployment-info semantic readiness performs the bounded Runtime DB workspace_registry read.",
             "Runtime Persistence DB is not substituted for Runtime DB semantic readiness.",
