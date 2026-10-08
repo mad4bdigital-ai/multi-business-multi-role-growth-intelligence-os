@@ -158,6 +158,12 @@ test("recovered requires fresh heartbeat and authenticated same-device, same-con
     observedConfigId:"other-config"}).recovered,false);
   assert.equal(classifyAdminRecoveryReadback({...params,deviceState:"STALE",
     observedDeviceId:"current-pc",observedConfigId:"config-a"}).recovered,false);
+  const credentialOnly=classifyAdminRecoveryReadback({...params,observedDeviceId:"current-pc",
+    observedConfigId:"config-a"});
+  assert.equal(credentialOnly.operational_verified,true);
+  assert.equal(credentialOnly.recovered,false);
+  assert.equal(credentialOnly.status,"generation_attestation_required");
+  // This may only become true when a separately trusted authority supplies proof.
   assert.equal(classifyAdminRecoveryReadback({...params,observedDeviceId:"current-pc",
-    observedConfigId:"config-a"}).recovered,true);
+    observedConfigId:"config-a",deviceGenerationAttested:true}).recovered,true);
 });
