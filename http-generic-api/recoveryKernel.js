@@ -448,27 +448,31 @@ function findingsFromInspection(inspection = {}, { trustedRoleInventoryVerifier 
     ? inspection.role_full_object_inventory_proofs : {};
   const roleTableEvidence = inspection.role_table_evidence && typeof inspection.role_table_evidence === "object" ? inspection.role_table_evidence : {};
   const roleEvidenceAvailable = ["runtime", "governance", "runtime_persistence"].every((role) => Object.prototype.hasOwnProperty.call(roleClassifications, role) && Object.prototype.hasOwnProperty.call(roleCounts, role));
+  // Never promote a caller/provider boolean to an authority. The production
+  // composition currently does not install a trusted physical-evidence verifier.
+  // Any verifier must be injected by an independently audited server authority,
+  // not accepted through inspectProductionDatabase request input.
+  const trustedRoleProof = (role) => {
+    const proof = roleFullObjectInventoryProofs[role];
+    return proof?.contract === "mad4b.role-physical-object-visibility.v1"
+      && proof.role === role && proof.expected_sha === inspection.expected_sha
+      && /^[0-9a-f]{40}$/u.test(String(proof.expected_sha || ""))
+      && proof.object_count_fingerprint === roleCountFingerprints[role]
+      && /^[0-9a-f]{64}$/u.test(String(proof.object_count_fingerprint || ""))
+      && proof.database_identity_verified === true
+      && proof.full_object_visibility_verified === true
+      && proof.independent_privileged_census === true
+      && proof.read_only === true
+      && typeof trustedRoleInventoryVerifier === "function"
+      && trustedRoleInventoryVerifier({ role, proof, expectedSha: inspection.expected_sha,
+        roleFingerprint: roleCountFingerprints[role], roleObjectCounts: roleCounts[role] }) === true;
+  };
   const emptyRoles = new Set();
   const zeroVisibilityUnverifiedRoles = new Set();
   if (roleEvidenceAvailable && inspection.full_inspection === true) {
     for (const role of ["runtime", "governance", "runtime_persistence"]) {
       if (roleClassifications[role] !== "zero_objects") continue;
-      const proof = roleFullObjectInventoryProofs[role];
-      const verified = proof?.contract === "mad4b.role-physical-object-visibility.v1"
-        && proof.role === role && proof.expected_sha === inspection.expected_sha
-        && /^[0-9a-f]{40}$/u.test(String(proof.expected_sha || ""))
-        && proof.object_count_fingerprint === roleCountFingerprints[role]
-        && /^[0-9a-f]{64}$/u.test(String(proof.object_count_fingerprint || ""))
-        && proof.database_identity_verified === true
-        && proof.full_object_visibility_verified === true
-        && proof.independent_privileged_census === true
-        && proof.read_only === true
-        // Report payload flags are not a trust root; only a server-injected
-        // verifier for an independent durable provider can attest this proof.
-        && typeof trustedRoleInventoryVerifier === "function"
-        && trustedRoleInventoryVerifier({ role, proof, expectedSha: inspection.expected_sha,
-          roleFingerprint: roleCountFingerprints[role], roleObjectCounts: roleCounts[role] }) === true
-        && roleCounts[role]?.total === 0;
+      const verified = trustedRoleProof(role) && roleCounts[role]?.total === 0;
       if (!verified) {
         zeroVisibilityUnverifiedRoles.add(role);
         findings.push(inspectionFinding({
@@ -541,6 +545,7 @@ function findingsFromInspection(inspection = {}, { trustedRoleInventoryVerifier 
       ? requiredEvidence.filter((entry) => entry?.present === true).map((entry) => String(entry.table || "").trim())
       : []);
     if (!roleEvidenceAvailable || inspection.full_inspection !== true
+      || !trustedRoleProof(role)
       || !Array.isArray(requiredEvidence) || requiredTables.length === 0
       || !requiredTables.every((table) => physicallyPresent.has(table))) continue;
     const finding = inspectionFinding({ targetRole: role, resource, category, severity, expected: { ready: true }, actual: { ready: checks[check] ?? dimensions[role] ?? false }, authorityRef: authority, repairability: candidate ? "deterministic" : "unknown_fail_closed", mutationRequired: true });
