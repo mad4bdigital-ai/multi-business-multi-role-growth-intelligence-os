@@ -19,6 +19,8 @@ test("documented Hostinger Node env endpoint replaces all keys and lists only ma
 });
 test("full-replace refuses to proceed even with a complete vault mapping without provider CAS proof",()=>{
   const x=assessHostingerNodeEnvReplacement(nominal());
+  assert.equal(x.ok,false);assert.equal(x.evaluation_completed,true);
+  assert.equal(x.candidate_ready,false);
   assert.equal(x.execution_allowed,false);assert.equal(x.plan_eligible,false);
   assert(x.blockers.includes("provider_revision_compare_and_set_not_certified"));
   assert.equal(x.secrets_included,false);
@@ -53,4 +55,17 @@ test("database create needs exact provider entitlement, host, absence and separa
   });
   assert.equal(complete.candidate_ready,true);
   assert.equal(complete.execution_allowed,false);
+});
+
+test("blocked Hostinger evaluation never represents a successful execution decision",()=>{
+  const missing=assessHostingerNodeEnvReplacement({});
+  assert.equal(missing.ok,false);
+  assert.equal(missing.evaluation_completed,true);
+  assert.equal(missing.execution_allowed,false);
+  assert(missing.blockers.includes("hostinger_provider_entitlement_unverified"));
+  const invalid=assessHostingerNodeEnvReplacement({observedKeys:"not-an-array"});
+  assert.equal(invalid.ok,false);
+  assert.equal(invalid.evaluation_completed,false);
+  assert.equal(invalid.candidate_ready,false);
+  assert.equal(invalid.execution_allowed,false);
 });
