@@ -85,9 +85,10 @@ export function validateAdminRecoveryEndpoint(tunnelUrl, cfTunnelId = null, conf
   catch { throw targetError("connector_route_untrusted", "Connector runtime URL is missing or invalid."); }
   const hostname = url.hostname.toLowerCase();
   const tunnel = str(cfTunnelId).toLowerCase();
+  // Shared admin/break-glass hosts can be healthy while the selected device
+  // is unavailable; never interpret their health as this device's own route.
   const authorized =
-    hostname === "connector.mad4b.com" ||
-    (Boolean(str(configId)) && hostname === `lc-${str(configId).slice(0, 8).toLowerCase()}.mad4b.com`) ||
+    (Boolean(str(configId)) && hostname === `lc-${str(configId).split("-")[0].toLowerCase()}.mad4b.com`) ||
     (/^[0-9a-f-]{36}\.cfargotunnel\.com$/.test(hostname) && hostname === tunnel + ".cfargotunnel.com");
   if (url.protocol !== "https:" || !authorized || url.port || url.username || url.password ||
       url.pathname !== "/" || url.search || url.hash) {
