@@ -660,5 +660,63 @@
         "source_endpoint_id"
       ]
     }
+  },
+  "canonical_catalog_readback": {
+    "contract": "mad4b.staging.canonical-catalog-readback.v1",
+    "target_role": "runtime",
+    "read_only": true,
+    "requires_exactly_one_per_row": true,
+    "production_access_forbidden": true,
+    "provider_access_forbidden": true,
+    "secrets_included": false,
+    "rows": [
+      {
+        "table": "remote_runtime_command_allowlists",
+        "plugin_key": "remote_ssh_runtime",
+        "command_key": "hostinger_recovery_database_inventory",
+        "status": "planned"
+      },
+      {
+        "table": "remote_runtime_command_allowlists",
+        "plugin_key": "remote_ssh_runtime",
+        "command_key": "hostinger_recovery_control_store_plan",
+        "status": "planned"
+      },
+      {
+        "table": "remote_runtime_command_allowlists",
+        "plugin_key": "remote_ssh_runtime",
+        "command_key": "hostinger_recovery_database_create",
+        "status": "planned"
+      },
+      {
+        "table": "remote_runtime_command_allowlists",
+        "plugin_key": "remote_ssh_runtime",
+        "command_key": "hostinger_recovery_environment_binding_plan",
+        "status": "planned"
+      },
+      {
+        "table": "remote_runtime_command_allowlists",
+        "plugin_key": "remote_ssh_runtime",
+        "command_key": "hostinger_recovery_environment_binding_apply",
+        "status": "planned"
+      },
+      {
+        "table": "remote_runtime_command_allowlists",
+        "plugin_key": "remote_ssh_runtime",
+        "command_key": "hostinger_recovery_grants_plan",
+        "status": "planned"
+      },
+      {
+        "table": "remote_runtime_command_allowlists",
+        "plugin_key": "remote_ssh_runtime",
+        "command_key": "hostinger_recovery_grants_apply",
+        "status": "planned"
+      },
+      {
+        "table": "admin_platform_endpoint_tools",
+        "tool_key": "remote_runtime_hostinger_recovery_allowlist_discover",
+        "is_enabled": 0
+      }
+    ]
   }
 }
