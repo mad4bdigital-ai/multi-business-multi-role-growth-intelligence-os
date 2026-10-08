@@ -28,7 +28,8 @@ export function assessHostingerNodeEnvReplacement({
   if (!Array.isArray(observedKeys) || !Array.isArray(desiredBindings) ||
       !Array.isArray(approvedRecoveryKeys) || observedKeys.length > 1000 ||
       desiredBindings.length > 1000) {
-    return {ok:false, plan_eligible:false, execution_allowed:false,
+    return {ok:false, evaluation_completed:false, candidate_ready:false,
+      plan_eligible:false, execution_allowed:false,
       blockers:["invalid_or_unbounded_environment_inventory"], secrets_included:false};
   }
   const existing = observedKeys.map(key);
@@ -55,7 +56,8 @@ export function assessHostingerNodeEnvReplacement({
   // Hostinger's public API does not advertise a conditional ETag replace.
   if (!reasons.length) reasons.push("provider_revision_compare_and_set_not_certified");
   return {
-    ok:true, contract:"mad4b.hostinger-node-env-replacement-safety.v1",
+    ok:false, evaluation_completed:true, candidate_ready:false,
+    contract:"mad4b.hostinger-node-env-replacement-safety.v1",
     provider_operation:HOSTINGER_RECOVERY_PROVIDER_API.node_env_replace,
     observed_key_count:existing.length, desired_key_count:desired.length,
     added_recovery_keys:changed.sort(), blockers:reasons.sort(),
