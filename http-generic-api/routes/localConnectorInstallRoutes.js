@@ -1281,6 +1281,7 @@ export function buildLocalConnectorInstallRoutes(deps) {
         `SELECT c.config_id, c.tenant_id, c.device_id
            FROM \`local_connector_user_configs\` c
           WHERE c.user_id = ? AND c.is_enabled = 1
+            AND c.lifecycle_state = 'active' AND c.revoked_at IS NULL AND c.archived_at IS NULL
             AND c.tenant_id <=> ?
             AND (c.device_id = ? OR EXISTS (
               SELECT 1 FROM \`local_connector_device_aliases\` a
@@ -1342,7 +1343,7 @@ export function buildLocalConnectorInstallRoutes(deps) {
       if (!["ps1", "bat"].includes(format)) return res.status(400).json({ ok: false, error: { code: "unsupported_format", message: "format must be ps1 or bat." } });
       const principal = await resolveRequestedLocalPrincipal(req, { user_id, tenant_id });
       const [[config]] = await getPool().query(
-        "SELECT config_id, tenant_id FROM `local_connector_user_configs` WHERE user_id = ? AND tenant_id = ? AND device_id = ? AND is_enabled = 1 LIMIT 1",
+        "SELECT config_id, tenant_id FROM `local_connector_user_configs` WHERE user_id = ? AND tenant_id = ? AND device_id = ? AND is_enabled = 1 AND lifecycle_state = 'active' AND revoked_at IS NULL AND archived_at IS NULL LIMIT 1",
         [principal.userId, principal.tenantId, device_id]
       );
       if (!config) return res.status(404).json({ ok: false, error: { code: "connector_config_not_found" } });
@@ -1388,7 +1389,7 @@ export function buildLocalConnectorInstallRoutes(deps) {
         throw httpError(400, "unsupported_format", "Only ps1 or bat installer downloads are supported.");
       }
       const [[config]] = await getPool().query(
-        "SELECT config_id, device_id FROM `local_connector_user_configs` WHERE config_id = ? AND user_id = ? AND tenant_id = ? AND device_id = ? AND is_enabled = 1 LIMIT 1",
+        "SELECT config_id, device_id FROM `local_connector_user_configs` WHERE config_id = ? AND user_id = ? AND tenant_id = ? AND device_id = ? AND is_enabled = 1 AND lifecycle_state = 'active' AND revoked_at IS NULL AND archived_at IS NULL LIMIT 1",
         [payload.config_id, payload.user_id, payload.tenant_id, payload.device_id]
       );
       if (!config) throw httpError(404, "connector_config_not_found", "No active connector config was found for this download token.");
