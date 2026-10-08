@@ -493,6 +493,7 @@
     ".changes/e2e/staging-activation-registry-schema-reconciliation-20261003.json",
     ".changes/e2e/staging-activation-schema-runtime-grants-reconciliation-20260902.json",
     ".changes/e2e/staging-admin-remote-runtime-catalog-readonly-current-main-20260921.json",
+    ".changes/e2e/staging-autonomous-supervisor-governance-20261008.json",
     ".changes/e2e/staging-autopilot-bootstrap-self-update.json",
     ".changes/e2e/staging-autopilot-git-transport-resilience.json",
     ".changes/e2e/staging-autopilot-oauth-certification-maintenance.json",

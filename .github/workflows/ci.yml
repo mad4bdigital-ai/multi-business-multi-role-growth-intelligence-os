@@ -661,7 +661,13 @@ jobs:
                   $path -eq 'http-generic-api/stagingCanonicalSemanticRepairLedger.js' -or
                   $path -eq 'http-generic-api/semanticDataCompletenessReport.js' -or
                   $path -eq 'http-generic-api/test-semantic-data-completeness-report.mjs' -or
-                  $path -like 'http-generic-api/test-staging-canonical-semantic-repair*.mjs'
+                  $path -like 'http-generic-api/test-staging-canonical-semantic-repair*.mjs' -or
+                  $path -like 'autopilot-portable-staging/*AutonomousSupervisor*.ps1' -or
+                  $path -eq 'autopilot-portable-staging/Install-AutoDeployTask.ps1' -or
+                  $path -eq 'autopilot-portable-staging/Uninstall-AutoDeployTask.ps1' -or
+                  $path -eq 'autopilot-portable-staging/autonomous-operations-policy.json' -or
+                  $path -eq 'autopilot-portable-staging/test/Test-AutonomousSupervisor.ps1' -or
+                  $path -eq '.github/workflows/ci.yml'
                 ) {
                   $active = $true
                   break
@@ -699,6 +705,12 @@ jobs:
         shell: powershell
         working-directory: .
         run: ./autopilot-portable-staging/test/Test-StagingCanonicalRepairLedgerEncoding.ps1
+
+      - name: Verify governed autonomous Staging acceptance on Windows
+        if: steps.portability-scope.outputs.active == 'true'
+        shell: powershell
+        working-directory: .
+        run: ./autopilot-portable-staging/test/Test-AutonomousSupervisor.ps1
 
       - name: Verify bounded repair runner contract
         if: steps.portability-scope.outputs.active == 'true'

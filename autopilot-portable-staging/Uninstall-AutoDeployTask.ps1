@@ -2,6 +2,7 @@
 param(
     [string]$TaskName = "MAD4B Staging Auto Deploy",
     [string]$HealthTaskName = "MAD4B Staging Health Monitor",
+    [string]$SupervisorTaskName = "MAD4B Staging Autonomous Supervisor",
     [switch]$StopStaging
 )
 
@@ -21,6 +22,14 @@ if ($healthTask) {
     Write-Host "STAGING_HEALTH_TASK_REMOVED: task=$HealthTaskName"
 } else {
     Write-Host "STAGING_HEALTH_TASK_NOT_FOUND: task=$HealthTaskName"
+}
+
+$supervisorTask = Get-ScheduledTask -TaskName $SupervisorTaskName -ErrorAction SilentlyContinue
+if ($supervisorTask) {
+    Unregister-ScheduledTask -TaskName $SupervisorTaskName -Confirm:$false
+    Write-Host "STAGING_SUPERVISOR_TASK_REMOVED: task=$SupervisorTaskName"
+} else {
+    Write-Host "STAGING_SUPERVISOR_TASK_NOT_FOUND: task=$SupervisorTaskName"
 }
 
 if ($StopStaging) {
