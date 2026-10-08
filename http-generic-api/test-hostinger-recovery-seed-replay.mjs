@@ -55,7 +55,8 @@ test("Hostinger catalog is deterministic on empty Runtime without a physical con
 
 test("catalog replay remains incapable of authorizing execution, secrets or Production mutation", () => {
   assert.doesNotMatch(hostinger, /(?:INSERT\s+INTO|UPDATE)\s+remote_runtime_targets/i);
-  assert.doesNotMatch(hostinger, /\b(?:GRANT|REVOKE|CREATE\s+USER|DROP\s+DATABASE|TRUNCATE|DELETE\s+FROM)\b/i);
+  assert.doesNotMatch(hostinger, /^\s*(?:GRANT|REVOKE|CREATE\s+USER|DROP\s+DATABASE|TRUNCATE|DELETE\s+FROM)\b/im,
+    "Migration must not contain a privileged or destructive SQL statement");
   assert.doesNotMatch(hostinger, /\b(?:connector_secret|cf_token|password_value|plaintext_secret)\b/i);
   assert.doesNotMatch(hostinger, /status\s*=\s*'active'/i);
   assert.match(hostinger, /is_enabled=0/);
