@@ -452,7 +452,7 @@ function findingsFromInspection(inspection = {}, { trustedRoleInventoryVerifier 
   // composition currently does not install a trusted physical-evidence verifier.
   // Any verifier must be injected by an independently audited server authority,
   // not accepted through inspectProductionDatabase request input.
-  const trustedRoleProof = (role) => {
+  const trustedRoleProof = (role, requiredTableEvidence = null) => {
     const proof = roleFullObjectInventoryProofs[role];
     return proof?.contract === "mad4b.role-physical-object-visibility.v1"
       && proof.role === role && proof.expected_sha === inspection.expected_sha
@@ -464,8 +464,15 @@ function findingsFromInspection(inspection = {}, { trustedRoleInventoryVerifier 
       && proof.independent_privileged_census === true
       && proof.read_only === true
       && typeof trustedRoleInventoryVerifier === "function"
-      && trustedRoleInventoryVerifier({ role, proof, expectedSha: inspection.expected_sha,
-        roleFingerprint: roleCountFingerprints[role], roleObjectCounts: roleCounts[role] }) === true;
+      && trustedRoleInventoryVerifier({
+        role, proof, expectedSha: inspection.expected_sha,
+        roleFingerprint: roleCountFingerprints[role],
+        roleObjectCounts: roleCounts[role],
+        requiredTableEvidence, // verifier must bind source-registered table evidence
+        requiredTableEvidenceDigest: requiredTableEvidence === null ? null
+          : stableHash(requiredTableEvidence),
+        sourceRequiredTables: BOOTSTRAP_ROLE_GRANT_POLICIES[role]?.required_tables || [],
+      }) === true;
   };
   const emptyRoles = new Set();
   const zeroVisibilityUnverifiedRoles = new Set();
@@ -545,7 +552,7 @@ function findingsFromInspection(inspection = {}, { trustedRoleInventoryVerifier 
       ? requiredEvidence.filter((entry) => entry?.present === true).map((entry) => String(entry.table || "").trim())
       : []);
     if (!roleEvidenceAvailable || inspection.full_inspection !== true
-      || !trustedRoleProof(role)
+      || !trustedRoleProof(role, requiredEvidence)
       || !Array.isArray(requiredEvidence) || requiredTables.length === 0
       || !requiredTables.every((table) => physicallyPresent.has(table))) continue;
     const finding = inspectionFinding({ targetRole: role, resource, category, severity, expected: { ready: true }, actual: { ready: checks[check] ?? dimensions[role] ?? false }, authorityRef: authority, repairability: candidate ? "deterministic" : "unknown_fail_closed", mutationRequired: true });
