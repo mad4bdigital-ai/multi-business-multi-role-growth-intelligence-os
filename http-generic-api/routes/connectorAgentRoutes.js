@@ -432,13 +432,13 @@ async function claimInstallerCapability(config, payload) {
   }
 }
 
-function buildConnectorEnv({ aliases, port, capabilities = [], permissionGrants = {}, environment, controlPlaneBaseUrl, configId, deviceId, runtimeUrl }) {
+function buildConnectorEnv({ aliases, port, capabilities = [], permissionGrants = {}, environment, controlPlaneBaseUrl, configId, deviceId, runtimeUrl, cfTunnelId }) {
   if (!/^[a-zA-Z0-9-]{16,64}$/.test(String(configId || "")) ||
       !/^[a-zA-Z0-9_-]{2,128}$/.test(String(deviceId || ""))) {
     throw httpError(409, "connector_installer_identity_invalid",
       "An installer requires an exact safe canonical device and configuration identity.");
   }
-  const trustedRuntimeUrl = validateAdminRecoveryEndpoint(runtimeUrl, null, configId);
+  const trustedRuntimeUrl = validateAdminRecoveryEndpoint(runtimeUrl, cfTunnelId, configId);
   const grants = normalizePermissionGrants(permissionGrants);
   const allAliases = [...aliases, ...grants.shell_aliases];
   const appAllowlistLine = Object.keys(grants.apps).length ? [envJsonLine("CONNECTOR_APP_ALLOWLIST", grants.apps)] : [];
@@ -447,6 +447,7 @@ function buildConnectorEnv({ aliases, port, capabilities = [], permissionGrants 
     `CONNECTOR_CONFIG_ID=${configId}`,
     `CONNECTOR_DEVICE_ID=${deviceId}`,
     `CONNECTOR_PUBLIC_HEALTH_URL=${trustedRuntimeUrl}/health`,
+    `CONNECTOR_TUNNEL_ID=${cfTunnelId || ""}`, 
     `CONNECTOR_ENVIRONMENT=${environment}`,
     `CONNECTOR_CONTROL_PLANE_BASE_URL=${controlPlaneBaseUrl}`,
     `CONNECTOR_POLICY_URL=${controlPlaneBaseUrl}/connector-agent/policy`,
@@ -483,8 +484,8 @@ function buildConnectorEnv({ aliases, port, capabilities = [], permissionGrants 
   ].join("\r\n");
 }
 
-function buildInstallPowerShell({ redeemToken, tunnelUrl, aliases, port, capabilities = [], permissionGrants = {}, environment, controlPlaneBaseUrl, configId, deviceId }) {
-  const envText = buildConnectorEnv({ aliases, port, capabilities, permissionGrants, environment, controlPlaneBaseUrl, configId, deviceId, runtimeUrl: tunnelUrl });
+function buildInstallPowerShell({ redeemToken, tunnelUrl, aliases, port, capabilities = [], permissionGrants = {}, environment, controlPlaneBaseUrl, configId, deviceId, cfTunnelId }) {
+  const envText = buildConnectorEnv({ aliases, port, capabilities, permissionGrants, environment, controlPlaneBaseUrl, configId, deviceId, runtimeUrl: tunnelUrl, cfTunnelId });
   return [
     "# Mad4B Local Connector — run once as Administrator",
     "$ErrorActionPreference = 'Stop'",
@@ -1005,7 +1006,7 @@ export function buildConnectorAgentRoutes() {
         expectedPurpose: LOCAL_CONNECTOR_INSTALLER_DOWNLOAD_PURPOSE,
       });
       const [[config]] = await getPool().query(
-        `SELECT config_id, user_id, tenant_id, device_id, COALESCE(device_runtime_url, tunnel_url) AS tunnel_url
+        `SELECT config_id, user_id, tenant_id, device_id, cf_tunnel_id, COALESCE(device_runtime_url, tunnel_url) AS tunnel_url
            FROM \`local_connector_user_configs\`
           WHERE config_id = ? AND user_id = ? AND tenant_id = ? AND device_id = ? AND is_enabled = 1 AND lifecycle_state = 'active' AND revoked_at IS NULL AND archived_at IS NULL
           LIMIT 1`,
@@ -1034,6 +1035,7 @@ export function buildConnectorAgentRoutes() {
         tunnelUrl: config.tunnel_url,
         configId: config.config_id,
         deviceId: config.device_id,
+        cfTunnelId: config.cf_tunnel_id,
         aliases: DEFAULT_WINDOWS_ALIASES,
         port: CONNECTOR_PORT,
         capabilities: dbGrants.capabilities,
