@@ -20,7 +20,8 @@
       "docs/runbooks/database-schema-recovery-classification.md",
       "http-generic-api/recoveryKernel.js",
       "http-generic-api/test-recovery-kernel.mjs",
-      "http-generic-api/config/deployment-branch-policy.json"
+      "http-generic-api/config/deployment-branch-policy.json",
+      ".github/governance/test-authority-registry.json"
     ]
   },
   "environment_impact": {
@@ -77,7 +78,8 @@
             "A Recovery Kernel zero-object baseline candidate requires independent privileged all-object metadata visibility proof at the exact deployed SHA and role-object fingerprint; zero role-visible objects alone produce a non-executable visibility finding.",
             "Physical inventory classifier must verify every canonical required baseline table by name and boolean presence, detect duplicate/foreign/missing entries and reject report-supplied alternative table totals.",
             "The existing host-local full inspection does not yet issue independently certified visibility proofs; Production schema mutation remains blocked rather than silently substituting app-principal information_schema counts.",
-            "Inspection-provider-supplied finding IDs, candidate capabilities and mutation booleans are quarantined as untrusted observations, never accepted as executable Recovery Kernel findings."
+            "Inspection-provider-supplied finding IDs, candidate capabilities and mutation booleans are quarantined as untrusted observations, never accepted as executable Recovery Kernel findings.",
+            "Each new Production, Staging and Recovery regression test is registered to a canonical invariant authority; test-authority-closure remains a blocking non-waiverable gate."
           ],
           "tests": [
             {
@@ -123,7 +125,8 @@
             "docs/runbooks/database-schema-recovery-classification.md",
             "http-generic-api/recoveryKernel.js",
             "http-generic-api/test-recovery-kernel.mjs",
-            "http-generic-api/config/deployment-branch-policy.json"
+            "http-generic-api/config/deployment-branch-policy.json",
+            ".github/governance/test-authority-registry.json"
           ]
         }
       ]
