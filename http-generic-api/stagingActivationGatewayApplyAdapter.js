@@ -691,7 +691,9 @@ export async function buildStagingActivationGatewayApplyPlan(input = {}, deps = 
     workspace_id: workspace?.workspace_id || null, account_id: binding.account_id, script_name: binding.script_name,
     bundle_sha256: bundleSha, secret_set_sha256: secretSetSha,
     trust_key_id: bundle.origin_trust.key_id, trust_public_key_sha256: sha256(bundle.origin_trust.public_key),
-    expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString() };
+    // This Governance DB column is TIMESTAMP(0): persist a whole-second instant so
+    // the exact-digest plan and SQL readback remain identical before provider writes.
+    expires_at: new Date(Math.ceil((Date.now() + 30 * 60 * 1000) / 1000) * 1000).toISOString() };
   const planSha = sha256(stableJson(planBody));
   const env = deps.env || process.env;
   const providerCredential = await resolveManagedCloudflareCredential(runtimePool, { ...deps, env });
