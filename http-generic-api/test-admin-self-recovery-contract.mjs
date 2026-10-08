@@ -8,6 +8,7 @@ const install = read("./routes/localConnectorInstallRoutes.js");
 const admin = read("./routes/adminCliRoutes.js");
 const composite = read("./localConnectorCompositeHealth.js");
 const selector = read("./adminLocalConnectorTarget.js");
+const localServer = read("../local-connector/server.mjs");
 
 test("heartbeat cannot inherit the global backend key or resurrect revoked device", () => {
   const start = agent.indexOf("async function resolveHeartbeatConfig(");
@@ -66,4 +67,20 @@ test("inconclusive, Cloudflare and authorization faults never recommend blind re
   assert.match(admin, /inspect_cloudflare_tunnel_and_host_separately/);
   assert.match(admin, /collect_independent_route_and_device_evidence/);
   assert.match(admin, /verify_authorization_binding/);
+});
+
+test("signed installer binds canonical config/device in local .env and authenticated policy proves both", () => {
+  assert.match(agent, /CONNECTOR_CONFIG_ID=/);
+  assert.match(agent, /CONNECTOR_DEVICE_ID=/);
+  assert.match(agent, /configId: config\.config_id/);
+  assert.match(agent, /deviceId: config\.device_id/);
+  assert.match(localServer, /const CONNECTOR_CONFIG_ID =/);
+  assert.match(localServer, /const CONNECTOR_DEVICE_ID =/);
+  const start = localServer.indexOf("function policyBody()");
+  const end = localServer.indexOf("\\n}", start);
+  const body = localServer.slice(start, end);
+  assert.match(body, /config_id: CONNECTOR_CONFIG_ID/);
+  assert.match(body, /device_id: CONNECTOR_DEVICE_ID/);
+  assert.match(composite, /device_id: typeof body\?\.device_id === "string"/);
+  assert.match(composite, /config_id: typeof body\?\.config_id === "string"/);
 });
