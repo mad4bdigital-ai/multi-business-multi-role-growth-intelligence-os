@@ -6,7 +6,7 @@ The source-controlled extension covers the **MAD4B App Control** remote runtime,
 ## Dynamic discovery
 - Registered Hostinger remote runtime target + the existing `remote_runtime_command_allowlists` registry remain the source of truth, with independent target-level command allowlist.
 - `POST /platform/remote-runtime/hosting/recovery-allowlist/discover` lists registered capabilities and blockers only; it never reads managed SSH credentials, opens SSH, calls Hostinger, edits environment, creates a database, or performs a grant.
-- The forward migration adds seven **planned** command keys to the existing command registry and Hostinger production target allowlist. No command executor, capability policy, write tool, or dispatch certification is enabled. The admin discovery tool itself remains disabled until route acceptance.
+- The forward migration adds seven **planned** command keys to the command registry only. It deliberately does **not** modify the Hostinger production target allowlist. No command executor, capability policy, write tool, or dispatch certification is enabled. The admin discovery tool itself remains disabled until route acceptance.
 - Command execution is **never** derived from catalog discovery, active SSH, proposed input schemas, or a target allowlist string. Unknown commands remain unimplemented.
 
 ## Expansion catalog
