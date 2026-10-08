@@ -27,14 +27,15 @@ test("canonical seed source is single order authority across three Staging front
   assert.deepEqual(oneClick.lifecycle.canonical_seeds.seed_files, canonical);
   assert.deepEqual(canonical.slice(-expectedFiles.length), expectedFiles);
   assert.equal(new Set(canonical).size, canonical.length);
-  for (const policy of [
-    role.canonical_seed_lifecycle, autoDeploy.canonical_seed_lifecycle,
-    oneClick.lifecycle.canonical_seeds,
-  ]) {
+  for (const policy of [role.canonical_seed_lifecycle, autoDeploy.canonical_seed_lifecycle]) {
     assert.equal(policy.production_access_forbidden, true);
     assert.equal(policy.provider_access_forbidden, true);
     assert.equal(policy.readback_required, true);
   }
+  assert.equal(oneClick.lifecycle.canonical_seeds.explicit_apply_only, true);
+  assert.equal(oneClick.lifecycle.canonical_seeds.readback_required, true);
+  assert.equal(oneClick.safety.production_deploy, false);
+  assert.equal(oneClick.safety.provider_mutation, false);
 });
 
 test("Hostinger catalog is deterministic on empty Runtime without a physical connector", () => {
