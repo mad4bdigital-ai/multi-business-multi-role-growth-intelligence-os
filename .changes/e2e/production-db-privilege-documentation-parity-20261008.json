@@ -19,7 +19,8 @@
       "http-generic-api/test-database-schema-recovery-triage.mjs",
       "docs/runbooks/database-schema-recovery-classification.md",
       "http-generic-api/recoveryKernel.js",
-      "http-generic-api/test-recovery-kernel.mjs"
+      "http-generic-api/test-recovery-kernel.mjs",
+      "http-generic-api/config/deployment-branch-policy.json"
     ]
   },
   "environment_impact": {
@@ -69,7 +70,8 @@
             "Zero required tables visible to a Governance app principal never proves physically empty database; role-empty rebuild requires a complete independent census of tables, views, triggers, routines and events.",
             "Nonempty schemas with missing tables require role-bound registered migrations and independent approval; exact-grant repair is used only when physically present tables are privilege-invisible.",
             "No new automatic Production SQL executor or schema creation is exposed; Source only generates fail-closed diagnostic next-action candidates.",
-            "Unknown or missing readiness booleans cannot be converted into deterministic recovery capabilities; zero-object rebuild is reserved for separately verified empty roles."
+            "Unknown or missing readiness booleans cannot be converted into deterministic recovery capabilities; zero-object rebuild is reserved for separately verified empty roles.",
+            "The exact Production provider documentation path is classified as repository governance by the canonical environment-impact authority; it is not exempted or broad-glob whitelisted."
           ],
           "tests": [
             {
@@ -114,7 +116,8 @@
             "http-generic-api/test-database-schema-recovery-triage.mjs",
             "docs/runbooks/database-schema-recovery-classification.md",
             "http-generic-api/recoveryKernel.js",
-            "http-generic-api/test-recovery-kernel.mjs"
+            "http-generic-api/test-recovery-kernel.mjs",
+            "http-generic-api/config/deployment-branch-policy.json"
           ]
         }
       ]
