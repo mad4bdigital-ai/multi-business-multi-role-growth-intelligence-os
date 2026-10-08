@@ -431,12 +431,19 @@ async function claimInstallerCapability(config, payload) {
   }
 }
 
-function buildConnectorEnv({ aliases, port, capabilities = [], permissionGrants = {}, environment, controlPlaneBaseUrl }) {
+function buildConnectorEnv({ aliases, port, capabilities = [], permissionGrants = {}, environment, controlPlaneBaseUrl, configId, deviceId }) {
+  if (!/^[a-zA-Z0-9-]{16,64}$/.test(String(configId || "")) ||
+      !/^[a-zA-Z0-9_-]{2,128}$/.test(String(deviceId || ""))) {
+    throw httpError(409, "connector_installer_identity_invalid",
+      "An installer requires an exact safe canonical device and configuration identity.");
+  }
   const grants = normalizePermissionGrants(permissionGrants);
   const allAliases = [...aliases, ...grants.shell_aliases];
   const appAllowlistLine = Object.keys(grants.apps).length ? [envJsonLine("CONNECTOR_APP_ALLOWLIST", grants.apps)] : [];
   const filePathLine = grants.allowed_paths.length ? [`CONNECTOR_FILE_PATHS=${grants.allowed_paths.join(",")}`] : [];
   return [
+    `CONNECTOR_CONFIG_ID=${configId}`,
+    `CONNECTOR_DEVICE_ID=${deviceId}`,
     `CONNECTOR_ENVIRONMENT=${environment}`,
     `CONNECTOR_CONTROL_PLANE_BASE_URL=${controlPlaneBaseUrl}`,
     `CONNECTOR_POLICY_URL=${controlPlaneBaseUrl}/connector-agent/policy`,
@@ -473,8 +480,8 @@ function buildConnectorEnv({ aliases, port, capabilities = [], permissionGrants 
   ].join("\r\n");
 }
 
-function buildInstallPowerShell({ redeemToken, tunnelUrl, aliases, port, capabilities = [], permissionGrants = {}, environment, controlPlaneBaseUrl }) {
-  const envText = buildConnectorEnv({ aliases, port, capabilities, permissionGrants, environment, controlPlaneBaseUrl });
+function buildInstallPowerShell({ redeemToken, tunnelUrl, aliases, port, capabilities = [], permissionGrants = {}, environment, controlPlaneBaseUrl, configId, deviceId }) {
+  const envText = buildConnectorEnv({ aliases, port, capabilities, permissionGrants, environment, controlPlaneBaseUrl, configId, deviceId });
   return [
     "# Mad4B Local Connector — run once as Administrator",
     "$ErrorActionPreference = 'Stop'",
@@ -1022,6 +1029,8 @@ export function buildConnectorAgentRoutes() {
       const installer = buildInstallPowerShell({
         redeemToken,
         tunnelUrl: config.tunnel_url,
+        configId: config.config_id,
+        deviceId: config.device_id,
         aliases: DEFAULT_WINDOWS_ALIASES,
         port: CONNECTOR_PORT,
         capabilities: dbGrants.capabilities,
