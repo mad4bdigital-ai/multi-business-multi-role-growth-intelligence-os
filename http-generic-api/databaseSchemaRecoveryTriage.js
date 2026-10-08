@@ -75,14 +75,19 @@ function validCensus(census, role, exactSha, databaseKey, trustedPhysicalCensusV
   if (sourceTables.some((table) => !byTable.has(table))) return false;
   const countedPresent = [...byTable.values()].filter(Boolean).length;
   if (countedPresent !== present || expected - countedPresent !== missing) return false;
-  return trustedPhysicalCensusVerifier({
-    role, exactSha, databaseKey,
-    inspectionRunId: census.inspection_run_id,
-    evidenceSha256: census.inspection_evidence_sha256,
-    sourceRequiredTables: sourceTables,
-    objectCounts: counts,
-    requiredTableEvidence: observed,
-  }) === true;
+  try {
+    return trustedPhysicalCensusVerifier({
+      role, exactSha, databaseKey,
+      inspectionRunId: census.inspection_run_id,
+      evidenceSha256: census.inspection_evidence_sha256,
+      sourceRequiredTables: sourceTables,
+      objectCounts: counts,
+      requiredTableEvidence: observed,
+    }) === true;
+  } catch {
+    // A failed evidence provider can block triage but cannot authorize DDL.
+    return false;
+  }
 }
 
 export function classifyDatabaseSchemaRecovery({
