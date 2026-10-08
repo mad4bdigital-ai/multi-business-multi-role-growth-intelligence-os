@@ -72,6 +72,7 @@
       "http-generic-api/test-local-connector-composite-health.mjs",
       "http-generic-api/test-mcp-catalog-schema-guard.mjs",
       "http-generic-api/test-mcp-catalog-schema-preflight.mjs",
+      "http-generic-api/test-staging-auto-deploy-contract.mjs",
       "http-generic-api/test-staging-database-readiness-repair.mjs",
       "http-generic-api/test-staging-one-click-autopilot-core.mjs",
       "http-generic-api/test-staging-schema-bundle-builder.mjs",
