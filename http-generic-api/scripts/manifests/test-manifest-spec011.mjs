@@ -152,6 +152,7 @@ export const testCommands = [
   "node test-admin-control.mjs",
   "node test-admin-local-connector-target.mjs",
   "node test-admin-self-recovery-contract.mjs",
+  "node test-installer-credential-epoch.mjs",
   "node test-activation-run-archive-admin-control-read.mjs",
   "node test-repository-reconciliation-automation.mjs",
   "node test-repository-reconciliation-orchestrator-export.mjs",
