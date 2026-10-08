@@ -789,16 +789,6 @@ export function buildLocalConnectorDeviceAliasCandidates(deviceId = "") {
   return Array.from(candidates).filter(Boolean);
 }
 
-function localConnectorDeviceAliasLikePatterns(deviceId = "") {
-  return buildLocalConnectorDeviceAliasCandidates(deviceId)
-    .map((candidate) => `${candidate}%`)
-    .filter(Boolean);
-}
-
-function localConnectorConfigHasUsableToken(row = {}) {
-  return Boolean(String(row?.cf_token || "").trim());
-}
-
 export function buildLocalConnectorDeviceIdentityResolution({ requestedUserId = "", requestedDeviceId = "", row = null, matchSource = "direct" } = {}) {
   if (!row) return null;
   const resolvedUserId = String(row.user_id || "").trim();
