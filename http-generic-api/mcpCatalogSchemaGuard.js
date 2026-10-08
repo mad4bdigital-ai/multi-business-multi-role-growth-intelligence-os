@@ -258,7 +258,9 @@ export async function readMcpCatalogSchemaReadiness({ pool = null } = {}) {
     ok: tables.every((item) => item.available === true),
     migration: MCP_CATALOG_LEVEL_MIGRATION,
     tables,
-    migration_apply_required: tables.some((item) => item.migration_apply_required === true),
+    // Never propose a full migration if even one table is inaccessible or unknown.
+    migration_apply_required: tables.every((item) => item.available === true || item.migration_apply_required === true)
+      && tables.some((item) => item.migration_apply_required === true),
     secrets_included: false,
   };
 }
