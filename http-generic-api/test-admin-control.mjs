@@ -52,7 +52,7 @@ try {
     "secret-bearing installer routes must not create public Drive permissions");
   assert("local connector JSON metadata exits before credential materialization",
     adminCliSource.indexOf('if (format !== "bat")') !== -1 &&
-    adminCliSource.indexOf('if (format !== "bat")') < adminCliSource.indexOf("SELECT cf_token, connector_secret") &&
+    adminCliSource.includes('includeCredentials: format === "bat"') &&
     adminCliSource.includes("credential_materialized: false"),
     "default JSON mode must return secure handoff metadata before reading connector credentials");
   assert("local connector self-repair does not generate installer content",
