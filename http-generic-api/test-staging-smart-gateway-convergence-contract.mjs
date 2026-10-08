@@ -643,7 +643,8 @@ const executionEnv = { ...storageEnv, REMOTE_MCP_ENVIRONMENT: "staging", STAGING
 const dryRunInput = { mode: "dry_run", account_id: accountId, expected_source_commit: sourceSha,
   expected_policy_hash: staging.expected_policy_hash, environment_convergence_plan_sha256: convergencePlanSha };
 const certificationExactHealth = { ok: true, stale: false, policyKey: staging.policy_key,
-  policyHash: staging.expected_policy_hash, sourceCommit: sourceSha, workerBuildSha: sourceSha };
+  policyHash: staging.expected_policy_hash, sourceCommit: sourceSha, workerBuildSha: sourceSha,
+  workerBundleSha256: "a".repeat(64), secretsIncluded: false };
 const certificationExactReady = { ok: true, policyHash: staging.expected_policy_hash, upstreamSourceCommit: sourceSha,
   recoveryTrustedIngress: { key_id: "cert-old-key", public_key: "cert-old-public",
     policy_hash: staging.expected_policy_hash, deployment_sha: sourceSha } };
@@ -914,7 +915,8 @@ const sourceDrift = "b".repeat(40);
 const driftError = { error: { code: "GATEWAY_UPSTREAM_DEPLOYMENT_EVIDENCE_MISMATCH",
   details: { policy_hash_matches: true, source_commit_matches: false } }, secretsIncluded: false };
 const driftHealth = { ok: true, stale: false, policyKey: staging.policy_key,
-  policyHash: staging.expected_policy_hash, sourceCommit: sourceDrift, workerBuildSha: sourceDrift };
+  policyHash: staging.expected_policy_hash, sourceCommit: sourceDrift, workerBuildSha: sourceDrift,
+  workerBundleSha256: "b".repeat(64), secretsIncluded: false };
 const negativeClassification = _testingStagingGatewayTransaction.classifyStagingGatewayCertificationBaseline;
 assert.equal(negativeClassification({ ok: true, status: 200, body: driftHealth },
   { ok: false, status: 503, body: driftError }, sourceSha, staging.expected_policy_hash).mode, "release_identity_drift");
@@ -922,6 +924,8 @@ for (const forbidden of [
   { health: { ...driftHealth, stale: true }, error: driftError },
   { health: { ...driftHealth, policyHash: "e".repeat(64) }, error: driftError },
   { health: { ...driftHealth, workerBuildSha: sourceSha }, error: driftError },
+  { health: { ...driftHealth, workerBundleSha256: null }, error: driftError },
+  { health: { ...driftHealth, secretsIncluded: true }, error: driftError },
   { health: driftHealth, error: { error: { ...driftError.error,
     details: { policy_hash_matches: false, source_commit_matches: false } } } },
   { health: driftHealth, error: { error: { code: "GATEWAY_POLICY_STALE",
@@ -942,11 +946,18 @@ dispatchCertificationState = {
 };
 let driftCandidateDeployed = false;
 let driftPreparedBundle = null;
+let delayedPermanentCandidateHealthReads = 0;
 const driftSmokeFetch = async (url) => {
   const health = driftCandidateDeployed
     ? { ...certificationExactHealth, workerBundleSha256: driftPreparedBundle.worker_bundle_sha256 }
     : driftHealth;
-  if (url.endsWith("/health")) return new Response(JSON.stringify(health), { status: 200 });
+  if (url.endsWith("/health")) {
+    if (driftCandidateDeployed && delayedPermanentCandidateHealthReads > 0) {
+      delayedPermanentCandidateHealthReads--;
+      return new Response(JSON.stringify(driftHealth), { status: 200 });
+    }
+    return new Response(JSON.stringify(health), { status: 200 });
+  }
   return driftCandidateDeployed
     ? new Response(JSON.stringify({ ...certificationExactReady,
       recoveryTrustedIngress: driftPreparedBundle.origin_trust }), { status: 200 })
@@ -1012,6 +1023,8 @@ const driftApplyPlan = await runStagingActivationGatewayApply(dryRunInput, drift
 registerEnvelope(driftApplyPlan, "drift-recovery-permanent-apply-envelope");
 driftPreparedBundle = openStagingGatewayArtifact(savedArtifacts.get(driftApplyPlan.bundle_ref),
   { env: executionEnv, planId: driftApplyPlan.plan_id }).bundle;
+// Simulate Cloudflare edge propagation lag after provider deployment readback.
+delayedPermanentCandidateHealthReads = 2;
 const permanentRecovered = await runStagingActivationGatewayApply({
   ...dryRunInput, mode: "apply",
   plan_id: driftApplyPlan.plan_id, plan_sha256: driftApplyPlan.plan_sha256,
@@ -1024,6 +1037,7 @@ assert.equal(permanentRecovered.classification, "staging_activation_gateway_appl
 assert.equal(permanentRecovered.execution.executed, true);
 assert.equal(permanentRecovered.readback.health.ok, true);
 assert.equal(permanentRecovered.readback.ready.ok, true);
+assert.equal(delayedPermanentCandidateHealthReads, 0, "permanent readback must retry until exact edge convergence");
 assert.equal(driftCandidateDeployed, true);
 assert.equal(savedPlans.get(driftApplyPlan.plan_id).status, "succeeded");
 assert.equal(envelopeStates.get("drift-recovery-permanent-apply-envelope").execution_status, "executed");
