@@ -237,7 +237,7 @@ Do not run `cloudflare_tunnel_status` and `local_connector_install_bundle` as a 
 
 | Tool | What it does |
 |---|---|
-| `local_connector_self_repair` | **Primary repair tool for 1033.** Reads device config from DB, checks CF tunnel status, generates + uploads installer bundle, returns Drive link. Defaults to admin device (mohammedlap). |
+| `local_connector_self_repair` | **Primary repair tool for 1033.** Reads device config from DB, checks CF tunnel status, generates + uploads installer bundle, returns Drive link. Resolves only a unique fresh canonical device scoped to the authenticated principal and tenant. No stale hostname default. |
 | `local_connector_install_bundle` | Generate a pre-filled installer for a specific user/device. Accepts `user_id` and `device_id`. Use for provisioning new devices, not for break-glass repair. |
 
 ### Hostinger
@@ -574,7 +574,7 @@ Use `http-generic-api/openapi.gpt-action.local-connector.yaml` for break-glass o
 
 The connector runs on the active admin Windows machine and is reachable via Cloudflare Tunnel at `connector.mad4b.com`. It binds only to `127.0.0.1` — Cloudflare Tunnel is the sole internet entry point. It must not be deployed as, or depend on, the Hostinger `http-generic-api/server.js` app. Auth for sensitive endpoints is the standalone `CONNECTOR_SECRET`, sent as `Authorization: Bearer <CONNECTOR_SECRET>` or `x-connector-secret: <CONNECTOR_SECRET>`. `/health` is unauthenticated.
 
-**Device:** mohammedlap | **Tunnel:** 95e4ba8c-782b-4819-9f80-04af4457ce73 | **Port:** 7070
+**Device:** Discover from authenticated live inventory; legacy device/tunnel names are not operational identity.
 
 Latest observed direct connector evidence (2026-05-16):
 
