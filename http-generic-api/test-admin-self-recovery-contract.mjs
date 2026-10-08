@@ -113,3 +113,14 @@ test("watchdog heartbeat and public probe are bound to enrolled canonical device
   assert.match(agent, /CONNECTOR_PUBLIC_HEALTH_URL=/);
   assert.match(agent, /CONNECTOR_TUNNEL_ID=/);
 });
+
+test("watchdog has a single complete implementation and cannot follow remote health redirects",()=>{
+  for(const name of ["Test-PublicHealthBinding","Test-TransportOwnershipBinding","Publish-Heartbeat","Write-RuntimeState"]) {
+    assert((watchdog.match(new RegExp("function " + name + "\\(", "g"))||[]).length === 1,
+      "watchdog contains duplicate function: "+name);
+  }
+  assert(watchdog.split("\n").length < 600, "watchdog unexpectedly duplicated");
+  assert.match(watchdog, /MaximumRedirection 0/);
+  assert.match(watchdog, /Publish-Heartbeat \$status \$\(if \(\$publicReady\) \{ "health_ok" \} else \{ "service_restart" \} \)/);
+  assert.match(watchdog, /Publish-Heartbeat \$status \$\(if \(\$publicReady\) \{ "health_ok" \} else \{ "rollback" \} \)/);
+});
