@@ -56,7 +56,9 @@ function Test-WatcherTaskIdentity([object]$Task) {
     $arguments = [string]$action.Arguments
     if ([IO.Path]::GetFileName([string]$action.Execute) -ine "powershell.exe") { return $false }
     $working = [IO.Path]::GetFullPath([string]$action.WorkingDirectory).TrimEnd('\')
-    if ($working -ine $scriptRoot.TrimEnd('\') -and $working -ine $RepositoryPath.TrimEnd('\')) { return $false }
+    $sourceRoot = [IO.Path]::GetFullPath([string]$scriptRoot).TrimEnd('\')
+    $targetRoot = [IO.Path]::GetFullPath([string]$RepositoryPath).TrimEnd('\')
+    if ($working -ine $sourceRoot -and $working -ine $targetRoot) { return $false }
     if ([string]$Task.Principal.UserId -ine $expectedPrincipal) { return $false }
     # Permit only the exact expected script and working checkout, never an arbitrary -Command.
     $scriptRegex = [regex]::Escape($expectedScript)
