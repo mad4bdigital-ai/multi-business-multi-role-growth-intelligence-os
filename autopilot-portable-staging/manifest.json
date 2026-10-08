@@ -150,7 +150,7 @@
     },
     {
       "path": "http-generic-api/frontend-surface-dispatch.generated.json",
-      "sha256": "61f467a58dcb707f02ab3d43bfcef15788243dbade3928c84bf87ef51a019e3d"
+      "sha256": "9de1ea7757c5dd21a4abc6c9002ff6d7620a00339fcb9d79d67683f5f2b66c49"
     },
     {
       "path": "http-generic-api/governanceDb.js",
@@ -158,7 +158,7 @@
     },
     {
       "path": "http-generic-api/openapi/openapi.custom-gpt.staging-admin.yaml",
-      "sha256": "153ecae1489de73ac44d170b6d4ce4be2d26ff9857dfcb21c7f5b4b81d491473"
+      "sha256": "3d3746bad953e141a208258d8702e489b056d49cba4ad8c091db884c3c056cd4"
     },
     {
       "path": "http-generic-api/openapi/openapi.remote-mcp.staging.yaml",
@@ -382,19 +382,19 @@
     },
     {
       "path": "http-generic-api/openapi/openapi.tenant-gpt.auth.staging.yaml",
-      "sha256": "a45704eea5839d67a8f19aded65f7076e9a7274d24d78655b1647b5fc7ed24b5"
+      "sha256": "856a5d73e2753d67e3d543416559cdee2bd44443042bb5522c2678582782807e"
     },
     {
       "path": "http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.staging.yaml",
-      "sha256": "32f7af989b0b9d03c3fea9de33b1dd0f2b07c2732b9d4d2d60cbb07c229f5ce0"
+      "sha256": "3d7ca31021149e0a7f6076ea51f794c6223f54fb74f50d5c054a521a34ceef12"
     },
     {
       "path": "http-generic-api/openapi/openapi.tenant-gpt.activation.staging.yaml",
-      "sha256": "44fd2bca35f4a6042818a8f149fdf9a5fecbfcab16c39f5710bbc7a1c9dac8e8"
+      "sha256": "99177ecafcf8715619424a6d61c839ed7eec5c32e3a06b5708d8655c114e0015"
     },
     {
       "path": "http-generic-api/openapi/openapi.custom-gpt.activation-admin.staging.yaml",
-      "sha256": "e954eb13705c061ccce9294d6c208b6651ef691bca5944339b09b8db23d04758"
+      "sha256": "4708ab6118c26a4d699adb2cd8f26fe4600c3a96e34a2272061de905a2d95394"
     },
     {
       "path": "autopilot-portable-staging/Invoke-Staging-One-Click-Core.ps1",
@@ -422,11 +422,11 @@
     },
     {
       "path": "local-connector/connector-watchdog.ps1",
-      "sha256": "8a6f41290aea8e839aa4832f0e98b5d0cb96e63054c75ed540d0588c055b2171"
+      "sha256": "24dac8e491ee5bca02306067bd595cfa9dc75694b6428de93e06db636e3e7582"
     },
     {
       "path": "local-connector/server.mjs",
-      "sha256": "8019f39ae893754aa3eb545db40ea54fac7bc0b036594364a2e9e80557cc81c5"
+      "sha256": "3314aae95fbea6e4b9eb8da229735306278a8dc7c5275c6f43eaeedf1d5197dd"
     },
     {
       "path": "autopilot-portable-staging/Invoke-StagingPrHeadCertification.ps1",
