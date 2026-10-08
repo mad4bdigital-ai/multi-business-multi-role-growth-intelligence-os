@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   adminConnectorScope, chooseDevice, describeDevice,
   adminConnectorInventory, resolveAdminConnectorTarget,
+  validateAdminRecoveryEndpoint, classifyAdminRecoveryReadback,
 } from "./adminLocalConnectorTarget.js";
 
 const user="user-a",tenant="tenant-a",now=Date.parse("2026-10-08T20:00:00Z");
@@ -105,4 +106,58 @@ test("lifecycle changing after target resolution denies credential retrieval",as
   }};
   await fails(resolveAdminConnectorTarget({pool:p,scope,now,includeCredentials:true}),
     "device_target_not_trusted");
+});
+
+test("explicit stale device remains diagnosable but never executable",async()=>{
+  const stale={...fresh(),last_health_at:new Date(now-30*60000).toISOString()};
+  const p=mockDb([stale]);
+  await fails(resolveAdminConnectorTarget({pool:p,scope,requestedDeviceId:"current-pc",
+    now,includeCredentials:true}),"device_target_not_trusted");
+  const selected=await resolveAdminConnectorTarget({pool:mockDb([stale]),scope,
+    requestedDeviceId:"current-pc",now,intent:"diagnosis",includeCredentials:true});
+  assert.equal(selected.state,"STALE");
+  assert.equal(selected.execution_allowed,false);
+  await fails(resolveAdminConnectorTarget({pool:mockDb([stale]),scope,
+    intent:"diagnosis",includeCredentials:true,now}),"target_device_required");
+});
+test("diagnosis survives missing device credentials and route without treating them as recovered",async()=>{
+  const stale={...fresh(),connector_secret:null,cf_token:null,tunnel_url:null,
+    last_health_at:new Date(now-900000).toISOString()};
+  const selected=await resolveAdminConnectorTarget({pool:mockDb([stale]),scope,
+    requestedDeviceId:"current-pc",intent:"diagnosis",includeCredentials:true,
+    allowMissingCredentials:true,now});
+  assert.equal(selected.state,"STALE");
+  assert.equal(selected.credentials.connector_secret,null);
+  assert.equal(selected.credentials.tunnel_url,null);
+});
+test("installer requires explicit canonical device and rejects revoked target",async()=>{
+  await fails(resolveAdminConnectorTarget({pool:mockDb(),scope,intent:"installer",
+    includeCredentials:true,now}),"target_device_required");
+  await fails(resolveAdminConnectorTarget({pool:mockDb([{...fresh(),lifecycle_state:"revoked"}]),
+    scope,intent:"installer",requestedDeviceId:"current-pc",now}),"device_target_not_trusted");
+});
+test("recovery probes require exact trusted host, tunnel and config identity",()=>{
+  assert.equal(validateAdminRecoveryEndpoint("https://lc-config-a.mad4b.com","", "config-a"),
+    "https://lc-config-a.mad4b.com");
+  assert.equal(validateAdminRecoveryEndpoint("https://12345678-1234-1234-1234-123456789abc.cfargotunnel.com",
+    "12345678-1234-1234-1234-123456789abc"),"https://12345678-1234-1234-1234-123456789abc.cfargotunnel.com");
+  for(const bad of ["http://127.0.0.1","https://lc-other.mad4b.com",
+    "https://example.com","https://connector.mad4b.com@evil.com",
+    "https://connector.mad4b.com/redirect","https://connector.mad4b.com?next=evil"]) {
+    assert.throws(()=>validateAdminRecoveryEndpoint(bad,null,"config-a"),
+      e=>e.code==="connector_route_untrusted",bad);
+  }
+});
+test("recovered requires fresh heartbeat and authenticated same-device, same-config evidence",()=>{
+  const params={deviceState:"ACTIVE",publicStatus:"pass",authenticatedStatus:"pass",
+    expectedDeviceId:"current-pc",expectedConfigId:"config-a"};
+  assert.equal(classifyAdminRecoveryReadback(params).recovered,false);
+  assert.equal(classifyAdminRecoveryReadback({...params,observedDeviceId:"other-pc",
+    observedConfigId:"config-a"}).recovered,false);
+  assert.equal(classifyAdminRecoveryReadback({...params,observedDeviceId:"current-pc",
+    observedConfigId:"other-config"}).recovered,false);
+  assert.equal(classifyAdminRecoveryReadback({...params,deviceState:"STALE",
+    observedDeviceId:"current-pc",observedConfigId:"config-a"}).recovered,false);
+  assert.equal(classifyAdminRecoveryReadback({...params,observedDeviceId:"current-pc",
+    observedConfigId:"config-a"}).recovered,true);
 });
