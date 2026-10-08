@@ -30,7 +30,7 @@ function schemaError(code, message, details = {}) {
     migration: MCP_CATALOG_LEVEL_MIGRATION,
     table: details.table || null,
     column: MCP_CATALOG_LEVEL_COLUMN,
-    migration_apply_required: true,
+    migration_apply_required: code === "mcp_catalog_schema_migration_required",
     secrets_included: false,
   };
   return error;
@@ -133,6 +133,7 @@ export function buildMcpCatalogSchemaMigrationRequiredError({ table = null, orig
   return schemaError("mcp_catalog_schema_migration_required", "MCP catalog schema is missing mcp_catalog_level; apply the governed migration before serving the catalog.", {
     table,
     original_error_code: originalErrorCode,
+    migration_apply_required: true,
   });
 }
 
@@ -154,17 +155,43 @@ export async function readMcpCatalogLevelSchemaStatus({ pool = getPool(), table 
           AND column_name = ?`,
       [normalizedTable, MCP_CATALOG_LEVEL_COLUMN],
     );
-    const available = Number(rows?.[0]?.column_count || 0) > 0;
+    // information_schema can hide a table/column from an underprivileged principal.
+    // A zero count alone is NOT authorization to ALTER the Runtime schema.
+    let available = Number(rows?.[0]?.column_count || 0) > 0;
+    let code = available ? null : "MCP_CATALOG_COLUMN_METADATA_UNVERIFIED";
+    let migrationRequired = false;
+    if (!available) {
+      try {
+        // Whitelisted table names only; this is a LIMIT 0 read, never a DDL operation.
+        await pool.query(`SELECT \`${MCP_CATALOG_LEVEL_COLUMN}\` FROM \`${normalizedTable}\` LIMIT 0`);
+        available = true;
+        code = null;
+      } catch (probeError) {
+        const probeCode = String(probeError?.code || probeError?.errno || "").slice(0, 128);
+        if (probeCode === "ER_BAD_FIELD_ERROR") {
+          code = "MCP_CATALOG_LEVEL_COLUMN_MISSING";
+          migrationRequired = true;
+        } else if (probeCode === "ER_NO_SUCH_TABLE") {
+          code = "MCP_CATALOG_TABLE_MISSING";
+        } else if (["ER_TABLEACCESS_DENIED_ERROR", "ER_COLUMNACCESS_DENIED_ERROR", "ER_DBACCESS_DENIED_ERROR", "ER_ACCESS_DENIED_ERROR"].includes(probeCode)) {
+          code = "MCP_CATALOG_SCHEMA_PRIVILEGE_DENIED";
+        } else {
+          code = "MCP_CATALOG_SCHEMA_PROBE_UNAVAILABLE";
+        }
+      }
+    }
     const status = {
       ...MCP_CATALOG_RUNTIME_SCHEMA_CONTRACT,
       ok: available,
       table: normalizedTable,
       column: MCP_CATALOG_LEVEL_COLUMN,
       available,
-      migration_apply_required: !available,
+      code,
+      migration_apply_required: migrationRequired,
       secrets_included: false,
     };
-    cache.set(normalizedTable, { expires_at: Date.now() + CACHE_TTL_MS, status });
+    // Cache only demonstrated facts; transient permissions/outages must be re-evaluated.
+    if (available || migrationRequired) cache.set(normalizedTable, { expires_at: Date.now() + CACHE_TTL_MS, status });
     return status;
   } catch (error) {
     throw schemaError("mcp_catalog_schema_metadata_unavailable", "MCP catalog schema metadata could not be read.", {
@@ -177,10 +204,16 @@ export async function readMcpCatalogLevelSchemaStatus({ pool = getPool(), table 
 export async function assertMcpCatalogLevelColumn({ pool = getPool(), table } = {}) {
   const status = await readMcpCatalogLevelSchemaStatus({ pool, table });
   if (!status.available) {
-    throw buildMcpCatalogSchemaMigrationRequiredError({
-      table: status.table,
-      originalErrorCode: status.code || null,
-    });
+    if (status.migration_apply_required === true) {
+      throw buildMcpCatalogSchemaMigrationRequiredError({
+        table: status.table,
+        originalErrorCode: status.code || null,
+      });
+    }
+    throw schemaError("mcp_catalog_schema_metadata_unavailable",
+      "MCP catalog column existence is unverified; inspect Runtime identity and permissions before migration.", {
+        table: status.table, original_error_code: status.code || "MCP_CATALOG_SCHEMA_PROBE_UNAVAILABLE",
+      });
   }
   return status;
 }
@@ -197,10 +230,11 @@ export async function readMcpCatalogSchemaReadiness({ pool = null } = {}) {
         available: false,
         code: "DB_CONFIG_MISSING",
         migration: MCP_CATALOG_LEVEL_MIGRATION,
-        migration_apply_required: true,
+        migration_apply_required: false,
+        code: "DB_CONFIG_MISSING",
         secrets_included: false,
       })),
-      migration_apply_required: true,
+      migration_apply_required: false,
       secrets_included: false,
     };
   }
@@ -216,7 +250,7 @@ export async function readMcpCatalogSchemaReadiness({ pool = null } = {}) {
         available: false,
         code: error.code || "mcp_catalog_schema_metadata_unavailable",
         migration: MCP_CATALOG_LEVEL_MIGRATION,
-        migration_apply_required: true,
+        migration_apply_required: false,
         secrets_included: false,
       });
     }
@@ -225,7 +259,7 @@ export async function readMcpCatalogSchemaReadiness({ pool = null } = {}) {
     ok: tables.every((item) => item.available === true),
     migration: MCP_CATALOG_LEVEL_MIGRATION,
     tables,
-    migration_apply_required: tables.some((item) => item.available !== true),
+    migration_apply_required: tables.some((item) => item.migration_apply_required === true),
     secrets_included: false,
   };
 }
@@ -282,10 +316,10 @@ function unavailableSchemaReadiness(error) {
       code: "mcp_catalog_schema_metadata_unavailable",
       original_error_code: originalErrorCode,
       migration: MCP_CATALOG_LEVEL_MIGRATION,
-      migration_apply_required: true,
+      migration_apply_required: false,
       secrets_included: false,
     })),
-    migration_apply_required: true,
+    migration_apply_required: false,
     ...readOnlyEvidence(),
     secrets_included: false,
   };
@@ -301,6 +335,7 @@ export async function readMcpCatalogSchemaReadinessSafe({ pool, env = process.en
       ...MCP_CATALOG_RUNTIME_SCHEMA_CONTRACT,
       ok: readiness.ok === true && identity.ok === true,
       identity,
+      migration_apply_required: identity.ok === true && readiness.migration_apply_required === true,
       ...readOnlyEvidence({ databaseConnectionPerformed: true, sqlReadbackPerformed: true }),
       secrets_included: false,
     };
@@ -366,13 +401,14 @@ export function isMcpCatalogSchemaNotReadyError(error) {
 export function buildMcpCatalogSchemaNotReadyResponse(error = {}) {
   return {
     code: "schema_contract_not_ready",
-    message: "MCP catalog schema is not ready; apply the governed migration before serving catalog operations.",
+    message: "MCP catalog schema is not ready; verify Runtime identity, privileges and column state before any governed migration.",
     details: {
       ...MCP_CATALOG_RUNTIME_SCHEMA_CONTRACT,
-      table: String(error?.details?.table || "") || null,
+      table: MCP_CATALOG_TABLES.includes(error?.details?.table) ? error.details.table : null,
       column: MCP_CATALOG_LEVEL_COLUMN,
-      migration_apply_required: true,
-      original_error_code: boundedSchemaErrorCode(error, "mcp_catalog_schema_migration_required"),
+      migration_apply_required: String(error?.code || "") === "mcp_catalog_schema_migration_required"
+        && error?.details?.migration_apply_required === true,
+      original_error_code: boundedSchemaErrorCode(error, "mcp_catalog_schema_metadata_unavailable"),
       secrets_included: false,
     },
     secrets_included: false,
