@@ -34,7 +34,7 @@ test("all three roles pass their exact required privileges with separate princip
   }
   const runtime = compareRolePrivilegeEvidence(evidence("runtime"));
   assert.deepEqual(runtime.local_manager_contract_differences.map((x) => x.table).sort(), [
-    "connected_systems", "local_connector_device_aliases",
+    "connected_systems", "installations", "local_connector_device_aliases",
   ]);
 });
 
