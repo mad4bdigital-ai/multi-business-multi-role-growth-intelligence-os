@@ -3,33 +3,42 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { test } from "node:test";
 import { classifyDatabaseSchemaRecovery } from "./databaseSchemaRecoveryTriage.js";
+import { readRuntimeBootstrapContract } from "./runtimeBootstrapContract.js";
 const sha = "a".repeat(40);
 const databaseKey = "governance";
 const base = { role: "governance", databaseKey, expectedDeployedSha: sha,
   principalSchemaReadiness: { ready: false, required_table_count: 17,
     observed_required_table_count: 0, missing_required_table_count: 17 } };
-const census = (overrides = {}) => ({
-  contract: "mad4b.database-physical-object-inspection.v1",
-  read_only: true,
-  privileged_inventory_verified: true,
-  role: "governance",
-  database_key: databaseKey,
-  exact_deployed_sha: sha,
-  database_identity_verified: true,
-  independent_recovery_store_verified: true,
-  privileges_sufficient_to_enumerate_all_objects: true,
-  census_complete: true,
-  census_error_count: 0,
-  role_boundary_verified: true,
-  inspection_run_id: "run:durable:171",
-  inspection_evidence_sha256: "b".repeat(64),
-  object_counts: { tables: 0, views: 0, triggers: 0, routines: 0, events: 0, total: 0 },
-  required_objects_physically_checked: true,
-  required_tables_present: 0,
-  required_tables_missing: 17,
-  required_tables_expected: 17,
-  ...overrides,
-});
+const baseline = readRuntimeBootstrapContract().baseline_bundle;
+const expectedTableNames = {
+  runtime: baseline.required_runtime_tables,
+  governance: baseline.required_governance_tables,
+  runtime_persistence: baseline.required_runtime_persistence_tables,
+};
+const census = (overrides = {}) => {
+  const role = overrides.role || "governance";
+  const tables = expectedTableNames[role] || [];
+  const present = overrides.required_tables_present ?? 0;
+  const requiredEvidence = overrides.required_table_evidence
+    || tables.map((table, index) => ({ table, present: index < present }));
+  return {
+    contract: "mad4b.database-physical-object-inspection.v1",
+    read_only: true, privileged_inventory_verified: true,
+    role, database_key: databaseKey, exact_deployed_sha: sha,
+    database_identity_verified: true, independent_recovery_store_verified: true,
+    privileges_sufficient_to_enumerate_all_objects: true,
+    census_complete: true, census_error_count: 0, role_boundary_verified: true,
+    inspection_run_id: "run:durable:171", inspection_evidence_sha256: "b".repeat(64),
+    object_counts: { tables: 0, views: 0, triggers: 0, routines: 0, events: 0, total: 0 },
+    required_objects_physically_checked: true,
+    required_tables_present: present,
+    required_tables_missing: tables.length - present,
+    required_tables_expected: tables.length,
+    ...overrides,
+    required_table_evidence: requiredEvidence,
+  };
+};
+
 const assertSafe = (output) => {
   assert.equal(output.auto_apply_allowed, false);
   assert.equal(output.operation_authorized, false);
@@ -120,6 +129,12 @@ test("untrusted, incomplete, stale or role-swapped census fails closed for every
     { object_counts: { tables: 0, views: 0, triggers: 0, routines: 0, events: 0, total: 1 } },
     { required_tables_present: 1, required_tables_missing: 17, required_tables_expected: 17 },
     { required_objects_physically_checked: false },
+    { required_tables_expected: 18, required_tables_missing: 18 },
+    { required_table_evidence: expectedTableNames.governance.map((table) => ({ table, present: false })).slice(1) },
+    { required_table_evidence: expectedTableNames.governance.map((table) => ({ table, present: false })).map((entry, index) => index === 0 ? { table: "wrong_role_table", present: false } : entry) },
+    { required_table_evidence: expectedTableNames.governance.map((table) => ({ table, present: false })).map((entry, index) => index === 1 ? { table: expectedTableNames.governance[0], present: false } : entry) },
+    { required_table_evidence: expectedTableNames.governance.map((table) => ({ table, present: false })).map((entry, index) => index === 2 ? { ...entry, present: "false" } : entry) },
+
   ]) {
     const result = classifyDatabaseSchemaRecovery({ ...base, privilegedCensus: census(overrides) });
     assert.equal(result.classification, "visibility_unverified", JSON.stringify(overrides));
