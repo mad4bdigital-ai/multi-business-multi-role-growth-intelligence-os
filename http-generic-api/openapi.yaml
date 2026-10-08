@@ -23782,6 +23782,66 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
   /me/workspaces/{workspace_id}/brands/{brand_key}/assets/materialize-brand-core:
     $ref: ./openapi/brand-core-asset-materialization.yaml#/paths/~1me~1workspaces~1{workspace_id}~1brands~1{brand_key}~1assets~1materialize-brand-core
+  /platform/remote-runtime/hosting/recovery-allowlist/discover:
+    post:
+      tags: [platform-plugins]
+      operationId: discoverHostingerRecoveryAllowlist
+      summary: Discover Hostinger recovery capability catalog without execution
+      description: Resolves an exact governed Hostinger target and dynamic database-registered allowlist. Every capability is catalog-only; a connected Hostinger SSH account is not authority to create databases, edit environment variables or apply grants.
+      x-runtime-contract-source: routes/platformPluginRoutes.js
+      x-runtime-auth-profile: admin_backend
+      x-custom-gpt-exclude: true
+      x-gpt-action-exclude: true
+      x-openai-isConsequential: false
+      security:
+        - adminBearerAuth: []
+        - backendApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [target_id]
+              properties:
+                target_id: { type: string, minLength: 2, maxLength: 128 }
+                environment: { type: string, enum: [production, development], default: production }
+      responses:
+        "200":
+          description: No-secret capabilities and independent prerequisite evidence
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok, contract, target_id, environment, commands, ssh_used, mutation_performed, secrets_included]
+                properties:
+                  ok: { type: boolean, const: true }
+                  contract: { type: string, const: mad4b.hostinger-recovery-discovery.v1 }
+                  target_id: { type: string }
+                  environment: { type: string }
+                  commands:
+                    type: array
+                    items:
+                      type: object
+                      required: [command_key, registry_status, target_allowlisted, plan_allowed, dispatch_ready, execution_allowed]
+                      properties:
+                        command_key: { type: string }
+                        registry_status: { type: string }
+                        target_allowlisted: { type: boolean }
+                        plan_candidate: { type: boolean }
+                        plan_allowed: { type: boolean, const: false }
+                        dispatch_ready: { type: boolean, const: false }
+                        execution_allowed: { type: boolean, const: false }
+                        prerequisites: { type: array, items: { type: string } }
+                  ssh_used: { type: boolean, const: false }
+                  mutation_performed: { type: boolean, const: false }
+                  secrets_included: { type: boolean, const: false }
+        "400": { description: Invalid target or environment }
+        "403": { description: Environment or target scope mismatch }
+        "409": { description: Target or capability registry is ambiguous }
+        "503": { description: Database or catalog unavailable }
+
   /platform/remote-runtime/hosting/deploy-release:
     post:
       operationId: remoteRuntimeHostingerDeployRelease
