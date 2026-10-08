@@ -110,7 +110,7 @@ export function compareRolePrivilegeEvidence({
 }
 
 export async function inspectStagingPrivilegeDrift({ pools, env = process.env } = {}) {
-  if (normalized(env.APP_ENV).toLowerCase() !== "staging") {
+  if ((normalized(env.NODE_ENV).toLowerCase() !== "staging" || normalized(env.DEPLOYMENT_ENVIRONMENT) !== "staging_local_windows_docker")) {
     return { contract: "mad4b.staging-three-db-privilege-drift-audit.v1", read_only: true,
       writes_performed: false, secrets_included: false, ready: false, all_roles_read: false,
       errors: [{ code: "NON_STAGING_ENVIRONMENT_BLOCKED" }], results: [] };
@@ -189,7 +189,7 @@ async function run() {
   const pools = {};
   let output;
   try {
-    if (normalized(process.env.APP_ENV).toLowerCase() === "staging") {
+    if (normalized(process.env.NODE_ENV).toLowerCase() === "staging" && normalized(process.env.DEPLOYMENT_ENVIRONMENT) === "staging_local_windows_docker") {
       // Only instantiate pools for a verified Staging app. Never fall back to Production.
       pools.runtime = getPool();
       pools.governance = getGovernancePool();
