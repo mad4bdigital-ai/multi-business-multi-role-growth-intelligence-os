@@ -611,6 +611,59 @@ async function readPublicJson(fetchImpl, url, timeoutMs = 10000) {
   }
 }
 
+// Public drift recovery is authorized only when the signed Worker identity is healthy,
+// its policy is exact, and /ready fails solely because the upstream release changed.
+// This does not change the Gateway's normal fail-closed /ready behavior.
+function classifyStagingGatewayCertificationBaseline(health, ready, expectedCommit, expectedPolicyHash) {
+  const body = health?.body || {};
+  const sourceCommit = compact(body.sourceCommit, 40).toLowerCase();
+  const workerBuildSha = compact(body.workerBuildSha, 40).toLowerCase();
+  const workerBundleSha256 = compact(body.workerBundleSha256, 64).toLowerCase();
+  const canonicalHealth = health?.ok === true && health?.status === 200 && body.ok === true
+    && body.stale === false && body.policyKey === "activation_gateway_staging"
+    && body.policyHash === expectedPolicyHash && SHA_RE.test(sourceCommit)
+    && workerBuildSha === sourceCommit && SHA256_RE.test(workerBundleSha256)
+    && body.secretsIncluded === false;
+  const trust = ready?.body?.recoveryTrustedIngress || ready?.body?.trustedIngress || null;
+  const trustExact = trust?.contract === "mad4b.staging.activation-recovery-origin-trust.v2"
+    && trust?.policy_hash === expectedPolicyHash
+    && trust?.deployment_sha === sourceCommit
+    && trust?.worker_bundle_sha256 === workerBundleSha256
+    && trust?.trusted_ingress_mode === "signature"
+    && trust?.secrets_included === false
+    && Boolean(compact(trust?.key_id, 191))
+    && Boolean(compact(trust?.public_key, 4096));
+  const healthyReady = ready?.ok === true && ready?.status === 200 && ready?.body?.ok === true
+    && ready.body.policyHash === expectedPolicyHash
+    && ready.body.upstreamSourceCommit === expectedCommit
+    && trustExact;
+  const exactRelease = canonicalHealth && sourceCommit === expectedCommit && healthyReady;
+  const driftOnly = canonicalHealth && sourceCommit !== expectedCommit && !ready?.ok
+    && ready?.status === 503
+    && ready?.body?.error?.code === "GATEWAY_UPSTREAM_DEPLOYMENT_EVIDENCE_MISMATCH"
+    && ready.body.error.details?.policy_hash_matches === true
+    && ready.body.error.details?.source_commit_matches === false;
+  return Object.freeze({
+    ready: exactRelease || driftOnly,
+    mode: exactRelease ? "healthy_exact" : driftOnly ? "release_identity_drift" : "blocked",
+    observed_source_commit: canonicalHealth ? sourceCommit : null,
+    observed_worker_bundle_sha256: canonicalHealth ? workerBundleSha256 : null,
+    expected_source_commit: expectedCommit,
+    expected_policy_hash: expectedPolicyHash,
+    health_status: health?.status || 0,
+    ready_status: ready?.status || 0,
+    secrets_included: false,
+  });
+}
+
+async function observeStagingGatewayCertificationBaseline(fetchImpl, publicHost, expectedCommit, expectedPolicyHash, timeoutMs) {
+  const [health, ready] = await Promise.all([
+    readPublicJson(fetchImpl, `https://${publicHost}/health`, timeoutMs),
+    readPublicJson(fetchImpl, `https://${publicHost}/ready`, timeoutMs),
+  ]);
+  return { health, ready, classification: classifyStagingGatewayCertificationBaseline(health, ready, expectedCommit, expectedPolicyHash) };
+}
+
 function buildUploadForm(bundle, plan, compatibilityDate = "2026-08-31") {
   const formData = new FormData();
   const bindings = Object.entries(bundle.worker_secrets).map(([name, text]) => ({ type: "secret_text", name, text: String(text) }));
@@ -621,7 +674,7 @@ function buildUploadForm(bundle, plan, compatibilityDate = "2026-08-31") {
   return formData;
 }
 
-async function rollback({ client, accountId, scriptName, previousDeployment, scriptExistedBefore, previousHealth, previousReady, fetchImpl, publicHost, timeoutMs }) {
+async function rollback({ client, accountId, scriptName, previousDeployment, scriptExistedBefore, previousHealth, previousReady, fetchImpl, publicHost, timeoutMs, baselineMode = "healthy_exact", expectedSourceCommit = "", expectedPolicyHash = "" }) {
   if (previousDeployment?.id && deploymentVersions(previousDeployment).length) {
     const versions = deploymentVersions(previousDeployment);
     const apiPath = `/accounts/${accountId}/workers/scripts/${scriptName}/deployments`;
@@ -629,11 +682,8 @@ async function rollback({ client, accountId, scriptName, previousDeployment, scr
     if (!response?.ok) return { attempted: true, rollback_verified: false, api_restore_ok: false, secrets_included: false };
     const current = deploymentList(await providerRequest(client, { apiPath, method: "GET" }, "rollback_inventory_read"))[0];
     const deploymentReadbackOk = stableJson(deploymentVersions(current).sort((a,b)=>a.version_id.localeCompare(b.version_id))) === stableJson(versions.sort((a,b)=>a.version_id.localeCompare(b.version_id)));
-    const [health, ready] = await Promise.all([
-      readPublicJson(fetchImpl, `https://${publicHost}/health`, timeoutMs),
-      readPublicJson(fetchImpl, `https://${publicHost}/ready`, timeoutMs),
-    ]);
     const healthIdentity = (body) => ({ sourceCommit: body?.sourceCommit, workerBuildSha: body?.workerBuildSha,
+      workerBundleSha256: body?.workerBundleSha256,
       policyHash: body?.policyHash, policyKey: body?.policyKey });
     const readyIdentity = (body) => {
       const trust = body?.recoveryTrustedIngress || body?.trustedIngress || {};
@@ -641,13 +691,39 @@ async function rollback({ client, accountId, scriptName, previousDeployment, scr
         key_id: trust.key_id, public_key: trust.public_key, policy_hash: trust.policy_hash,
         deployment_sha: trust.deployment_sha };
     };
-    const publicHealthRestored = health.ok && previousHealth?.ok && health.body?.ok === true
-      && stableJson(healthIdentity(health.body)) === stableJson(healthIdentity(previousHealth.body));
-    const publicTrustRestored = ready.ok && previousReady?.ok && ready.body?.ok === true
-      && stableJson(readyIdentity(ready.body)) === stableJson(readyIdentity(previousReady.body));
+    let publicHealthRestored = false;
+    let publicTrustRestored = false;
+    let degradedBaselineRestored = false;
+    // Cloudflare's public deployment can lag its control-plane readback.
+    for (let attempt = 0; attempt < 12; attempt++) {
+      const [health, ready] = await Promise.all([
+        readPublicJson(fetchImpl, `https://${publicHost}/health`, timeoutMs),
+        readPublicJson(fetchImpl, `https://${publicHost}/ready`, timeoutMs),
+      ]);
+      publicHealthRestored = health.ok && previousHealth?.ok && health.status === previousHealth.status
+        && health.body?.ok === true
+        && stableJson(healthIdentity(health.body)) === stableJson(healthIdentity(previousHealth.body));
+      publicTrustRestored = baselineMode !== "release_identity_drift" && ready.ok && previousReady?.ok
+        && ready.status === previousReady.status && ready.body?.ok === true
+        && stableJson(readyIdentity(ready.body)) === stableJson(readyIdentity(previousReady.body));
+      if (baselineMode === "release_identity_drift") {
+        const restored = classifyStagingGatewayCertificationBaseline(health, ready, expectedSourceCommit, expectedPolicyHash);
+        degradedBaselineRestored = restored.ready && restored.mode === "release_identity_drift"
+          && restored.observed_source_commit === previousHealth?.body?.sourceCommit
+          && previousReady?.status === 503
+          && previousReady?.body?.error?.code === "GATEWAY_UPSTREAM_DEPLOYMENT_EVIDENCE_MISMATCH"
+          && previousReady?.body?.error?.details?.policy_hash_matches === true
+          && previousReady?.body?.error?.details?.source_commit_matches === false;
+      }
+      if (publicHealthRestored && (publicTrustRestored || degradedBaselineRestored)) break;
+      if (attempt < 11) await new Promise((resolve) => setTimeout(resolve, 1500));
+    }
     return { attempted: true, api_restore_ok: true, deployment_readback_ok: deploymentReadbackOk,
+      baseline_mode: baselineMode,
       public_health_restored: publicHealthRestored, public_trust_restored: publicTrustRestored,
-      rollback_verified: deploymentReadbackOk && publicHealthRestored && publicTrustRestored,
+      degraded_baseline_restored: degradedBaselineRestored,
+      rollback_verified: deploymentReadbackOk && publicHealthRestored
+        && (publicTrustRestored || degradedBaselineRestored),
       previous_deployment_id: previousDeployment.id, secrets_included: false };
   }
   if (scriptExistedBefore !== false) return { attempted: false, rollback_verified: false, manual_recovery_required: true, secrets_included: false };
@@ -683,9 +759,19 @@ export async function buildStagingActivationGatewayApplyPlan(input = {}, deps = 
   if (bundle.policy_hash !== expectedPolicyHash) throw adapterError("staging_activation_gateway_built_policy_hash_mismatch", "Built Staging Gateway policy does not match the exact environment profile.", 409);
   const bundleSha = sha256(stableJson({ files: bundle.files, worker_secrets: bundle.worker_secrets, origin_trust: bundle.origin_trust }));
   const secretSetSha = sha256(stableJson(bundle.worker_secrets));
+  const baseline = certificationPurpose
+    ? (await observeStagingGatewayCertificationBaseline(
+      deps.smokeFetch || deps.fetchImpl || globalThis.fetch, gateway.public_host,
+      expectedSourceCommit, expectedPolicyHash, deps.smokeTimeoutMs)).classification
+    : null;
   const planId = crypto.randomUUID();
   const planBody = { contract: "mad4b.staging.activation-gateway-execution-plan.v1", plan_id: planId,
     purpose: planPurpose,
+    ...(certificationPurpose ? { certification_baseline: {
+      mode: baseline.mode, observed_source_commit: baseline.observed_source_commit,
+      observed_worker_bundle_sha256: baseline.ready ? baseline.observed_worker_bundle_sha256 : null,
+      expected_policy_hash: expectedPolicyHash,
+    } } : {}),
     environment_convergence_plan_sha256: convergencePlanSha, expected_source_commit: expectedSourceCommit,
     expected_policy_hash: expectedPolicyHash, resource_binding_id: binding.binding_id,
     workspace_id: workspace?.workspace_id || null, account_id: binding.account_id, script_name: binding.script_name,
@@ -722,6 +808,9 @@ export async function buildStagingActivationGatewayApplyPlan(input = {}, deps = 
     { key: "elevated_platform_resource_authority", ok: elevatedAuthorityReady, detail: { permission_level: binding.permission_level } },
     ...(certificationPurpose
       ? [
+        { key: "certification_public_baseline_supported", ok: baseline.ready,
+          detail: { mode: baseline.mode, observed_source_commit: baseline.observed_source_commit,
+            health_status: baseline.health_status, ready_status: baseline.ready_status } },
         { key: "dispatch_certification_registry_present", ok: dispatchCertification.status !== "missing", detail: { status: dispatchCertification.status } },
         { key: "dispatch_certification_requires_certification", ok: dispatchCertification.ready !== true, detail: { status: dispatchCertification.status } },
       ]
@@ -744,6 +833,7 @@ export async function buildStagingActivationGatewayApplyPlan(input = {}, deps = 
         : (certificationPurpose ? "staging_activation_gateway_certification_blocked" : "staging_activation_gateway_apply_blocked")),
     apply_ready: certificationPurpose ? false : planReady,
     certification_ready: certificationPurpose ? planReady : dispatchCertification.ready === true,
+    ...(certificationPurpose ? { certification_baseline: baseline } : {}),
     ...planBody,
     plan_sha256: planSha,
     envelope_binding: { binding_sha256: planSha, capability_sha256: convergencePlanSha },
@@ -912,6 +1002,7 @@ export async function runStagingActivationGatewayApply(input = {}, deps = {}) {
   let scriptExistedBefore = null;
   let previousHealth = null;
   let previousReady = null;
+  let previousBaselineMode; // Resolved only after public baseline proof.
   let envelopeClaimed = false;
   let rollbackResult = null;
   try {
@@ -938,16 +1029,25 @@ export async function runStagingActivationGatewayApply(input = {}, deps = {}) {
       throw adapterError("staging_activation_gateway_previous_deployment_unresolved", "Existing Worker has no exact previous deployment to restore.", 409);
     }
     if (previousDeployment) {
-      previousHealth = await readPublicJson(fetchImpl, `https://${plan.profile_binding.public_host}/health`, deps.smokeTimeoutMs);
-      previousReady = await readPublicJson(fetchImpl, `https://${plan.profile_binding.public_host}/ready`, deps.smokeTimeoutMs);
-      const previousTrust = previousReady.body?.recoveryTrustedIngress || previousReady.body?.trustedIngress;
-      if (!previousHealth.ok || !previousReady.ok
-        || !SHA_RE.test(compact(previousHealth.body?.sourceCommit, 40).toLowerCase())
-        || !SHA256_RE.test(compact(previousHealth.body?.policyHash, 64).toLowerCase())
-        || !SHA_RE.test(compact(previousReady.body?.upstreamSourceCommit, 40).toLowerCase())
-        || !compact(previousTrust?.key_id, 191) || !compact(previousTrust?.public_key, 4096)) {
-        throw adapterError("staging_activation_gateway_previous_public_state_unresolved", "Previous public health and trust identity must be captured before provider mutation.", 409);
+      const publicBaseline = await observeStagingGatewayCertificationBaseline(
+        fetchImpl, plan.profile_binding.public_host, plan.expected_source_commit,
+        plan.expected_policy_hash, deps.smokeTimeoutMs);
+      previousHealth = publicBaseline.health;
+      previousReady = publicBaseline.ready;
+      // A 200 response alone is not a trusted baseline: require signed build
+      // identity and complete origin trust parity even for legacy healthy apply.
+      const previouslyDeployedSha = compact(previousHealth.body?.sourceCommit, 40).toLowerCase();
+      const healthyBaseline = classifyStagingGatewayCertificationBaseline(
+        previousHealth, previousReady, previouslyDeployedSha, plan.expected_policy_hash);
+      const trustedHealthyBaseline = healthyBaseline.mode === "healthy_exact";
+      const boundedDrift = publicBaseline.classification.ready
+        && publicBaseline.classification.mode === "release_identity_drift";
+      if (!trustedHealthyBaseline && !boundedDrift) {
+        throw adapterError("staging_activation_gateway_previous_public_state_unresolved",
+          "Previous Worker must be healthy and trusted or prove exact release-identity drift before provider mutation.", 409,
+          { health_status: previousHealth.status, ready_status: previousReady.status });
       }
+      previousBaselineMode = boundedDrift ? "release_identity_drift" : "healthy_exact";
     }
     writesStarted = true;
     const version = await providerRequest(client, { apiPath: `/accounts/${accountId}/workers/scripts/${scriptName}/versions`, method: "POST", formData: buildUploadForm(bundle, plan) }, "version_upload");
@@ -963,26 +1063,39 @@ export async function runStagingActivationGatewayApply(input = {}, deps = {}) {
       throw adapterError("staging_activation_gateway_deployment_readback_missing", "Deployment readback did not prove the exact candidate version at 100%.", 502);
     }
 
-    const health = await readPublicJson(fetchImpl, `https://${plan.profile_binding.public_host}/health`, deps.smokeTimeoutMs);
-    const ready = await readPublicJson(fetchImpl, `https://${plan.profile_binding.public_host}/ready`, deps.smokeTimeoutMs);
-    const healthOk = health.ok && health.body?.ok === true && health.body?.stale === false
-      && compact(health.body?.sourceCommit, 64).toLowerCase() === plan.expected_source_commit
-      && compact(health.body?.workerBuildSha, 64).toLowerCase() === plan.expected_source_commit
-      && compact(health.body?.policyHash, 64).toLowerCase() === plan.expected_policy_hash
-      && health.body?.policyKey === "activation_gateway_staging";
-    const trust = ready.body?.recoveryTrustedIngress || ready.body?.trustedIngress || null;
-    const trustOk = ready.ok && ready.body?.ok === true
-      && compact(ready.body?.policyHash, 64).toLowerCase() === plan.expected_policy_hash
-      && compact(ready.body?.upstreamSourceCommit, 64).toLowerCase() === plan.expected_source_commit
-      && trust?.contract === bundle.origin_trust.contract
-      && compact(trust?.deployment_sha, 64).toLowerCase() === plan.expected_source_commit
-      && trust?.policy_hash === plan.expected_policy_hash
-      && trust?.key_id === bundle.origin_trust.key_id
-      && trust?.public_key === bundle.origin_trust.public_key
-      && trust?.issuer === bundle.origin_trust.issuer
-      && trust?.audience === bundle.origin_trust.audience
-      && trust?.canonical_host === bundle.origin_trust.canonical_host
-      && trust?.secrets_included === false;
+    // Control-plane deployment can become visible before the public Cloudflare edge converges.
+    let health;
+    let ready;
+    let healthOk = false;
+    let trustOk = false;
+    for (let attempt = 0; attempt < 12; attempt++) {
+      [health, ready] = await Promise.all([
+        readPublicJson(fetchImpl, `https://${plan.profile_binding.public_host}/health`, deps.smokeTimeoutMs),
+        readPublicJson(fetchImpl, `https://${plan.profile_binding.public_host}/ready`, deps.smokeTimeoutMs),
+      ]);
+      healthOk = health.ok && health.body?.ok === true && health.body?.stale === false
+        && compact(health.body?.sourceCommit, 64).toLowerCase() === plan.expected_source_commit
+        && compact(health.body?.workerBuildSha, 64).toLowerCase() === plan.expected_source_commit
+        && health.body?.workerBundleSha256 === bundle.worker_bundle_sha256
+        && compact(health.body?.policyHash, 64).toLowerCase() === plan.expected_policy_hash
+        && health.body?.policyKey === "activation_gateway_staging";
+      const trust = ready.body?.recoveryTrustedIngress || ready.body?.trustedIngress || null;
+      trustOk = ready.ok && ready.body?.ok === true
+        && compact(ready.body?.policyHash, 64).toLowerCase() === plan.expected_policy_hash
+        && compact(ready.body?.upstreamSourceCommit, 64).toLowerCase() === plan.expected_source_commit
+        && trust?.contract === bundle.origin_trust.contract
+        && compact(trust?.deployment_sha, 64).toLowerCase() === plan.expected_source_commit
+        && trust?.policy_hash === plan.expected_policy_hash
+        && trust?.key_id === bundle.origin_trust.key_id
+        && trust?.public_key === bundle.origin_trust.public_key
+        && trust?.worker_bundle_sha256 === bundle.worker_bundle_sha256
+        && trust?.issuer === bundle.origin_trust.issuer
+        && trust?.audience === bundle.origin_trust.audience
+        && trust?.canonical_host === bundle.origin_trust.canonical_host
+        && trust?.secrets_included === false;
+      if (healthOk && trustOk) break;
+      if (attempt < 11) await new Promise((resolve) => setTimeout(resolve, 1500));
+    }
     if (!healthOk || !trustOk) throw adapterError("staging_activation_gateway_public_readback_failed", "Exact public Staging Gateway health/ready/trust readback failed.", 502, { health_status: health.status, health_ok: healthOk, ready_status: ready.status, ready_ok: trustOk });
 
     await deps.audit({
@@ -1021,7 +1134,10 @@ export async function runStagingActivationGatewayApply(input = {}, deps = {}) {
     };
   } catch (error) {
     if (writesStarted) {
-      try { rollbackResult = await rollback({ client, accountId, scriptName, previousDeployment, scriptExistedBefore, previousHealth, previousReady, fetchImpl, publicHost: plan.profile_binding.public_host, timeoutMs: deps.smokeTimeoutMs }); }
+      try { rollbackResult = await rollback({ client, accountId, scriptName, previousDeployment, scriptExistedBefore,
+        previousHealth, previousReady, fetchImpl, publicHost: plan.profile_binding.public_host,
+        timeoutMs: deps.smokeTimeoutMs, baselineMode: previousBaselineMode,
+        expectedSourceCommit: plan.expected_source_commit, expectedPolicyHash: plan.expected_policy_hash }); }
       catch (rollbackError) { rollbackResult = { ok: false, error: compact(rollbackError?.message, 300), secrets_included: false }; }
     }
     let failureAuditError = null;
@@ -1335,6 +1451,23 @@ export async function runStagingActivationGatewayTransactionCertification(input 
     );
   }
 
+  const baselineMode = planBody.certification_baseline?.mode;
+  if (!["healthy_exact", "release_identity_drift"].includes(baselineMode)
+    || !SHA256_RE.test(planBody.certification_baseline?.observed_worker_bundle_sha256 || "")
+    || planBody.certification_baseline?.expected_policy_hash !== planBody.expected_policy_hash) {
+    throw adapterError("staging_activation_gateway_certification_baseline_binding_invalid",
+      "Prepared certification plan has no exact-bound public Gateway baseline.", 409);
+  }
+  const publicFetch = deps.smokeFetch || deps.fetchImpl || globalThis.fetch;
+  const preClaimBaseline = await observeStagingGatewayCertificationBaseline(
+    publicFetch, gateway.public_host, planBody.expected_source_commit, planBody.expected_policy_hash, deps.smokeTimeoutMs);
+  if (!preClaimBaseline.classification.ready
+    || preClaimBaseline.classification.mode !== baselineMode
+    || preClaimBaseline.classification.observed_source_commit !== planBody.certification_baseline.observed_source_commit
+    || preClaimBaseline.classification.observed_worker_bundle_sha256 !== planBody.certification_baseline.observed_worker_bundle_sha256) {
+    throw adapterError("staging_activation_gateway_certification_baseline_drifted",
+      "The current public Gateway baseline no longer matches the prepared certification plan.", 409);
+  }
   const plan = {
     ...planBody,
     plan_sha256: planSha,
@@ -1390,17 +1523,18 @@ export async function runStagingActivationGatewayTransactionCertification(input 
         409,
       );
     }
-    [previousHealth, previousReady] = await Promise.all([
-      readPublicJson(fetchImpl, `https://${gateway.public_host}/health`, deps.smokeTimeoutMs),
-      readPublicJson(fetchImpl, `https://${gateway.public_host}/ready`, deps.smokeTimeoutMs),
-    ]);
-    if (!previousHealth.ok || previousHealth.body?.ok !== true
-      || !previousReady.ok || previousReady.body?.ok !== true) {
+    const claimedBaseline = await observeStagingGatewayCertificationBaseline(
+      fetchImpl, gateway.public_host, planBody.expected_source_commit, planBody.expected_policy_hash, deps.smokeTimeoutMs);
+    previousHealth = claimedBaseline.health;
+    previousReady = claimedBaseline.ready;
+    if (!claimedBaseline.classification.ready || claimedBaseline.classification.mode !== baselineMode
+      || claimedBaseline.classification.observed_source_commit !== planBody.certification_baseline.observed_source_commit
+      || claimedBaseline.classification.observed_worker_bundle_sha256 !== planBody.certification_baseline.observed_worker_bundle_sha256) {
       throw adapterError(
         "staging_activation_gateway_certification_public_baseline_unready",
-        "Current public Staging Gateway health and ready identity must be captured before certification mutation.",
+        "Claimed Gateway baseline differs from the prepared exact-commit certification plan.",
         409,
-        { health_status: previousHealth.status, ready_status: previousReady.status },
+        { health_status: previousHealth.status, ready_status: previousReady.status, baseline_mode: baselineMode },
       );
     }
 
@@ -1415,6 +1549,9 @@ export async function runStagingActivationGatewayTransactionCertification(input 
         expected_source_commit: planBody.expected_source_commit,
         expected_policy_hash: planBody.expected_policy_hash,
         previous_deployment_id: previousDeployment.id,
+        baseline_mode: baselineMode,
+        baseline_source_commit: planBody.certification_baseline.observed_source_commit,
+        baseline_worker_bundle_sha256: planBody.certification_baseline.observed_worker_bundle_sha256,
         provider_mutation_performed: false,
         rollback_required: true,
         production_mutation: false,
@@ -1460,6 +1597,31 @@ export async function runStagingActivationGatewayTransactionCertification(input 
       );
     }
 
+    // A successful control-plane version readback is insufficient: require the
+    // candidate to become publicly healthy and upstream-ready before restoring it.
+    let candidatePublicVerified = false;
+    for (let attempt = 0; attempt < 12; attempt++) {
+      const candidate = await observeStagingGatewayCertificationBaseline(
+        fetchImpl, gateway.public_host, planBody.expected_source_commit, planBody.expected_policy_hash, deps.smokeTimeoutMs);
+      const candidateTrust = candidate.ready?.body?.recoveryTrustedIngress || null;
+      candidatePublicVerified = candidate.classification.ready && candidate.classification.mode === "healthy_exact"
+        && candidate.classification.observed_source_commit === planBody.expected_source_commit
+        && candidate.health?.body?.workerBundleSha256 === bundle.worker_bundle_sha256
+        && candidateTrust?.contract === "mad4b.staging.activation-recovery-origin-trust.v2"
+        && candidateTrust?.key_id === bundle.origin_trust.key_id
+        && candidateTrust?.public_key === bundle.origin_trust.public_key
+        && candidateTrust?.policy_hash === planBody.expected_policy_hash
+        && candidateTrust?.deployment_sha === planBody.expected_source_commit
+        && candidateTrust?.worker_bundle_sha256 === bundle.worker_bundle_sha256
+        && candidateTrust?.trusted_ingress_mode === "signature";
+      if (candidatePublicVerified) break;
+      if (attempt < 11) await new Promise((resolve) => setTimeout(resolve, 1500));
+    }
+    if (!candidatePublicVerified) {
+      throw adapterError("staging_activation_gateway_certification_candidate_public_unready",
+        "Exact candidate Worker did not prove public /health and /ready parity after version deployment.", 502);
+    }
+
     rollbackResult = await rollback({
       client,
       accountId,
@@ -1471,6 +1633,8 @@ export async function runStagingActivationGatewayTransactionCertification(input 
       fetchImpl,
       publicHost: gateway.public_host,
       timeoutMs: deps.smokeTimeoutMs,
+      baselineMode, expectedSourceCommit: planBody.expected_source_commit,
+      expectedPolicyHash: planBody.expected_policy_hash,
     });
     if (rollbackResult?.rollback_verified !== true) {
       throw adapterError(
@@ -1493,6 +1657,11 @@ export async function runStagingActivationGatewayTransactionCertification(input 
       candidate_version_id: candidateVersionId,
       candidate_deployment_readback: true,
       rollback_verified: true,
+      baseline_mode: baselineMode,
+      baseline_source_commit: planBody.certification_baseline.observed_source_commit,
+      baseline_worker_bundle_sha256: planBody.certification_baseline.observed_worker_bundle_sha256,
+      candidate_public_ready_verified: candidatePublicVerified,
+      degraded_baseline_restored: rollbackResult.degraded_baseline_restored === true,
       public_health_restored: rollbackResult.public_health_restored === true,
       public_trust_restored: rollbackResult.public_trust_restored === true,
       production_mutation: false,
@@ -1535,6 +1704,7 @@ export async function runStagingActivationGatewayTransactionCertification(input 
       candidate_version_id: candidateVersionId,
       previous_deployment_id: previousDeployment.id,
       rollback: rollbackResult,
+      candidate_public_ready_verified: candidatePublicVerified,
       certification,
       provider_mutation: true,
       candidate_retained: false,
@@ -1560,6 +1730,8 @@ export async function runStagingActivationGatewayTransactionCertification(input 
           fetchImpl,
           publicHost: gateway.public_host,
           timeoutMs: deps.smokeTimeoutMs,
+          baselineMode, expectedSourceCommit: planBody.expected_source_commit,
+          expectedPolicyHash: planBody.expected_policy_hash,
         });
       } catch (rollbackError) {
         rollbackResult = {
@@ -1625,4 +1797,4 @@ export async function runStagingActivationGatewayTransactionCertification(input 
   }
 }
 
-export const _testingStagingGatewayTransaction = Object.freeze({ buildUploadForm, rollback, deploymentVersions, promoteStagingDispatchCertification });
+export const _testingStagingGatewayTransaction = Object.freeze({ buildUploadForm, rollback, deploymentVersions, promoteStagingDispatchCertification, classifyStagingGatewayCertificationBaseline });

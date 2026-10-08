@@ -642,8 +642,31 @@ await assert.rejects(runtimePool.getConnection(), /runtime pool cannot write exe
 const executionEnv = { ...storageEnv, REMOTE_MCP_ENVIRONMENT: "staging", STAGING_ACTIVATION_GATEWAY_APPLY_ENABLED: "true", DEPLOYMENT_MANIFEST_JSON: JSON.stringify({ repository: "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os", branch: "main", commit_sha: sourceSha }) };
 const dryRunInput = { mode: "dry_run", account_id: accountId, expected_source_commit: sourceSha,
   expected_policy_hash: staging.expected_policy_hash, environment_convergence_plan_sha256: convergencePlanSha };
+const certificationExactHealth = { ok: true, stale: false, policyKey: staging.policy_key,
+  policyHash: staging.expected_policy_hash, sourceCommit: sourceSha, workerBuildSha: sourceSha,
+  workerBundleSha256: "a".repeat(64), secretsIncluded: false };
+const certificationExactReady = { ok: true, policyHash: staging.expected_policy_hash, upstreamSourceCommit: sourceSha,
+  recoveryTrustedIngress: { contract: "mad4b.staging.activation-recovery-origin-trust.v2",
+    key_id: "cert-old-key", public_key: "cert-old-public",
+    policy_hash: staging.expected_policy_hash, deployment_sha: sourceSha,
+    worker_bundle_sha256: "a".repeat(64), trusted_ingress_mode: "signature", secrets_included: false } };
+const classifyTrust = _testingStagingGatewayTransaction.classifyStagingGatewayCertificationBaseline;
+assert.equal(classifyTrust({ ok: true, status: 200, body: certificationExactHealth },
+  { ok: true, status: 200, body: certificationExactReady }, sourceSha, staging.expected_policy_hash).mode, "healthy_exact");
+for (const invalidTrust of [
+  null,
+  { ...certificationExactReady.recoveryTrustedIngress, worker_bundle_sha256: "c".repeat(64) },
+  { ...certificationExactReady.recoveryTrustedIngress, secrets_included: true },
+  { ...certificationExactReady.recoveryTrustedIngress, policy_hash: "c".repeat(64) },
+]) {
+  assert.equal(classifyTrust({ ok: true, status: 200, body: certificationExactHealth },
+    { ok: true, status: 200, body: { ...certificationExactReady, recoveryTrustedIngress: invalidTrust } },
+    sourceSha, staging.expected_policy_hash).ready, false, "healthy baseline must reject incomplete ingress trust");
+}
+const certificationExactFetch = async (url) => new Response(JSON.stringify(
+  url.endsWith("/health") ? certificationExactHealth : certificationExactReady), { status: 200 });
 const executionDeps = { runtimePool, governancePool, auth, env: executionEnv, cloudflareClient: fakeCloudflareClient,
-  registry, repositoryRoot: root };
+  registry, repositoryRoot: root, smokeFetch: certificationExactFetch };
 const firstExecution = await runStagingActivationGatewayApply(dryRunInput, executionDeps);
 const secondExecution = await runStagingActivationGatewayApply(dryRunInput, executionDeps);
 assert.notEqual(firstExecution.plan_sha256, secondExecution.plan_sha256);
@@ -666,8 +689,8 @@ const rollbackClient = { async request(request) {
   if (request.method === "POST") return { ok: true };
   return { ok: true, result: [{ id: "restored", versions: previous.versions }] };
 } };
-const previousHealth = { ok: true, body: { ok: true, sourceCommit: "old" } };
-const previousReady = { ok: true, body: { ok: true, trustedIngress: { key_id: "old-key" } } };
+const previousHealth = { ok: true, status: 200, body: { ok: true, sourceCommit: "old" } };
+const previousReady = { ok: true, status: 200, body: { ok: true, trustedIngress: { key_id: "old-key" } } };
 const rollbackFetch = async (url) => new Response(JSON.stringify(url.endsWith("/health")
   ? previousHealth.body : previousReady.body), { status: 200 });
 const restored = await _testingStagingGatewayTransaction.rollback({ client: rollbackClient,
@@ -749,11 +772,17 @@ const candidateHealth = { ok: true, stale: false, policyKey: staging.policy_key,
 const candidateReady = { ok: true, policyHash: staging.expected_policy_hash, upstreamSourceCommit: sourceSha,
   recoveryTrustedIngress: otherBundle.origin_trust };
 const smokeFetch = async (url) => new Response(JSON.stringify(deployedCandidate
-  ? (url.endsWith("/health") ? candidateHealth : { ...candidateReady, recoveryTrustedIngress: currentCandidateBundle.origin_trust })
+  ? (url.endsWith("/health") ? { ...candidateHealth, workerBundleSha256: currentCandidateBundle.worker_bundle_sha256 }
+    : { ...candidateReady, recoveryTrustedIngress: currentCandidateBundle.origin_trust })
   : (url.endsWith("/health")
-    ? { ok: true, sourceCommit: "b".repeat(40), policyHash: staging.expected_policy_hash }
-    : { ok: true, upstreamSourceCommit: "b".repeat(40), recoveryTrustedIngress: {
-      key_id: "old-key", public_key: "old-public" } })), { status: 200 });
+    ? { ok: true, stale: false, policyKey: staging.policy_key, sourceCommit: "b".repeat(40),
+      workerBuildSha: "b".repeat(40), workerBundleSha256: "b".repeat(64),
+      secretsIncluded: false, policyHash: staging.expected_policy_hash }
+    : { ok: true, upstreamSourceCommit: "b".repeat(40), policyHash: staging.expected_policy_hash,
+      recoveryTrustedIngress: { contract: "mad4b.staging.activation-recovery-origin-trust.v2",
+        key_id: "old-key", public_key: "old-public", policy_hash: staging.expected_policy_hash,
+        deployment_sha: "b".repeat(40), worker_bundle_sha256: "b".repeat(64),
+        trusted_ingress_mode: "signature", secrets_included: false } })), { status: 200 });
 const auditActions = [];
 const applied = await runStagingActivationGatewayApply({ ...dryRunInput, mode: "apply",
   plan_id: secondExecution.plan_id, plan_sha256: secondExecution.plan_sha256,
@@ -850,27 +879,17 @@ const certificationProvider = {
     throw new Error(`Unexpected certification provider request: ${request.method} ${request.apiPath}`);
   },
 };
-const certificationSmokeFetch = async (url) => new Response(JSON.stringify(
-  url.endsWith("/health")
-    ? {
-      ok: true,
-      sourceCommit: "b".repeat(40),
-      workerBuildSha: "b".repeat(40),
-      policyHash: staging.expected_policy_hash,
-      policyKey: staging.policy_key,
-    }
-    : {
-      ok: true,
-      upstreamSourceCommit: "b".repeat(40),
-      policyHash: staging.expected_policy_hash,
-      recoveryTrustedIngress: {
-        key_id: "old-key",
-        public_key: "old-public",
-        policy_hash: staging.expected_policy_hash,
-        deployment_sha: "b".repeat(40),
-      },
-    },
-), { status: 200 });
+const certificationPreparedBundle = openStagingGatewayArtifact(
+  savedArtifacts.get(certificationPrepared.bundle_ref),
+  { env: executionEnv, planId: certificationPrepared.plan_id }).bundle;
+const certificationSmokeFetch = async (url) => {
+  if (!certificationCandidateDeployed) return certificationExactFetch(url);
+  const publicHealth = { ...certificationExactHealth,
+    workerBundleSha256: certificationPreparedBundle.worker_bundle_sha256 };
+  const publicReady = { ...certificationExactReady,
+    recoveryTrustedIngress: certificationPreparedBundle.origin_trust };
+  return new Response(JSON.stringify(url.endsWith("/health") ? publicHealth : publicReady), { status: 200 });
+};
 const certificationAuditActions = [];
 const certified = await runStagingActivationGatewayTransactionCertification({
   mode: "apply",
@@ -905,6 +924,153 @@ assert.match(
   new RegExp(`^staging-gateway-certification:${sourceSha}:${staging.expected_policy_hash}:[0-9a-f]{64}$`, "u"),
 );
 assert.equal(savedPlans.get(certificationPrepared.plan_id).status, "succeeded");
+assert.equal(certified.candidate_public_ready_verified, true);
+assert.equal(certified.rollback.baseline_mode, "healthy_exact");
+assert.equal(certified.rollback.degraded_baseline_restored, false);
+
+// Regression: a healthy old Worker must be recoverable when /ready fails ONLY
+// because its source identity lags the exact, certified Staging upstream.
+const sourceDrift = "b".repeat(40);
+const driftError = { error: { code: "GATEWAY_UPSTREAM_DEPLOYMENT_EVIDENCE_MISMATCH",
+  details: { policy_hash_matches: true, source_commit_matches: false } }, secretsIncluded: false };
+const driftHealth = { ok: true, stale: false, policyKey: staging.policy_key,
+  policyHash: staging.expected_policy_hash, sourceCommit: sourceDrift, workerBuildSha: sourceDrift,
+  workerBundleSha256: "b".repeat(64), secretsIncluded: false };
+const negativeClassification = _testingStagingGatewayTransaction.classifyStagingGatewayCertificationBaseline;
+assert.equal(negativeClassification({ ok: true, status: 200, body: driftHealth },
+  { ok: false, status: 503, body: driftError }, sourceSha, staging.expected_policy_hash).mode, "release_identity_drift");
+for (const forbidden of [
+  { health: { ...driftHealth, stale: true }, error: driftError },
+  { health: { ...driftHealth, policyHash: "e".repeat(64) }, error: driftError },
+  { health: { ...driftHealth, workerBuildSha: sourceSha }, error: driftError },
+  { health: { ...driftHealth, workerBundleSha256: null }, error: driftError },
+  { health: { ...driftHealth, secretsIncluded: true }, error: driftError },
+  { health: driftHealth, error: { error: { ...driftError.error,
+    details: { policy_hash_matches: false, source_commit_matches: false } } } },
+  { health: driftHealth, error: { error: { code: "GATEWAY_POLICY_STALE",
+    details: { policy_hash_matches: true, source_commit_matches: false } } } },
+]) {
+  assert.equal(negativeClassification({ ok: true, status: 200, body: forbidden.health },
+    { ok: false, status: 503, body: forbidden.error }, sourceSha,
+    staging.expected_policy_hash).ready, false, "unrelated drift must be rejected");
+}
+
+dispatchCertificationState = {
+  certification_key: "staging_activation_gateway_apply_v1",
+  certification_status: "pending",
+  smoke_strategy: "independent_same_cycle_staging_gateway_transaction_certification",
+  dispatch_allowed: 0, apply_allowed: 0,
+  requires_resource_authority: 1, requires_dry_run: 1, requires_audit_evidence: 1,
+  requires_readback: 1, last_evidence_ref: null, last_certified_at: null, expires_at: null,
+};
+let driftCandidateDeployed = false;
+let driftPreparedBundle = null;
+let delayedPermanentCandidateHealthReads = 0;
+let driftBaselineBundleOverride = null;
+const driftSmokeFetch = async (url) => {
+  const health = driftCandidateDeployed
+    ? { ...certificationExactHealth, workerBundleSha256: driftPreparedBundle.worker_bundle_sha256 }
+    : { ...driftHealth, workerBundleSha256: driftBaselineBundleOverride || driftHealth.workerBundleSha256 };
+  if (url.endsWith("/health")) {
+    if (driftCandidateDeployed && delayedPermanentCandidateHealthReads > 0) {
+      delayedPermanentCandidateHealthReads--;
+      return new Response(JSON.stringify(driftHealth), { status: 200 });
+    }
+    return new Response(JSON.stringify(health), { status: 200 });
+  }
+  return driftCandidateDeployed
+    ? new Response(JSON.stringify({ ...certificationExactReady,
+      recoveryTrustedIngress: driftPreparedBundle.origin_trust }), { status: 200 })
+    : new Response(JSON.stringify(driftError), { status: 503 });
+};
+const driftDeps = { ...executionDeps, smokeFetch: driftSmokeFetch };
+const driftPreview = await buildStagingActivationGatewayCertificationPlan({
+  expected_source_commit: sourceSha,
+  expected_policy_hash: staging.expected_policy_hash,
+  environment_convergence_plan_sha256: convergencePlanSha,
+}, driftDeps);
+assert.equal(driftPreview.certification_ready, true);
+assert.equal(driftPreview.certification_baseline.mode, "release_identity_drift");
+assert.equal(driftPreview.certification_baseline.observed_source_commit, sourceDrift);
+assert.equal(driftPreview.checks.find((check) => check.key === "certification_public_baseline_supported")?.ok, true);
+const driftPrepared = await runStagingActivationGatewayTransactionCertification({
+  mode: "prepare", expected_source_commit: sourceSha,
+  expected_policy_hash: staging.expected_policy_hash,
+  environment_convergence_plan_sha256: convergencePlanSha,
+}, driftDeps);
+const boundDriftBaseline = JSON.parse(savedPlans.get(driftPrepared.plan_id).plan_body_json).certification_baseline;
+assert.equal(boundDriftBaseline.observed_source_commit, sourceDrift);
+assert.equal(boundDriftBaseline.observed_worker_bundle_sha256, driftHealth.workerBundleSha256);
+// Replacing Worker bytes with the same source SHA must invalidate the exact prepared plan.
+driftBaselineBundleOverride = "c".repeat(64);
+await assert.rejects(runStagingActivationGatewayTransactionCertification({
+  mode: "apply", plan_id: driftPrepared.plan_id, plan_sha256: driftPrepared.plan_sha256,
+  environment_convergence_plan_sha256: convergencePlanSha, confirm: driftPrepared.required_confirmation,
+}, { ...driftDeps, audit: async () => {} }),
+(error) => error?.code === "staging_activation_gateway_certification_baseline_drifted");
+assert.equal(savedPlans.get(driftPrepared.plan_id).status, "ready", "stale baseline must fail before plan claim or Cloudflare writes");
+driftBaselineBundleOverride = null;
+driftPreparedBundle = openStagingGatewayArtifact(savedArtifacts.get(driftPrepared.bundle_ref),
+  { env: executionEnv, planId: driftPrepared.plan_id }).bundle;
+const driftCalls = [];
+const driftProvider = { token_present: true, async request(request) {
+  driftCalls.push(request);
+  if (request.method === "GET" && request.apiPath.endsWith(`/scripts/${scriptName}`))
+    return { ok: true, result: {} };
+  if (request.method === "GET" && request.apiPath.endsWith("/deployments"))
+    return { ok: true, result: [{ id: driftCandidateDeployed ? "candidate-drift" : "old-drift",
+      versions: [{ version_id: driftCandidateDeployed ? certificationCandidateVersionId : "old-version", percentage: 100 }] }] };
+  if (request.method === "POST" && request.apiPath.endsWith("/versions"))
+    return { ok: true, result: { id: certificationCandidateVersionId } };
+  if (request.method === "POST" && request.apiPath.endsWith("/deployments?force=true")) {
+    driftCandidateDeployed = false; return { ok: true };
+  }
+  if (request.method === "POST" && request.apiPath.endsWith("/deployments")) {
+    driftCandidateDeployed = true; return { ok: true };
+  }
+  throw new Error(`Unexpected drift provider request: ${request.method} ${request.apiPath}`);
+} };
+const driftCertified = await runStagingActivationGatewayTransactionCertification({
+  mode: "apply", plan_id: driftPrepared.plan_id, plan_sha256: driftPrepared.plan_sha256,
+  environment_convergence_plan_sha256: convergencePlanSha, confirm: driftPrepared.required_confirmation,
+}, { ...driftDeps, cloudflareClient: driftProvider, audit: async () => {},
+  repositoryRoot: "/do-not-rebuild-the-certified-plan" });
+assert.equal(driftCertified.classification, "staging_activation_gateway_transaction_certified");
+assert.equal(driftCertified.candidate_public_ready_verified, true);
+assert.equal(driftCertified.rollback.rollback_verified, true);
+assert.equal(driftCertified.rollback.baseline_mode, "release_identity_drift");
+assert.equal(driftCertified.rollback.public_trust_restored, false);
+assert.equal(driftCertified.rollback.degraded_baseline_restored, true);
+assert.equal(driftCertified.candidate_retained, false);
+assert.equal(driftCandidateDeployed, false);
+assert.equal(savedPlans.get(driftPrepared.plan_id).status, "succeeded");
+assert.equal(driftCalls.some((call) => call.method === "POST" && call.apiPath.endsWith("/deployments?force=true")), true);
+assert.equal(driftCalls.some((call) => call.method === "DELETE"), false);
+
+// Regression: independent certification restores the old degraded Worker;
+// governed permanent apply must now be able to replace that very baseline.
+const driftApplyPlan = await runStagingActivationGatewayApply(dryRunInput, driftDeps);
+registerEnvelope(driftApplyPlan, "drift-recovery-permanent-apply-envelope");
+driftPreparedBundle = openStagingGatewayArtifact(savedArtifacts.get(driftApplyPlan.bundle_ref),
+  { env: executionEnv, planId: driftApplyPlan.plan_id }).bundle;
+// Simulate Cloudflare edge propagation lag after provider deployment readback.
+delayedPermanentCandidateHealthReads = 2;
+const permanentRecovered = await runStagingActivationGatewayApply({
+  ...dryRunInput, mode: "apply",
+  plan_id: driftApplyPlan.plan_id, plan_sha256: driftApplyPlan.plan_sha256,
+  confirm: driftApplyPlan.required_confirmation,
+  capability_envelope_id: "drift-recovery-permanent-apply-envelope",
+  execution_nonce: "nonce:drift-recovery:123456",
+}, { ...driftDeps, cloudflareClient: driftProvider, audit: async () => {},
+  repositoryRoot: "/do-not-rebuild-permanent-recovery-bundle" });
+assert.equal(permanentRecovered.classification, "staging_activation_gateway_apply_succeeded");
+assert.equal(permanentRecovered.execution.executed, true);
+assert.equal(permanentRecovered.readback.health.ok, true);
+assert.equal(permanentRecovered.readback.ready.ok, true);
+assert.equal(delayedPermanentCandidateHealthReads, 0, "permanent readback must retry until exact edge convergence");
+assert.equal(driftCandidateDeployed, true);
+assert.equal(savedPlans.get(driftApplyPlan.plan_id).status, "succeeded");
+assert.equal(envelopeStates.get("drift-recovery-permanent-apply-envelope").execution_status, "executed");
 
 const applyAfterCertification = await buildStagingActivationGatewayApplyPlan({
   expected_source_commit: sourceSha,
