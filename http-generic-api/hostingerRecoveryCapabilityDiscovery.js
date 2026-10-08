@@ -1,6 +1,7 @@
 // Governed Hostinger capability discovery. Read-only; never opens SSH or reads secret values.
 // Registered command rows advertise intent but never authorize a mutating executor.
 import { getPool } from "./db.js";
+import { HOSTINGER_RECOVERY_PROVIDER_API } from "./hostingerRecoveryProviderContract.js";
 
 const scope = value => String(value ?? "").trim();
 const id = value => /^[a-z0-9][a-z0-9_-]{1,127}$/i.test(scope(value));
@@ -67,6 +68,11 @@ export function evaluateHostingerRecoveryCapabilities({target, commands, environ
     registered_system_status: scope(target.registered_system_status),
     commands: available.sort((a,b)=>a.command_key.localeCompare(b.command_key)),
     capability_claim: "catalog_only_not_host_privilege",
+    provider_api_documented: true,
+    documented_api_reference: HOSTINGER_RECOVERY_PROVIDER_API.documentation,
+    account_entitlement_verified: false,
+    environment_replace_semantics: HOSTINGER_RECOVERY_PROVIDER_API.node_env_mutation_semantics,
+    environment_read_values_masked: true,
     ssh_used: false, provider_call_performed: false, mutation_performed: false,
     secrets_included: false,
   };
