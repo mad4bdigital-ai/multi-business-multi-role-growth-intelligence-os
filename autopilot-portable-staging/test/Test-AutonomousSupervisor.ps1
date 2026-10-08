@@ -83,7 +83,7 @@ try {
     $events = @()
     foreach ($i in @(0, 1)) {
         $t = $now.AddSeconds(-500 + 300 * $i)
-        $events += (@{ component = "auto-deploy"; stage = "poll"; timestamp = $t.ToString("o"); run_id = "same-run"; level = "info" } | ConvertTo-Json -Compress)
+        $events += (@{ component = "auto-deploy"; stage = "poll"; timestamp = $t.ToString("o"); run_id = "same-run"; level = "info"; data = @{ sha = ("a" * 40) } } | ConvertTo-Json -Compress)
         $events += (@{ component = "auto-deploy"; stage = "sleep"; timestamp = $t.AddSeconds(5).ToString("o"); run_id = "same-run"; level = "info" } | ConvertTo-Json -Compress)
     }
     [IO.File]::WriteAllLines($operationsPath, [string[]]$events)
@@ -95,6 +95,27 @@ try {
     $decision = Get-Acceptance $now $task $info
     Assert ($decision.accepted -eq $true) "valid two-cycle acceptance was rejected: $($decision.reasons -join ',')"
     Assert ($decision.full_runtime_integrity_attested -eq $false) "unsafe integrity attestation"
+    # Negative scenarios: mismatched Git poll SHA, malformed ordering and
+    # missing sleep cannot be counted as autonomous operational acceptance.
+    $wrongShaEvents = @($events)
+    $first = $wrongShaEvents[-2] | ConvertFrom-Json
+    $first.data.sha = "b" * 40
+    $wrongShaEvents[-2] = $first | ConvertTo-Json -Compress
+    [IO.File]::WriteAllLines($operationsPath, [string[]]$wrongShaEvents)
+    $pollDrift = Get-Acceptance $now $task $info
+    Assert (-not $pollDrift.accepted -and $pollDrift.reasons -contains "watcher_polled_commit_mismatch") "polled SHA drift was accepted"
+    $missingSleepEvents = @($events | Where-Object { $_ -ne $events[-1] })
+    [IO.File]::WriteAllLines($operationsPath, [string[]]$missingSleepEvents)
+    $incomplete = Get-Acceptance $now $task $info
+    Assert (-not $incomplete.accepted -and $incomplete.reasons -contains "watcher_continuity_unproven") "incomplete poll/sleep pairing was accepted"
+    $outOfOrder = @($events)
+    $lastSleep = $outOfOrder[-1] | ConvertFrom-Json
+    $lastSleep.timestamp = $now.AddSeconds(-450).ToString("o")
+    $outOfOrder[-1] = $lastSleep | ConvertTo-Json -Compress
+    [IO.File]::WriteAllLines($operationsPath, [string[]]$outOfOrder)
+    $misordered = Get-Acceptance $now $task $info
+    Assert (-not $misordered.accepted -and $misordered.reasons -contains "watcher_continuity_unproven") "out-of-order cycles were accepted"
+    [IO.File]::WriteAllLines($operationsPath, [string[]]$events)
     $task.State = "Ready"
     $decision = Get-Acceptance $now $task $info
     Assert ($decision.accepted -eq $false) "stopped watcher was accepted"
@@ -121,6 +142,15 @@ try {
         ConvertTo-Json | Set-Content $statePath
     $unleased = Get-Acceptance $now $task $info
     Assert ((Recover-Watcher $now $task $unleased) -eq "cooldown") "recovery cooldown bypass"
+    @{ contract = "mad4b.staging-autonomous-recovery-state.v1"; attempts_utc = @("not-a-timestamp") } |
+        ConvertTo-Json | Set-Content $statePath
+    $failedClosed = $false
+    try { [void](Recover-Watcher $now $task $unleased) } catch { $failedClosed = $true }
+    Assert $failedClosed "corrupt recovery history was silently ignored"
+    @{ contract = "forged-contract"; attempts_utc = @() } | ConvertTo-Json | Set-Content $statePath
+    $failedClosed = $false
+    try { [void](Recover-Watcher $now $task $unleased) } catch { $failedClosed = $true }
+    Assert $failedClosed "unknown recovery history contract was accepted"
     Write-Output "AUTONOMOUS_SUPERVISOR_STATIC_AND_FIXTURE_TESTS: PASS"
 } finally {
     Remove-Item -LiteralPath $fixtureRoot -Recurse -Force -ErrorAction SilentlyContinue
