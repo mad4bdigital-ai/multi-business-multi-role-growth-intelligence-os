@@ -987,6 +987,7 @@ export async function runStagingActivationGatewayApply(input = {}, deps = {}) {
   let scriptExistedBefore = null;
   let previousHealth = null;
   let previousReady = null;
+  let previousBaselineMode = "healthy_exact";
   let envelopeClaimed = false;
   let rollbackResult = null;
   try {
@@ -1013,16 +1014,31 @@ export async function runStagingActivationGatewayApply(input = {}, deps = {}) {
       throw adapterError("staging_activation_gateway_previous_deployment_unresolved", "Existing Worker has no exact previous deployment to restore.", 409);
     }
     if (previousDeployment) {
-      previousHealth = await readPublicJson(fetchImpl, `https://${plan.profile_binding.public_host}/health`, deps.smokeTimeoutMs);
-      previousReady = await readPublicJson(fetchImpl, `https://${plan.profile_binding.public_host}/ready`, deps.smokeTimeoutMs);
+      const publicBaseline = await observeStagingGatewayCertificationBaseline(
+        fetchImpl, plan.profile_binding.public_host, plan.expected_source_commit,
+        plan.expected_policy_hash, deps.smokeTimeoutMs);
+      previousHealth = publicBaseline.health;
+      previousReady = publicBaseline.ready;
       const previousTrust = previousReady.body?.recoveryTrustedIngress || previousReady.body?.trustedIngress;
-      if (!previousHealth.ok || !previousReady.ok
-        || !SHA_RE.test(compact(previousHealth.body?.sourceCommit, 40).toLowerCase())
-        || !SHA256_RE.test(compact(previousHealth.body?.policyHash, 64).toLowerCase())
-        || !SHA_RE.test(compact(previousReady.body?.upstreamSourceCommit, 40).toLowerCase())
-        || !compact(previousTrust?.key_id, 191) || !compact(previousTrust?.public_key, 4096)) {
-        throw adapterError("staging_activation_gateway_previous_public_state_unresolved", "Previous public health and trust identity must be captured before provider mutation.", 409);
+      // The legacy healthy baseline remains supported if both identities are
+      // trustworthy. Recovery additionally accepts ONLY exact release drift.
+      const trustedHealthyBaseline = previousHealth.ok && previousReady.ok
+        && previousHealth.body?.ok === true && previousReady.body?.ok === true
+        && previousHealth.body?.stale === false
+        && previousHealth.body?.policyKey === "activation_gateway_staging"
+        && previousHealth.body?.policyHash === plan.expected_policy_hash
+        && SHA_RE.test(compact(previousHealth.body?.sourceCommit, 40).toLowerCase())
+        && previousReady.body?.upstreamSourceCommit === previousHealth.body?.sourceCommit
+        && previousReady.body?.policyHash === plan.expected_policy_hash
+        && compact(previousTrust?.key_id, 191) && compact(previousTrust?.public_key, 4096);
+      const boundedDrift = publicBaseline.classification.ready
+        && publicBaseline.classification.mode === "release_identity_drift";
+      if (!trustedHealthyBaseline && !boundedDrift) {
+        throw adapterError("staging_activation_gateway_previous_public_state_unresolved",
+          "Previous Worker must be healthy and trusted or prove exact release-identity drift before provider mutation.", 409,
+          { health_status: previousHealth.status, ready_status: previousReady.status });
       }
+      previousBaselineMode = boundedDrift ? "release_identity_drift" : "healthy_exact";
     }
     writesStarted = true;
     const version = await providerRequest(client, { apiPath: `/accounts/${accountId}/workers/scripts/${scriptName}/versions`, method: "POST", formData: buildUploadForm(bundle, plan) }, "version_upload");
@@ -1043,6 +1059,7 @@ export async function runStagingActivationGatewayApply(input = {}, deps = {}) {
     const healthOk = health.ok && health.body?.ok === true && health.body?.stale === false
       && compact(health.body?.sourceCommit, 64).toLowerCase() === plan.expected_source_commit
       && compact(health.body?.workerBuildSha, 64).toLowerCase() === plan.expected_source_commit
+      && health.body?.workerBundleSha256 === bundle.worker_bundle_sha256
       && compact(health.body?.policyHash, 64).toLowerCase() === plan.expected_policy_hash
       && health.body?.policyKey === "activation_gateway_staging";
     const trust = ready.body?.recoveryTrustedIngress || ready.body?.trustedIngress || null;
@@ -1054,6 +1071,7 @@ export async function runStagingActivationGatewayApply(input = {}, deps = {}) {
       && trust?.policy_hash === plan.expected_policy_hash
       && trust?.key_id === bundle.origin_trust.key_id
       && trust?.public_key === bundle.origin_trust.public_key
+      && trust?.worker_bundle_sha256 === bundle.worker_bundle_sha256
       && trust?.issuer === bundle.origin_trust.issuer
       && trust?.audience === bundle.origin_trust.audience
       && trust?.canonical_host === bundle.origin_trust.canonical_host
@@ -1096,7 +1114,10 @@ export async function runStagingActivationGatewayApply(input = {}, deps = {}) {
     };
   } catch (error) {
     if (writesStarted) {
-      try { rollbackResult = await rollback({ client, accountId, scriptName, previousDeployment, scriptExistedBefore, previousHealth, previousReady, fetchImpl, publicHost: plan.profile_binding.public_host, timeoutMs: deps.smokeTimeoutMs }); }
+      try { rollbackResult = await rollback({ client, accountId, scriptName, previousDeployment, scriptExistedBefore,
+        previousHealth, previousReady, fetchImpl, publicHost: plan.profile_binding.public_host,
+        timeoutMs: deps.smokeTimeoutMs, baselineMode: previousBaselineMode,
+        expectedSourceCommit: plan.expected_source_commit, expectedPolicyHash: plan.expected_policy_hash }); }
       catch (rollbackError) { rollbackResult = { ok: false, error: compact(rollbackError?.message, 300), secrets_included: false }; }
     }
     let failureAuditError = null;
