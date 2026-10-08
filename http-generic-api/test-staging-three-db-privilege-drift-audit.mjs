@@ -62,6 +62,12 @@ test("table not visible cannot be incorrectly called physically absent", () => {
   const r = compareRolePrivilegeEvidence(v);
   assert.ok(r.issues.includes("REQUIRED_TABLE_MISSING_OR_INVISIBLE"));
   assert.ok(r.required_tables_missing_or_invisible.includes("deployment_attestations"));
+  assert.ok(r.unassessed_required_grants_on_hidden_surfaces.includes("deployment_attestations:SELECT"));
+  assert.ok(r.unassessed_required_grants_on_hidden_surfaces.includes("deployment_attestations:INSERT"));
+  assert.ok(r.unassessed_required_grant_count > 0);
+  assert.equal(r.missing_required_grants.some((grant) => grant.startsWith("deployment_attestations:")), false);
+  assert.equal(r.expected_direct_grants_if_all_required_surfaces_exist,
+    r.expected_direct_grants_on_visible_surfaces + r.unassessed_required_grant_count);
   const optional = evidence("runtime");
   optional.tableRows = optional.tableRows.filter((x) => x.TABLE_NAME !== "v_activation_pending_tasks");
   optional.tablePrivilegeRows = optional.tablePrivilegeRows.filter((x) => x.TABLE_NAME !== "v_activation_pending_tasks");
