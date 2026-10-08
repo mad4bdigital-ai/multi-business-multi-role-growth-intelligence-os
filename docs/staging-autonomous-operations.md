@@ -4,7 +4,7 @@
 
 The independent `Staging-AutonomousSupervisor.ps1` consumes read-only staging evidence and issues `logs/autonomous-acceptance.json` every 60 seconds. Operational readiness requires:
 
-- The exact approved Windows watcher action, principal, work directory and repository;
+- The exact approved Windows watcher action, principal, repository, and one of two explicitly approved working directories (the Staging checkout root or its `autopilot-portable-staging` directory);
 - A running watcher with **two complete, clean poll/sleep cycles** from the current task run, and a fresh poll;
 - A fresh, healthy staging snapshot with no active startup/deployment lease;
 - Matching exact desired, deployed, certified and runtime commit SHA, with ready certification;
