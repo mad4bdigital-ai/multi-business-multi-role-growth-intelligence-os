@@ -57,7 +57,8 @@
             "Preserve actual passed Production preflight through a schema-readiness failure and identify that the direct-grant matrix was not evaluated when table visibility blocked the probe.",
             "Route any missing Runtime, Governance or Runtime Persistence required table through an independent exact-SHA full-object physical census, not the app-principal information_schema visibility count.",
             "Require Recovery Kernel full-inspection findings to classify verified partial nonempty required-table absence as a non-executable finding, never as an automatically eligible grant or generic migration.",
-            "Refuse empty-role rebuild when full-object metadata visibility cannot be certified independently, and keep required-table gaps invisible-to-principal until authoritative physical proof is available."
+            "Refuse empty-role rebuild when full-object metadata visibility cannot be certified independently, and keep required-table gaps invisible-to-principal until authoritative physical proof is available.",
+            "Reclassify any host inspection provider finding with bounded non-executable metadata; only canonical Kernel-derived findings may participate in governed remediation plans."
           ],
           "assertions": [
             "Provider configured support is distinct from live preflight, actual schema, credential readiness and privilege readback.",
@@ -75,7 +76,8 @@
             "The exact Production provider documentation path is classified as repository governance by the canonical environment-impact authority; it is not exempted or broad-glob whitelisted.",
             "A Recovery Kernel zero-object baseline candidate requires independent privileged all-object metadata visibility proof at the exact deployed SHA and role-object fingerprint; zero role-visible objects alone produce a non-executable visibility finding.",
             "Physical inventory classifier must verify every canonical required baseline table by name and boolean presence, detect duplicate/foreign/missing entries and reject report-supplied alternative table totals.",
-            "The existing host-local full inspection does not yet issue independently certified visibility proofs; Production schema mutation remains blocked rather than silently substituting app-principal information_schema counts."
+            "The existing host-local full inspection does not yet issue independently certified visibility proofs; Production schema mutation remains blocked rather than silently substituting app-principal information_schema counts.",
+            "Inspection-provider-supplied finding IDs, candidate capabilities and mutation booleans are quarantined as untrusted observations, never accepted as executable Recovery Kernel findings."
           ],
           "tests": [
             {
