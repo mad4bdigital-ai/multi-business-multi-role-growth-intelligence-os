@@ -92,7 +92,8 @@ export async function resolveAdminConnectorTarget({
   if (requested) {
     const [aliases] = await pool.query(
       "SELECT canonical_device_id FROM local_connector_device_aliases " +
-      "WHERE alias_device_id = ? AND user_id = ? AND tenant_id = ? LIMIT 2",
+      "WHERE alias_device_id = ? AND (user_id = ? OR user_id IS NULL) " +
+      "AND (tenant_id = ? OR tenant_id IS NULL) LIMIT 2",
       [requested, scope.user_id, scope.tenant_id]);
     if (aliases.length) throw targetError("historical_device_alias",
       "A historical device alias cannot be a privileged execution target; select the canonical ID.");
