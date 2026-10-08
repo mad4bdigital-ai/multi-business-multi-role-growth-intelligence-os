@@ -77,6 +77,21 @@ assert.match(doctor, /Repair/);
 assert.match(doctor, /\$gitCommand = Get-Command git -ErrorAction SilentlyContinue/);
 assert.match(doctor, /if \(\$null -ne \$gitCommand -and \(Test-Path/);
 assert.doesNotMatch(doctor, /Get-Command git -ErrorAction SilentlyContinue -and/);
+// PowerShell binds $host to the read-only automatic $Host variable (case-insensitive).
+assert.doesNotMatch(doctor, /\bforeach\s*\(\s*\$host\b/i);
+assert.match(doctor, /foreach\s*\(\s*\$forbiddenHostname\s+in\s+\$Policy\.forbidden_hosts\s*\)/);
+assert.match(doctor, /\[regex\]::Escape\(\$forbiddenHostname\)/);
+assert.match(doctor, /forbidden-host:\$forbiddenHostname/);
+assert.match(doctor, /detached:exact-local-origin-/);
+assert.match(doctor, /detached:not-exact-local-origin-/);
+assert.match(doctor, /rev-parse --verify "refs\/remotes\/origin\/\$expectedBranch"/);
+assert.match(doctor, /\$localShaValid -and \$remoteShaValid -and \(\$localSha -eq \$remoteSha\)/);
+assert.match(doctor, /Add-Check \$checks "repository:branch" \$branchEligible \$branch \$false/);
+// Reject partial PowerShell regex literals caused by JavaScript replacement interpolation.
+assert.ok(doctor.includes("($localSha -match '^[0-9a-fA-F]{40}$')"));
+assert.ok(doctor.includes("($remoteSha -match '^[0-9a-fA-F]{40}$')"));
+assert.equal((doctor.match(/function Invoke-Status\s*\{/g) || []).length, 1);
+assert.equal((doctor.match(/\$dirty = @\(\)/g) || []).length, 1);
 assert.equal(maintenancePolicy.maintenance.repair_may_delete_data, false);
 assert.match(maintenanceCmd, /Staging-Doctor\.ps1/);
 assert.equal(maintenancePolicy.contract, "mad4b.staging-maintenance.v1");

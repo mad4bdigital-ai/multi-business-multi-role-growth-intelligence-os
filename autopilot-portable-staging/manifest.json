@@ -46,7 +46,7 @@
     },
     {
       "path": "autopilot-portable-staging/Staging-Doctor.ps1",
-      "sha256": "ca4c960b2f94cdbba8bde5e61350e8b707f9f500f0661d480b06db8fa6e9cea4"
+      "sha256": "c13f011b935a056ccdf1008054cbb593ca79ea01f83d288e6cbf42355266dc07"
     },
     {
       "path": "autopilot-portable-staging/Staging-HealthMonitor.ps1",
@@ -262,7 +262,7 @@
     },
     {
       "path": "http-generic-api/test-staging-operations-logging-contract.mjs",
-      "sha256": "e1b69a5ba248bd1c5d405e1180c59c94ad20697835cec94189b26e756c286068"
+      "sha256": "849908170dc018ec899c3d79efd84547b040c8e83bafad334b4af74fb6834b10"
     },
     {
       "path": "http-generic-api/test-staging-runtime-oauth-profile.mjs",

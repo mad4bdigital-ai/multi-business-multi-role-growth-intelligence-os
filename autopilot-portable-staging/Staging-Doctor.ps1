@@ -69,12 +69,24 @@ function Invoke-Status {
     Test-CommandCheck $checks "gh"
     Test-CommandCheck $checks "wsl"
     Add-Check $checks "repository:path" (Test-Path (Join-Path $RepositoryPath ".git")) $RepositoryPath $false
+    $expectedBranch = [string]$Policy.ref
     $branch = "unknown"
+    $branchEligible = $false
     $gitCommand = Get-Command git -ErrorAction SilentlyContinue
     if ($null -ne $gitCommand -and (Test-Path (Join-Path $RepositoryPath ".git"))) {
         $branch = ((& git -C $RepositoryPath branch --show-current 2>$null | Out-String).Trim())
+        $branchEligible = ($LASTEXITCODE -eq 0) -and ($branch -eq $expectedBranch)
+        if (-not $branchEligible -and [string]::IsNullOrWhiteSpace($branch)) {
+            # Local remote-tracking equality is an observation only; deployment verifies live remote authority.
+            $localSha = ((& git -C $RepositoryPath rev-parse HEAD 2>$null | Out-String).Trim())
+            $localShaValid = ($LASTEXITCODE -eq 0) -and ($localSha -match '^[0-9a-fA-F]{40}$')
+            $remoteSha = ((& git -C $RepositoryPath rev-parse --verify "refs/remotes/origin/$expectedBranch" 2>$null | Out-String).Trim())
+            $remoteShaValid = ($LASTEXITCODE -eq 0) -and ($remoteSha -match '^[0-9a-fA-F]{40}$')
+            $branchEligible = $localShaValid -and $remoteShaValid -and ($localSha -eq $remoteSha)
+            $branch = if ($branchEligible) { "detached:exact-local-origin-$expectedBranch" } else { "detached:not-exact-local-origin-$expectedBranch" }
+        }
     }
-    Add-Check $checks "repository:branch" ($branch -eq "main") $branch $false
+    Add-Check $checks "repository:branch" $branchEligible $branch $false
     $dirty = @()
     if (Test-Path (Join-Path $RepositoryPath ".git")) { $dirty = @(git -C $RepositoryPath status --porcelain --untracked-files=all) }
     $cleanDetail = if ($dirty.Count -eq 0) { "clean" } else { "dirty_files=$($dirty.Count)" }
@@ -87,11 +99,11 @@ function Invoke-Status {
         $envDetail = if ($actual -eq $expected) { $expected } else { "drift_or_missing" }
         Add-Check $checks "env:$key" ($actual -eq $expected) $envDetail $false
     }
-    foreach ($host in $Policy.forbidden_hosts) {
+    foreach ($forbiddenHostname in $Policy.forbidden_hosts) {
         $found = $false
-        if (Test-Path $envFile) { $found = (Get-Content -Raw $envFile) -match [regex]::Escape($host) }
+        if (Test-Path $envFile) { $found = (Get-Content -Raw $envFile) -match [regex]::Escape($forbiddenHostname) }
         $hostDetail = if ($found) { "found" } else { "absent" }
-        Add-Check $checks "forbidden-host:$host" (-not $found) $hostDetail $false
+        Add-Check $checks "forbidden-host:$forbiddenHostname" (-not $found) $hostDetail $false
     }
     Add-Check $checks "logs:directory" (Test-Path $logRoot) $logRoot $true
     Add-Check $checks "logs:latest-status" (Test-Path (Join-Path $logRoot "latest-status.json")) "latest-status.json" $false
