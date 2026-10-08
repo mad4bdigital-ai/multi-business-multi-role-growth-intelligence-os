@@ -2741,6 +2741,16 @@ export function buildAdminCliRoutes(deps) {
       const userId = scope.user_id;
       const tenantId = scope.tenant_id;
       const deviceId = target.row.device_id;
+      if (format === "bat") {
+        const deviceConfirmed = String(req.query.confirm_device_id || "").trim() === deviceId;
+        const configConfirmed = String(req.query.expected_config_id || "").trim() === String(target.row.config_id);
+        if (!deviceConfirmed || !configConfirmed) return res.status(409).json({
+          ok: false, secrets_included: false,
+          error: { code: "recovery_target_confirmation_required",
+            message: "Confirm the canonical device and config ID before generating a credential-bearing installer." }
+        });
+        validateAdminRecoveryEndpoint(target.credentials.tunnel_url, target.credentials.cf_tunnel_id);
+      }
 
       if (format !== "bat") {
         return res.status(200).json({
@@ -2753,7 +2763,8 @@ export function buildAdminCliRoutes(deps) {
           secure_download: {
             method: "GET",
             path: "/admin/cli/local-connector/install-bundle",
-            query: { user_id: userId, tenant_id: tenantId, device_id: deviceId, format: "bat" },
+            query: { user_id: userId, tenant_id: tenantId, device_id: deviceId,
+              expected_config_id: target.row.config_id, format: "bat" },
             requires_backend_api_key: true,
             requires_admin_principal: true
           },
