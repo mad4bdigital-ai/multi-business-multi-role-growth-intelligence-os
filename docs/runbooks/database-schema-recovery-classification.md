@@ -21,6 +21,26 @@ Observed Production on 2026-10-08: `Production` branch and deployed SHA `e0c07f6
 
 The general fail-closed classifier lives at `http-generic-api/databaseSchemaRecoveryTriage.js` and is covered by `test-database-schema-recovery-triage.mjs`. It supplies a **candidate** action only; it never dispatches an operation. The canonical Recovery Kernel remains the sole governed planner/executor. The independent verified census must carry exact deployed SHA, database/role identity, all five physical object categories, required-table presence, a durable inspection run ID and evidence SHA-256.
 
+## Critical metadata-visibility proof for an empty role
+
+The host-local `databaseObjectCounts()` function queries `information_schema` under
+its database connection identity. A result of zero tables/views/triggers/routines/events
+**may still be zero visible objects** rather than zero physical objects. Neither
+`full_inspection=true` nor a 64-hex count fingerprint certifies permission to enumerate
+all objects; hashing an incomplete census does not turn it into complete evidence.
+
+Recovery Kernel therefore refuses to produce `<role>.baseline.rebuild_empty`
+candidates without an exact role-bound
+`mad4b.role-physical-object-visibility.v1` proof covering:
+the same deployed 40-hex SHA, database identity, role, role-object fingerprint,
+independent privileged census, complete enumeration of all five object classes,
+and read-only execution. Without that proof it emits
+`zero_visible_objects_unverified` (non-executable), even when all observed counts
+are zero. A caller-supplied boolean or an app-level readiness snapshot **must never**
+be accepted as this proof. Host-local authorized evidence issuance, persisted
+durability and cryptographic trust binding remain an external dependency; this PR
+does **not** claim they are deployed.
+
 ## Existing operation capabilities versus missing integrations
 
 1. `database_full_inspection` already reports role object counts/classifications and required-table evidence via `runtimeBootstrapContract.js` and Recovery Kernel.
