@@ -1,0 +1,186 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "pr8461-device-hostinger-recovery-maintenance",
+  "title": "PR8461 bounded local device identity and Hostinger recovery source maintenance",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/pr8461-device-hostinger-recovery-maintenance.json",
+      "GPT_Admin_Assistant_Knowledge_Guide.md",
+      "autopilot-portable-staging/manifest.json",
+      "docs/remote-mcp-write-scope-inventory.md",
+      "docs/runbooks/admin-local-connector-stale-device-closure-20261008.md",
+      "docs/runbooks/hostinger-recovery-allowlist-expansion-pr8461.md",
+      "docs/runbooks/pr8461-comprehensive-delivery-report-20261009.md",
+      "docs/runbooks/pr8461-deep-audit-handoff-20261009.md",
+      "http-generic-api/adminLocalConnectorTarget.js",
+      "http-generic-api/frontend-surface-dispatch.generated.json",
+      "http-generic-api/hostingerRecoveryCapabilityDiscovery.js",
+      "http-generic-api/hostingerRecoveryProviderContract.js",
+      "http-generic-api/installerCredentialEpoch.js",
+      "http-generic-api/localConnectorCompositeHealth.js",
+      "http-generic-api/localConnectorInstallerCapability.js",
+      "http-generic-api/mcpCatalogSchemaGuard.js",
+      "http-generic-api/migrations/20261008_admin_local_connector_target_catalog_alignment.sql",
+      "http-generic-api/migrations/20261009_hostinger_recovery_allowlist_discovery.sql",
+      "http-generic-api/openapi.yaml",
+      "http-generic-api/openapi/generated/custom-admin-schema-index.json",
+      "http-generic-api/openapi/generated/custom-gpt-registration-manifest.json",
+      "http-generic-api/openapi/openapi-mutation-policy.generated.json",
+      "http-generic-api/openapi/openapi.custom-gpt.activation-admin.production.yaml",
+      "http-generic-api/openapi/openapi.custom-gpt.activation-admin.staging.yaml",
+      "http-generic-api/openapi/openapi.custom-gpt.activation-admin.yaml",
+      "http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.production.yaml",
+      "http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.staging.yaml",
+      "http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.yaml",
+      "http-generic-api/openapi/openapi.custom-gpt.recovery-admin.production.yaml",
+      "http-generic-api/openapi/openapi.custom-gpt.recovery-admin.staging.yaml",
+      "http-generic-api/openapi/openapi.custom-gpt.staging-admin.yaml",
+      "http-generic-api/openapi/openapi.tenant-gpt.activation.production.yaml",
+      "http-generic-api/openapi/openapi.tenant-gpt.activation.staging.yaml",
+      "http-generic-api/openapi/openapi.tenant-gpt.activation.yaml",
+      "http-generic-api/openapi/openapi.tenant-gpt.auth.production.yaml",
+      "http-generic-api/openapi/openapi.tenant-gpt.auth.staging.yaml",
+      "http-generic-api/openapi/openapi.tenant-gpt.auth.yaml",
+      "http-generic-api/releaseReadiness.js",
+      "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
+      "http-generic-api/routes/adminCliRoutes.js",
+      "http-generic-api/routes/connectorAgentRoutes.js",
+      "http-generic-api/routes/localConnectorInstallRoutes.js",
+      "http-generic-api/routes/platformPluginRoutes.js",
+      "http-generic-api/scripts/governed-migration-runner-legacy.mjs",
+      "http-generic-api/scripts/governed-migration-runner.mjs",
+      "http-generic-api/scripts/manifests/test-manifest-spec011.mjs",
+      "http-generic-api/scripts/manifests/test-manifest-upstream-main.mjs",
+      "http-generic-api/test-admin-control.mjs",
+      "http-generic-api/test-admin-local-connector-target.mjs",
+      "http-generic-api/test-admin-self-recovery-contract.mjs",
+      "http-generic-api/test-hostinger-recovery-capability-discovery.mjs",
+      "http-generic-api/test-hostinger-recovery-provider-safety.mjs",
+      "http-generic-api/test-installer-credential-epoch.mjs",
+      "http-generic-api/test-local-connector-composite-health.mjs",
+      "http-generic-api/test-mcp-catalog-schema-guard.mjs",
+      "http-generic-api/test-mcp-catalog-schema-preflight.mjs",
+      "local-connector/connector-watchdog.ps1",
+      "local-connector/server.mjs",
+      "runtime_confirmation_procedure.md",
+      "specs/009-local-connector-reachability-recovery/pr8461-adversarial-closure.md",
+      "specs/014-governed-hostinger-storage-orchestration/pr8461-recovery-provider-contract.md",
+      "specs/020-platform-resource-identity-brand-governance/openapi-detail-closure-batch-full.json",
+      "specs/020-platform-resource-identity-brand-governance/openapi-detail-gap-classification.json",
+      "specs/020-platform-resource-identity-brand-governance/openapi-gap-closure-plan.json"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Validate source-only device isolation, catalog schema diagnosis and Hostinger blocked-operation contracts; do not claim runtime deployment or operational recovery.",
+      "blockers": [],
+      "e2e_journeys": [
+        {
+          "id": "pr8461-source-recovery-regressions",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "repository_maintainer",
+          "entrypoint": "Source-only preflight and Hostinger adapter predicates",
+          "terminal_outcome": "Every unsafe or indeterminate state remains blocked without credentials, environment replacement, DDL, SSH dispatch, or Production deployment.",
+          "steps": [
+            "Verify signed connector and device identity source changes.",
+            "Run MCP and Hostinger negative and positive bounded tests.",
+            "Confirm host-specific provider capabilities remain only planned.",
+            "Preserve Staging and Production acceptance as separate unverified release gates."
+          ],
+          "assertions": [
+            "Wrong Runtime identity or inaccessible metadata cannot approve a migration.",
+            "Missing column requires an explicit read-only ER_BAD_FIELD_ERROR result.",
+            "Blocked provider evaluation cannot mean executed or execution allowed.",
+            "No Production provisioning, grants or secret values are dispatched."
+          ],
+          "tests": [
+            {
+              "id": "mcp-column-probe-regression",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-mcp-catalog-schema-guard.mjs",
+              "args": []
+            },
+            {
+              "id": "mcp-preflight-identity-regression",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-mcp-catalog-schema-preflight.mjs",
+              "args": []
+            },
+            {
+              "id": "hostinger-provider-safety-regression",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-hostinger-recovery-provider-safety.mjs",
+              "args": []
+            },
+            {
+              "id": "hostinger-discovery-regression",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-hostinger-recovery-capability-discovery.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/mcpCatalogSchemaGuard.js",
+            "http-generic-api/hostingerRecoveryProviderContract.js",
+            "http-generic-api/hostingerRecoveryCapabilityDiscovery.js",
+            "docs/runbooks/pr8461-comprehensive-delivery-report-20261009.md"
+          ]
+        }
+      ],
+      "tests": [
+        {
+          "id": "mcp-column-probe-regression",
+          "runner": "node",
+          "working_directory": ".",
+          "path": "http-generic-api/test-mcp-catalog-schema-guard.mjs",
+          "args": []
+        },
+        {
+          "id": "mcp-preflight-identity-regression",
+          "runner": "node",
+          "working_directory": ".",
+          "path": "http-generic-api/test-mcp-catalog-schema-preflight.mjs",
+          "args": []
+        },
+        {
+          "id": "hostinger-provider-safety-regression",
+          "runner": "node",
+          "working_directory": ".",
+          "path": "http-generic-api/test-hostinger-recovery-provider-safety.mjs",
+          "args": []
+        },
+        {
+          "id": "hostinger-discovery-regression",
+          "runner": "node",
+          "working_directory": ".",
+          "path": "http-generic-api/test-hostinger-recovery-capability-discovery.mjs",
+          "args": []
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}
