@@ -26,3 +26,28 @@ UPDATE admin_platform_endpoint_tools
          )),
        updated_at = NOW()
  WHERE tool_key = 'local_connector_self_repair';
+
+
+-- Dynamic Admin discovery of the read-only inventory. Runtime still applies the
+-- authenticated user/tenant barrier and strips all credential values.
+INSERT INTO admin_platform_endpoint_tools
+  (tool_key, display_name, description, http_method, http_path,
+   path_param_keys, input_schema, fixed_body, tags, sort_order)
+VALUES
+  ('admin_local_connector_devices', 'List Admin Connector Devices',
+   'Read-only scoped canonical connector inventory with lifecycle and heartbeat status. Never returns secrets or implies that a historical alias is currently connected.',
+   'GET', '/admin/cli/local-connector/devices', NULL,
+   JSON_OBJECT(
+     'type', 'object',
+     'properties', JSON_OBJECT(
+       'user_id', JSON_OBJECT('type','string', 'description','Scoped user, derived from identity where available.'),
+       'tenant_id', JSON_OBJECT('type','string', 'description','Required explicit tenant for non-platform admin scope.')
+     )),
+   NULL, 'admin,local_connector,inventory,read_only', 66)
+ON DUPLICATE KEY UPDATE
+  description = VALUES(description),
+  http_method = VALUES(http_method),
+  http_path = VALUES(http_path),
+  input_schema = VALUES(input_schema),
+  tags = VALUES(tags),
+  updated_at = NOW();
