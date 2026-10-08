@@ -41,8 +41,11 @@ assert.equal(safeReady.deployment_performed, false);
 assert.equal((await assertMcpCatalogLevelColumn({ pool: presentPool, table: "admin_platform_endpoint_tools" })).available, true);
 
 const missingPool = {
-  async query() {
-    return [[{ column_count: 0 }]];
+  async query(sql) {
+    if (/information_schema\.columns/u.test(sql)) return [[{ column_count: 0 }]];
+    const error = new Error("confirmed missing column");
+    error.code = "ER_BAD_FIELD_ERROR";
+    throw error;
   },
 };
 const missing = await readMcpCatalogLevelSchemaStatus({ pool: missingPool, table: "tenant_platform_endpoint_tools" });
@@ -64,8 +67,50 @@ const errorPool = {
 };
 const degraded = await readMcpCatalogSchemaReadiness({ pool: errorPool });
 assert.equal(degraded.ok, false);
-assert.equal(degraded.migration_apply_required, true);
+assert.equal(degraded.migration_apply_required, false);
+assert(degraded.tables.every(item => item.code === "mcp_catalog_schema_metadata_unavailable"));
 assert.equal(degraded.tables.every((item) => item.secrets_included === false), true);
+const unavailableTablePool = {
+  async query(sql) {
+    if (/information_schema\.columns/u.test(sql)) return [[{ column_count: 0 }]];
+    const error = new Error("table is inaccessible");
+    error.code = "ER_TABLEACCESS_DENIED_ERROR";
+    throw error;
+  },
+};
+const notAuthorized = await readMcpCatalogLevelSchemaStatus({
+  pool: unavailableTablePool, table: "admin_platform_endpoint_tools",
+});
+assert.equal(notAuthorized.available, false);
+assert.equal(notAuthorized.migration_apply_required, false);
+assert.equal(notAuthorized.code, "MCP_CATALOG_SCHEMA_PRIVILEGE_DENIED");
+await assert.rejects(
+  () => assertMcpCatalogLevelColumn({ pool: unavailableTablePool, table: "admin_platform_endpoint_tools" }),
+  error => error.code === "mcp_catalog_schema_metadata_unavailable"
+    && error.details?.migration_apply_required === false,
+);
+const noTablePool = {
+  async query(sql) {
+    if (/information_schema\.columns/u.test(sql)) return [[{ column_count: 0 }]];
+    const error = new Error("table missing");
+    error.code = "ER_NO_SUCH_TABLE";
+    throw error;
+  },
+};
+const noTable = await readMcpCatalogLevelSchemaStatus({ pool: noTablePool, table: "admin_platform_endpoint_tools" });
+assert.equal(noTable.code, "MCP_CATALOG_TABLE_MISSING");
+assert.equal(noTable.migration_apply_required, false);
+const hiddenMetadataPool = {
+  async query(sql) {
+    if (/information_schema\.columns/u.test(sql)) return [[{ column_count: 0 }]];
+    return [[], []]; // Direct projection succeeds even though metadata was unavailable.
+  },
+};
+const metadataFalseNegative = await readMcpCatalogLevelSchemaStatus({
+  pool: hiddenMetadataPool, table: "tenant_platform_endpoint_tools",
+});
+assert.equal(metadataFalseNegative.available, true);
+assert.equal(metadataFalseNegative.migration_apply_required, false);
 const safeDegraded = await readMcpCatalogSchemaReadinessSafe({
   pool: errorPool,
   env: { DB_NAME: "catalog_runtime", DB_USER: "runtime_user" },
