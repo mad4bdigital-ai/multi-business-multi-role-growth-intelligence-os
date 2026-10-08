@@ -130,6 +130,9 @@ const STAGING_RUNTIME_READ_ONLY_MATRIX = Object.freeze(Object.fromEntries(
 
 const STAGING_RUNTIME_OPERATION_MATRIX = Object.freeze({
   ...STAGING_RUNTIME_READ_ONLY_MATRIX,
+  // Append-only Gateway certification events are mandatory Staging audit evidence.
+  // No SELECT, UPDATE, DELETE, schema-wide, or Production privilege is granted.
+  audit_log: Object.freeze(["INSERT"]),
   platform_runtime_config: Object.freeze(["SELECT", "INSERT", "UPDATE"]),
   platform_secrets: Object.freeze(["SELECT", "INSERT", "UPDATE"]),
   secret_references: Object.freeze(["SELECT", "INSERT", "UPDATE"]),
@@ -164,6 +167,7 @@ export const STAGING_ROLE_GRANT_POLICIES = Object.freeze({
       "json_assets",
       "local_manager_desktop_commands",
       "local_manager_device_link_sessions",
+      "audit_log",
       ...STAGING_RUNTIME_READ_ONLY_TABLES,
     ],
     ["SELECT", "INSERT", "UPDATE"],
