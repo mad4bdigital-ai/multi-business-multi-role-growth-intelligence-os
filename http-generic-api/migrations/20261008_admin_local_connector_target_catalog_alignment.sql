@@ -3,16 +3,14 @@
 -- Keeps Admin MCP discovery aligned with the runtime's fail-closed canonical resolver.
 
 UPDATE admin_platform_endpoint_tools
-   SET description = 'Authenticated Admin-only installer metadata or protected BAT download for an explicitly confirmed active or stale canonical device in an exact user/tenant scope; commands still require fresh heartbeat. No default hostname, fuzzy alias, cross-device credential fallback, public artifact or database credential write.',
+   SET description = 'Read-only Admin metadata for an explicitly selected canonical device within exact user/tenant scope. Legacy inline BAT installer delivery is retired (410); protected installation requires the separate signed, scoped, expiring installer flow. No default hostname, fuzzy alias or device credential materialization.',
        input_schema = JSON_OBJECT(
          'type', 'object',
          'properties', JSON_OBJECT(
            'user_id', JSON_OBJECT('type','string', 'description','Target user; platform admin is default only for platform-admin operations.'),
            'tenant_id', JSON_OBJECT('type','string', 'description','Tenant scope; required for a non-platform user if absent from signed identity.'),
            'device_id', JSON_OBJECT('type','string', 'description','Explicit canonical device ID is required for recovery; do not auto-select a stale device.'),
-           'format', JSON_OBJECT('type','string', 'enum',JSON_ARRAY('json','bat'), 'description','json returns no-secret handoff; bat requires explicit target/config confirmation.'),
-           'expected_config_id', JSON_OBJECT('type','string', 'description','Expected canonical config ID for protected BAT.'),
-           'confirm_device_id', JSON_OBJECT('type','string', 'description','Explicitly confirmed canonical device for protected BAT.')
+           'format', JSON_OBJECT('type','string', 'enum',JSON_ARRAY('json','bat'), 'description','json returns no-secret scoped metadata; bat is retired and returns HTTP 410.')
          )),
        updated_at = NOW()
  WHERE tool_key = 'local_connector_install_bundle';
