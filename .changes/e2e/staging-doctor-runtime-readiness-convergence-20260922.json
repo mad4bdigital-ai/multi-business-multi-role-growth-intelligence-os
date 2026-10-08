@@ -15,6 +15,7 @@
       "http-generic-api/config/repository-governance-constitution.json",
       "autopilot-portable-staging/Invoke-Staging-One-Click.ps1",
       "autopilot-portable-staging/Staging-Doctor.ps1",
+      "autopilot-portable-staging/staging-maintenance-policy.json",
       "http-generic-api/routes/deploymentInfoRoutes.js",
       "http-generic-api/server.js",
       "http-generic-api/test-runtime-gate-deployment-info-parity.mjs",
@@ -62,7 +63,8 @@
             "deployment-info semantic readiness performs the bounded Runtime DB workspace_registry read.",
             "Runtime Persistence DB is not substituted for Runtime DB semantic readiness.",
             "Production deployment, Production mutation, provider mutation, DNS mutation, credential mutation, database mutation, and grant widening are not authorized.",
-            "secrets_included is false."
+            "secrets_included is false.",
+            "Maintenance Doctor accepts the optional activation-dev.mad4b.com staging gateway without dropping Production host denial, and its host policies remain in parity with One Click and Auto Deploy."
           ],
           "tests": [
             {
