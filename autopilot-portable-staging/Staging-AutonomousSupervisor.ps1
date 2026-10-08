@@ -21,6 +21,7 @@ foreach ($forbidden in @("production_mutation", "database_mutation", "migration_
     if ($Policy.safety.$forbidden -ne $false) { throw "AUTONOMOUS_SUPERVISOR_BLOCKED: unsafe policy" }
 }
 if ($IntervalSeconds -lt 30) { throw "AUTONOMOUS_SUPERVISOR_BLOCKED: interval below 30 seconds" }
+$scriptRoot = $PSScriptRoot
 $logRoot = Get-StagingLogRoot
 $statePath = Join-Path $logRoot "autonomous-supervisor-state.json"
 $acceptancePath = Join-Path $logRoot "autonomous-acceptance.json"
@@ -54,7 +55,7 @@ function Test-WatcherTaskIdentity([object]$Task) {
     $action = @($Task.Actions)[0]
     $arguments = [string]$action.Arguments
     if ([IO.Path]::GetFileName([string]$action.Execute) -ine "powershell.exe") { return $false }
-    if ([IO.Path]::GetFullPath([string]$action.WorkingDirectory).TrimEnd('\') -ine $PSScriptRoot.TrimEnd('\')) { return $false }
+    if ([IO.Path]::GetFullPath([string]$action.WorkingDirectory).TrimEnd('\') -ine $scriptRoot.TrimEnd('\')) { return $false }
     if ([string]$Task.Principal.UserId -ine $expectedPrincipal) { return $false }
     # Permit only the exact expected script and working checkout, never an arbitrary -Command.
     $scriptRegex = [regex]::Escape($expectedScript)
