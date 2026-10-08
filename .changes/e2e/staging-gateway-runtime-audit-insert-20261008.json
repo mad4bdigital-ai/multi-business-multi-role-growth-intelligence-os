@@ -1,0 +1,73 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-gateway-runtime-audit-insert-20261008",
+  "title": "Staging Gateway append-only runtime audit grant closure",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-gateway-runtime-audit-insert-20261008.json",
+      "http-generic-api/databasePrivilegeContracts.js",
+      "http-generic-api/test-staging-database-readiness-repair.mjs"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Require only INSERT privilege on the Staging runtime audit_log table for durable Gateway transaction certification evidence, with repository grant-plan verification and unchanged Production bootstrap grants.",
+      "e2e_journeys": [
+        {
+          "id": "staging-gateway-audit-exact-grant-plan",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Staging grant contract compiler",
+          "entrypoint": "Compile the repository-owned Staging runtime grant policy and invoke the canonical role-grant plan without database writes.",
+          "terminal_outcome": "The generated Staging runtime plan contains exactly one required audit_log entry with INSERT only; no schema-wide grants or Production, provider, or credential mutation are authorized.",
+          "steps": [
+            "Resolve the Staging runtime required tables and per-table privilege operations, including audit_log.",
+            "Run the canonical staging-role-grant-plan.mjs --role runtime using the regression suite.",
+            "Reject grants on audit_log broader than INSERT, reject missing/optional audit evidence, and retain Production bootstrap and Governance role separation.",
+            "Require approved Staging-only database grant reconciliation and same-cycle readback independently after merge; block Gateway Certification until that happens."
+          ],
+          "assertions": [
+            "Staging runtime audit_log is mandatory and receives exactly INSERT.",
+            "No SELECT, UPDATE, DELETE, GRANT OPTION, schema-wide privilege, or Production bootstrap role expansion is introduced by this change.",
+            "Canonical grant-plan output is checked, not only an in-memory policy object.",
+            "No database or provider mutation, secret material, certification, or release is performed by this PR.",
+            "Staging operational grant apply requires independent authority and post-apply evidence before any new Gateway certification."
+          ],
+          "tests": [
+            {
+              "id": "staging-gateway-audit-runtime-grant-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-database-readiness-repair.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/staging-gateway-runtime-audit-insert-20261008.json",
+            "http-generic-api/databasePrivilegeContracts.js",
+            "http-generic-api/test-staging-database-readiness-repair.mjs"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}
