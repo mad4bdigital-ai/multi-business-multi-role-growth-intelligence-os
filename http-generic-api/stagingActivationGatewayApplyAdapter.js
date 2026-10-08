@@ -1558,8 +1558,17 @@ export async function runStagingActivationGatewayTransactionCertification(input 
     for (let attempt = 0; attempt < 12; attempt++) {
       const candidate = await observeStagingGatewayCertificationBaseline(
         fetchImpl, gateway.public_host, planBody.expected_source_commit, planBody.expected_policy_hash, deps.smokeTimeoutMs);
+      const candidateTrust = candidate.ready?.body?.recoveryTrustedIngress || null;
       candidatePublicVerified = candidate.classification.ready && candidate.classification.mode === "healthy_exact"
-        && candidate.classification.observed_source_commit === planBody.expected_source_commit;
+        && candidate.classification.observed_source_commit === planBody.expected_source_commit
+        && candidate.health?.body?.workerBundleSha256 === bundle.worker_bundle_sha256
+        && candidateTrust?.contract === "mad4b.staging.activation-recovery-origin-trust.v2"
+        && candidateTrust?.key_id === bundle.origin_trust.key_id
+        && candidateTrust?.public_key === bundle.origin_trust.public_key
+        && candidateTrust?.policy_hash === planBody.expected_policy_hash
+        && candidateTrust?.deployment_sha === planBody.expected_source_commit
+        && candidateTrust?.worker_bundle_sha256 === bundle.worker_bundle_sha256
+        && candidateTrust?.trusted_ingress_mode === "signature";
       if (candidatePublicVerified) break;
       if (attempt < 11) await new Promise((resolve) => setTimeout(resolve, 1500));
     }
