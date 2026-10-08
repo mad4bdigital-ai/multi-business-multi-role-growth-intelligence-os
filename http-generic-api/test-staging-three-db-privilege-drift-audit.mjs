@@ -76,6 +76,31 @@ test("table not visible cannot be incorrectly called physically absent", () => {
   assert.ok(o.optional_tables_missing_or_invisible.includes("v_activation_pending_tasks"));
 });
 
+test("eight hidden but physically extant runtime tables remain unassessed, not certified absent", () => {
+  const hidden = new Set([
+    "audit_log", "endpoints", "platform_endpoint_tool_exports",
+    "remote_mcp_oauth_authorization_codes", "remote_mcp_oauth_clients",
+    "remote_mcp_oauth_grants", "tenant_secrets", "user_app_connections",
+  ]);
+  const missingOps = new Set([
+    "platform_runtime_config:INSERT", "platform_runtime_config:UPDATE",
+    "platform_secrets:INSERT", "platform_secrets:UPDATE",
+    "secret_references:INSERT", "secret_references:UPDATE",
+  ]);
+  const input = evidence("runtime");
+  input.tableRows = input.tableRows.filter((r) => !hidden.has(r.TABLE_NAME));
+  input.tablePrivilegeRows = input.tablePrivilegeRows.filter((r) =>
+    !hidden.has(r.TABLE_NAME) && !missingOps.has(r.TABLE_NAME + ":" + r.PRIVILEGE_TYPE));
+  const result = compareRolePrivilegeEvidence(input);
+  assert.equal(result.ready, false);
+  assert.deepEqual(result.required_tables_missing_or_invisible, [...hidden].sort());
+  assert.deepEqual(result.missing_required_grants, [...missingOps].sort());
+  assert.equal(result.unassessed_required_grant_count, 14);
+  assert.equal(result.unassessed_required_grants_on_hidden_surfaces.length, 14);
+  assert.equal(result.excessive_table_grants.length, 0);
+  assert.equal(result.missing_required_grants.length + result.unassessed_required_grant_count, 20);
+});
+
 test("detect global/schema/column grants, GRANT OPTION, roles and cross-database leakage", () => {
   const v = evidence("runtime");
   v.userPrivilegeRows.push({ PRIVILEGE_TYPE: "CREATE" });
