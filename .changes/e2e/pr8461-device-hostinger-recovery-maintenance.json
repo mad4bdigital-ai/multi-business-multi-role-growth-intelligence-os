@@ -9,6 +9,7 @@
     "include": [
       ".changes/e2e/pr8461-device-hostinger-recovery-maintenance.json",
       "GPT_Admin_Assistant_Knowledge_Guide.md",
+      "autopilot-portable-staging/Clone-StagingDatabases.Legacy.ps1",
       "autopilot-portable-staging/auto-deploy-policy.json",
       "autopilot-portable-staging/autopilot-one-click-policy.json",
       "autopilot-portable-staging/manifest.json",
