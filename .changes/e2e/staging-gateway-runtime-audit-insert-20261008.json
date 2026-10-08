@@ -2,7 +2,7 @@
   "$schema": "../../.specify/schemas/e2e-phases.schema.json",
   "schema_version": 1,
   "feature_key": "staging-gateway-runtime-audit-insert-20261008",
-  "title": "Staging Gateway append-only runtime audit grant closure",
+  "title": "Staging Gateway append-only audit with bounded read authority and three-database privilege readback",
   "delivery_mode": "single_pr",
   "current_phase": "mvp",
   "scope": {
@@ -32,7 +32,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Require only INSERT privilege on the Staging runtime audit_log table for durable Gateway transaction certification evidence, with repository grant-plan verification and unchanged Production bootstrap grants.",
+      "objective": "Require SELECT and INSERT, but neither UPDATE nor DELETE, for runtime audit_log because Gateway writes append-only evidence while Dynamic Audit reads audit_log through Runtime DB fallback when dedicated Control Plane authority is disabled. Verify precise grants across all three Staging databases and deny all Production mutation.",
       "e2e_journeys": [
         {
           "id": "staging-gateway-audit-exact-grant-plan",
@@ -40,23 +40,26 @@
           "level": "synthetic_runtime",
           "actor": "Staging grant contract compiler",
           "entrypoint": "Compile the repository-owned Staging runtime grant policy and invoke the canonical role-grant plan without database writes.",
-          "terminal_outcome": "The generated Staging runtime plan contains exactly one required audit_log entry with INSERT only; no schema-wide grants or Production, provider, or credential mutation are authorized.",
+          "terminal_outcome": "Staging Runtime grant plan grants audit_log exactly SELECT and INSERT; runtime privilege drift is reported without inventing physical absence; existing Governance and Persistence grants remain unchanged, with no provider or database writes.",
           "steps": [
             "Resolve the Staging runtime required tables and per-table privilege operations, including audit_log.",
             "Run the canonical staging-role-grant-plan.mjs --role runtime using the regression suite.",
-            "Reject grants on audit_log broader than INSERT, reject missing/optional audit evidence, and retain Production bootstrap and Governance role separation.",
+            "Reject audit_log UPDATE/DELETE and any grant beyond SELECT/INSERT, reject missing/optional audit evidence, and retain Production bootstrap and Governance role separation.",
             "Require approved Staging-only database grant reconciliation and same-cycle readback independently after merge; block Gateway Certification until that happens.",
-            "Inspect actual grants for runtime, governance and runtime_persistence using application identities and only SELECT information_schema queries; flag missing/excess/cross-schema/global/schema/column/role privileges."
+            "Inspect actual grants for runtime, governance and runtime_persistence using application identities and only SELECT information_schema queries; flag missing/excess/cross-schema/global/schema/column/role privileges.",
+            "Correlate live app-principal Runtime grant readback with privileged read-only physical table census; all eight previously invisible required tables physically exist, while three optional views are absent."
           ],
           "assertions": [
-            "Staging runtime audit_log is mandatory and receives exactly INSERT.",
-            "No SELECT, UPDATE, DELETE, GRANT OPTION, schema-wide privilege, or Production bootstrap role expansion is introduced by this change.",
+            "Staging runtime audit_log is mandatory and receives exactly SELECT and INSERT because the Dynamic Audit scheduler can read via Runtime fallback.",
+            "No UPDATE, DELETE, GRANT OPTION, schema-wide privilege, or Production bootstrap role expansion is introduced by this change.",
             "Canonical grant-plan output is checked, not only an in-memory policy object.",
             "No database or provider mutation, secret material, certification, or release is performed by this PR.",
             "Staging operational grant apply requires independent authority and post-apply evidence before any new Gateway certification.",
             "All three database principals and database names must be distinct. Missing or inaccessible role databases fail closed without reporting certification readiness.",
             "Local Manager write-matrix vs Staging read-only differences are reported as warnings; the privilege scanner never grants additional rights.",
-            "The read-only NODE_ENV Staging identity reference is permanently registered in configuration drift governance, not exempted by a temporary policy suppression."
+            "The read-only NODE_ENV Staging identity reference is permanently registered in configuration drift governance, not exempted by a temporary policy suppression.",
+            "Exact owner live readback identified 21 required grant deficits on eleven Runtime tables, including 6 on visible secret/config surfaces and 15 on 8 invisible-but-present required objects; none is yet applied.",
+            "CONTROL_PLANE_WRITE_AUTHORITY_ENABLED was false in live local Staging, so SELECT on audit_log is required by the fallback path; preserve INSERT-only modification and forbid UPDATE/DELETE."
           ],
           "tests": [
             {
