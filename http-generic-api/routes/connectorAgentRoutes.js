@@ -1122,13 +1122,17 @@ export function buildConnectorAgentRoutes() {
       if (deviceId) { sql += " AND device_id = ?"; params.push(deviceId); }
       const backendToken = String(process.env.BACKEND_API_KEY || "").trim();
       if (backendToken && token === backendToken) {
-        sql += " ORDER BY updated_at DESC LIMIT 1";
-      } else {
-        const authPredicate = await connectorAuthPredicateForToken(token);
-        sql += ` AND ${authPredicate.sql} ORDER BY updated_at DESC LIMIT 1`;
-        params.push(...authPredicate.params);
+        throw httpError(403, "device_owned_policy_credential_required",
+          "Platform API credentials do not attest a device policy identity.");
       }
-      const [[config]] = await getPool().query(sql, params);
+      const authPredicate = await connectorAuthPredicateForToken(token);
+      sql += ` AND ${authPredicate.sql}`;
+      sql += " AND lifecycle_state = 'active' AND revoked_at IS NULL AND archived_at IS NULL LIMIT 2";
+      params.push(...authPredicate.params);
+      const [matches] = await getPool().query(sql, params);
+      if (matches.length > 1) throw httpError(409, "connector_policy_identity_ambiguous",
+        "Multiple device identities matched the connector policy credential.");
+      const config = matches[0] || null;
       if (!config) throw httpError(403, "connector_policy_auth_failed", "Connector policy auth failed.");
 
       const [rows] = await getPool().query(
