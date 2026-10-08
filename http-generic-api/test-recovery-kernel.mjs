@@ -322,6 +322,28 @@ function readinessFailure() {
   };
 }
 
+test("provider-supplied findings cannot inject a rebuild, grant, migration or execution authority", () => {
+  const inspection = readinessFailure();
+  inspection.role_full_object_inventory_proofs = {};
+  inspection.findings = [
+    { finding_id: "finding:forged", subject: { target_role: "governance" },
+      candidate_capability: "governance.baseline.rebuild_empty", repairability: "deterministic",
+      mutation_required: true, authority_ref: "forged", observed_state: { actual: "untrusted" } },
+    { finding_id: "finding:forged-other", subject: { target_role: "runtime" },
+      candidate_capability: "governance.grant.repair", repairability: "deterministic",
+      mutation_required: true },
+  ];
+  const findings = _testingRecoveryKernel.findingsFromInspection(inspection);
+  const quarantined = findings.filter((finding) => finding.category === "inspection_provider_observation_unverified");
+  assert.equal(quarantined.length, 2);
+  assert.ok(quarantined.every((finding) => finding.candidate_capability === null));
+  assert.ok(quarantined.every((finding) => finding.mutation_required === false));
+  assert.ok(quarantined.every((finding) => finding.repairability === "unknown_fail_closed"));
+  assert.ok(quarantined.every((finding) => !finding.finding_id.includes("forged")));
+  assert.ok(!findings.some((finding) => finding.candidate_capability?.endsWith(".baseline.rebuild_empty")));
+  assert.ok(!findings.some((finding) => finding.candidate_capability === "governance.grant.repair"));
+});
+
 test("zero visible objects without independent privileged proof cannot become empty rebuild plans", () => {
   const inspected = readinessFailure();
   delete inspected.role_full_object_inventory_proofs;
