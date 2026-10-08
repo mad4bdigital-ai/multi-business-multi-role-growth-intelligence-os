@@ -13,6 +13,11 @@ export function adminConnectorScope(req = {}, input = {}) {
   const auth = req.auth || {};
   const requestedUser = str(input.user_id), requestedTenant = str(input.tenant_id);
   if (["user_jwt", "api_credential"].includes(auth.mode) &&
+    (!str(auth.user_id) || !str(auth.tenant_id))) {
+    throw targetError("device_signed_identity_missing",
+      "A tenant-scoped identity requires a signed user and tenant.", 403);
+  }
+  if (["user_jwt", "api_credential"].includes(auth.mode) &&
     ((requestedUser && requestedUser !== str(auth.user_id)) ||
      (requestedTenant && requestedTenant !== str(auth.tenant_id)))) {
     throw targetError("device_scope_mismatch", "Requested user/tenant differs from authenticated identity.", 403);
