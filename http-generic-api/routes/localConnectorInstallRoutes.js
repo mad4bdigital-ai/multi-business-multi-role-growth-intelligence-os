@@ -1043,10 +1043,15 @@ export async function provisionLocalConnectorInstall(req, body = {}) {
   if (!tenant) throw httpError(404, "tenant_not_found", "Tenant not found.");
 
   const [[existing]] = await pool.query(
-    `SELECT config_id, cf_tunnel_id, cf_tunnel_name, cf_token, connector_secret, ${connectorLocalApiKeySelect}, tunnel_url, public_gateway_url, device_runtime_url, admin_recovery_url FROM \`local_connector_user_configs\` WHERE user_id = ? AND tenant_id = ? AND device_id = ? LIMIT 1`,
+    `SELECT config_id, is_enabled, lifecycle_state, revoked_at, archived_at, cf_tunnel_id, cf_tunnel_name, cf_token, connector_secret, ${connectorLocalApiKeySelect}, tunnel_url, public_gateway_url, device_runtime_url, admin_recovery_url FROM \`local_connector_user_configs\` WHERE user_id = ? AND tenant_id = ? AND device_id = ? LIMIT 1`,
     [resolvedUserId, resolvedTenantId, device_id]
   );
 
+  if (existing && (Number(existing.is_enabled) !== 1 || existing.lifecycle_state !== "active" ||
+      existing.revoked_at || existing.archived_at)) {
+    throw httpError(409, "device_reenrollment_required",
+      "A disabled, revoked, or archived device cannot be reused; start new device pairing.");
+  }
   let configId = existing?.config_id || randomUUID();
   let tunnelId = existing?.cf_tunnel_id || null;
   let tunnelToken = existing?.cf_token || null;
