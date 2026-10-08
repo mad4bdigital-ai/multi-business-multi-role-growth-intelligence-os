@@ -27,6 +27,14 @@ export function projectGovernanceDbPrivilegeReadiness(result = {}) {
     ready,
     code: ready ? null : text(result.code).slice(0, 100) || "GOVERNANCE_DB_PRIVILEGE_READINESS_BLOCKED",
     production_preflight_ready: result.production_preflight_ready === true,
+    // An early schema gate can prevent privilege evaluation even when the
+    // Production provider/identity preflight already succeeded. Keep explicit
+    // evaluated flags so a false result is never read as a proven failure.
+    production_preflight_evaluated: result.production_preflight_evaluated === true,
+    schema_objects_evaluated: result.schema_readiness?.contract === "mad4b.governance-db-schema-readiness.v1"
+      || typeof result.schema_readiness?.ready === "boolean",
+    privilege_matrix_evaluated: result.privilege_matrix_evaluated === true
+      || typeof result.privilege_readiness?.ready === "boolean",
     production_branch_exact: result.production_branch_exact === true,
     promotion_target_branch_exact: result.promotion_target_branch_exact === true,
     governance_identity_configured: result.governance_identity_configured === true,
