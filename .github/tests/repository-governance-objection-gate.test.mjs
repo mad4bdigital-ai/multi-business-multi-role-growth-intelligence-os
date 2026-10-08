@@ -64,6 +64,14 @@ assert.ok(constitution.control_plane_paths.includes(".changes/e2e/production-pro
 const pr8440Declaration = ".changes/e2e/pr8440-managed-credential-authority-closure.json";
 assert.ok(constitution.control_plane_paths.includes(pr8440Declaration));
 assert.ok(derivedStateGovernance.convergence.automation_control_paths.includes(pr8440Declaration));
+const pr8455Declarations = [
+  ".changes/e2e/production-db-privilege-documentation-parity-20261008.json",
+  ".changes/e2e/staging-gateway-runtime-audit-insert-20261008.json",
+];
+for (const declaration of pr8455Declarations) {
+  assert.ok(constitution.control_plane_paths.includes(declaration), `critical path not in Constitution: ${declaration}`);
+  assert.ok(derivedStateGovernance.convergence.automation_control_paths.includes(declaration), `critical path not in convergence registry: ${declaration}`);
+}
 canonicalGovernance.change_inventory.changes = [{
   raw_status: "M",
   status: "M",
