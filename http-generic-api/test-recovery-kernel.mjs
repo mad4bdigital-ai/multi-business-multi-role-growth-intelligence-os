@@ -307,7 +307,7 @@ function readinessFailure() {
   };
 }
 
-test("verified missing table in a nonempty role cannot become a grant or generic migration candidate", () => {
+test("unverified required-table visibility in a nonempty role cannot become a grant or generic migration candidate", () => {
   const inspected = readinessFailure();
   inspected.role_database_object_classifications.governance = "nonempty_objects";
   inspected.role_database_object_counts.governance = {
@@ -321,12 +321,13 @@ test("verified missing table in a nonempty role cannot become a grant or generic
   };
   const findings = _testingRecoveryKernel.findingsFromInspection(inspected);
   const partial = findings.find((entry) =>
-    entry.subject?.target_role === "governance" && entry.category === "partial_schema_missing_table");
+    entry.subject?.target_role === "governance" && entry.category === "required_table_presence_unverified");
   assert.ok(partial);
   assert.equal(partial.candidate_capability, null);
   assert.equal(partial.repairability, "unknown_fail_closed");
   assert.equal(partial.mutation_required, false);
-  assert.equal(partial.observed_state?.actual?.missing_required_table_count, 1);
+  assert.equal(partial.observed_state?.actual?.required_tables_not_visible_count, 1);
+  assert.equal(partial.observed_state?.actual?.physical_absence_proven, false);
   assert.ok(!findings.some((entry) => entry.candidate_capability === "governance.grant.repair"));
   assert.ok(!findings.some((entry) => entry.candidate_capability === "governance.mcp_catalog.repair"));
   assert.ok(!findings.some((entry) => entry.candidate_capability === "governance.baseline.rebuild_empty"));
