@@ -1109,6 +1109,9 @@ test("durable plans and findings survive a process-memory restart boundary", asy
   const durable = makeDurableStore();
   const inspection = await inspectProductionDatabase({ expected_sha: SHA, target_key: "production-runtime" }, {
     env: ENV,
+    // Test-only trusted server evidence allows this persistence test to cover
+    // a consequential plan. The live Production composition has no verifier.
+    trustedRoleInventoryVerifier: ({ role }) => role === "governance" || role === "runtime_persistence",
     hostLocalExecutor: async () => readinessFailure(),
     recoveryStore: durable,
     deploymentIdentityProvider: DEPLOYMENT_IDENTITY_PROVIDER,
