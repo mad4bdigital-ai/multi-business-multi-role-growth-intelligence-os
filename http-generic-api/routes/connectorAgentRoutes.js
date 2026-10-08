@@ -4,6 +4,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { getPool } from "../db.js";
+import { validateAdminRecoveryEndpoint } from "../adminLocalConnectorTarget.js";
 import {
   connectorAuthPredicateForToken,
   connectorLocalApiKeySelectFragment,
@@ -431,12 +432,13 @@ async function claimInstallerCapability(config, payload) {
   }
 }
 
-function buildConnectorEnv({ aliases, port, capabilities = [], permissionGrants = {}, environment, controlPlaneBaseUrl, configId, deviceId }) {
+function buildConnectorEnv({ aliases, port, capabilities = [], permissionGrants = {}, environment, controlPlaneBaseUrl, configId, deviceId, runtimeUrl }) {
   if (!/^[a-zA-Z0-9-]{16,64}$/.test(String(configId || "")) ||
       !/^[a-zA-Z0-9_-]{2,128}$/.test(String(deviceId || ""))) {
     throw httpError(409, "connector_installer_identity_invalid",
       "An installer requires an exact safe canonical device and configuration identity.");
   }
+  const trustedRuntimeUrl = validateAdminRecoveryEndpoint(runtimeUrl, null, configId);
   const grants = normalizePermissionGrants(permissionGrants);
   const allAliases = [...aliases, ...grants.shell_aliases];
   const appAllowlistLine = Object.keys(grants.apps).length ? [envJsonLine("CONNECTOR_APP_ALLOWLIST", grants.apps)] : [];
@@ -444,6 +446,7 @@ function buildConnectorEnv({ aliases, port, capabilities = [], permissionGrants 
   return [
     `CONNECTOR_CONFIG_ID=${configId}`,
     `CONNECTOR_DEVICE_ID=${deviceId}`,
+    `CONNECTOR_PUBLIC_HEALTH_URL=${trustedRuntimeUrl}/health`,
     `CONNECTOR_ENVIRONMENT=${environment}`,
     `CONNECTOR_CONTROL_PLANE_BASE_URL=${controlPlaneBaseUrl}`,
     `CONNECTOR_POLICY_URL=${controlPlaneBaseUrl}/connector-agent/policy`,
@@ -481,7 +484,7 @@ function buildConnectorEnv({ aliases, port, capabilities = [], permissionGrants 
 }
 
 function buildInstallPowerShell({ redeemToken, tunnelUrl, aliases, port, capabilities = [], permissionGrants = {}, environment, controlPlaneBaseUrl, configId, deviceId }) {
-  const envText = buildConnectorEnv({ aliases, port, capabilities, permissionGrants, environment, controlPlaneBaseUrl, configId, deviceId });
+  const envText = buildConnectorEnv({ aliases, port, capabilities, permissionGrants, environment, controlPlaneBaseUrl, configId, deviceId, runtimeUrl: tunnelUrl });
   return [
     "# Mad4B Local Connector — run once as Administrator",
     "$ErrorActionPreference = 'Stop'",
