@@ -1,6 +1,7 @@
 // Read-only, three-identity Staging database privilege drift diagnostic.
 // Does not execute GRANT/REVOKE, schema writes, or read credential values.
 import { fileURLToPath } from "node:url";
+import { resolve } from "node:path";
 import { getPool, getRuntimePersistencePool } from "../db.js";
 import { getGovernancePool } from "../governanceDb.js";
 import {
@@ -9,7 +10,6 @@ import {
 } from "../databasePrivilegeContracts.js";
 
 const ROLES = ["runtime", "governance", "runtime_persistence"];
-const OPERATIONS = new Set(["SELECT", "INSERT", "UPDATE", "DELETE"]);
 const normalized = (value) => String(value ?? "").trim();
 const ordered = (values) => [...new Set(values)].sort();
 const normalizeGrantAccount = (account) => {
@@ -110,6 +110,11 @@ export function compareRolePrivilegeEvidence({
 }
 
 export async function inspectStagingPrivilegeDrift({ pools, env = process.env } = {}) {
+  if (normalized(env.APP_ENV).toLowerCase() !== "staging") {
+    return { contract: "mad4b.staging-three-db-privilege-drift-audit.v1", read_only: true,
+      writes_performed: false, secrets_included: false, ready: false, all_roles_read: false,
+      errors: [{ code: "NON_STAGING_ENVIRONMENT_BLOCKED" }], results: [] };
+  }
   const factories = pools || {
     runtime: getPool,
     governance: getGovernancePool,
@@ -197,6 +202,6 @@ async function run() {
   if (!output.ready) process.exitCode = 2;
 }
 
-if (process.argv[1] && fileURLToPath(import.meta.url) === fileURLToPath(new URL("file://" + process.argv[1]))) {
+if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) {
   await run();
 }
