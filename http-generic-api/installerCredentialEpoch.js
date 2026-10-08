@@ -12,14 +12,17 @@ function failure(code, message) {
 
 function text(value) { return String(value ?? "").trim(); }
 
-export function deriveInstallerCredentialEpoch(config = {}, { secret = process.env.BACKEND_API_KEY } = {}) {
+export function deriveInstallerCredentialEpoch(config = {}) {
   const parts = ["config_id", "user_id", "tenant_id", "device_id", "connector_secret", "cf_token"]
     .map(key => text(config[key]));
-  if (!text(secret) || parts.some(part => !part)) {
+  if (parts.some(part => !part)) {
     throw failure("installer_credential_epoch_unavailable",
       "The device credential binding cannot be verified. Re-enroll or provision the canonical device.");
   }
-  const mac = createHmac("sha256", text(secret));
+  // Device-scoped HMAC: the secret is the enrolled connector secret, never a shared
+  // backend/administrator API key. Rotation of either device credential invalidates
+  // outstanding signed installer tokens without creating another global secret.
+  const mac = createHmac("sha256", text(config.connector_secret));
   mac.update("mad4b.installer.credential-epoch.v1\0");
   for (const part of parts) {
     mac.update(String(Buffer.byteLength(part, "utf8")) + ":" + part);
