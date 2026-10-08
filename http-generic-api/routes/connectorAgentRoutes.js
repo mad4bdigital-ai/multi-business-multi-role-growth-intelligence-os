@@ -4,7 +4,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { getPool } from "../db.js";
-import { assertCurrentInstallerCredentialEpoch } from "../installerCredentialEpoch.js";
+import { assertCurrentInstallerCredentialEpoch, deriveInstallerCredentialEpoch, compareInstallerCredentialEpoch } from "../installerCredentialEpoch.js";
 import { validateAdminRecoveryEndpoint } from "../adminLocalConnectorTarget.js";
 import {
   connectorAuthPredicateForToken,
@@ -871,20 +871,21 @@ async function writeHeartbeat(config, body = {}) {
   const repairStatus = enumValue(body.repair_status || (status === "failed" ? "failed" : "ok"), ["ok", "failed", "rollback", "manual_required"], status === "failed" ? "failed" : "ok");
   const metadataJson = safeJsonObject(body.metadata_json || body.metadata);
 
-  await getPool().query(
+  const [healthWrite] = await getPool().query(
     `UPDATE \`local_connector_user_configs\`
         SET watchdog_installed = IF(? IS NULL, watchdog_installed, ?),
             watchdog_version = COALESCE(?, watchdog_version),
             agent_version = COALESCE(?, agent_version),
             active_slot = ?,
             last_health_at = IF(? = 'health_ok' AND ? = 'ok', NOW(), last_health_at),
-            last_reconnect_at = IF(? IN ('service_restart','cloudflared_restart'), NOW(), last_reconnect_at),
+            last_reconnect_at = IF(? IN ('service_restart','cloudflared_restart') AND ? = 'ok', NOW(), last_reconnect_at),
             last_repair_at = IF(? IN ('safe_upgrade','rollback','repair_bundle','manual_recovery'), NOW(), last_repair_at),
             last_repair_status = IF(? IN ('safe_upgrade','rollback','repair_bundle','manual_recovery'), ?, last_repair_status),
             last_error_code = ?,
             last_error_message = ?,
             updated_at = NOW()
-      WHERE config_id = ?`,
+      WHERE config_id = ? AND is_enabled = 1 AND lifecycle_state = 'active'
+        AND revoked_at IS NULL AND archived_at IS NULL`,
     [
       body.watchdog_installed === undefined ? null : 1,
       body.watchdog_installed ? 1 : 0,
@@ -894,6 +895,7 @@ async function writeHeartbeat(config, body = {}) {
       eventType,
       status,
       eventType,
+      status,
       eventType,
       eventType,
       repairStatus,
@@ -902,6 +904,11 @@ async function writeHeartbeat(config, body = {}) {
       config.config_id,
     ]
   );
+
+  if (Number(healthWrite?.affectedRows || 0) !== 1) {
+    throw httpError(409, "device_lifecycle_changed_during_heartbeat",
+      "The connector identity was disabled or changed before the heartbeat could be recorded.");
+  }
 
   // Only a successful health probe may promote route health. A started,
   // skipped or failed recovery attempt is not a verified healthy route.
@@ -1086,6 +1093,15 @@ export function buildConnectorAgentRoutes() {
       );
       if (!credentials?.cf_token || !credentials?.connector_secret) {
         throw httpError(409, "connector_config_incomplete", "Connector config is missing canonical runtime credentials.");
+      }
+      // Fence the final secret-bearing DB read, not merely the earlier claim.
+      // A capability issued before rotation may never redeem newly rotated keys.
+      const selectedEpoch = deriveInstallerCredentialEpoch({
+        ...config, connector_secret: credentials.connector_secret, cf_token: credentials.cf_token,
+      });
+      if (!compareInstallerCredentialEpoch(selectedEpoch, payload.credential_epoch)) {
+        throw httpError(409, "installer_credential_epoch_changed",
+          "Credentials changed during redemption; request a new scoped installer authorization.");
       }
       res.setHeader("X-Mad4B-Installer-Material", "one-time-runtime-credentials");
       return res.status(200).json({
