@@ -17,7 +17,7 @@ MAD4B App Control in `multi-business-multi-role-growth-intelligence-os`, not Rem
 - Establish latest deployed Staging commit and exact schema readiness. Required fields: `lifecycle_state`, `revoked_at`, `archived_at`, `last_health_at`, plus `local_connector_device_aliases`.
 - Inspect the real tenant/user device inventory, verify its canonical ID with a fresh authenticated **device-owned** attestation and check that no duplicate active config or stale alias remains effective.
 - Verify scoped inventory returns zero secrets. Evaluate one-active, multi-active, stale, archived, revoked, mismatched tenant/user, alias, DB denial and schema-missing cases.
-- Test installer JSON diagnosis and protected BAT separately. A stale device may receive an explicitly confirmed recovery download for the SAME canonical config only; never treat stale as trusted execution or recovered. Require exact `confirm_device_id` and `expected_config_id`. Fresh authorization of the canonical signed Installer flow must also be verified; typed confirmation alone is NOT sufficient proof of recent reauthentication.
+- Test JSON-only legacy Admin diagnosis and the independent signed Installer POST separately. Direct Admin BAT delivery returns 410 and may never reveal connector credentials. A stale device requires an explicitly scoped new installer capability; never treat stale as execution-ready or recovered. Fresh signer authorization remains a separate acceptance gate.
 - Test healthy connector readback, authorization-degraded response, Cloudflare 1033/530 bounded retries and missing scoped tunnel token continuation without platform-wide token fallback.
 - Run the forward catalog migration through governed planning, independently authorized apply, and same-cycle readback. **Do not** re-run older seed migrations 032/036/054.
 - Rebuild/check canonical OpenAPI and generated variants, exact commit artifact/CI parity, then Staging browser acceptance.
@@ -59,7 +59,7 @@ This PR changes GitHub source and forward migration text only. It does **not** e
 DISCOVER -> CANONICAL_TARGET -> READ_ONLY_DIAGNOSE
                                     |
              reachable + authenticated + fresh heartbeat + matching config/device
-                                    -> VERIFIED_RECOVERED
+                                    -> GENERATION_ATTESTATION -> VERIFIED_RECOVERED
              tunnel / host uncertain -> INFRASTRUCTURE_DIAGNOSTICS
              credentials wrong       -> CREDENTIAL_RECONCILIATION
              route missing           -> GOVERNED_ROUTE_PROVISIONING
@@ -74,7 +74,7 @@ DISCOVER -> CANONICAL_TARGET -> READ_ONLY_DIAGNOSE
 
 ### Open blocking evidence
 - **Device generation and token replay:** The legacy installer capability claim currently relies on `config_id/user_id/tenant_id/device_id/jti/expiry`; end-to-end generation fencing after Windows reinstall or hardware replacement must be independently certified before Production rollout. One-time `jti` mitigates replay, but does not itself attest a new physical device generation.
-- **Fresh auth on Admin legacy BAT route:** Typed target/config confirmation is not the same as independent fresh user step-up. Prefer the existing Local Manager signed installer path with fresh authorization; do not advertise legacy Admin BAT as fully certified autonomous repair.
+- **Fresh authorization:** Legacy Admin BAT credential delivery has been retired. The signed installer flow still requires proof of fresh principal authorization and a true device-generation binding before being certified for autonomous repair.
 - **Durable attempt budget:** An in-memory health retry policy does not prove persisted recovery attempt limits, idempotency and cooldown across process restarts.
 - **Recovery completion:** Cloudflare API status, a 200 health response, installer generation or token issuance are not sufficient. Authenticated device/config identity plus fresh heartbeat and route generation readback are required.
 - **Live deployment:** No verified Staging/Production schema, tunnel ownership, adapter version, exact HEAD or end-to-end recovery execution is included in this PR's local tests.
@@ -93,4 +93,4 @@ DISCOVER -> CANONICAL_TARGET -> READ_ONLY_DIAGNOSE
 
 **Deployment compatibility gate:** Preexisting connectors without generated `CONNECTOR_CONFIG_ID`, `CONNECTOR_DEVICE_ID`, `CONNECTOR_PUBLIC_HEALTH_URL`, `CONNECTOR_TUNNEL_ID` and scoped secret file cannot pass the new watchdog policy. Upgrade through the canonical signed installer after independently proving its exact target; do not disable validation to preserve old agents.
 
-**Recovery authority still blocked without proof:** Device generation / Windows install instance fencing, durable attempt leases, explicit fresh Admin step-up for legacy BAT, and independent same-cycle Staging acceptance must all be certified before Production. In particular, a legitimate Stale device may be diagnosed, but cannot inherit a past hostname, alias or signed credential as proof of a new physical generation.
+**Recovery authority still blocked without proof:** Device generation / Windows install instance fencing, durable attempt leases, fresh authorization for canonical signed installer, and independent same-cycle Staging acceptance must all be certified before Production. In particular, a legitimate Stale device may be diagnosed, but cannot inherit a past hostname, alias or signed credential as proof of a new physical generation.
