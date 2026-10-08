@@ -66,6 +66,16 @@ test("self-attested complete census cannot authorize candidate without trusted s
   assertSafe(rejectedByServer);
 });
 
+test("privileged evidence verifier exception is blocked without a recovery candidate", () => {
+  const result = classifyFromSource({
+    ...base, privilegedCensus: census(),
+    trustedPhysicalCensusVerifier: () => { throw new Error("PROVIDER_UNAVAILABLE"); },
+  });
+  assert.equal(result.classification, "visibility_unverified");
+  assert.equal(result.authority_candidate, null);
+  assertSafe(result);
+});
+
 test("17 required / 0 visible via app principal cannot certify an empty physical database", () => {
   const result = classifyDatabaseSchemaRecovery(base);
   assert.equal(result.classification, "visibility_unverified");
