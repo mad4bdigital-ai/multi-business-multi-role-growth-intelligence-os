@@ -22,6 +22,14 @@ test("discovery never infers execution from an active SSH account or target allo
   const result=evaluateHostingerRecoveryCapabilities({target:target(),commands:commands(),environment:"production"});
   assert.equal(result.commands.length,3);
   assert(result.commands.every(x=>x.execution_allowed===false && x.dispatch_ready===false));
+  assert(result.commands.every(x=>x.catalog_visible===true
+    && x.discovery_ready===false && x.plan_candidate===false));
+  // Even if an operator changes the catalog state, this read-only adapter
+  // must never declare a certified Hostinger planner or executor.
+  const promoted=commands().map(row=>({...row,status:"active"}));
+  const active=evaluateHostingerRecoveryCapabilities({target:target(),commands:promoted,environment:"production"});
+  assert(active.commands.every(x=>x.discovery_ready===false
+    && x.plan_candidate===false && x.plan_allowed===false));
   assert.equal(result.ssh_used,false);assert.equal(result.mutation_performed,false);
   assert.equal(result.secrets_included,false);
   assert(result.commands.every(x=>x.plan_allowed===false));
