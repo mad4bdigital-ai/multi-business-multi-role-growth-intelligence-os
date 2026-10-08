@@ -9,7 +9,9 @@
     "include": [
       ".changes/e2e/staging-gateway-runtime-audit-insert-20261008.json",
       "http-generic-api/databasePrivilegeContracts.js",
-      "http-generic-api/test-staging-database-readiness-repair.mjs"
+      "http-generic-api/test-staging-database-readiness-repair.mjs",
+      "http-generic-api/scripts/staging-role-privilege-drift-audit.mjs",
+      "http-generic-api/test-staging-three-db-privilege-drift-audit.mjs"
     ]
   },
   "environment_impact": {
@@ -42,14 +44,17 @@
             "Resolve the Staging runtime required tables and per-table privilege operations, including audit_log.",
             "Run the canonical staging-role-grant-plan.mjs --role runtime using the regression suite.",
             "Reject grants on audit_log broader than INSERT, reject missing/optional audit evidence, and retain Production bootstrap and Governance role separation.",
-            "Require approved Staging-only database grant reconciliation and same-cycle readback independently after merge; block Gateway Certification until that happens."
+            "Require approved Staging-only database grant reconciliation and same-cycle readback independently after merge; block Gateway Certification until that happens.",
+            "Inspect actual grants for runtime, governance and runtime_persistence using application identities and only SELECT information_schema queries; flag missing/excess/cross-schema/global/schema/column/role privileges."
           ],
           "assertions": [
             "Staging runtime audit_log is mandatory and receives exactly INSERT.",
             "No SELECT, UPDATE, DELETE, GRANT OPTION, schema-wide privilege, or Production bootstrap role expansion is introduced by this change.",
             "Canonical grant-plan output is checked, not only an in-memory policy object.",
             "No database or provider mutation, secret material, certification, or release is performed by this PR.",
-            "Staging operational grant apply requires independent authority and post-apply evidence before any new Gateway certification."
+            "Staging operational grant apply requires independent authority and post-apply evidence before any new Gateway certification.",
+            "All three database principals and database names must be distinct. Missing or inaccessible role databases fail closed without reporting certification readiness.",
+            "Local Manager write-matrix vs Staging read-only differences are reported as warnings; the privilege scanner never grants additional rights."
           ],
           "tests": [
             {
@@ -58,12 +63,21 @@
               "working_directory": "http-generic-api",
               "path": "test-staging-database-readiness-repair.mjs",
               "args": []
+            },
+            {
+              "id": "staging-three-db-readonly-privilege-drift-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-three-db-privilege-drift-audit.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
             ".changes/e2e/staging-gateway-runtime-audit-insert-20261008.json",
             "http-generic-api/databasePrivilegeContracts.js",
-            "http-generic-api/test-staging-database-readiness-repair.mjs"
+            "http-generic-api/test-staging-database-readiness-repair.mjs",
+            "http-generic-api/scripts/staging-role-privilege-drift-audit.mjs",
+            "http-generic-api/test-staging-three-db-privilege-drift-audit.mjs"
           ]
         }
       ]
