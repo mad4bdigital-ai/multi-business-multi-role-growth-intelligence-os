@@ -1,0 +1,35 @@
+{
+  "contract": "mad4b.staging-autonomous-operations.v1",
+  "environment": "staging",
+  "watcher_task_name": "MAD4B Staging Auto Deploy",
+  "monitor_task_name": "MAD4B Staging Health Monitor",
+  "expected_ref": "main",
+  "evaluation_interval_seconds": 60,
+  "watcher_poll_seconds": 300,
+  "watcher_stale_after_seconds": 780,
+  "health_stale_after_seconds": 240,
+  "minimum_distinct_poll_cycles": 2,
+  "recovery": {
+    "start_stopped_watcher": true,
+    "max_starts_per_24_hours": 3,
+    "cooldown_seconds": 900,
+    "forbidden_actions": [
+      "task_registration",
+      "task_definition_change",
+      "docker_compose",
+      "database_write",
+      "provider_write",
+      "production_deploy",
+      "dns_change",
+      "git_checkout"
+    ]
+  },
+  "safety": {
+    "production_mutation": false,
+    "database_mutation": false,
+    "migration_apply": false,
+    "provider_mutation": false,
+    "cloudflare_dns_mutation": false,
+    "secret_logging": false
+  }
+}
