@@ -857,7 +857,17 @@ const certificationProvider = {
     throw new Error(`Unexpected certification provider request: ${request.method} ${request.apiPath}`);
   },
 };
-const certificationSmokeFetch = certificationExactFetch;
+const certificationPreparedBundle = openStagingGatewayArtifact(
+  savedArtifacts.get(certificationPrepared.bundle_ref),
+  { env: executionEnv, planId: certificationPrepared.plan_id }).bundle;
+const certificationSmokeFetch = async (url) => {
+  if (!certificationCandidateDeployed) return certificationExactFetch(url);
+  const publicHealth = { ...certificationExactHealth,
+    workerBundleSha256: certificationPreparedBundle.worker_bundle_sha256 };
+  const publicReady = { ...certificationExactReady,
+    recoveryTrustedIngress: certificationPreparedBundle.origin_trust };
+  return new Response(JSON.stringify(url.endsWith("/health") ? publicHealth : publicReady), { status: 200 });
+};
 const certificationAuditActions = [];
 const certified = await runStagingActivationGatewayTransactionCertification({
   mode: "apply",
@@ -929,11 +939,15 @@ dispatchCertificationState = {
   requires_readback: 1, last_evidence_ref: null, last_certified_at: null, expires_at: null,
 };
 let driftCandidateDeployed = false;
+let driftPreparedBundle = null;
 const driftSmokeFetch = async (url) => {
-  const health = driftCandidateDeployed ? certificationExactHealth : driftHealth;
+  const health = driftCandidateDeployed
+    ? { ...certificationExactHealth, workerBundleSha256: driftPreparedBundle.worker_bundle_sha256 }
+    : driftHealth;
   if (url.endsWith("/health")) return new Response(JSON.stringify(health), { status: 200 });
   return driftCandidateDeployed
-    ? new Response(JSON.stringify(certificationExactReady), { status: 200 })
+    ? new Response(JSON.stringify({ ...certificationExactReady,
+      recoveryTrustedIngress: driftPreparedBundle.origin_trust }), { status: 200 })
     : new Response(JSON.stringify(driftError), { status: 503 });
 };
 const driftDeps = { ...executionDeps, smokeFetch: driftSmokeFetch };
@@ -953,6 +967,8 @@ const driftPrepared = await runStagingActivationGatewayTransactionCertification(
 }, driftDeps);
 assert.equal(JSON.parse(savedPlans.get(driftPrepared.plan_id).plan_body_json)
   .certification_baseline.observed_source_commit, sourceDrift);
+driftPreparedBundle = openStagingGatewayArtifact(savedArtifacts.get(driftPrepared.bundle_ref),
+  { env: executionEnv, planId: driftPrepared.plan_id }).bundle;
 const driftCalls = [];
 const driftProvider = { token_present: true, async request(request) {
   driftCalls.push(request);
