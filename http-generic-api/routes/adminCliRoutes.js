@@ -14,6 +14,7 @@ import { createContinuationCheckpoint, planContinuationResume } from "../sharedR
 import { closeGithubPullRequest, deleteGithubBranchRef, githubBranchDeleteConfirmation } from "../githubRepositoryLifecycle.js";
 import { classifyLocalConnectorCompositeHealth, probeLocalConnectorAuthenticatedHealth, probeLocalConnectorPublicHealthWithRetry } from "../localConnectorCompositeHealth.js";
 import { connectorLocalApiKeySelectFragment } from "../connectorSchemaCompatibility.js";
+import { adminConnectorScope, adminConnectorInventory, resolveAdminConnectorTarget } from "../adminLocalConnectorTarget.js";
 
 const DEFAULT_COMMAND_TIMEOUT_MS = 120000;
 const MAX_COMMAND_TIMEOUT_MS = 600000;
@@ -2720,15 +2721,21 @@ export function buildAdminCliRoutes(deps) {
   // Generates a pre-filled Windows .bat installer.
   // Credential resolution order:
   //   1. DB: local_connector_user_configs for the given user_id + device_id
-  //   2. Env fallback: CLOUDFLARE_TUNNEL_TOKEN (for backward compat / admin own device)
+  //   2. No global credential fallback is permitted.
   // ?user_id=X   → resolve config for this user (admin only; defaults to platform admin)
-  // ?device_id=Y → resolve config for this device (defaults to "mohammedlap")
+  // ?device_id=Y → exact canonical device, or one unique fresh active scoped device.
   // ?format=bat  → returns the file directly as an attachment (for curl)
   router.get("/local-connector/install-bundle", requireBackendApiKey, requireAdminPrincipal, async (req, res) => {
     try {
       const format   = String(req.query.format || "json").toLowerCase();
-      const userId   = String(req.query.user_id   || "").trim() || "00000000-0000-4000-a000-000000000002";
-      const deviceId = String(req.query.device_id || "").trim() || "mohammedlap";
+      const scope = adminConnectorScope(req, req.query);
+      const target = await resolveAdminConnectorTarget({
+        pool: getPool(), scope, requestedDeviceId: req.query.device_id,
+        includeCredentials: format === "bat",
+      });
+      const userId = scope.user_id;
+      const tenantId = scope.tenant_id;
+      const deviceId = target.row.device_id;
 
       if (format !== "bat") {
         return res.status(200).json({
@@ -2741,7 +2748,7 @@ export function buildAdminCliRoutes(deps) {
           secure_download: {
             method: "GET",
             path: "/admin/cli/local-connector/install-bundle",
-            query: { user_id: userId, device_id: deviceId, format: "bat" },
+            query: { user_id: userId, tenant_id: tenantId, device_id: deviceId, format: "bat" },
             requires_backend_api_key: true,
             requires_admin_principal: true
           },
@@ -2749,55 +2756,14 @@ export function buildAdminCliRoutes(deps) {
         });
       }
 
-      // 1. Look up device config from DB
-      let tunnelToken    = "";
-      let backendKey     = "";
-      let configSource   = "env";
-      let resolvedDevice = deviceId;
-      try {
-        const pool = getPool();
-        const [[row]] = await pool.query(
-          "SELECT cf_token, connector_secret, device_id FROM `local_connector_user_configs` WHERE user_id = ? AND device_id = ? AND is_enabled = 1 LIMIT 1",
-          [userId, deviceId]
-        );
-        if (row?.cf_token) {
-          tunnelToken    = row.cf_token;
-          backendKey     = row.connector_secret || "";
-          configSource   = "db";
-          resolvedDevice = row.device_id;
-        }
-      } catch (dbErr) {
-        console.warn("[install-bundle] DB lookup failed, trying env fallback:", dbErr.message);
-      }
-
-      // 2. Env fallback — also persist to DB so subsequent calls use DB
-      if (!tunnelToken) {
-        tunnelToken = process.env.CLOUDFLARE_TUNNEL_TOKEN || "";
-        backendKey  = process.env.BACKEND_API_KEY || "";
-        configSource = "env";
-        if (tunnelToken) {
-          try {
-            const pool = getPool();
-            await pool.query(
-              `UPDATE \`local_connector_user_configs\`
-               SET cf_token = COALESCE(NULLIF(cf_token,''), ?),
-                   connector_secret = COALESCE(NULLIF(connector_secret,''), ?)
-               WHERE user_id = ? AND device_id = ?`,
-              [tunnelToken, backendKey || null, userId, deviceId]
-            );
-          } catch {}
-        }
-      }
-
-      if (!tunnelToken) {
-        return res.status(404).json({
-          ok: false,
-          error: {
-            code: "config_not_found",
-            message: `No connector config found in DB for user_id=${userId} device_id=${deviceId}, and CLOUDFLARE_TUNNEL_TOKEN is not set. Run POST /local-connector/install first to provision the device.`,
-          }
-        });
-      }
+      const { cf_token: tunnelToken, connector_secret: backendKey } = target.credentials;
+      if (!tunnelToken) return res.status(409).json({
+        ok: false, secrets_included: false,
+        error: { code: "connector_tunnel_provisioning_required",
+          message: "Provision the scoped tunnel token through the governed device flow." }
+      });
+      const configSource = "scoped_db";
+      const resolvedDevice = deviceId;
 
       const batContent = generateConnectorInstallerBat(tunnelToken, backendKey);
       const filename   = `install-connector-${new Date().toISOString().slice(0,10)}.bat`;
@@ -2822,7 +2788,8 @@ export function buildAdminCliRoutes(deps) {
     } catch (err) {
       return res.status(err.status || 500).json({
         ok: false,
-        error: { code: "install_bundle_failed", message: err.message },
+        error: { code: err.code || "install_bundle_failed", message: err.code ? err.message : "Installer request failed closed." },
+        secrets_included: false,
       });
     }
   });
