@@ -55,7 +55,17 @@ try {
     $task = [pscustomobject]@{ Actions = @($action); Principal = [pscustomobject]@{ UserId = $expectedPrincipal }; State = "Running"; Settings = [pscustomobject]@{ Enabled = $true } }
     Assert (Test-WatcherTaskIdentity $task) "valid task rejected"
     $action.WorkingDirectory = $RepositoryPath
-    Assert (Test-WatcherTaskIdentity $task) "valid repo-root task rejected"
+    $repoRootAllowed = Test-WatcherTaskIdentity $task
+    if (-not $repoRootAllowed) {
+        $taskAction = @($task.Actions)[0]
+        Write-Host ("TASK_IDENTITY_FIXTURE: root={0}; observed={1}; same_root={2}; same_script_root={3}; principal_ok={4}; argument_unchanged={5}" -f
+            $RepositoryPath, $taskAction.WorkingDirectory,
+            ([IO.Path]::GetFullPath([string]$taskAction.WorkingDirectory).TrimEnd('\') -ieq $RepositoryPath.TrimEnd('\')),
+            ([IO.Path]::GetFullPath([string]$taskAction.WorkingDirectory).TrimEnd('\') -ieq $scriptRoot.TrimEnd('\')),
+            ([string]$task.Principal.UserId -ieq $expectedPrincipal),
+            ([string]$taskAction.Arguments -ceq $arguments))
+    }
+    Assert $repoRootAllowed "valid repo-root task rejected"
     $action.WorkingDirectory = Join-Path $env:TEMP "alien-workdir"
     Assert (-not (Test-WatcherTaskIdentity $task)) "foreign workdir accepted"
     $action.WorkingDirectory = $PSScriptRoot
