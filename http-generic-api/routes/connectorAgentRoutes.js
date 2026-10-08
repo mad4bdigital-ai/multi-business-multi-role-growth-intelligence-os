@@ -4,6 +4,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { getPool } from "../db.js";
+import { assertCurrentInstallerCredentialEpoch } from "../installerCredentialEpoch.js";
 import { validateAdminRecoveryEndpoint } from "../adminLocalConnectorTarget.js";
 import {
   connectorAuthPredicateForToken,
@@ -403,6 +404,7 @@ function normalizeShellPolicyRow(row) {
 }
 
 async function claimInstallerCapability(config, payload) {
+  await assertCurrentInstallerCredentialEpoch(payload);
   const metadata = JSON.stringify({
     contract: payload.contract,
     purpose: payload.purpose,
@@ -1028,6 +1030,7 @@ export function buildConnectorAgentRoutes() {
         device_id: config.device_id,
         format: "ps1",
         purpose: LOCAL_CONNECTOR_INSTALLER_REDEEM_PURPOSE,
+        credential_epoch: payload.credential_epoch,
         ttl_minutes: 5,
       }));
       const installer = buildInstallPowerShell({
