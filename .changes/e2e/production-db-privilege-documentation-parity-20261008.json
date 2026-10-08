@@ -10,7 +10,8 @@
       ".changes/e2e/production-db-privilege-documentation-parity-20261008.json",
       "docs/governance-db-provider-capability.md",
       "docs/runbooks/governance-db-privilege-readiness.md",
-      "http-generic-api/test-production-governance-documentation-parity.mjs"
+      "http-generic-api/test-production-governance-documentation-parity.mjs",
+      "docs/governance/configuration-drift-baseline-extensions.json"
     ]
   },
   "environment_impact": {
@@ -48,7 +49,8 @@
             "Provider configured support is distinct from live preflight, actual schema, credential readiness and privilege readback.",
             "The canonical Governance privilege matrix is 17 tables / 39 direct grant operations, not a stale 7-table excerpt.",
             "Staging runtime grants, audit_log access, credentials and 21 missing grants are never automatically promoted to Production.",
-            "No SQL, DB or provider connection, secret retrieval, workflow dispatch, privilege changes, Production restart or deployment is performed by the source parity check."
+            "No SQL, DB or provider connection, secret retrieval, workflow dispatch, privilege changes, Production restart or deployment is performed by the source parity check.",
+            "Two source-derived non-secret provider-claim parity booleans are governed CI configuration inputs; no temporary suppression or provider authority was granted."
           ],
           "tests": [
             {
@@ -63,7 +65,8 @@
             ".changes/e2e/production-db-privilege-documentation-parity-20261008.json",
             "docs/governance-db-provider-capability.md",
             "docs/runbooks/governance-db-privilege-readiness.md",
-            "http-generic-api/test-production-governance-documentation-parity.mjs"
+            "http-generic-api/test-production-governance-documentation-parity.mjs",
+            "docs/governance/configuration-drift-baseline-extensions.json"
           ]
         }
       ]
