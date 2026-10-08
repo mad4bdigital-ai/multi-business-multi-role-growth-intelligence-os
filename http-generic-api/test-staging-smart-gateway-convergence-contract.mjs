@@ -17,7 +17,7 @@ import {
   runStagingActivationGatewayTransactionCertification,
   _testingStagingGatewayTransaction,
 } from "./stagingActivationGatewayApplyAdapter.js";
-import { openStagingGatewayArtifact, sealStagingGatewayArtifact } from "./stagingGatewayExecutionPlanStore.js";
+import { openStagingGatewayArtifact, sealStagingGatewayArtifact, saveStagingGatewayExecutionPlan } from "./stagingGatewayExecutionPlanStore.js";
 import {
   buildStagingActivationTrustInstallPlan,
   installStagingActivationTrust,
@@ -464,6 +464,31 @@ const encrypted = sealStagingGatewayArtifact({ bundle: { secret: "private-test" 
 assert.equal(encrypted.includes("private-test"), false);
 assert.equal(openStagingGatewayArtifact(encrypted, { env: storageEnv, planId: rolloutPlan.plan_id }).bundle.secret, "private-test");
 assert.throws(() => openStagingGatewayArtifact(encrypted, { env: storageEnv, planId: crypto.randomUUID() }), /failed authentication/u);
+
+let expiryPrecisionRollback = false;
+let expiryPrecisionReleased = false;
+await assert.rejects(
+  saveStagingGatewayExecutionPlan({
+    async getConnection() {
+      return {
+        async beginTransaction() {},
+        async query() { return [{ affectedRows: 1 }]; },
+        async commit() { throw new Error("Invalid precision must not commit"); },
+        async rollback() { expiryPrecisionRollback = true; },
+        release() { expiryPrecisionReleased = true; },
+      };
+    },
+  }, {
+    plan_id: crypto.randomUUID(),
+    bundle_ref: "staging-gateway:subsecond-regression",
+    expires_at: "2026-10-08T01:00:38.707Z",
+  }, { files: [] }, { env: storageEnv }),
+  (error) => error?.code === "staging_gateway_plan_expiry_precision_invalid",
+  "MariaDB TIMESTAMP(0) cannot round-trip canonical subsecond plan expiry"
+);
+assert.equal(expiryPrecisionRollback, true);
+assert.equal(expiryPrecisionReleased, true);
+
 assert.notEqual((await buildActivationGatewayRolloutPlan({ account_id: accountId, expected_source_commit: sourceSha,
   expected_policy_hash: staging.expected_policy_hash, environment_convergence_plan_sha256: convergencePlanSha },
 { runtimePool: previewRuntimePool, governancePool: previewGovernancePool, auth, env: { STAGING_ACTIVATION_GATEWAY_APPLY_ENABLED: "true", DEPLOYMENT_MANIFEST_JSON: JSON.stringify({ repository: "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os", branch: "main", commit_sha: sourceSha }) },
