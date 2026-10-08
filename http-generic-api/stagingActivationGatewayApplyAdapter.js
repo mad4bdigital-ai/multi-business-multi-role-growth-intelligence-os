@@ -624,9 +624,19 @@ function classifyStagingGatewayCertificationBaseline(health, ready, expectedComm
     && body.policyHash === expectedPolicyHash && SHA_RE.test(sourceCommit)
     && workerBuildSha === sourceCommit && SHA256_RE.test(workerBundleSha256)
     && body.secretsIncluded === false;
+  const trust = ready?.body?.recoveryTrustedIngress || ready?.body?.trustedIngress || null;
+  const trustExact = trust?.contract === "mad4b.staging.activation-recovery-origin-trust.v2"
+    && trust?.policy_hash === expectedPolicyHash
+    && trust?.deployment_sha === sourceCommit
+    && trust?.worker_bundle_sha256 === workerBundleSha256
+    && trust?.trusted_ingress_mode === "signature"
+    && trust?.secrets_included === false
+    && Boolean(compact(trust?.key_id, 191))
+    && Boolean(compact(trust?.public_key, 4096));
   const healthyReady = ready?.ok === true && ready?.status === 200 && ready?.body?.ok === true
     && ready.body.policyHash === expectedPolicyHash
-    && ready.body.upstreamSourceCommit === expectedCommit;
+    && ready.body.upstreamSourceCommit === expectedCommit
+    && trustExact;
   const exactRelease = canonicalHealth && sourceCommit === expectedCommit && healthyReady;
   const driftOnly = canonicalHealth && sourceCommit !== expectedCommit && !ready?.ok
     && ready?.status === 503
@@ -1024,18 +1034,12 @@ export async function runStagingActivationGatewayApply(input = {}, deps = {}) {
         plan.expected_policy_hash, deps.smokeTimeoutMs);
       previousHealth = publicBaseline.health;
       previousReady = publicBaseline.ready;
-      const previousTrust = previousReady.body?.recoveryTrustedIngress || previousReady.body?.trustedIngress;
-      // The legacy healthy baseline remains supported if both identities are
-      // trustworthy. Recovery additionally accepts ONLY exact release drift.
-      const trustedHealthyBaseline = previousHealth.ok && previousReady.ok
-        && previousHealth.body?.ok === true && previousReady.body?.ok === true
-        && previousHealth.body?.stale === false
-        && previousHealth.body?.policyKey === "activation_gateway_staging"
-        && previousHealth.body?.policyHash === plan.expected_policy_hash
-        && SHA_RE.test(compact(previousHealth.body?.sourceCommit, 40).toLowerCase())
-        && previousReady.body?.upstreamSourceCommit === previousHealth.body?.sourceCommit
-        && previousReady.body?.policyHash === plan.expected_policy_hash
-        && compact(previousTrust?.key_id, 191) && compact(previousTrust?.public_key, 4096);
+      // A 200 response alone is not a trusted baseline: require signed build
+      // identity and complete origin trust parity even for legacy healthy apply.
+      const previouslyDeployedSha = compact(previousHealth.body?.sourceCommit, 40).toLowerCase();
+      const healthyBaseline = classifyStagingGatewayCertificationBaseline(
+        previousHealth, previousReady, previouslyDeployedSha, plan.expected_policy_hash);
+      const trustedHealthyBaseline = healthyBaseline.mode === "healthy_exact";
       const boundedDrift = publicBaseline.classification.ready
         && publicBaseline.classification.mode === "release_identity_drift";
       if (!trustedHealthyBaseline && !boundedDrift) {
