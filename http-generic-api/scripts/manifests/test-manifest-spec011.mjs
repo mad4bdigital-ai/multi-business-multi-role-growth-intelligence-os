@@ -154,6 +154,7 @@ export const testCommands = [
   "node test-admin-self-recovery-contract.mjs",
   "node test-installer-credential-epoch.mjs",
   "node test-hostinger-recovery-capability-discovery.mjs",
+  "node test-hostinger-recovery-provider-safety.mjs",
   "node test-activation-run-archive-admin-control-read.mjs",
   "node test-repository-reconciliation-automation.mjs",
   "node test-repository-reconciliation-orchestrator-export.mjs",
