@@ -618,10 +618,12 @@ function classifyStagingGatewayCertificationBaseline(health, ready, expectedComm
   const body = health?.body || {};
   const sourceCommit = compact(body.sourceCommit, 40).toLowerCase();
   const workerBuildSha = compact(body.workerBuildSha, 40).toLowerCase();
+  const workerBundleSha256 = compact(body.workerBundleSha256, 64).toLowerCase();
   const canonicalHealth = health?.ok === true && health?.status === 200 && body.ok === true
     && body.stale === false && body.policyKey === "activation_gateway_staging"
     && body.policyHash === expectedPolicyHash && SHA_RE.test(sourceCommit)
-    && workerBuildSha === sourceCommit;
+    && workerBuildSha === sourceCommit && SHA256_RE.test(workerBundleSha256)
+    && body.secretsIncluded === false;
   const healthyReady = ready?.ok === true && ready?.status === 200 && ready?.body?.ok === true
     && ready.body.policyHash === expectedPolicyHash
     && ready.body.upstreamSourceCommit === expectedCommit;
@@ -670,6 +672,7 @@ async function rollback({ client, accountId, scriptName, previousDeployment, scr
     const current = deploymentList(await providerRequest(client, { apiPath, method: "GET" }, "rollback_inventory_read"))[0];
     const deploymentReadbackOk = stableJson(deploymentVersions(current).sort((a,b)=>a.version_id.localeCompare(b.version_id))) === stableJson(versions.sort((a,b)=>a.version_id.localeCompare(b.version_id)));
     const healthIdentity = (body) => ({ sourceCommit: body?.sourceCommit, workerBuildSha: body?.workerBuildSha,
+      workerBundleSha256: body?.workerBundleSha256,
       policyHash: body?.policyHash, policyKey: body?.policyKey });
     const readyIdentity = (body) => {
       const trust = body?.recoveryTrustedIngress || body?.trustedIngress || {};
@@ -1054,28 +1057,39 @@ export async function runStagingActivationGatewayApply(input = {}, deps = {}) {
       throw adapterError("staging_activation_gateway_deployment_readback_missing", "Deployment readback did not prove the exact candidate version at 100%.", 502);
     }
 
-    const health = await readPublicJson(fetchImpl, `https://${plan.profile_binding.public_host}/health`, deps.smokeTimeoutMs);
-    const ready = await readPublicJson(fetchImpl, `https://${plan.profile_binding.public_host}/ready`, deps.smokeTimeoutMs);
-    const healthOk = health.ok && health.body?.ok === true && health.body?.stale === false
-      && compact(health.body?.sourceCommit, 64).toLowerCase() === plan.expected_source_commit
-      && compact(health.body?.workerBuildSha, 64).toLowerCase() === plan.expected_source_commit
-      && health.body?.workerBundleSha256 === bundle.worker_bundle_sha256
-      && compact(health.body?.policyHash, 64).toLowerCase() === plan.expected_policy_hash
-      && health.body?.policyKey === "activation_gateway_staging";
-    const trust = ready.body?.recoveryTrustedIngress || ready.body?.trustedIngress || null;
-    const trustOk = ready.ok && ready.body?.ok === true
-      && compact(ready.body?.policyHash, 64).toLowerCase() === plan.expected_policy_hash
-      && compact(ready.body?.upstreamSourceCommit, 64).toLowerCase() === plan.expected_source_commit
-      && trust?.contract === bundle.origin_trust.contract
-      && compact(trust?.deployment_sha, 64).toLowerCase() === plan.expected_source_commit
-      && trust?.policy_hash === plan.expected_policy_hash
-      && trust?.key_id === bundle.origin_trust.key_id
-      && trust?.public_key === bundle.origin_trust.public_key
-      && trust?.worker_bundle_sha256 === bundle.worker_bundle_sha256
-      && trust?.issuer === bundle.origin_trust.issuer
-      && trust?.audience === bundle.origin_trust.audience
-      && trust?.canonical_host === bundle.origin_trust.canonical_host
-      && trust?.secrets_included === false;
+    // Control-plane deployment can become visible before the public Cloudflare edge converges.
+    let health;
+    let ready;
+    let healthOk = false;
+    let trustOk = false;
+    for (let attempt = 0; attempt < 12; attempt++) {
+      [health, ready] = await Promise.all([
+        readPublicJson(fetchImpl, `https://${plan.profile_binding.public_host}/health`, deps.smokeTimeoutMs),
+        readPublicJson(fetchImpl, `https://${plan.profile_binding.public_host}/ready`, deps.smokeTimeoutMs),
+      ]);
+      healthOk = health.ok && health.body?.ok === true && health.body?.stale === false
+        && compact(health.body?.sourceCommit, 64).toLowerCase() === plan.expected_source_commit
+        && compact(health.body?.workerBuildSha, 64).toLowerCase() === plan.expected_source_commit
+        && health.body?.workerBundleSha256 === bundle.worker_bundle_sha256
+        && compact(health.body?.policyHash, 64).toLowerCase() === plan.expected_policy_hash
+        && health.body?.policyKey === "activation_gateway_staging";
+      const trust = ready.body?.recoveryTrustedIngress || ready.body?.trustedIngress || null;
+      trustOk = ready.ok && ready.body?.ok === true
+        && compact(ready.body?.policyHash, 64).toLowerCase() === plan.expected_policy_hash
+        && compact(ready.body?.upstreamSourceCommit, 64).toLowerCase() === plan.expected_source_commit
+        && trust?.contract === bundle.origin_trust.contract
+        && compact(trust?.deployment_sha, 64).toLowerCase() === plan.expected_source_commit
+        && trust?.policy_hash === plan.expected_policy_hash
+        && trust?.key_id === bundle.origin_trust.key_id
+        && trust?.public_key === bundle.origin_trust.public_key
+        && trust?.worker_bundle_sha256 === bundle.worker_bundle_sha256
+        && trust?.issuer === bundle.origin_trust.issuer
+        && trust?.audience === bundle.origin_trust.audience
+        && trust?.canonical_host === bundle.origin_trust.canonical_host
+        && trust?.secrets_included === false;
+      if (healthOk && trustOk) break;
+      if (attempt < 11) await new Promise((resolve) => setTimeout(resolve, 1500));
+    }
     if (!healthOk || !trustOk) throw adapterError("staging_activation_gateway_public_readback_failed", "Exact public Staging Gateway health/ready/trust readback failed.", 502, { health_status: health.status, health_ok: healthOk, ready_status: ready.status, ready_ok: trustOk });
 
     await deps.audit({
