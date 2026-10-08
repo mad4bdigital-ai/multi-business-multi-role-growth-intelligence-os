@@ -447,7 +447,17 @@ function findingsFromInspection(inspection = {}, { trustedRoleInventoryVerifier 
     && typeof inspection.role_full_object_inventory_proofs === "object"
     ? inspection.role_full_object_inventory_proofs : {};
   const roleTableEvidence = inspection.role_table_evidence && typeof inspection.role_table_evidence === "object" ? inspection.role_table_evidence : {};
-  const roleEvidenceAvailable = ["runtime", "governance", "runtime_persistence"].every((role) => Object.prototype.hasOwnProperty.call(roleClassifications, role) && Object.prototype.hasOwnProperty.call(roleCounts, role));
+  const requiredObjectTypes = ["tables", "views", "triggers", "routines", "events"];
+  const roleCountConsistent = (role) => {
+    const counts = roleCounts[role];
+    if (!counts || requiredObjectTypes.some((key) => !Number.isSafeInteger(counts[key]) || counts[key] < 0)) return false;
+    if (!Number.isSafeInteger(counts.total) || counts.total < 0
+      || counts.total !== requiredObjectTypes.reduce((sum, key) => sum + counts[key], 0)) return false;
+    return roleClassifications[role] === (counts.total === 0 ? "zero_objects" : "nonempty_objects");
+  };
+  const roleEvidenceAvailable = ["runtime", "governance", "runtime_persistence"].every((role) =>
+    Object.prototype.hasOwnProperty.call(roleClassifications, role)
+    && Object.prototype.hasOwnProperty.call(roleCounts, role));
   // Never promote a caller/provider boolean to an authority. The production
   // composition currently does not install a trusted physical-evidence verifier.
   // Any verifier must be injected by an independently audited server authority,
@@ -455,7 +465,7 @@ function findingsFromInspection(inspection = {}, { trustedRoleInventoryVerifier 
   const trustedRoleProof = (role, requiredTableEvidence = null) => {
     const proof = roleFullObjectInventoryProofs[role];
     try {
-      return proof?.contract === "mad4b.role-physical-object-visibility.v1"
+      return roleCountConsistent(role) && proof?.contract === "mad4b.role-physical-object-visibility.v1"
       && proof.role === role && proof.expected_sha === inspection.expected_sha
       && /^[0-9a-f]{40}$/u.test(String(proof.expected_sha || ""))
       && proof.object_count_fingerprint === roleCountFingerprints[role]
@@ -559,6 +569,7 @@ function findingsFromInspection(inspection = {}, { trustedRoleInventoryVerifier 
     if (!roleEvidenceAvailable || inspection.full_inspection !== true
       || !trustedRoleProof(role, requiredEvidence)
       || !Array.isArray(requiredEvidence) || requiredTables.length === 0
+      || roleCounts[role]?.tables < requiredTables.length
       || !requiredTables.every((table) => physicallyPresent.has(table))) continue;
     const finding = inspectionFinding({ targetRole: role, resource, category, severity, expected: { ready: true }, actual: { ready: checks[check] ?? dimensions[role] ?? false }, authorityRef: authority, repairability: candidate ? "deterministic" : "unknown_fail_closed", mutationRequired: true });
     finding.candidate_capability = candidate;
