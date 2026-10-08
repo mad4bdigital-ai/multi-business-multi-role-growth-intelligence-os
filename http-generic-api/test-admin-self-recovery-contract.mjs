@@ -154,3 +154,25 @@ test("idempotent heartbeat update checks live unique lifecycle instead of inferr
   assert.match(agent, /SELECT config_id FROM local_connector_user_configs/);
   assert.match(agent, /device_lifecycle_changed_during_heartbeat/);
 });
+
+test("legacy Admin raw installer is retired and recovery advertises signed POST only",()=>{
+  const start=admin.indexOf('router.get("/local-connector/install-bundle"');
+  const end=admin.indexOf('router.post("/local-connector/self-repair"',start);
+  const legacy=admin.slice(start,end);
+  assert(start>=0 && end>start);
+  assert.match(legacy, /legacy_admin_installer_disabled/);
+  assert.match(legacy, /res\.status\(410\)/);
+  assert.doesNotMatch(legacy, /generateConnectorInstallerBat/);
+  assert.doesNotMatch(legacy, /includeCredentials: true/);
+  assert.match(legacy, /includeCredentials: false/);
+  assert.match(admin, /requires_signed_expiring_capability: true/);
+  assert.match(admin, /path: "\/local-connector\/install\/download-link"/);
+});
+test("recovery validates enrolled per-device route, never the shared control-plane gateway",()=>{
+  const start=selector.indexOf("export function validateAdminRecoveryEndpoint");
+  const end=selector.indexOf("export function classifyAdminRecoveryReadback",start);
+  const validator=selector.slice(start,end);
+  assert.doesNotMatch(validator,/hostname === "connector\.mad4b\.com"/);
+  assert.match(validator,/cfargotunnel\.com/);
+  assert.match(validator,/configId/);
+});
