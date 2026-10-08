@@ -1,3 +1,4 @@
+// frontend-surface-operation: POST /platform/remote-runtime/hosting/recovery-allowlist/discover
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
