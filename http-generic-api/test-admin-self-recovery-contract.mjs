@@ -121,6 +121,6 @@ test("watchdog has a single complete implementation and cannot follow remote hea
   }
   assert(watchdog.split("\n").length < 600, "watchdog unexpectedly duplicated");
   assert.match(watchdog, /MaximumRedirection 0/);
-  assert.match(watchdog, /Publish-Heartbeat \$status \$\(if \(\$publicReady\) \{ "health_ok" \} else \{ "service_restart" \} \)/);
-  assert.match(watchdog, /Publish-Heartbeat \$status \$\(if \(\$publicReady\) \{ "health_ok" \} else \{ "rollback" \} \)/);
+  assert(watchdog.includes('Publish-Heartbeat $status $(if ($publicReady) { "health_ok" } else { "service_restart" })'));
+  assert(watchdog.includes('Publish-Heartbeat $status $(if ($publicReady) { "health_ok" } else { "rollback" })'));
 });
