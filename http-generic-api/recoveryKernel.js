@@ -465,25 +465,27 @@ function findingsFromInspection(inspection = {}) {
       findings.push(finding);
     }
   }
-  // A required table absent from a non-empty role is a partial-schema incident,
-  // not permission to run grant repair or the zero-object baseline rebuild.
-  // All missing physical evidence comes from the privileged full inspection only.
+  // A required table invisible in a non-empty role blocks grant/migration
+  // candidates, but the role-bound information_schema census alone cannot
+  // prove physical absence: role credentials may lack metadata visibility.
+  // Escalate as non-executable and request independent physical inspection.
   const partialMissingRoles = new Set();
   if (roleEvidenceAvailable && inspection.full_inspection === true) {
     for (const role of ["runtime", "governance", "runtime_persistence"]) {
       if (roleClassifications[role] !== "nonempty_objects") continue;
       const roleTables = roleTableEvidence[role];
       if (!Array.isArray(roleTables)) continue; // Unverified evidence cannot prove absence.
-      const missingCount = roleTables.filter((entry) => entry?.present === false).length;
-      if (!missingCount) continue;
+      const unverifiedCount = roleTables.filter((entry) => entry?.present === false).length;
+      if (!unverifiedCount) continue;
       partialMissingRoles.add(role);
       findings.push(inspectionFinding({
         targetRole: role,
-        resource: "role required database schema",
-        category: "partial_schema_missing_table",
+        resource: "role required database schema visibility",
+        category: "required_table_presence_unverified",
         severity: "high",
-        expected: { required_tables_present: true },
-        actual: { nonempty_objects: true, missing_required_table_count: missingCount },
+        expected: { required_tables_visible_to_inspector: true },
+        actual: { nonempty_objects_visible_to_inspector: true, required_tables_not_visible_count: unverifiedCount,
+          physical_absence_proven: false },
         authorityRef: null,
         repairability: "unknown_fail_closed",
         mutationRequired: false,
