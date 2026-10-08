@@ -163,6 +163,14 @@ function normalizeInspection(input, expectedSha, controlPlaneTargetFingerprint) 
   }
   if (!selectedRoles.length) fail("STAGING_REBUILD_EMPTY_NO_ZERO_ROLE", "No role is eligible for rebuild_empty in this inspection.", {}, 409);
   const roleBundleBindings = normalizeBundleBindings(input.role_bundle_bindings, selectedRoles);
+  // Caller-supplied proof envelopes are observations only. The canonical Kernel
+  // permits rebuild findings solely when a separately installed server-side
+  // physical-inventory verifier certifies them at the exact SHA and role.
+  const proofSource = inspection.role_full_object_inventory_proofs;
+  const roleFullObjectInventoryProofs = Object.fromEntries(
+    ROLES.filter((role) => proofSource?.[role] && typeof proofSource[role] === "object" && !Array.isArray(proofSource[role]))
+      .map((role) => [role, structuredClone(proofSource[role])]),
+  );
   return {
     contract: "mad4b.staging-durable-full-inspection.v2",
     expected_sha: expectedSha,
@@ -174,6 +182,7 @@ function normalizeInspection(input, expectedSha, controlPlaneTargetFingerprint) 
     role_database_object_counts: counts,
     role_database_object_classifications: classifications,
     role_database_object_count_fingerprints: fingerprints,
+    role_full_object_inventory_proofs: roleFullObjectInventoryProofs,
     selected_zero_object_roles: selectedRoles,
     preserved_nonempty_roles: preservedRoles,
     role_bundle_bindings: roleBundleBindings,
@@ -336,7 +345,9 @@ export function createStagingRebuildEmptyAuthority({ env = process.env, adapters
       const inspection = normalizeInspection(input, expectedSha, attestation.control_plane_target_fingerprint);
       const inspectionEvidenceHash = digest(inspection);
       const runId = `run:${digest({ expected_sha: expectedSha, target_key: targetKey, target_fingerprint: inspection.target_fingerprint, control_plane_target_fingerprint: attestation.control_plane_target_fingerprint, inspection_evidence_hash: inspectionEvidenceHash, correlation_id: correlationId }).slice(0, 32)}`;
-      const canonicalFindings = deriveCanonicalRecoveryFindingsFromInspection(inspection)
+      const canonicalFindings = deriveCanonicalRecoveryFindingsFromInspection(inspection, {
+        trustedRoleInventoryVerifier: graph.trustedRoleInventoryVerifier,
+      })
         .filter((finding) => /^(runtime|governance|runtime_persistence)\.baseline\.rebuild_empty$/u.test(text(finding?.candidate_capability, 160)))
         .map((finding) => ({ ...finding, inspection_run_id: runId, inspection_evidence_hash: inspectionEvidenceHash }));
       const findingRoles = canonicalFindings.map((finding) => assertCanonicalRoleRebuildFinding(finding).target_role).sort();

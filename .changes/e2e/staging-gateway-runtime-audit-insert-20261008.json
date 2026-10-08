@@ -1,0 +1,93 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-gateway-runtime-audit-insert-20261008",
+  "title": "Staging Gateway append-only audit with bounded read authority and three-database privilege readback",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-gateway-runtime-audit-insert-20261008.json",
+      "http-generic-api/databasePrivilegeContracts.js",
+      "http-generic-api/test-staging-database-readiness-repair.mjs",
+      "http-generic-api/scripts/staging-role-privilege-drift-audit.mjs",
+      "http-generic-api/test-staging-three-db-privilege-drift-audit.mjs",
+      "docs/governance/configuration-drift-baseline-extensions.json"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Require SELECT and INSERT, but neither UPDATE nor DELETE, for runtime audit_log because Gateway writes append-only evidence while Dynamic Audit reads audit_log through Runtime DB fallback when dedicated Control Plane authority is disabled. Verify precise grants across all three Staging databases and deny all Production mutation.",
+      "e2e_journeys": [
+        {
+          "id": "staging-gateway-audit-exact-grant-plan",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Staging grant contract compiler",
+          "entrypoint": "Compile the repository-owned Staging runtime grant policy and invoke the canonical role-grant plan without database writes.",
+          "terminal_outcome": "Staging Runtime grant plan grants audit_log exactly SELECT and INSERT; runtime privilege drift is reported without inventing physical absence; existing Governance and Persistence grants remain unchanged, with no provider or database writes.",
+          "steps": [
+            "Resolve the Staging runtime required tables and per-table privilege operations, including audit_log.",
+            "Run the canonical staging-role-grant-plan.mjs --role runtime using the regression suite.",
+            "Reject audit_log UPDATE/DELETE and any grant beyond SELECT/INSERT, reject missing/optional audit evidence, and retain Production bootstrap and Governance role separation.",
+            "Require approved Staging-only database grant reconciliation and same-cycle readback independently after merge; block Gateway Certification until that happens.",
+            "Inspect actual grants for runtime, governance and runtime_persistence using application identities and only SELECT information_schema queries; flag missing/excess/cross-schema/global/schema/column/role privileges.",
+            "Correlate live app-principal Runtime grant readback with privileged read-only physical table census; all eight previously invisible required tables physically exist, while three optional views are absent."
+          ],
+          "assertions": [
+            "Staging runtime audit_log is mandatory and receives exactly SELECT and INSERT because the Dynamic Audit scheduler can read via Runtime fallback.",
+            "No UPDATE, DELETE, GRANT OPTION, schema-wide privilege, or Production bootstrap role expansion is introduced by this change.",
+            "Canonical grant-plan output is checked, not only an in-memory policy object.",
+            "No database or provider mutation, secret material, certification, or release is performed by this PR.",
+            "Staging operational grant apply requires independent authority and post-apply evidence before any new Gateway certification.",
+            "All three database principals and database names must be distinct. Missing or inaccessible role databases fail closed without reporting certification readiness.",
+            "Local Manager write-matrix vs Staging read-only differences are reported as warnings; the privilege scanner never grants additional rights.",
+            "The read-only NODE_ENV Staging identity reference is permanently registered in configuration drift governance, not exempted by a temporary policy suppression.",
+            "Exact owner live readback identified 21 required grant deficits on eleven Runtime tables, including 6 on visible secret/config surfaces and 15 on 8 invisible-but-present required objects; none is yet applied.",
+            "CONTROL_PLANE_WRITE_AUTHORITY_ENABLED was false in live local Staging, so SELECT on audit_log is required by the fallback path; preserve INSERT-only modification and forbid UPDATE/DELETE."
+          ],
+          "tests": [
+            {
+              "id": "staging-gateway-audit-runtime-grant-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-database-readiness-repair.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-three-db-readonly-privilege-drift-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-three-db-privilege-drift-audit.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/staging-gateway-runtime-audit-insert-20261008.json",
+            "http-generic-api/databasePrivilegeContracts.js",
+            "http-generic-api/test-staging-database-readiness-repair.mjs",
+            "http-generic-api/scripts/staging-role-privilege-drift-audit.mjs",
+            "http-generic-api/test-staging-three-db-privilege-drift-audit.mjs",
+            "docs/governance/configuration-drift-baseline-extensions.json"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}

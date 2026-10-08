@@ -2171,6 +2171,17 @@
       "grants_production_activation": false
     },
     {
+      "fingerprint": "http-generic-api/scripts/staging-role-privilege-drift-audit.mjs|NODE_ENV|environment_reference|node.env",
+      "owner": "staging-database-governance",
+      "reason": "Non-secret NODE_ENV Staging identity guard is a required fail-closed precondition for a read-only three-database grant drift observer. It neither grants database privileges nor enables runtime, Cloudflare, provider, or Production mutation.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
       "fingerprint": "http-generic-api/scripts/staging-runtime-registry-reconciliation-ledger.mjs|root|environment_reference|staging.runtime.registry.reconciliation.ledger.dir",
       "owner": "staging-runtime-registry-reconciliation",
       "reason": "The ledger directory is a local Staging host path reference for the single-consumption reconciliation state machine. It contains no credential value, selects no database or provider target, and grants no Runtime, Production, protected-ref, or provider mutation authority.",
@@ -2515,6 +2526,28 @@
       "fingerprint": "http-generic-api/test-platform-routes.mjs|REMOTE_MCP_ENVIRONMENT|environment_reference|remote.mcp.environment",
       "owner": "test-governance",
       "reason": "This is an explicit synthetic environment fixture for platform route tests and is not a live configuration or authority source.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/test-production-governance-documentation-parity.mjs|declaredSupported|literal_declaration|declaredsupported",
+      "owner": "production-database-governance",
+      "reason": "Source-derived, boolean-only CI parity classifier distinguishing declared provider capability from live Production readiness; never a credential, principal, grant operation, or authorization to access Production.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/test-production-governance-documentation-parity.mjs|declaredUnsupported|literal_declaration|declaredunsupported",
+      "owner": "production-database-governance",
+      "reason": "Source-derived, boolean-only CI parity classifier distinguishing declared provider capability from live Production readiness; never a credential, principal, grant operation, or authorization to access Production.",
       "lifecycle": "permanent",
       "configuration_class": "ci_governance_input",
       "sensitivity": "non_secret_reference",

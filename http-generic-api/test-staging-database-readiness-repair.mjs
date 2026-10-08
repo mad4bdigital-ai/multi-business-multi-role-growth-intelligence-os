@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
+import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 import {
@@ -67,6 +68,34 @@ assert.deepEqual(
   STAGING_ROLE_GRANT_POLICIES.runtime.required_operations_by_table.local_manager_desktop_commands,
   ["SELECT", "INSERT", "UPDATE"],
 );
+// Certification appends immutable audit evidence, and Dynamic Audit reads it through
+// Runtime DB fallback when dedicated Control Plane authority is disabled.
+// Staging grant remains exact; no UPDATE/DELETE or Production bootstrap expansion.
+assert.equal(STAGING_ROLE_GRANT_POLICIES.runtime.required_tables.filter((table) => table === "audit_log").length, 1);
+assert.equal(STAGING_ROLE_GRANT_POLICIES.runtime.optional_tables.includes("audit_log"), false);
+assert.deepEqual(STAGING_ROLE_GRANT_POLICIES.runtime.required_operations_by_table.audit_log, ["SELECT", "INSERT"]);
+assert.equal(BOOTSTRAP_ROLE_GRANT_POLICIES.runtime.required_tables.includes("audit_log"), false);
+assert.equal(STAGING_ROLE_GRANT_POLICIES.governance.required_tables.includes("audit_log"), false);
+const runtimeGrantPlanOutput = JSON.parse(execFileSync(
+  process.execPath,
+  [path.join(HERE, "scripts/staging-role-grant-plan.mjs"), "--role", "runtime"],
+  { cwd: ROOT, encoding: "utf8" },
+));
+const auditGrants = runtimeGrantPlanOutput.grants.filter((entry) => entry.table === "audit_log");
+assert.deepEqual(auditGrants, [{ table: "audit_log", required: true, operations: ["SELECT", "INSERT"] }]);
+// Source-coupled identity/SQL proof: no extra audit privilege is granted by guess.
+const controlPlaneSource = read("http-generic-api/controlPlaneWriteAuthority.js");
+const dynamicAuditSource = read("http-generic-api/dynamicAuditRuntime.js");
+const auditWriterSource = read("http-generic-api/auditLogger.js");
+assert.match(controlPlaneSource, /if \(!controlPlaneWriteAuthorityEnabled\(env\)\) return getPool\(\);/);
+assert.match(dynamicAuditSource, /FROM audit_log/);
+assert.match(dynamicAuditSource, /SELECT MAX\(id\) FROM audit_log/);
+assert.match(dynamicAuditSource, /getControlPlaneWritePool\(\)/);
+assert.match(auditWriterSource, /INSERT INTO \\`audit_log\\`/);
+assert.deepEqual(runtimeGrantPlanOutput.grants.find((entry) => entry.table === "audit_log").operations, ["SELECT", "INSERT"]);
+assert.equal(runtimeGrantPlanOutput.safety.broad_schema_grants_allowed, false);
+assert.equal(runtimeGrantPlanOutput.safety.grant_option_allowed, false);
+assert.equal(runtimeGrantPlanOutput.safety.production_accessed, false);
 assert.equal(STAGING_ROLE_GRANT_POLICIES.runtime.required_tables.includes("credential_bindings"), true);
 assert.equal(STAGING_ROLE_GRANT_POLICIES.runtime.required_tables.includes("secret_references"), true);
 assert.deepEqual(

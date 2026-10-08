@@ -126,7 +126,8 @@
         "http-generic-api/governanceDbPrivilegeReadinessRuntime.js",
         "http-generic-api/governanceDbPrivilegeReadinessService.js",
         "http-generic-api/test-governance-db-privilege-readiness.mjs",
-        "http-generic-api/test-governance-db-writer-authority.mjs"
+        "http-generic-api/test-governance-db-writer-authority.mjs",
+        "http-generic-api/test-production-governance-documentation-parity.mjs"
       ]
     },
     {
@@ -424,6 +425,7 @@
         "http-generic-api/test-activation-gateway.mjs",
         "http-generic-api/test-auth-oauth-routes.mjs",
         "http-generic-api/test-chatgpt-mcp-metadata-routing.mjs",
+        "http-generic-api/test-database-schema-recovery-triage.mjs",
         "http-generic-api/test-device-tools-diagnostics.mjs",
         "http-generic-api/test-frontend-surface-dispatch.mjs",
         "http-generic-api/test-github-app-installation-discovery.mjs",
@@ -461,7 +463,6 @@
         "http-generic-api/test-staging-recovery-certification-protocol.mjs",
         "http-generic-api/test-staging-recovery-certification-public-trust.mjs",
         "http-generic-api/test-staging-recovery-certification-script-surface.mjs",
-        "http-generic-api/test-staging-runtime-artifact-attestation.mjs",
         "http-generic-api/test-staging-recovery-certification-signing-authority.mjs",
         "http-generic-api/test-staging-recovery-external-acquisition-authority.mjs",
         "http-generic-api/test-staging-recovery-gateway-preflight.mjs",
@@ -469,6 +470,7 @@
         "http-generic-api/test-staging-recovery-phase-b-concurrency.mjs",
         "http-generic-api/test-staging-recovery-route-policy.mjs",
         "http-generic-api/test-staging-recovery-system-tools.mjs",
+        "http-generic-api/test-staging-runtime-artifact-attestation.mjs",
         "http-generic-api/test-staging-trusted-ingress-diagnostics.mjs",
         "http-generic-api/test-tenant-gpt-access-token-verifier.mjs",
         "http-generic-api/test-trusted-request-host-routing.mjs"
@@ -633,11 +635,11 @@
         "http-generic-api/docker-compose.staging.yml",
         "http-generic-api/environmentBranchAuthority.js",
         "http-generic-api/governanceDbPrivilegeReadinessService.js",
-        "http-generic-api/scripts/staging-runtime-registry-reconciliation-materialize-sql.mjs",
         "http-generic-api/scripts/staging-role-grant-plan.mjs",
         "http-generic-api/scripts/staging-runtime-registry-reconciliation-ledger.mjs",
-        "http-generic-api/scripts/staging-runtime-registry-reconciliation-runtime-check.mjs",
+        "http-generic-api/scripts/staging-runtime-registry-reconciliation-materialize-sql.mjs",
         "http-generic-api/scripts/staging-runtime-registry-reconciliation-plan-validate.mjs",
+        "http-generic-api/scripts/staging-runtime-registry-reconciliation-runtime-check.mjs",
         "http-generic-api/stagingRuntimeRegistryReconciliation.js",
         "http-generic-api/stagingRuntimeRegistryReconciliationLedger.js",
         "http-generic-api/stagingRuntimeRegistrySnapshot.js",
@@ -655,7 +657,8 @@
         "http-generic-api/test-staging-execution-policies-grant.mjs",
         "http-generic-api/test-staging-runtime-registry-reconciliation-ledger.mjs",
         "http-generic-api/test-staging-runtime-registry-reconciliation-surface.mjs",
-        "http-generic-api/test-staging-runtime-registry-reconciliation.mjs"
+        "http-generic-api/test-staging-runtime-registry-reconciliation.mjs",
+        "http-generic-api/test-staging-three-db-privilege-drift-audit.mjs"
       ]
     },
     {
