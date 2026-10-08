@@ -30,7 +30,7 @@
     },
     {
       "path": "autopilot-portable-staging/Install-AutoDeployTask.ps1",
-      "sha256": "d54df58b26c96928fe391e735f8cdd4197b8e3b9e89d46cb81530e1f9dec419a"
+      "sha256": "fd5d3ddf343914a8299dba95a858fd9dd2a98c1a4536a94d7286d1644c87ee29"
     },
     {
       "path": "autopilot-portable-staging/One-Click-Staging.ps1",
@@ -70,7 +70,7 @@
     },
     {
       "path": "autopilot-portable-staging/Uninstall-AutoDeployTask.ps1",
-      "sha256": "8dd751eadac44215c2dbe150cc19564f9fafedada3b3b67191742de178d52885"
+      "sha256": "fc0dc9787fd4aca8b7d0625f2bd852898db224be1fe4adfea1c7146ab2aa5537"
     },
     {
       "path": "autopilot-portable-staging/auto-deploy-policy.json",
@@ -170,7 +170,7 @@
     },
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
-      "sha256": "dacb404a224870ecfba5660793bbf47d65f4e1a2b7909a8ebbd835b371d14991"
+      "sha256": "d85dc2520c60a3e203cf12485dda0bf56942d9d7a4a1813e0f0bb351a7b1d3c7"
     },
     {
       "path": "http-generic-api/remoteMcpConnectorRuntime.js",
