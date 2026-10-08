@@ -2717,6 +2717,20 @@ export function buildAdminCliRoutes(deps) {
     }
   });
 
+  // Read-only current inventory; never supplies credentials or silently rebinds aliases.
+  router.get("/local-connector/devices", requireBackendApiKey, requireAdminPrincipal, async (req, res) => {
+    try {
+      const scope = adminConnectorScope(req, req.query);
+      return res.status(200).json(await adminConnectorInventory({pool: getPool(), scope}));
+    } catch (err) {
+      return res.status(err.status || 503).json({
+        ok: false, secrets_included: false,
+        error: {code: err.code || "device_inventory_unavailable",
+          message: err.code ? err.message : "Unable to verify current connector inventory."},
+      });
+    }
+  });
+
   // ── GET /admin/cli/local-connector/install-bundle ─────────────────────────
   // Generates a pre-filled Windows .bat installer.
   // Credential resolution order:
