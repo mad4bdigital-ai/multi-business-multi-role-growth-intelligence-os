@@ -186,19 +186,26 @@ export async function inspectStagingPrivilegeDrift({ pools, env = process.env } 
 }
 
 async function run() {
-  const pools = { runtime: getPool, governance: getGovernancePool, runtime_persistence: getRuntimePersistencePool };
+  const pools = {};
   let output;
   try {
+    if (normalized(process.env.APP_ENV).toLowerCase() === "staging") {
+      // Only instantiate pools for a verified Staging app. Never fall back to Production.
+      pools.runtime = getPool();
+      pools.governance = getGovernancePool();
+      pools.runtime_persistence = getRuntimePersistencePool();
+    }
     output = await inspectStagingPrivilegeDrift({ pools });
   } catch (error) {
-    output = { contract: "mad4b.staging-three-db-privilege-drift-audit.v1", ready: false, read_only: true, secrets_included: false,
-      errors: [{ code: normalized(error?.code || error?.name || "PROBE_FAILED") }] };
+    output = { contract: "mad4b.staging-three-db-privilege-drift-audit.v1",
+      ready: false, read_only: true, writes_performed: false, secrets_included: false,
+      errors: [{ code: normalized(error?.code || error?.name || "PROBE_FAILED").slice(0, 100) }] };
+  } finally {
+    for (const pool of Object.values(pools)) {
+      try { await pool.end(); } catch {}
+    }
   }
   process.stdout.write(JSON.stringify(output, null, 2) + "\n");
-  for (const get of Object.values(pools)) {
-    // Close pools when standalone, including on privilege failure.
-    try { await get().end(); } catch {}
-  }
   if (!output.ready) process.exitCode = 2;
 }
 
