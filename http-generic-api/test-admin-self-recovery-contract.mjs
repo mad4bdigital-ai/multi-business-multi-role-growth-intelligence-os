@@ -84,3 +84,16 @@ test("signed installer binds canonical config/device in local .env and authentic
   assert.match(composite, /device_id: typeof body\?\.device_id === "string"/);
   assert.match(composite, /config_id: typeof body\?\.config_id === "string"/);
 });
+
+test("connector policy cannot treat a platform API key as device-owned authority", () => {
+  const start=agent.indexOf('router.get("/connector-agent/policy"');
+  const end=agent.indexOf('router.post("/connector-agent/heartbeat"',start);
+  assert(start>=0 && end>start);
+  const policy=agent.slice(start,end);
+  assert.match(policy, /device_owned_policy_credential_required/);
+  assert.match(policy, /connector_policy_identity_ambiguous/);
+  assert.match(policy, /lifecycle_state = 'active'/);
+  assert.match(policy, /revoked_at IS NULL AND archived_at IS NULL/);
+  assert.match(policy, /connectorAuthPredicateForToken\(token\)/);
+  assert.doesNotMatch(policy, /if \(backendToken && token === backendToken\) \{\s*sql \+=/);
+});
