@@ -8,6 +8,7 @@ import {
   requireLocalManagerDevice,
 } from "../services/localManagerDeviceLinkService.js";
 import { buildLocalConnectorRouteLifecycleFromDb } from "../localConnectorRouteLifecyclePolicy.js";
+import { currentInstallerCredentialEpoch, assertCurrentInstallerCredentialEpoch } from "../installerCredentialEpoch.js";
 import {
   connectorLocalApiKeySelectFragment,
   hasConnectorLocalApiKeyColumn,
@@ -1294,12 +1295,17 @@ export function buildLocalConnectorInstallRoutes(deps) {
       const config = rows[0] || null;
       if (!config) return res.status(404).json({ ok: false, error: { code: "connector_config_not_found", message: "Provision this device through authenticated account setup before requesting repair." }, secrets_included: false });
       // Installer-link issuance is read-only; aliases belong to the dedicated writer.
+      const credentialEpoch = await currentInstallerCredentialEpoch({
+        config_id: config.config_id, user_id: device.user_id,
+        tenant_id: config.tenant_id || device.tenant_id, device_id: config.device_id
+      });
       const token = signInstallerDownloadToken(createInstallerCapability({
         config_id: config.config_id,
         user_id: device.user_id,
         tenant_id: config.tenant_id || device.tenant_id,
         device_id: config.device_id,
         format,
+        credential_epoch: credentialEpoch,
         app_managed: appManaged,
         ttl_minutes: ttl,
       }));
@@ -1348,12 +1354,17 @@ export function buildLocalConnectorInstallRoutes(deps) {
       if (!config) return res.status(404).json({ ok: false, error: { code: "connector_config_not_found" } });
       const ttl = Math.max(5, Math.min(10, Number(ttl_minutes || 10)));
       assertNoInstallerAuthorityOverrides(req.body || {});
+      const credentialEpoch = await currentInstallerCredentialEpoch({
+        config_id: config.config_id, user_id: principal.userId,
+        tenant_id: config.tenant_id || principal.tenantId, device_id: device_id
+      });
       const token = signInstallerDownloadToken(createInstallerCapability({
         config_id: config.config_id,
         user_id: principal.userId,
         tenant_id: config.tenant_id || principal.tenantId,
         device_id,
         format,
+        credential_epoch: credentialEpoch,
         ttl_minutes: ttl,
       }));
       const path = format === "bat" ? "/local-connector/install/download" : "/connector-agent/installer.ps1";
@@ -1384,6 +1395,7 @@ export function buildLocalConnectorInstallRoutes(deps) {
     try {
       const token = String(req.query.token || "");
       const payload = verifyInstallerDownloadToken(token);
+      await assertCurrentInstallerCredentialEpoch(payload);
       if (!["ps1", "bat"].includes(payload.format)) {
         throw httpError(400, "unsupported_format", "Only ps1 or bat installer downloads are supported.");
       }
