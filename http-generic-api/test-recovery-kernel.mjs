@@ -344,6 +344,24 @@ test("provider-supplied findings cannot inject a rebuild, grant, migration or ex
   assert.ok(!findings.some((finding) => finding.candidate_capability === "governance.grant.repair"));
 });
 
+test("self-attested positive booleans cannot grant repair or rebuild authority without server verifier", () => {
+  const inspected = readinessFailure();
+  const findings = _testingRecoveryKernel.findingsFromInspection(inspected);
+  assert.ok(findings.some((x) => x.category === "zero_visible_objects_unverified"));
+  assert.ok(!findings.some((x) => x.candidate_capability?.endsWith(".baseline.rebuild_empty")));
+  inspected.role_database_object_classifications.governance = "nonempty_objects";
+  inspected.role_database_object_counts.governance = {
+    tables: 17, views: 0, triggers: 0, routines: 0, events: 0, total: 17,
+  };
+  inspected.role_table_evidence = {
+    governance: BOOTSTRAP_ROLE_GRANT_POLICIES.governance.required_tables.map(
+      (table) => ({ table, present: true }),
+    ),
+  };
+  const grants = _testingRecoveryKernel.findingsFromInspection(inspected);
+  assert.ok(!grants.some((x) => x.candidate_capability === "governance.grant.repair"));
+});
+
 test("zero visible objects without independent privileged proof cannot become empty rebuild plans", () => {
   const inspected = readinessFailure();
   delete inspected.role_full_object_inventory_proofs;
@@ -360,7 +378,9 @@ test("zero visible objects without independent privileged proof cannot become em
 test("wrong-sha zero-object physical inventory proof cannot authorize rebuild candidate", () => {
   const inspected = readinessFailure();
   inspected.role_full_object_inventory_proofs.governance.expected_sha = "d".repeat(40);
-  const findings = _testingRecoveryKernel.findingsFromInspection(inspected);
+  const findings = _testingRecoveryKernel.findingsFromInspection(inspected, {
+    trustedRoleInventoryVerifier: () => true,
+  });
   assert.ok(findings.some((x) => x.subject.target_role === "governance" &&
     x.category === "zero_visible_objects_unverified"));
   assert.ok(!findings.some((x) => x.candidate_capability === "governance.baseline.rebuild_empty"));
@@ -422,7 +442,14 @@ test("readiness failure alone cannot authorize grants when full role-table evide
   inspected.role_table_evidence.governance = BOOTSTRAP_ROLE_GRANT_POLICIES.governance.required_tables.map(
     (table) => ({ table, present: true }),
   );
-  const withProof = _testingRecoveryKernel.findingsFromInspection(inspected);
+  inspected.role_full_object_inventory_proofs.governance = roleZeroProof("governance", "b".repeat(64));
+  const stillUntrusted = _testingRecoveryKernel.findingsFromInspection(inspected);
+  assert.ok(!stillUntrusted.some((item) => item.candidate_capability === "governance.grant.repair"));
+  const withProof = _testingRecoveryKernel.findingsFromInspection(inspected, {
+    // Mocked trusted server dependency; production composition has no such
+    // verifier until durable independent physical-census proof is implemented.
+    trustedRoleInventoryVerifier: ({ role }) => role === "governance",
+  });
   assert.ok(withProof.some((item) => item.candidate_capability === "governance.grant.repair"));
 });
 test("Recovery Kernel capability catalog is static, bounded, and secret-safe", () => {
@@ -612,6 +639,8 @@ test("host-local database inspection remains exact-SHA dry-run and registers san
     { expected_sha: SHA, target_key: "production-runtime" },
     {
       env: ENV,
+      // Unit-test-only trust provider: never exposed through user-controlled input.
+      trustedRoleInventoryVerifier: ({ role }) => ["governance", "runtime_persistence"].includes(role),
       hostLocalExecutor: async (request, options) => {
         calls.push({ request, options });
         return {
