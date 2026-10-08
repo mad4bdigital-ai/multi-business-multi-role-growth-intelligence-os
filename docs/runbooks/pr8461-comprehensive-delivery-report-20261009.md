@@ -248,3 +248,18 @@ This section supersedes any earlier implication that registering a Hostinger com
 **Release blockers (not waived):** exact-head CI/evidence convergence; clean disposable MariaDB zero-object rebuild and second replay; Staging same-cycle readback and rollback; live device identity attestation; Hostinger account-specific provider entitlement; external Recovery Control Store; Runtime catalog migrations/grants only after independent plan/approval; verified Production source/DB identity and privilege matrix.
 
 **Forbidden until those gates pass:** merge to `main`, Production promotion, arbitrary SSH fallback, real environment PUT, database creation/grants, SQL migration apply, secret value export, marking capabilities executable, or claiming operational closure.
+
+
+## 14. Canonical catalog runtime row readback (source integration)
+
+An additional acceptance boundary was implemented after the objection ledger:
+
+- Canonical `staging-database-role-migration-manifest.json` declares **eight** read-only, exact-cardinality rows: seven Hostinger catalog commands required to remain `status=planned`, plus the disabled Admin discovery tool (`is_enabled=0`).
+- `Clone-StagingDatabases.Legacy.ps1` now runs `Assert-CanonicalCatalogRows` after initial seed import **and** when evaluating a previously completed import. It validates the manifest contract, table whitelist, bounded row count (1–64), strict key grammar, duplicate declarations, required non-active status, and exact `COUNT(*)=1` from the local Staging Runtime DB.
+- The importer persists `catalog_registry_row_counts` within `canonical_seed_readback`, and returns the equivalent readback in completed-state checks. A missing, duplicated or unexpectedly activated command blocks import acceptance rather than silently returning success.
+- The importer adds no provider call, remote shell, secret retrieval, Production access, environment mutation, database creation or grant.
+- `test-hostinger-recovery-seed-replay.mjs` now asserts row-contract parity and importer integration.
+
+**Verification gap:** The source wiring is committed, and source-level checks can inspect it. An actual fresh ephemeral MariaDB 11.4 rebuild, second replay, completed-state reopen and negative fault injection must still run and yield exact receipts. Do not interpret unexecuted PowerShell as a runtime certificate.
+
+This gate is **provider-target-independent**: it validates canonical catalog row semantics, not the existence of a particular registered Hostinger account.
