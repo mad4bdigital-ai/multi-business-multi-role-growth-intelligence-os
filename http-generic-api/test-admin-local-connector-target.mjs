@@ -48,6 +48,18 @@ test("revoked, archived, disabled and stale heartbeat deny both implicit and exp
     assert.throws(()=>chooseDevice([row],"current-pc",now),e=>e.code==="device_target_not_trusted");
   }
 });
+test("globally scoped legacy aliases are checked without user/tenant authority escalation",async()=>{
+  const p=mockDb([fresh()],[{canonical_device_id:"current-pc"}]);
+  await fails(resolveAdminConnectorTarget({pool:p,scope,requestedDeviceId:"mohammedlap",now}),
+    "historical_device_alias");
+  assert(p.calls[0].sql.includes("user_id IS NULL"));
+  assert(p.calls[0].sql.includes("tenant_id IS NULL"));
+});
+test("tenant-scoped caller without signed user or tenant cannot inherit platform defaults",()=>{
+  assert.throws(()=>adminConnectorScope({auth:{mode:"user_jwt",user_id:user}},{}),
+    e=>e.code==="device_signed_identity_missing");
+});
+
 test("historical alias refuses silent privileged rebinding",async()=>{
   const p=mockDb([fresh()],[{canonical_device_id:"current-pc"}]);
   await fails(resolveAdminConnectorTarget({pool:p,scope,requestedDeviceId:"mohammedlap",now}),
