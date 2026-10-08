@@ -37,9 +37,15 @@ independent privileged census, complete enumeration of all five object classes,
 and read-only execution. Without that proof it emits
 `zero_visible_objects_unverified` (non-executable), even when all observed counts
 are zero. A caller-supplied boolean or an app-level readiness snapshot **must never**
-be accepted as this proof. Host-local authorized evidence issuance, persisted
-durability and cryptographic trust binding remain an external dependency; this PR
-does **not** claim they are deployed.
+be accepted as this proof. The classifier and Recovery Kernel now require
+separate synchronous **server-injected trusted evidence verifiers**, and both
+default to unavailable/fail-closed. These verifiers must independently resolve
+the durable record, attest its issuer, signature, same-cycle database identity,
+object metadata visibility, SHA and source-required table evidence digest.
+Self-reported `verified=true` or a copied SHA-256 string is insufficient.
+Verifier crashes or false responses also fail closed. Host-local authorized
+evidence issuance, persisted durability and cryptographic trust binding remain
+external dependencies; this PR does **not** claim they are deployed.
 
 ## Existing operation capabilities versus missing integrations
 
