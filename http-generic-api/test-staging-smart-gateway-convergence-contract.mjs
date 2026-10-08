@@ -481,6 +481,9 @@ await assert.rejects(
   }, {
     plan_id: crypto.randomUUID(),
     bundle_ref: "staging-gateway:subsecond-regression",
+    _planBody: { purpose: "transaction_certification", expires_at: "2026-10-08T01:00:38.707Z" },
+    resource_binding: { binding_id: bindingId },
+    workspace: { workspace_id: platformWorkspaceId },
     expires_at: "2026-10-08T01:00:38.707Z",
   }, { files: [] }, { env: storageEnv }),
   (error) => error?.code === "staging_gateway_plan_expiry_precision_invalid",
