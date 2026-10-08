@@ -2,8 +2,13 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { test } from "node:test";
-import { classifyDatabaseSchemaRecovery } from "./databaseSchemaRecoveryTriage.js";
+import { classifyDatabaseSchemaRecovery as classifyFromSource } from "./databaseSchemaRecoveryTriage.js";
 import { readRuntimeBootstrapContract } from "./runtimeBootstrapContract.js";
+// Synthetic unit-test-only trusted server fixture; the live Production
+// application intentionally does not ship a trusted verifier yet.
+const classifyDatabaseSchemaRecovery = (input) => classifyFromSource({
+  trustedPhysicalCensusVerifier: () => true, ...input,
+});
 const sha = "a".repeat(40);
 const databaseKey = "governance";
 const base = { role: "governance", databaseKey, expectedDeployedSha: sha,
@@ -47,6 +52,20 @@ const assertSafe = (output) => {
   assert.equal(output.mutation_performed, false);
   assert.equal(output.secrets_included, false);
 };
+test("self-attested complete census cannot authorize candidate without trusted server verifier", () => {
+  const raw = classifyFromSource({ ...base, privilegedCensus: census() });
+  assert.equal(raw.classification, "visibility_unverified");
+  assert.equal(raw.authority_candidate, null);
+  assertSafe(raw);
+  const rejectedByServer = classifyFromSource({
+    ...base, privilegedCensus: census(),
+    trustedPhysicalCensusVerifier: () => false,
+  });
+  assert.equal(rejectedByServer.classification, "visibility_unverified");
+  assert.equal(rejectedByServer.authority_candidate, null);
+  assertSafe(rejectedByServer);
+});
+
 test("17 required / 0 visible via app principal cannot certify an empty physical database", () => {
   const result = classifyDatabaseSchemaRecovery(base);
   assert.equal(result.classification, "visibility_unverified");
