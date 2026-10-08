@@ -51,8 +51,8 @@ export function evaluateHostingerRecoveryCapabilities({target, commands, environ
       command_key: key, intent: category,
       registry_status: catalogState,
       target_allowlisted: targetAllowed,
-      discovery_ready: catalogEligible && targetAllowed,
-      plan_candidate: catalogEligible && targetAllowed && category === "read_or_plan",
+      discovery_ready: targetReady && catalogEligible && targetAllowed,
+      plan_candidate: targetReady && catalogEligible && targetAllowed && category === "read_or_plan",
       plan_allowed: false, // no certified planner in this discovery-only extension
       dispatch_ready: false, execution_allowed: false, // NO executor is registered by this extension.
       requires_approval: Boolean(command.requires_approval),
