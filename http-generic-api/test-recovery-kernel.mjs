@@ -344,6 +344,18 @@ test("provider-supplied findings cannot inject a rebuild, grant, migration or ex
   assert.ok(!findings.some((finding) => finding.candidate_capability === "governance.grant.repair"));
 });
 
+test("role evidence verifier crash fails closed for every zero-object candidate", () => {
+  const inspected = readinessFailure();
+  const findings = _testingRecoveryKernel.findingsFromInspection(inspected, {
+    trustedRoleInventoryVerifier: () => { throw new Error("TRUST_BACKEND_DOWN"); },
+  });
+  assert.deepEqual(
+    findings.filter((x) => x.category === "zero_visible_objects_unverified").map((x) => x.subject.target_role),
+    ["governance", "runtime_persistence"],
+  );
+  assert.ok(!findings.some((x) => x.candidate_capability?.endsWith(".baseline.rebuild_empty")));
+});
+
 test("self-attested positive booleans cannot grant repair or rebuild authority without server verifier", () => {
   const inspected = readinessFailure();
   const findings = _testingRecoveryKernel.findingsFromInspection(inspected);
