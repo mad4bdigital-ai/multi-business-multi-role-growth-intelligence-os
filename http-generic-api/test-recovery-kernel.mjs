@@ -24,6 +24,7 @@ import {
   _testingRecoveryKernel,
 } from "./recoveryKernel.js";
 import { buildRecoveryKernelRoutes } from "./routes/recoveryKernelRoutes.js";
+import { BOOTSTRAP_ROLE_GRANT_POLICIES } from "./databasePrivilegeContracts.js";
 import { issueExecutionTicket } from "./recoveryExecutionTicket.js";
 import { buildApprovalBinding, buildRoleBundleBinding } from "./recoveryExecutionBinding.js";
 import {
@@ -356,6 +357,11 @@ test("readiness failure alone cannot authorize grants when full role-table evide
   inspected.role_table_evidence = {
     governance: [{ table: "approval_holds", present: true }],
   };
+  const insufficientProof = _testingRecoveryKernel.findingsFromInspection(inspected);
+  assert.ok(!insufficientProof.some((item) => item.candidate_capability === "governance.grant.repair"));
+  inspected.role_table_evidence.governance = BOOTSTRAP_ROLE_GRANT_POLICIES.governance.required_tables.map(
+    (table) => ({ table, present: true }),
+  );
   const withProof = _testingRecoveryKernel.findingsFromInspection(inspected);
   assert.ok(withProof.some((item) => item.candidate_capability === "governance.grant.repair"));
 });
