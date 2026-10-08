@@ -79,7 +79,7 @@ export function chooseDevice(rows, requestedDeviceId = "", now = Date.now(), {in
     intent, execution_allowed: state === "ACTIVE" && intent === "execution" };
 }
 
-export function validateAdminRecoveryEndpoint(tunnelUrl, cfTunnelId = null) {
+export function validateAdminRecoveryEndpoint(tunnelUrl, cfTunnelId = null, configId = null) {
   let url;
   try { url = new URL(str(tunnelUrl)); }
   catch { throw targetError("connector_route_untrusted", "Connector runtime URL is missing or invalid."); }
@@ -87,7 +87,7 @@ export function validateAdminRecoveryEndpoint(tunnelUrl, cfTunnelId = null) {
   const tunnel = str(cfTunnelId).toLowerCase();
   const authorized =
     hostname === "connector.mad4b.com" ||
-    /^lc-[a-z0-9-]+\.mad4b\.com$/.test(hostname) ||
+    (Boolean(str(configId)) && hostname === `lc-${str(configId).slice(0, 8).toLowerCase()}.mad4b.com`) ||
     (/^[0-9a-f-]{36}\.cfargotunnel\.com$/.test(hostname) && hostname === tunnel + ".cfargotunnel.com");
   if (url.protocol !== "https:" || !authorized || url.port || url.username || url.password ||
       url.pathname !== "/" || url.search || url.hash) {
@@ -98,19 +98,23 @@ export function validateAdminRecoveryEndpoint(tunnelUrl, cfTunnelId = null) {
 }
 
 export function classifyAdminRecoveryReadback({deviceState, publicStatus, authenticatedStatus,
-  observedDeviceId = null, expectedDeviceId = null} = {}) {
+  observedDeviceId = null, expectedDeviceId = null,
+  observedConfigId = null, expectedConfigId = null} = {}) {
   const heartbeatFresh = deviceState === "ACTIVE";
   const routeReachable = publicStatus === "pass";
   const authHealthy = authenticatedStatus === "pass";
   const attestedIdentity = Boolean(expectedDeviceId && observedDeviceId &&
     str(expectedDeviceId).toLowerCase() === str(observedDeviceId).toLowerCase());
-  const recovered = heartbeatFresh && routeReachable && authHealthy && attestedIdentity;
+  const attestedConfig = Boolean(expectedConfigId && observedConfigId &&
+    str(expectedConfigId) === str(observedConfigId));
+  const recovered = heartbeatFresh && routeReachable && authHealthy && attestedIdentity && attestedConfig;
   return {
     status: recovered ? "recovered" : (!heartbeatFresh ? "heartbeat_stale" :
       !routeReachable ? "route_unverified" : !authHealthy ? "auth_unverified" : "identity_unverified"),
     recovered, requires_same_cycle_verification: !recovered,
     heartbeat_fresh: heartbeatFresh, route_reachable: routeReachable,
     authenticated_probe_passed: authHealthy, device_identity_attested: attestedIdentity,
+    config_identity_attested: attestedConfig,
     secrets_included: false,
   };
 }
