@@ -10,6 +10,8 @@ const composite = read("./localConnectorCompositeHealth.js");
 const selector = read("./adminLocalConnectorTarget.js");
 const localServer = read("../local-connector/server.mjs");
 const watchdog = read("../local-connector/connector-watchdog.ps1");
+const epoch = read("./installerCredentialEpoch.js");
+const tokenCap = read("./localConnectorInstallerCapability.js");
 
 test("heartbeat cannot inherit the global backend key or resurrect revoked device", () => {
   const start = agent.indexOf("async function resolveHeartbeatConfig(");
@@ -123,4 +125,15 @@ test("watchdog has a single complete implementation and cannot follow remote hea
   assert.match(watchdog, /MaximumRedirection 0/);
   assert(watchdog.includes('Publish-Heartbeat $status $(if ($publicReady) { "health_ok" } else { "service_restart" })'));
   assert(watchdog.includes('Publish-Heartbeat $status $(if ($publicReady) { "health_ok" } else { "rollback" })'));
+});
+
+test("download, canonical PS1 and one-time redeem fence old credential generations",()=>{
+  assert((install.match(/credential_epoch: credentialEpoch/g)||[]).length === 2);
+  assert.match(install, /assertCurrentInstallerCredentialEpoch\(payload\)/);
+  assert.match(agent, /await assertCurrentInstallerCredentialEpoch\(payload\)/);
+  assert.match(agent, /credential_epoch: payload\.credential_epoch/);
+  assert.match(tokenCap, /\.\.\.\(credential_epoch \?/);
+  assert.match(epoch, /timingSafeEqual/);
+  assert.match(epoch, /connector_secret, cf_token/);
+  assert.match(epoch, /installer_credential_epoch_changed/);
 });
