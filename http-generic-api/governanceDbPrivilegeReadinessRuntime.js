@@ -39,6 +39,13 @@ export function projectGovernanceDbPrivilegeReadiness(result = {}) {
     promotion_target_branch_exact: result.promotion_target_branch_exact === true,
     governance_identity_configured: result.governance_identity_configured === true,
     schema_objects_ready: schemaObjectsReady,
+    // The current metadata census runs as the dedicated Governance app principal.
+    // Counts mean "visible to this principal", never physical missing-table proof.
+    schema_inventory_scope: "effective_database_principal",
+    physical_schema_absence_proven: false,
+    schema_recovery_classification: schemaObjectsReady ? "principal_schema_visible" : "visibility_unverified",
+    schema_recovery_next: schemaObjectsReady ? null : "database_full_inspection_read_only",
+    schema_auto_repair_allowed: false,
     required_schema_table_count: safeCount(result.schema_readiness?.required_table_count),
     observed_required_schema_table_count: safeCount(result.schema_readiness?.observed_required_table_count),
     missing_required_schema_table_count: safeCount(result.schema_readiness?.missing_required_table_count),
