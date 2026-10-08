@@ -448,7 +448,12 @@ test("readiness failure alone cannot authorize grants when full role-table evide
   const withProof = _testingRecoveryKernel.findingsFromInspection(inspected, {
     // Mocked trusted server dependency; production composition has no such
     // verifier until durable independent physical-census proof is implemented.
-    trustedRoleInventoryVerifier: ({ role }) => role === "governance",
+    trustedRoleInventoryVerifier: ({ role, requiredTableEvidence, requiredTableEvidenceDigest, sourceRequiredTables }) =>
+      role === "governance"
+        && /^[0-9a-f]{64}$/u.test(requiredTableEvidenceDigest || "")
+        && requiredTableEvidence?.length === sourceRequiredTables.length
+        && sourceRequiredTables.every((table) => requiredTableEvidence.some((row) =>
+          row.table === table && row.present === true)),
   });
   assert.ok(withProof.some((item) => item.candidate_capability === "governance.grant.repair"));
 });
