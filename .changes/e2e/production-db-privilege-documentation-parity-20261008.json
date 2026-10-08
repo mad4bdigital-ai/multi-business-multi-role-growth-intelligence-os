@@ -1,0 +1,73 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "production-db-privilege-documentation-parity-20261008",
+  "title": "Production provider claim and exact governance grant documentation reconciliation",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/production-db-privilege-documentation-parity-20261008.json",
+      "docs/governance-db-provider-capability.md",
+      "docs/runbooks/governance-db-privilege-readiness.md",
+      "http-generic-api/test-production-governance-documentation-parity.mjs"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "production"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": false,
+    "production_mutation_allowed": false
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Expose the current repository provider declaration as a claim, not proof of live Production capability; synchronize the exact 17-table/39-direct-privilege Governance contract and distinct DB principals in a read-only runbook.",
+      "e2e_journeys": [
+        {
+          "id": "production-governance-privilege-documentation-source-parity",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Repository auditor",
+          "entrypoint": "node http-generic-api/test-production-governance-documentation-parity.mjs",
+          "terminal_outcome": "Repository policy, documented provider claims, runbook direct table grant matrix, and Staging/Production isolation match source; Production remains live-unverified until the dedicated exact-SHA no-secret runtime probe passes.",
+          "steps": [
+            "Read the checked-in Production provider capability declaration without connecting to the provider.",
+            "Compare all Governance matrix tables and operations with the exact documented runbook; fail on missing or wrong rows.",
+            "Prove the minimum Production Runtime and Runtime Persistence bootstrap grant surfaces remain distinct from the larger Staging runtime overlay.",
+            "Document exact Production runtime identity, independent database/principal privilege readiness and backup/Recovery Control Store gates before any provider or SQL mutation."
+          ],
+          "assertions": [
+            "Provider configured support is distinct from live preflight, actual schema, credential readiness and privilege readback.",
+            "The canonical Governance privilege matrix is 17 tables / 39 direct grant operations, not a stale 7-table excerpt.",
+            "Staging runtime grants, audit_log access, credentials and 21 missing grants are never automatically promoted to Production.",
+            "No SQL, DB or provider connection, secret retrieval, workflow dispatch, privilege changes, Production restart or deployment is performed by the source parity check."
+          ],
+          "tests": [
+            {
+              "id": "production-governance-documentation-parity",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-production-governance-documentation-parity.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/production-db-privilege-documentation-parity-20261008.json",
+            "docs/governance-db-provider-capability.md",
+            "docs/runbooks/governance-db-privilege-readiness.md",
+            "http-generic-api/test-production-governance-documentation-parity.mjs"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}
