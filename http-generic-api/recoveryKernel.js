@@ -443,12 +443,38 @@ function findingsFromInspection(inspection = {}) {
   const roleClassifications = inspection.role_database_object_classifications && typeof inspection.role_database_object_classifications === "object" ? inspection.role_database_object_classifications : {};
   const roleCountFingerprints = inspection.role_database_object_count_fingerprints && typeof inspection.role_database_object_count_fingerprints === "object" ? inspection.role_database_object_count_fingerprints : {};
   const roleBundleBindings = inspection.role_bundle_bindings && typeof inspection.role_bundle_bindings === "object" ? inspection.role_bundle_bindings : {};
+  const roleFullObjectInventoryProofs = inspection.role_full_object_inventory_proofs
+    && typeof inspection.role_full_object_inventory_proofs === "object"
+    ? inspection.role_full_object_inventory_proofs : {};
   const roleTableEvidence = inspection.role_table_evidence && typeof inspection.role_table_evidence === "object" ? inspection.role_table_evidence : {};
   const roleEvidenceAvailable = ["runtime", "governance", "runtime_persistence"].every((role) => Object.prototype.hasOwnProperty.call(roleClassifications, role) && Object.prototype.hasOwnProperty.call(roleCounts, role));
   const emptyRoles = new Set();
+  const zeroVisibilityUnverifiedRoles = new Set();
   if (roleEvidenceAvailable && inspection.full_inspection === true) {
     for (const role of ["runtime", "governance", "runtime_persistence"]) {
       if (roleClassifications[role] !== "zero_objects") continue;
+      const proof = roleFullObjectInventoryProofs[role];
+      const verified = proof?.contract === "mad4b.role-physical-object-visibility.v1"
+        && proof.role === role && proof.expected_sha === inspection.expected_sha
+        && /^[0-9a-f]{40}$/u.test(String(proof.expected_sha || ""))
+        && proof.object_count_fingerprint === roleCountFingerprints[role]
+        && /^[0-9a-f]{64}$/u.test(String(proof.object_count_fingerprint || ""))
+        && proof.database_identity_verified === true
+        && proof.full_object_visibility_verified === true
+        && proof.independent_privileged_census === true
+        && proof.read_only === true
+        && roleCounts[role]?.total === 0;
+      if (!verified) {
+        zeroVisibilityUnverifiedRoles.add(role);
+        findings.push(inspectionFinding({
+          targetRole: role, resource: "role database object visibility",
+          category: "zero_visible_objects_unverified", severity: "critical",
+          expected: { privileged_full_object_visibility: true },
+          actual: { zero_objects_visible: true, physical_absence_proven: false },
+          authorityRef: null, repairability: "unknown_fail_closed", mutationRequired: false,
+        }));
+        continue;
+      }
       emptyRoles.add(role);
       const finding = inspectionFinding({
         targetRole: role,
@@ -500,7 +526,7 @@ function findingsFromInspection(inspection = {}) {
   for (const [check, role, resource, category, severity, candidate, authority] of checkMap) {
     // Unknown/null readiness is NOT a failed readiness probe. Neither a
     // verified partial schema nor an empty role may be treated as a grant gap.
-    if (checks[check] !== false || emptyRoles.has(role) || partialMissingRoles.has(role)) continue;
+    if (checks[check] !== false || emptyRoles.has(role) || zeroVisibilityUnverifiedRoles.has(role) || partialMissingRoles.has(role)) continue;
     // Do not infer a grant/migration deficiency from a role whose required
     // schema inventory is unverified. Only a full independent inspection with
     // explicit required-table presence may authorize a deterministic candidate.
