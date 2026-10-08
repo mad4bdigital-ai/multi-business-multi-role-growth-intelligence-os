@@ -50,21 +50,28 @@ try {
     adminCliSource.includes("public_storage_allowed: false") &&
     adminCliSource.includes("blocked_secret_bearing_artifact"),
     "secret-bearing installer routes must not create public Drive permissions");
-  assert("local connector JSON metadata exits before credential materialization",
-    adminCliSource.indexOf('if (format !== "bat")') !== -1 &&
-    adminCliSource.includes('includeCredentials: format === "bat"') &&
-    adminCliSource.includes("credential_materialized: false"),
-    "default JSON mode must return secure handoff metadata before reading connector credentials");
-  assert("local connector self-repair does not generate installer content",
-    installerGenerationCallCount === 1 &&
+  assert("legacy Admin BAT direct credential delivery is permanently disabled",
+    adminCliSource.includes('if (format === "bat")') &&
+    adminCliSource.includes("legacy_admin_installer_disabled") &&
+    adminCliSource.includes("status(410)") &&
+    !adminCliSource.includes("const batContent = generateConnectorInstallerBat("),
+    "the Admin legacy BAT route must never manufacture or send raw device credentials");
+  assert("Admin JSON installer metadata never materializes credentials",
+    adminCliSource.includes('includeCredentials: false, intent: "diagnosis"') &&
+    adminCliSource.includes("credential_materialized: false") &&
+    adminCliSource.includes("signed_installer:") &&
+    !adminCliSource.includes("const { cf_token: tunnelToken, connector_secret: backendKey }"),
+    "Admin metadata must use read-only canonical scoped lookup");
+  assert("self-repair recommends only a separate signed, scoped installer capability",
+    installerGenerationCallCount === 0 &&
     adminCliSource.includes("installer_generated: false") &&
-    adminCliSource.includes('artifact_delivery: "authenticated_direct_download_only"'),
-    "only the authenticated format=bat route may generate a secret-bearing installer");
-  assert("local connector secure download requires admin authentication",
-    adminCliSource.includes("requires_backend_api_key: true") &&
-    adminCliSource.includes("requires_admin_principal: true") &&
-    adminCliSource.includes('format: "bat"'),
-    "secure download handoffs must retain backend-key and admin-principal requirements");
+    adminCliSource.includes('path: "/local-connector/install/download-link"') &&
+    adminCliSource.includes("requires_signed_expiring_capability: true"),
+    "recoveries must never offer the old raw BAT download");
+  assert("installer credential handoff requires independent signed principal",
+    adminCliSource.includes("requires_authenticated_principal: true") &&
+    adminCliSource.includes('format: "ps1"'),
+    "the new handoff must go through the signed and device-scoped installer workflow");
   assert("local connector missing tunnel token returns continuation handoff",
     adminCliSource.includes("buildLocalConnectorTunnelProvisioningContinuationEvidence") &&
     adminCliSource.includes("connector_tunnel_provisioning_required") &&
