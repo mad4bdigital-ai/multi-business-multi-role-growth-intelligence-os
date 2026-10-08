@@ -8,8 +8,8 @@ MAD4B App Control in `multi-business-multi-role-growth-intelligence-os`, not Rem
 ## Code contract
 1. `GET /admin/cli/local-connector/devices` is read-only and scoped by signed identity or explicit authorized user/tenant. It exposes lifecycle/heartbeat metadata but no credential values.
 2. Install Bundle and Self Repair use a canonical device record from `local_connector_user_configs`, not a hostname default, fuzzy `LIKE` search or a remembered tunnel.
-3. Without a requested `device_id`, the resolver selects only if **exactly one** fresh active device exists for the exact user/tenant. Zero, multiple, unknown, revoked, archived, disabled and stale devices fail closed.
-4. Historical aliases from `local_connector_device_aliases` cannot silently redirect privileged operations. A canonical ID must be explicitly selected.
+3. For ordinary execution an omitted `device_id` may resolve a unique fresh active device. For **diagnosis or installer** the canonical device must be explicit; a Stale heartbeat permits read-only diagnosis but never device commands. Revoked, archived, disabled, foreign and ambiguous devices always fail closed.
+4. Historical aliases, including globally scoped aliases, cannot silently redirect privileged operations. A canonical ID must be explicitly selected.
 5. Secrets are fetched only after a second read using exact `config_id + user_id + tenant_id + device_id` and lifecycle checks. `CLOUDFLARE_TUNNEL_TOKEN` and `BACKEND_API_KEY` are not substitutes for device-owned credentials. Neither status nor self-repair may refill DB tokens opportunistically.
 6. Denials return a code and safe message; database/SQL failures are not exposed as raw errors.
 
@@ -17,7 +17,7 @@ MAD4B App Control in `multi-business-multi-role-growth-intelligence-os`, not Rem
 - Establish latest deployed Staging commit and exact schema readiness. Required fields: `lifecycle_state`, `revoked_at`, `archived_at`, `last_health_at`, plus `local_connector_device_aliases`.
 - Inspect the real tenant/user device inventory, verify its canonical ID with a fresh authenticated **device-owned** attestation and check that no duplicate active config or stale alias remains effective.
 - Verify scoped inventory returns zero secrets. Evaluate one-active, multi-active, stale, archived, revoked, mismatched tenant/user, alias, DB denial and schema-missing cases.
-- Test installer JSON mode and protected BAT mode separately. No secret-bearing public link, no plain credentials in logs, and no installer for an unauthenticated or stale target.
+- Test installer JSON diagnosis and protected BAT separately. A stale device may receive an explicitly confirmed recovery download for the SAME canonical config only; never treat stale as trusted execution or recovered. Require exact `confirm_device_id` and `expected_config_id`. Fresh authorization of the canonical signed Installer flow must also be verified; typed confirmation alone is NOT sufficient proof of recent reauthentication.
 - Test healthy connector readback, authorization-degraded response, Cloudflare 1033/530 bounded retries and missing scoped tunnel token continuation without platform-wide token fallback.
 - Run the forward catalog migration through governed planning, independently authorized apply, and same-cycle readback. **Do not** re-run older seed migrations 032/036/054.
 - Rebuild/check canonical OpenAPI and generated variants, exact commit artifact/CI parity, then Staging browser acceptance.
@@ -37,3 +37,46 @@ MAD4B App Control in `multi-business-multi-role-growth-intelligence-os`, not Rem
 
 ## Change boundaries
 This PR changes GitHub source and forward migration text only. It does **not** execute a migration, enroll/disconnect any physical device, rotate credentials, deploy Staging, or mutate Production.
+
+
+## Deep Self-Recovery audit — 2026-10-09
+| Failure boundary | Guard in PR #8461 | Operational verification |
+|---|---|---|
+| Historical hostname becomes execution target | Explicit canonical selection and no alias fallback | Review live alias registry across scopes |
+| Stale heartbeat blocks diagnostics | Diagnosis intent accepts explicitly selected Stale devices | Staging dry-run with stopped connector |
+| Device revoked but still has signed installer token | Lifecycle check at link, BAT, PS1 and redeem | Revoke between issue and redeem |
+| Duplicate canonical configurations | Refuse target/provisioning when duplicates exist | Staging duplicate fixture |
+| Backend key impersonates device heartbeat | Device credential required; platform key rejected | Verify old clients use owned device token |
+| Failure/started event promotes heartbeat or healthy route | Stamp freshness only on successful `health_ok` | Check failure and partial restart cases |
+| Malicious or wrong-device tunnel URL | Trusted HTTPS route bound to config or Cloudflare tunnel ID | Hostname and redirect denial |
+| Redirect escapes trusted host | Public and authenticated health fetch use `redirect: manual` | Test malicious 302/307 |
+| Tunnel outage misdiagnosed as local service failure | Return infrastructure diagnostics, no blind installer | Simulate Cloudflare 530 and host 502 |
+| Response declared recovered without identity | Require fresh heartbeat and authenticated matching device/config | Authenticated runtime readback |
+| Reprovision resurrects archived/revoked device | Hard block before Cloudflare write | Re-enrollment with NEW identity |
+
+### Self-Recovery state machine
+```text
+DISCOVER -> CANONICAL_TARGET -> READ_ONLY_DIAGNOSE
+                                    |
+             reachable + authenticated + fresh heartbeat + matching config/device
+                                    -> VERIFIED_RECOVERED
+             tunnel / host uncertain -> INFRASTRUCTURE_DIAGNOSTICS
+             credentials wrong       -> CREDENTIAL_RECONCILIATION
+             route missing           -> GOVERNED_ROUTE_PROVISIONING
+             service unavailable     -> REPAIR_PREVIEW -> FRESH_AUTH
+                                             -> EXPLICIT_TARGET_CONFIRM
+                                             -> SIGNED_INSTALLER
+                                             -> SAME_CYCLE_READBACK
+                                             -> VERIFIED_RECOVERED / FAILED_VERIFICATION
+             Windows reinstall       -> GENERATION_AWARE_RELINK (not auto)
+             replaced/revoked        -> NEW_PAIRING (no inherited trust)
+```
+
+### Open blocking evidence
+- **Device generation and token replay:** The legacy installer capability claim currently relies on `config_id/user_id/tenant_id/device_id/jti/expiry`; end-to-end generation fencing after Windows reinstall or hardware replacement must be independently certified before Production rollout. One-time `jti` mitigates replay, but does not itself attest a new physical device generation.
+- **Fresh auth on Admin legacy BAT route:** Typed target/config confirmation is not the same as independent fresh user step-up. Prefer the existing Local Manager signed installer path with fresh authorization; do not advertise legacy Admin BAT as fully certified autonomous repair.
+- **Durable attempt budget:** An in-memory health retry policy does not prove persisted recovery attempt limits, idempotency and cooldown across process restarts.
+- **Recovery completion:** Cloudflare API status, a 200 health response, installer generation or token issuance are not sufficient. Authenticated device/config identity plus fresh heartbeat and route generation readback are required.
+- **Live deployment:** No verified Staging/Production schema, tunnel ownership, adapter version, exact HEAD or end-to-end recovery execution is included in this PR's local tests.
+- **Schema artifacts:** Hand-edited Admin Core OpenAPI projections need generator byte-for-byte parity and OpenAPI validation on the exact HEAD.
+- **Backward compatibility:** Rejecting platform backend keys for device heartbeat may require upgrading old connector agents to scoped device credentials before deploying.
