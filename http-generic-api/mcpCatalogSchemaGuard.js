@@ -231,7 +231,6 @@ export async function readMcpCatalogSchemaReadiness({ pool = null } = {}) {
         code: "DB_CONFIG_MISSING",
         migration: MCP_CATALOG_LEVEL_MIGRATION,
         migration_apply_required: false,
-        code: "DB_CONFIG_MISSING",
         secrets_included: false,
       })),
       migration_apply_required: false,
@@ -406,8 +405,7 @@ export function buildMcpCatalogSchemaNotReadyResponse(error = {}) {
       ...MCP_CATALOG_RUNTIME_SCHEMA_CONTRACT,
       table: MCP_CATALOG_TABLES.includes(error?.details?.table) ? error.details.table : null,
       column: MCP_CATALOG_LEVEL_COLUMN,
-      migration_apply_required: String(error?.code || "") === "mcp_catalog_schema_migration_required"
-        && error?.details?.migration_apply_required === true,
+      migration_apply_required: String(error?.code || "") === "mcp_catalog_schema_migration_required",
       original_error_code: boundedSchemaErrorCode(error, "mcp_catalog_schema_metadata_unavailable"),
       secrets_included: false,
     },
