@@ -37,7 +37,7 @@ Run only after the implementation is reviewed, merged and present on the local c
 - `autonomous-supervisor-state.json`: cooldown and recovery attempts.
 - `autonomous-supervisor-heartbeat.json`: periodic heartbeat with sanitized fields.
 - `test/Test-AutonomousSupervisor.ps1`: Windows PowerShell 5.1 parse checks, policy invariants and synthetic task/continuity/drift/lease tests.
-- `.github/workflows/staging-autonomous-supervisor.yml`: isolated Windows pull-request smoke workflow.
+- `.github/workflows/ci.yml` → existing `Staging Semantic Portability` Windows job: the supervisor fixtures run on the already-governed CI surface, without adding a new workflow.
 
 All output files are untracked in the existing staging log directory.
 
@@ -46,3 +46,9 @@ All output files are untracked in the existing staging log directory.
 This phase does not install a Windows service or guarantee Docker Desktop can start before user logon; achieving service-independent operation requires a separate OS/runtime design. It does not perform automatic schema grants, migrations, arbitrary Docker rebuilds, fail-open certification, or self-authorize provider mutations. `runtime_artifact_content_unverified` must be resolved by the existing exact immutable-artifact verification, not suppressed.
 
 Do not merge on syntax checks alone: require a Windows task-readback test on the intended machine, an on-host continuity test, and separate confirmation that the current Staging runtime remains healthy.
+
+## Hardened acceptance details
+
+The latest witnessed Auto Deploy poll must carry a valid exact SHA and match the desired/deployed/certified SHA. Two cycles must each include one ordered `poll` followed by exactly one `sleep` in the same run; duplicate, missing, or misordered sleeps never satisfy acceptance. A recovery history with an unexpected contract, invalid time or future time blocks attempted recovery instead of resetting the retry allowance. Both the supervisor and the additive installer require the trusted `$PSHOME\powershell.exe` executable; the installer refuses custom task identities and fails closed if an existing supervisor task has mismatched action, working directory, principal, run level or logon type.
+
+Repository Work Map delegated autofix and single-owner exact-head review remain independently governed; this implementation does not synthesize an authorization marker, owner attestation, or post-merge operational acceptance.
