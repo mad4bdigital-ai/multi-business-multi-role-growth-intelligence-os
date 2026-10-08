@@ -2891,7 +2891,9 @@ export function buildAdminCliRoutes(deps) {
       });
       if (compositeHealth.status === "active") {
         writeAuditLogAsync({
-          action: "admin_cli.local_connector_self_repair.not_required",
+          action: recoveryReadback.recovered
+            ? "admin_cli.local_connector_self_repair.verified_no_repair"
+            : "admin_cli.local_connector_self_repair.verification_pending",
           resource_type: "local_connector_health",
           resource_id: resolvedDeviceId,
           payload: {
