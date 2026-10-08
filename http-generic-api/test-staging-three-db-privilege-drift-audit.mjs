@@ -109,7 +109,7 @@ test("read-only orchestrator queries all three DBs and never changes source priv
     },
   })]));
   const result = await inspectStagingPrivilegeDrift({
-    env: { APP_ENV: "staging", DB_NAME: NAMES.runtime, GOVERNANCE_DB_NAME: NAMES.governance, RUNTIME_PERSISTENCE_DB_NAME: NAMES.runtime_persistence },
+    env: { NODE_ENV: "staging", DEPLOYMENT_ENVIRONMENT: "staging_local_windows_docker", DB_NAME: NAMES.runtime, GOVERNANCE_DB_NAME: NAMES.governance, RUNTIME_PERSISTENCE_DB_NAME: NAMES.runtime_persistence },
     pools,
   });
   assert.equal(result.ready, true, JSON.stringify(result.errors));
@@ -125,7 +125,7 @@ test("read-only orchestrator queries all three DBs and never changes source priv
 test("Production or unknown environment is blocked before any DB connection", async () => {
   let calls = 0;
   const output = await inspectStagingPrivilegeDrift({
-    env: { APP_ENV: "production" },
+    env: { NODE_ENV: "production", DEPLOYMENT_ENVIRONMENT: "production_hostinger" },
     pools: { runtime: () => { calls += 1; throw new Error("should not connect"); } },
   });
   assert.equal(output.ready, false);
@@ -135,7 +135,7 @@ test("Production or unknown environment is blocked before any DB connection", as
 
 test("unavailable DB makes the entire audit fail closed", async () => {
   const r = await inspectStagingPrivilegeDrift({
-    env: { APP_ENV: "staging", DB_NAME: NAMES.runtime, GOVERNANCE_DB_NAME: NAMES.governance, RUNTIME_PERSISTENCE_DB_NAME: NAMES.runtime_persistence },
+    env: { NODE_ENV: "staging", DEPLOYMENT_ENVIRONMENT: "staging_local_windows_docker", DB_NAME: NAMES.runtime, GOVERNANCE_DB_NAME: NAMES.governance, RUNTIME_PERSISTENCE_DB_NAME: NAMES.runtime_persistence },
     pools: { runtime: () => { throw Object.assign(new Error("network failure"), { code: "ECONNREFUSED" }); },
       governance: () => { throw Object.assign(new Error("network failure"), { code: "ECONNREFUSED" }); },
       runtime_persistence: () => { throw Object.assign(new Error("network failure"), { code: "ECONNREFUSED" }); } },
