@@ -17,7 +17,7 @@ import {
   runStagingActivationGatewayTransactionCertification,
   _testingStagingGatewayTransaction,
 } from "./stagingActivationGatewayApplyAdapter.js";
-import { openStagingGatewayArtifact, sealStagingGatewayArtifact } from "./stagingGatewayExecutionPlanStore.js";
+import { openStagingGatewayArtifact, sealStagingGatewayArtifact, saveStagingGatewayExecutionPlan } from "./stagingGatewayExecutionPlanStore.js";
 import {
   buildStagingActivationTrustInstallPlan,
   installStagingActivationTrust,
@@ -440,6 +440,9 @@ assert.equal(rolloutPlan.provider_target_caller_selectable, false);
 assert.equal(rolloutPlan.workflow_dispatch, false);
 assert.equal(rolloutPlan.production_mutation, false);
 assert.equal(rolloutPlan.secrets_included, false);
+assert.equal(new Date(rolloutPlan.expires_at).getUTCMilliseconds(), 0,
+  "plan expiry must fit MariaDB TIMESTAMP(0) without losing exact-digest precision");
+assert.match(hardeningMigrationSource, /expires_at TIMESTAMP NOT NULL/u);
 assert.equal(dryRunQueries.some((entry) => entry.sql.includes("platform_resource_authority_bindings")), true);
 const servicePlan = await buildActivationGatewayRolloutPlan({ account_id: accountId, expected_source_commit: sourceSha,
   expected_policy_hash: staging.expected_policy_hash, environment_convergence_plan_sha256: convergencePlanSha }, {
@@ -461,6 +464,34 @@ const encrypted = sealStagingGatewayArtifact({ bundle: { secret: "private-test" 
 assert.equal(encrypted.includes("private-test"), false);
 assert.equal(openStagingGatewayArtifact(encrypted, { env: storageEnv, planId: rolloutPlan.plan_id }).bundle.secret, "private-test");
 assert.throws(() => openStagingGatewayArtifact(encrypted, { env: storageEnv, planId: crypto.randomUUID() }), /failed authentication/u);
+
+let expiryPrecisionRollback = false;
+let expiryPrecisionReleased = false;
+await assert.rejects(
+  saveStagingGatewayExecutionPlan({
+    async getConnection() {
+      return {
+        async beginTransaction() {},
+        async query() { return [{ affectedRows: 1 }]; },
+        async commit() { throw new Error("Invalid precision must not commit"); },
+        async rollback() { expiryPrecisionRollback = true; },
+        release() { expiryPrecisionReleased = true; },
+      };
+    },
+  }, {
+    plan_id: crypto.randomUUID(),
+    bundle_ref: "staging-gateway:subsecond-regression",
+    _planBody: { purpose: "transaction_certification", expires_at: "2026-10-08T01:00:38.707Z" },
+    resource_binding: { binding_id: bindingId },
+    workspace: { workspace_id: platformWorkspaceId },
+    expires_at: "2026-10-08T01:00:38.707Z",
+  }, { files: [] }, { env: storageEnv }),
+  (error) => error?.code === "staging_gateway_plan_expiry_precision_invalid",
+  "MariaDB TIMESTAMP(0) cannot round-trip canonical subsecond plan expiry"
+);
+assert.equal(expiryPrecisionRollback, true);
+assert.equal(expiryPrecisionReleased, true);
+
 assert.notEqual((await buildActivationGatewayRolloutPlan({ account_id: accountId, expected_source_commit: sourceSha,
   expected_policy_hash: staging.expected_policy_hash, environment_convergence_plan_sha256: convergencePlanSha },
 { runtimePool: previewRuntimePool, governancePool: previewGovernancePool, auth, env: { STAGING_ACTIVATION_GATEWAY_APPLY_ENABLED: "true", DEPLOYMENT_MANIFEST_JSON: JSON.stringify({ repository: "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os", branch: "main", commit_sha: sourceSha }) },
@@ -534,13 +565,15 @@ const governancePool = {
           const body = JSON.parse(params[2]);
           assert.equal(params[13] instanceof Date, true, "execution-plan expires_at must bind as a Date for MariaDB TIMESTAMP compatibility");
           assert.equal(Number.isFinite(params[13].getTime()), true, "execution-plan expiry Date must be valid");
-          assert.equal(params[13].toISOString(), body.expires_at, "SQL expiry binding must preserve the exact plan-body instant");
+          const persistedExpiry = new Date(Math.trunc(params[13].getTime() / 1000) * 1000).toISOString();
+          assert.equal(persistedExpiry, body.expires_at,
+            "MariaDB TIMESTAMP(0) readback must preserve the exact plan-body expiry");
           savedPlans.set(params[0], {
             plan_id: params[0], plan_sha256: params[1], plan_body_json: params[2],
             environment_convergence_plan_sha256: params[3], expected_source_commit: params[4],
             expected_policy_hash: params[5], resource_binding_id: params[6], workspace_id: params[7],
             bundle_sha256: params[8], secret_set_sha256: params[9], trust_key_id: params[10],
-            trust_public_key_sha256: params[11], bundle_ref: params[12], expires_at: params[13].toISOString(),
+            trust_public_key_sha256: params[11], bundle_ref: params[12], expires_at: persistedExpiry,
             status: "ready",
           }); return [{ affectedRows: 1 }];
         }
@@ -759,6 +792,7 @@ const certificationPlanPreview = await buildStagingActivationGatewayCertificatio
 assert.equal(certificationPlanPreview.plan_purpose, "transaction_certification");
 assert.equal(certificationPlanPreview.apply_ready, false);
 assert.equal(certificationPlanPreview.certification_ready, true);
+assert.equal(new Date(certificationPlanPreview.expires_at).getUTCMilliseconds(), 0);
 assert.equal(certificationPlanPreview.checks.find((check) => check.key === "dispatch_certification_requires_certification")?.ok, true);
 assert.match(
   certificationPlanPreview.required_confirmation,
@@ -773,6 +807,7 @@ const certificationPrepared = await runStagingActivationGatewayTransactionCertif
 }, executionDeps);
 assert.equal(certificationPrepared.classification, "staging_activation_gateway_certification_ready");
 assert.equal(certificationPrepared.governance_state_mutation, true);
+assert.equal(new Date(certificationPrepared.expires_at).getUTCMilliseconds(), 0);
 assert.equal(savedPlans.get(certificationPrepared.plan_id).status, "ready");
 assert.equal(JSON.parse(savedPlans.get(certificationPrepared.plan_id).plan_body_json).purpose, "transaction_certification");
 await assert.rejects(
