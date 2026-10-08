@@ -987,7 +987,7 @@ export async function runStagingActivationGatewayApply(input = {}, deps = {}) {
   let scriptExistedBefore = null;
   let previousHealth = null;
   let previousReady = null;
-  let previousBaselineMode = "healthy_exact";
+  let previousBaselineMode = null; // Derived only from proved pre-write public baseline.
   let envelopeClaimed = false;
   let rollbackResult = null;
   try {
