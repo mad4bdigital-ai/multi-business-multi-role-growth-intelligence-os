@@ -10,9 +10,6 @@ const credentials=()=>({
   device_id:"device-1", connector_secret:"example-random-connector-secret-1",
   cf_token:"example-random-cloudflare-token-1",
 });
-const prev=process.env.BACKEND_API_KEY;
-process.env.BACKEND_API_KEY="test-only-installer-epoch-signing-key";
-test.after(()=>{if(prev===undefined)delete process.env.BACKEND_API_KEY;else process.env.BACKEND_API_KEY=prev;});
 function pool(rows=[credentials()]) {
   const calls=[];return{calls,async query(sql,params){
     calls.push({sql,params});
@@ -27,6 +24,12 @@ test("credential epoch is stable and opaque, with no raw secret in token claim",
   assert(!hash.includes(cfg.connector_secret));
   assert.equal(deriveInstallerCredentialEpoch(cfg),hash);
   assert(compareInstallerCredentialEpoch(hash,hash));
+  const otherDevice={...cfg,device_id:"other-device"};
+  assert.notEqual(deriveInstallerCredentialEpoch(otherDevice),hash,
+    "Canonical device identity is part of the epoch fence");
+  const rotatedSecret={...cfg,connector_secret:"another-device-secret"};
+  assert.notEqual(deriveInstallerCredentialEpoch(rotatedSecret),hash,
+    "An enrolled connector secret rotation invalidates existing epochs");
 });
 test("token issued before connector or tunnel token rotation fails", async()=>{
   const cfg=credentials(),old=deriveInstallerCredentialEpoch(cfg);
