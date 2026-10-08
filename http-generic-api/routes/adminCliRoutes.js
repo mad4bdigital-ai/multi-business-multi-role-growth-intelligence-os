@@ -2749,7 +2749,7 @@ export function buildAdminCliRoutes(deps) {
           error: { code: "recovery_target_confirmation_required",
             message: "Confirm the canonical device and config ID before generating a credential-bearing installer." }
         });
-        validateAdminRecoveryEndpoint(target.credentials.tunnel_url, target.credentials.cf_tunnel_id);
+        validateAdminRecoveryEndpoint(target.credentials.tunnel_url, target.credentials.cf_tunnel_id, target.row.config_id);
       }
 
       if (format !== "bat") {
@@ -2835,7 +2835,7 @@ export function buildAdminCliRoutes(deps) {
       const cfTunnelName = target.credentials.cf_tunnel_name;
       const tunnelUrl = target.credentials.tunnel_url;
       const configSource = "scoped_db";
-      const routeUrl = tunnelUrl ? validateAdminRecoveryEndpoint(tunnelUrl, cfTunnelId) : null;
+      const routeUrl = tunnelUrl ? validateAdminRecoveryEndpoint(tunnelUrl, cfTunnelId, target.row.config_id) : null;
       const resolvedUserId = userId;
       const resolvedDeviceId = deviceId;
       const deviceIdentityResolution = buildLocalConnectorDeviceIdentityResolution({
@@ -2880,6 +2880,8 @@ export function buildAdminCliRoutes(deps) {
         authenticatedStatus: authenticatedCommandHealth.status,
         observedDeviceId: authenticatedCommandHealth.device_id || null,
         expectedDeviceId: deviceId,
+        observedConfigId: authenticatedCommandHealth.config_id || null,
+        expectedConfigId: target.row.config_id,
       });
       const compositeHealth = classifyLocalConnectorCompositeHealth({
         tunnelStatus,
