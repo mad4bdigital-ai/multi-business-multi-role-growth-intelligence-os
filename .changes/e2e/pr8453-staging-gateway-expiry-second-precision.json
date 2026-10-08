@@ -13,7 +13,9 @@
       ".changes/e2e/pr8453-staging-gateway-expiry-second-precision.json",
       "http-generic-api/stagingActivationGatewayApplyAdapter.js",
       "http-generic-api/stagingGatewayExecutionPlanStore.js",
-      "http-generic-api/test-staging-smart-gateway-convergence-contract.mjs"
+      "http-generic-api/test-staging-smart-gateway-convergence-contract.mjs",
+      ".github/derived-state-governance.json",
+      "http-generic-api/config/repository-governance-constitution.json"
     ]
   },
   "environment_impact": {
@@ -67,7 +69,9 @@
             "http-generic-api/stagingActivationGatewayApplyAdapter.js",
             "http-generic-api/stagingGatewayExecutionPlanStore.js",
             "http-generic-api/test-staging-smart-gateway-convergence-contract.mjs",
-            "http-generic-api/migrations/20260912_staging_activation_gateway_transaction_hardening.sql"
+            "http-generic-api/migrations/20260912_staging_activation_gateway_transaction_hardening.sql",
+            ".github/derived-state-governance.json",
+            "http-generic-api/config/repository-governance-constitution.json"
           ]
         }
       ]
