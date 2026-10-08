@@ -24,6 +24,7 @@ const upstreamCommands = [
   "node test-mcp-catalog-schema-guard.mjs",
   "node test-mcp-catalog-schema-preflight.mjs",
   "node test-hostinger-recovery-capability-discovery.mjs",
+  "node test-hostinger-recovery-seed-replay.mjs",
   "node test-hostinger-recovery-provider-safety.mjs",
   "node test-admin-local-connector-target.mjs",
   "node test-admin-self-recovery-contract.mjs",
