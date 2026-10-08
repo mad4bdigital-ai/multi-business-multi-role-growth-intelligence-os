@@ -38,7 +38,7 @@ test("all three roles pass their exact required privileges with separate princip
   ]);
 });
 
-test("runtime audit_log may INSERT and nothing else", () => {
+test("runtime audit_log permits SELECT and INSERT but rejects UPDATE or DELETE", () => {
   const original = evidence("runtime");
   const withoutAudit = clone(original);
   withoutAudit.tablePrivilegeRows = withoutAudit.tablePrivilegeRows.filter((x) =>
@@ -48,12 +48,12 @@ test("runtime audit_log may INSERT and nothing else", () => {
   assert.ok(missing.missing_required_grants.includes("audit_log:INSERT"));
   const withExtra = clone(original);
   withExtra.tablePrivilegeRows.push({
-    TABLE_SCHEMA: NAMES.runtime, TABLE_NAME: "audit_log", PRIVILEGE_TYPE: "SELECT", IS_GRANTABLE: "NO",
+    TABLE_SCHEMA: NAMES.runtime, TABLE_NAME: "audit_log", PRIVILEGE_TYPE: "DELETE", IS_GRANTABLE: "NO",
   });
   const extra = compareRolePrivilegeEvidence(withExtra);
   assert.equal(extra.ready, false);
-  assert.ok(extra.excessive_table_grants.includes("audit_log:SELECT"));
-  assert.deepEqual(STAGING_ROLE_GRANT_POLICIES.runtime.required_operations_by_table.audit_log, ["INSERT"]);
+  assert.ok(extra.excessive_table_grants.includes("audit_log:DELETE"));
+  assert.deepEqual(STAGING_ROLE_GRANT_POLICIES.runtime.required_operations_by_table.audit_log, ["SELECT", "INSERT"]);
 });
 
 test("table not visible cannot be incorrectly called physically absent", () => {
@@ -95,10 +95,12 @@ test("eight hidden but physically extant runtime tables remain unassessed, not c
   assert.equal(result.ready, false);
   assert.deepEqual(result.required_tables_missing_or_invisible, [...hidden].sort());
   assert.deepEqual(result.missing_required_grants, [...missingOps].sort());
-  assert.equal(result.unassessed_required_grant_count, 14);
-  assert.equal(result.unassessed_required_grants_on_hidden_surfaces.length, 14);
+  assert.equal(result.unassessed_required_grant_count, 15);
+  assert.equal(result.unassessed_required_grants_on_hidden_surfaces.length, 15);
+  assert.ok(result.unassessed_required_grants_on_hidden_surfaces.includes("audit_log:SELECT"));
+  assert.ok(result.unassessed_required_grants_on_hidden_surfaces.includes("audit_log:INSERT"));
   assert.equal(result.excessive_table_grants.length, 0);
-  assert.equal(result.missing_required_grants.length + result.unassessed_required_grant_count, 20);
+  assert.equal(result.missing_required_grants.length + result.unassessed_required_grant_count, 21);
 });
 
 test("detect global/schema/column grants, GRANT OPTION, roles and cross-database leakage", () => {
