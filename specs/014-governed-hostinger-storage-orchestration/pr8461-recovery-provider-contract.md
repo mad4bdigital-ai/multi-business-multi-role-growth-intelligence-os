@@ -83,3 +83,17 @@ H6: host-side immutable partial receipt and independently attested same-cycle re
 H7: exact Production candidate, security approval and tested rollback with no destructive replay.
 
 H0 source alignment partially complete; H1–H7 require native and live acceptance. Do not claim Production readiness before these gates.
+
+
+## Hostinger documented API discovery and destructive semantics (2026-10-09)
+
+Public documentation: https://developers.hostinger.com and the official Hostinger SDK database endpoint reference https://github.com/hostinger/api-php-sdk/blob/main/docs/Api/HostingDatabasesApi.md .
+
+- Hostinger documents GET and POST /api/hosting/v1/accounts/{username}/databases. POST creates a database **and** a dedicated user with a caller-supplied password. Account-level API entitlement and plan compatibility are **unverified** for this MAD4B connection.
+- Hostinger documents GET and PUT /api/hosting/v1/accounts/{username}/websites/{domain}/nodejs/builds/settings/env.
+- The GET response **masks the values**. The PUT **replaces the entire environment variable set** and restarts the Node.js process. Missing keys are removed; sending the masked values back would corrupt the app configuration.
+- Consequently, the API is NOT a safe atomic 'add RECOVERY_CONTROL_DB_*' patch. Even complete vault values are insufficient for automatic write until exact website binding, complete nonmasked authoritative snapshot, exclusive mutation fencing, revision/change detection, separate approval and independent readback are proven. The source safety predicate intentionally returns execution_allowed=false.
+- Hostinger's website database setup endpoint can create a DB and configure the usual DB_* keys automatically. It is **not** equivalent to bootstrapping an independent Recovery Control Store under RECOVERY_CONTROL_DB_* keys and has a consequential restart/build impact.
+- Read-only provider documentation is **not** proof of an account connection, token scope, current website plan, DB CREATE permission, capability lease or Production authorization.
+
+This is why the seven new allowlist command names stay PLANNED and why the existing target allowlist is *not* silently widened by the registry migration. A provider-specific adapter must prove capability for the exact account before an individually approved target-level revision can be considered.
