@@ -247,6 +247,7 @@
           "docs/change-documentation-governance.md",
           "docs/development-environment-governance.md",
           "docs/e2e-phase-governance.md",
+          "docs/governance-db-provider-capability.md",
           "docs/governance/**",
           "docs/hostinger-node-deploy.md",
           "docs/openapi-split-governance.md",
