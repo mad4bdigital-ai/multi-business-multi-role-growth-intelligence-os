@@ -2774,6 +2774,28 @@
       "contains_secret_value": false,
       "grants_runtime_mutation": false,
       "grants_production_activation": false
+    },
+    {
+      "fingerprint": "local-connector/server.mjs|CONNECTOR_CONFIG_ID|environment_reference|connector.config.id",
+      "owner": "local-connector",
+      "reason": "Non-secret, exact canonical connector.config.id enrolled identity used to reject cross-device connector policy and heartbeat calls. Metadata-only baseline; cannot grant connection, execution, token reuse or Production authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "runtime_setting",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "local-connector/server.mjs|CONNECTOR_DEVICE_ID|environment_reference|connector.device.id",
+      "owner": "local-connector",
+      "reason": "Non-secret, exact canonical connector.device.id enrolled identity used to reject cross-device connector policy and heartbeat calls. Metadata-only baseline; cannot grant connection, execution, token reuse or Production authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "runtime_setting",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
     }
   ],
   "safety": {
