@@ -192,99 +192,134 @@ UPDATE remote_runtime_targets t
   JOIN connected_systems cs ON cs.system_id=t.system_id
 SET t.command_allowlist_json =
   JSON_ARRAY_APPEND(
-    IF(JSON_VALID(t.command_allowlist_json), t.command_allowlist_json, JSON_ARRAY()),
+    t.command_allowlist_json,
     '$', 'hostinger_recovery_database_inventory')
 WHERE cs.system_key='hostinger_ssh_prod_platform'
   AND t.plugin_key='remote_ssh_runtime'
   AND t.target_kind='hosting_account'
   AND t.provider_family='hostinger' AND t.connector_family='hostinger_ssh'
+  AND JSON_VALID(t.command_allowlist_json) = 1
+  AND JSON_TYPE(t.command_allowlist_json) = 'ARRAY'
   AND NOT JSON_CONTAINS(
-    IF(JSON_VALID(t.command_allowlist_json), t.command_allowlist_json, JSON_ARRAY()),
+    t.command_allowlist_json,
     JSON_QUOTE('hostinger_recovery_database_inventory'), '$');
 
 UPDATE remote_runtime_targets t
   JOIN connected_systems cs ON cs.system_id=t.system_id
 SET t.command_allowlist_json =
   JSON_ARRAY_APPEND(
-    IF(JSON_VALID(t.command_allowlist_json), t.command_allowlist_json, JSON_ARRAY()),
+    t.command_allowlist_json,
     '$', 'hostinger_recovery_control_store_plan')
 WHERE cs.system_key='hostinger_ssh_prod_platform'
   AND t.plugin_key='remote_ssh_runtime'
   AND t.target_kind='hosting_account'
   AND t.provider_family='hostinger' AND t.connector_family='hostinger_ssh'
+  AND JSON_VALID(t.command_allowlist_json) = 1
+  AND JSON_TYPE(t.command_allowlist_json) = 'ARRAY'
   AND NOT JSON_CONTAINS(
-    IF(JSON_VALID(t.command_allowlist_json), t.command_allowlist_json, JSON_ARRAY()),
+    t.command_allowlist_json,
     JSON_QUOTE('hostinger_recovery_control_store_plan'), '$');
 
 UPDATE remote_runtime_targets t
   JOIN connected_systems cs ON cs.system_id=t.system_id
 SET t.command_allowlist_json =
   JSON_ARRAY_APPEND(
-    IF(JSON_VALID(t.command_allowlist_json), t.command_allowlist_json, JSON_ARRAY()),
+    t.command_allowlist_json,
     '$', 'hostinger_recovery_database_create')
 WHERE cs.system_key='hostinger_ssh_prod_platform'
   AND t.plugin_key='remote_ssh_runtime'
   AND t.target_kind='hosting_account'
   AND t.provider_family='hostinger' AND t.connector_family='hostinger_ssh'
+  AND JSON_VALID(t.command_allowlist_json) = 1
+  AND JSON_TYPE(t.command_allowlist_json) = 'ARRAY'
   AND NOT JSON_CONTAINS(
-    IF(JSON_VALID(t.command_allowlist_json), t.command_allowlist_json, JSON_ARRAY()),
+    t.command_allowlist_json,
     JSON_QUOTE('hostinger_recovery_database_create'), '$');
 
 UPDATE remote_runtime_targets t
   JOIN connected_systems cs ON cs.system_id=t.system_id
 SET t.command_allowlist_json =
   JSON_ARRAY_APPEND(
-    IF(JSON_VALID(t.command_allowlist_json), t.command_allowlist_json, JSON_ARRAY()),
+    t.command_allowlist_json,
     '$', 'hostinger_recovery_environment_binding_plan')
 WHERE cs.system_key='hostinger_ssh_prod_platform'
   AND t.plugin_key='remote_ssh_runtime'
   AND t.target_kind='hosting_account'
   AND t.provider_family='hostinger' AND t.connector_family='hostinger_ssh'
+  AND JSON_VALID(t.command_allowlist_json) = 1
+  AND JSON_TYPE(t.command_allowlist_json) = 'ARRAY'
   AND NOT JSON_CONTAINS(
-    IF(JSON_VALID(t.command_allowlist_json), t.command_allowlist_json, JSON_ARRAY()),
+    t.command_allowlist_json,
     JSON_QUOTE('hostinger_recovery_environment_binding_plan'), '$');
 
 UPDATE remote_runtime_targets t
   JOIN connected_systems cs ON cs.system_id=t.system_id
 SET t.command_allowlist_json =
   JSON_ARRAY_APPEND(
-    IF(JSON_VALID(t.command_allowlist_json), t.command_allowlist_json, JSON_ARRAY()),
+    t.command_allowlist_json,
     '$', 'hostinger_recovery_environment_binding_apply')
 WHERE cs.system_key='hostinger_ssh_prod_platform'
   AND t.plugin_key='remote_ssh_runtime'
   AND t.target_kind='hosting_account'
   AND t.provider_family='hostinger' AND t.connector_family='hostinger_ssh'
+  AND JSON_VALID(t.command_allowlist_json) = 1
+  AND JSON_TYPE(t.command_allowlist_json) = 'ARRAY'
   AND NOT JSON_CONTAINS(
-    IF(JSON_VALID(t.command_allowlist_json), t.command_allowlist_json, JSON_ARRAY()),
+    t.command_allowlist_json,
     JSON_QUOTE('hostinger_recovery_environment_binding_apply'), '$');
 
 UPDATE remote_runtime_targets t
   JOIN connected_systems cs ON cs.system_id=t.system_id
 SET t.command_allowlist_json =
   JSON_ARRAY_APPEND(
-    IF(JSON_VALID(t.command_allowlist_json), t.command_allowlist_json, JSON_ARRAY()),
+    t.command_allowlist_json,
     '$', 'hostinger_recovery_grants_plan')
 WHERE cs.system_key='hostinger_ssh_prod_platform'
   AND t.plugin_key='remote_ssh_runtime'
   AND t.target_kind='hosting_account'
   AND t.provider_family='hostinger' AND t.connector_family='hostinger_ssh'
+  AND JSON_VALID(t.command_allowlist_json) = 1
+  AND JSON_TYPE(t.command_allowlist_json) = 'ARRAY'
   AND NOT JSON_CONTAINS(
-    IF(JSON_VALID(t.command_allowlist_json), t.command_allowlist_json, JSON_ARRAY()),
+    t.command_allowlist_json,
     JSON_QUOTE('hostinger_recovery_grants_plan'), '$');
 
 UPDATE remote_runtime_targets t
   JOIN connected_systems cs ON cs.system_id=t.system_id
 SET t.command_allowlist_json =
   JSON_ARRAY_APPEND(
-    IF(JSON_VALID(t.command_allowlist_json), t.command_allowlist_json, JSON_ARRAY()),
+    t.command_allowlist_json,
     '$', 'hostinger_recovery_grants_apply')
 WHERE cs.system_key='hostinger_ssh_prod_platform'
   AND t.plugin_key='remote_ssh_runtime'
   AND t.target_kind='hosting_account'
   AND t.provider_family='hostinger' AND t.connector_family='hostinger_ssh'
+  AND JSON_VALID(t.command_allowlist_json) = 1
+  AND JSON_TYPE(t.command_allowlist_json) = 'ARRAY'
   AND NOT JSON_CONTAINS(
-    IF(JSON_VALID(t.command_allowlist_json), t.command_allowlist_json, JSON_ARRAY()),
+    t.command_allowlist_json,
     JSON_QUOTE('hostinger_recovery_grants_apply'), '$');
 
 -- Explicitly do not insert Admin write tools, dispatch certifications or executor gates.
 -- The discovery endpoint lists these as planned and reports execution_allowed=false.
+
+-- Read-only admin discovery endpoint registered DISABLED until Staging route acceptance.
+INSERT INTO admin_platform_endpoint_tools
+  (tool_key,display_name,description,http_method,http_path,path_param_keys,
+   input_schema,fixed_body,tags,is_enabled,sort_order)
+VALUES
+  ('remote_runtime_hostinger_recovery_allowlist_discover',
+   'Hostinger Recovery Allowlist Discovery',
+   'Inspect exact registered Hostinger recovery capabilities and blockers. No SSH, database creation, environment changes or grants are performed.',
+   'POST','/platform/remote-runtime/hosting/recovery-allowlist/discover',NULL,
+   JSON_OBJECT('type','object','required',JSON_ARRAY('target_id'),
+     'properties',JSON_OBJECT(
+       'target_id',JSON_OBJECT('type','string','minLength',2,'maxLength',128),
+       'environment',JSON_OBJECT('type','string','enum',JSON_ARRAY('production','development'),'default','production')),
+     'additionalProperties',false),
+   NULL,'admin,hostinger,recovery,read_only,discovery_only,disabled_until_acceptance,no_secrets',
+   0,246)
+ON DUPLICATE KEY UPDATE
+   description=VALUES(description),input_schema=VALUES(input_schema),
+   http_method=VALUES(http_method),http_path=VALUES(http_path),
+   tags=VALUES(tags),is_enabled=0,updated_at=CURRENT_TIMESTAMP;
