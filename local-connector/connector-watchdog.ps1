@@ -155,11 +155,28 @@ function Publish-Heartbeat(
   [string]$ErrorMessage = ""
 ) {
   try {
-    $secret = Get-DotEnvValue "CONNECTOR_SECRET"
     $heartbeatUrl = Get-DotEnvValue "CONNECTOR_HEARTBEAT_URL"
     $binding = Get-ConnectorEnvironmentBinding
+    $deviceId = Get-DotEnvValue "CONNECTOR_DEVICE_ID"
+    $configId = Get-DotEnvValue "CONNECTOR_CONFIG_ID"
+    if ($deviceId -notmatch '^[a-zA-Z0-9_-]{2,128}$' -or $configId -notmatch '^[a-zA-Z0-9-]{16,64}$') {
+      Write-WatchdogLog "heartbeat_skipped reason=canonical_identity_missing"
+      return $false
+    }
+    $secretFile = Get-DotEnvValue "CONNECTOR_SECRET_FILE"
+    $secret = ""
+    try {
+      $safeRoot = [IO.Path]::GetFullPath((Join-Path $Root "secrets")).TrimEnd([IO.Path]::DirectorySeparatorChar) + [IO.Path]::DirectorySeparatorChar
+      $safeFile = [IO.Path]::GetFullPath($secretFile)
+      if ($secretFile -and $safeFile.StartsWith($safeRoot, [StringComparison]::OrdinalIgnoreCase) -and
+          [IO.File]::Exists($safeFile)) {
+        $secret = [IO.File]::ReadAllText($safeFile).Trim()
+      }
+    } catch {
+      Write-WatchdogLog "heartbeat_secret_file_unavailable"
+    }
     if (-not $secret) {
-      Write-WatchdogLog "heartbeat_skipped reason=connector_secret_missing"
+      Write-WatchdogLog "heartbeat_skipped reason=connector_scoped_secret_file_missing"
       return $false
     }
     if (-not (Test-HeartbeatBinding $heartbeatUrl)) {
@@ -168,7 +185,8 @@ function Publish-Heartbeat(
     }
 
     $payload = [ordered]@{
-      device_id = [Environment]::MachineName
+      config_id = $configId
+      device_id = $deviceId
       event_type = $EventType
       status = $Status
       source = "watchdog"
@@ -196,7 +214,7 @@ function Publish-Heartbeat(
     $headers = @{ Authorization = "Bearer $secret" }
     $body = $payload | ConvertTo-Json -Depth 5 -Compress
     $response = Invoke-RestMethod -Uri $heartbeatUrl -Method Post -Headers $headers -ContentType "application/json" -Body $body -TimeoutSec 20
-    $eventId = [string]$response.heartbeat.event_id
+    $eventId = [string]$response.event.event_id
     Write-WatchdogLog "heartbeat_sent event_type=$EventType status=$Status environment=$($binding.environment) event_id=$eventId"
     return $true
   } catch {
