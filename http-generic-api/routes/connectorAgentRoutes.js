@@ -1024,6 +1024,9 @@ export function buildConnectorAgentRoutes() {
   });
 
   router.get("/connector-agent/installer.ps1", async (req, res) => {
+    res.setHeader("Cache-Control", "no-store, max-age=0");
+    res.setHeader("Referrer-Policy", "no-referrer");
+    res.setHeader("X-Content-Type-Options", "nosniff");
     try {
       const token = String(req.query.token || "");
       const payload = verifyInstallerDownloadToken(token, {
@@ -1080,6 +1083,8 @@ export function buildConnectorAgentRoutes() {
   });
 
   router.post("/connector-agent/installer/redeem", async (req, res) => {
+    res.setHeader("Referrer-Policy", "no-referrer");
+    res.setHeader("X-Content-Type-Options", "nosniff");
     res.setHeader("Cache-Control", "no-store, max-age=0");
     res.setHeader("Pragma", "no-cache");
     try {
