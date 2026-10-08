@@ -2868,7 +2868,7 @@ export function buildAdminCliRoutes(deps) {
             authenticated_command_status: authenticatedCommandHealth.status,
             retry_evidence: publicHealthProbe.retry_evidence || null,
             composite_status: compositeHealth.status,
-            repair_required: !recoveryReadback.recovered,
+            repair_required: !recoveryReadback.operational_verified,
             recovery_readback: recoveryReadback,
             config_source: configSource,
             alias_resolution_applied: false,
@@ -2894,15 +2894,17 @@ export function buildAdminCliRoutes(deps) {
             composite_health: compositeHealth,
             config_source: configSource,
             likely_cause: compositeHealth.likely_cause,
-            repair_required: !recoveryReadback.recovered,
+            repair_required: !recoveryReadback.operational_verified,
             recovery_readback: recoveryReadback,
             secrets_included: false,
           },
           repair: {
-            required: !recoveryReadback.recovered,
+            required: !recoveryReadback.operational_verified,
             verification_pending: !recoveryReadback.recovered,
-            action: !recoveryReadback.recovered
-              ? "Transport is reachable but current device identity and heartbeat are not both verified. Complete same-cycle verification before declaring recovery."
+            action: recoveryReadback.operational_verified && !recoveryReadback.recovered
+              ? "No service reinstall is required. Complete independent device-generation attestation to close recovery acceptance."
+              : !recoveryReadback.recovered
+              ? "Transport is reachable, but same-cycle identity or heartbeat remains unverified; diagnose before repair."
               : compositeHealth.status === "authorization_gated"
               ? "Connector transport is reachable. Validate the connector authorization binding before reinstalling services."
               : "No repair action is required; same-cycle public connector health passed.",
