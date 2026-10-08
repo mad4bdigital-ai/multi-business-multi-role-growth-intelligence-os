@@ -38,6 +38,18 @@ export function openStagingGatewayArtifact(sealed, { env = process.env, planId }
   }
 }
 
+function normalizeSqlTimestamp(value) {
+  const date = value instanceof Date ? value : new Date(value);
+  if (!Number.isFinite(date.getTime())) {
+    throw fail(
+      "staging_gateway_plan_expiry_invalid",
+      "Execution plan expiry must be a valid timestamp.",
+      400,
+    );
+  }
+  return date;
+}
+
 export async function saveStagingGatewayExecutionPlan(pool, plan, bundle, { env = process.env } = {}) {
   if (!pool?.getConnection) throw fail("staging_gateway_plan_store_unavailable", "Durable execution plan store is required.", 503);
   const connection = await pool.getConnection();
@@ -57,7 +69,7 @@ export async function saveStagingGatewayExecutionPlan(pool, plan, bundle, { env 
       [plan.plan_id, plan.plan_sha256, JSON.stringify(plan._planBody), plan.environment_convergence_plan_sha256,
         plan.expected_source_commit, plan.expected_policy_hash, plan.resource_binding.binding_id,
         plan.workspace.workspace_id, plan.bundle_sha256, plan.secret_set_sha256,
-        plan.trust_key_id, plan.trust_public_key_sha256, plan.bundle_ref, plan.expires_at],
+        plan.trust_key_id, plan.trust_public_key_sha256, plan.bundle_ref, normalizeSqlTimestamp(plan.expires_at)],
     );
     await connection.commit();
   } catch (error) {

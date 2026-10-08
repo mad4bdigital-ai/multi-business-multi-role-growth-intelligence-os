@@ -532,12 +532,15 @@ const governancePool = {
         }
         if (String(sql).includes("INSERT INTO staging_activation_gateway_execution_plans")) {
           const body = JSON.parse(params[2]);
+          assert.equal(params[13] instanceof Date, true, "execution-plan expires_at must bind as a Date for MariaDB TIMESTAMP compatibility");
+          assert.equal(Number.isFinite(params[13].getTime()), true, "execution-plan expiry Date must be valid");
+          assert.equal(params[13].toISOString(), body.expires_at, "SQL expiry binding must preserve the exact plan-body instant");
           savedPlans.set(params[0], {
             plan_id: params[0], plan_sha256: params[1], plan_body_json: params[2],
             environment_convergence_plan_sha256: params[3], expected_source_commit: params[4],
             expected_policy_hash: params[5], resource_binding_id: params[6], workspace_id: params[7],
             bundle_sha256: params[8], secret_set_sha256: params[9], trust_key_id: params[10],
-            trust_public_key_sha256: params[11], bundle_ref: params[12], expires_at: body.expires_at,
+            trust_public_key_sha256: params[11], bundle_ref: params[12], expires_at: params[13].toISOString(),
             status: "ready",
           }); return [{ affectedRows: 1 }];
         }
