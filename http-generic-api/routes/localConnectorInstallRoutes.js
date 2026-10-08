@@ -1042,10 +1042,13 @@ export async function provisionLocalConnectorInstall(req, body = {}) {
   const [[tenant]] = await pool.query("SELECT tenant_id FROM `tenants` WHERE tenant_id = ? LIMIT 1", [resolvedTenantId]);
   if (!tenant) throw httpError(404, "tenant_not_found", "Tenant not found.");
 
-  const [[existing]] = await pool.query(
-    `SELECT config_id, is_enabled, lifecycle_state, revoked_at, archived_at, cf_tunnel_id, cf_tunnel_name, cf_token, connector_secret, ${connectorLocalApiKeySelect}, tunnel_url, public_gateway_url, device_runtime_url, admin_recovery_url FROM \`local_connector_user_configs\` WHERE user_id = ? AND tenant_id = ? AND device_id = ? LIMIT 1`,
+  const [existingMatches] = await pool.query(
+    `SELECT config_id, is_enabled, lifecycle_state, revoked_at, archived_at, cf_tunnel_id, cf_tunnel_name, cf_token, connector_secret, ${connectorLocalApiKeySelect}, tunnel_url, public_gateway_url, device_runtime_url, admin_recovery_url FROM \`local_connector_user_configs\` WHERE user_id = ? AND tenant_id = ? AND device_id = ? LIMIT 2`,
     [resolvedUserId, resolvedTenantId, device_id]
   );
+
+  if (existingMatches.length > 1) throw httpError(409, "device_config_ambiguous", "Multiple canonical device rows require manual reconciliation.");
+  const existing = existingMatches[0] || null;
 
   if (existing && (Number(existing.is_enabled) !== 1 || existing.lifecycle_state !== "active" ||
       existing.revoked_at || existing.archived_at)) {
