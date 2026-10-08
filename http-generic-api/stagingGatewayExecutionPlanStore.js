@@ -47,6 +47,13 @@ function normalizeSqlTimestamp(value) {
       400,
     );
   }
+  if (date.getUTCMilliseconds() !== 0) {
+    throw fail(
+      "staging_gateway_plan_expiry_precision_invalid",
+      "Execution plan expiry must use whole-second precision for MariaDB TIMESTAMP(0).",
+      400,
+    );
+  }
   return date;
 }
 
