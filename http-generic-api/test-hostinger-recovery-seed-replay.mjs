@@ -1,0 +1,65 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import { readFileSync } from "node:fs";
+
+const json = (relative) => JSON.parse(readFileSync(new URL(relative, import.meta.url), "utf8"));
+const sql = (relative) => readFileSync(new URL(relative, import.meta.url), "utf8");
+const role = json("./config/staging-database-role-migration-manifest.json");
+const autoDeploy = json("../autopilot-portable-staging/auto-deploy-policy.json");
+const oneClick = json("../autopilot-portable-staging/autopilot-one-click-policy.json");
+const hostinger = sql("./migrations/20261009_hostinger_recovery_allowlist_discovery.sql");
+const admin = sql("./migrations/20261008_admin_local_connector_target_catalog_alignment.sql");
+const foundation = sql("./migrations/150_sprint65_remote_ssh_runtime_foundation.sql");
+const names = [
+  "hostinger_recovery_database_inventory", "hostinger_recovery_control_store_plan",
+  "hostinger_recovery_database_create", "hostinger_recovery_environment_binding_plan",
+  "hostinger_recovery_environment_binding_apply", "hostinger_recovery_grants_plan",
+  "hostinger_recovery_grants_apply",
+];
+const expectedFiles = [
+  "20261008_admin_local_connector_target_catalog_alignment.sql",
+  "20261009_hostinger_recovery_allowlist_discovery.sql",
+];
+
+test("canonical seed source is single order authority across three Staging frontends", () => {
+  const canonical = role.canonical_seed_lifecycle.seed_files;
+  assert.deepEqual(autoDeploy.canonical_seed_lifecycle.seed_files, canonical);
+  assert.deepEqual(oneClick.lifecycle.canonical_seeds.seed_files, canonical);
+  assert.deepEqual(canonical.slice(-expectedFiles.length), expectedFiles);
+  assert.equal(new Set(canonical).size, canonical.length);
+  for (const policy of [
+    role.canonical_seed_lifecycle, autoDeploy.canonical_seed_lifecycle,
+    oneClick.lifecycle.canonical_seeds,
+  ]) {
+    assert.equal(policy.production_access_forbidden, true);
+    assert.equal(policy.provider_access_forbidden, true);
+    assert.equal(policy.readback_required, true);
+  }
+});
+
+test("Hostinger catalog is deterministic on empty Runtime without a physical connector", () => {
+  assert.match(foundation, /UNIQUE KEY uq_remote_runtime_command\s*\(plugin_key, command_key\)/);
+  assert.equal((hostinger.match(/INSERT INTO remote_runtime_command_allowlists/g) || []).length, names.length);
+  assert.equal((hostinger.match(/ON DUPLICATE KEY UPDATE/g) || []).length, names.length + 1);
+  for (const key of names) {
+    assert.equal((hostinger.match(new RegExp("'"+key+"'", "g")) || []).length, 1,
+      "Every planned catalog command must have one canonical declaration: "+key);
+  }
+  assert.doesNotMatch(hostinger, /WHERE EXISTS\s*\(SELECT\s+1\s+FROM\s+connected_systems/i,
+    "Static canonical command metadata cannot depend on operational connector rows");
+  assert.doesNotMatch(hostinger, /system_key\s*=\s*'hostinger_ssh_prod_platform'/i,
+    "A particular hosting account must never be hardcoded into cross-site seed replay");
+  assert.match(hostinger, /'planned'/);
+  assert.equal((hostinger.match(/'planned'/g) || []).length, names.length);
+});
+
+test("catalog replay remains incapable of authorizing execution, secrets or Production mutation", () => {
+  assert.doesNotMatch(hostinger, /(?:INSERT\s+INTO|UPDATE)\s+remote_runtime_targets/i);
+  assert.doesNotMatch(hostinger, /\b(?:GRANT|REVOKE|CREATE\s+USER|DROP\s+DATABASE|TRUNCATE|DELETE\s+FROM)\b/i);
+  assert.doesNotMatch(hostinger, /\b(?:connector_secret|cf_token|password_value|plaintext_secret)\b/i);
+  assert.doesNotMatch(hostinger, /status\s*=\s*'active'/i);
+  assert.match(hostinger, /is_enabled=0/);
+  assert.match(hostinger, /'remote_runtime_hostinger_recovery_allowlist_discover'/);
+  assert.match(admin, /'admin_local_connector_devices'/);
+  assert.doesNotMatch(admin, /(?:connector_secret|cf_token|password_value)/i);
+});
