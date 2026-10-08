@@ -100,7 +100,8 @@ export function validateAdminRecoveryEndpoint(tunnelUrl, cfTunnelId = null, conf
 
 export function classifyAdminRecoveryReadback({deviceState, publicStatus, authenticatedStatus,
   observedDeviceId = null, expectedDeviceId = null,
-  observedConfigId = null, expectedConfigId = null} = {}) {
+  observedConfigId = null, expectedConfigId = null,
+  deviceGenerationAttested = false} = {}) {
   const heartbeatFresh = deviceState === "ACTIVE";
   const routeReachable = publicStatus === "pass";
   const authHealthy = authenticatedStatus === "pass";
@@ -108,12 +109,21 @@ export function classifyAdminRecoveryReadback({deviceState, publicStatus, authen
     str(expectedDeviceId).toLowerCase() === str(observedDeviceId).toLowerCase());
   const attestedConfig = Boolean(expectedConfigId && observedConfigId &&
     str(expectedConfigId) === str(observedConfigId));
-  const recovered = heartbeatFresh && routeReachable && authHealthy && attestedIdentity && attestedConfig;
+  const operationalVerified = heartbeatFresh && routeReachable && authHealthy
+    && attestedIdentity && attestedConfig;
+  // An authenticated /policy response proves possession of the connector
+  // credential, not possession of the original non-exportable device key.
+  // Only a separate trusted device-generation verifier may set this flag.
+  const generationVerified = deviceGenerationAttested === true;
+  const recovered = operationalVerified && generationVerified;
   return {
     status: recovered ? "recovered" : (!heartbeatFresh ? "heartbeat_stale" :
-      !routeReachable ? "route_unverified" : !authHealthy ? "auth_unverified" : "identity_unverified"),
+      !routeReachable ? "route_unverified" : !authHealthy ? "auth_unverified" :
+      !attestedIdentity || !attestedConfig ? "identity_unverified" : "generation_attestation_required"),
     recovered, requires_same_cycle_verification: !recovered,
     heartbeat_fresh: heartbeatFresh, route_reachable: routeReachable,
+    operational_verified: operationalVerified,
+    device_generation_attested: generationVerified,
     authenticated_probe_passed: authHealthy, device_identity_attested: attestedIdentity,
     config_identity_attested: attestedConfig,
     secrets_included: false,
