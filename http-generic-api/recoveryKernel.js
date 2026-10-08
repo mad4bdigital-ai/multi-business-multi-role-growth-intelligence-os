@@ -498,6 +498,13 @@ function findingsFromInspection(inspection = {}) {
     // Unknown/null readiness is NOT a failed readiness probe. Neither a
     // verified partial schema nor an empty role may be treated as a grant gap.
     if (checks[check] !== false || emptyRoles.has(role) || partialMissingRoles.has(role)) continue;
+    // Do not infer a grant/migration deficiency from a role whose required
+    // schema inventory is unverified. Only a full independent inspection with
+    // explicit required-table presence may authorize a deterministic candidate.
+    const requiredEvidence = roleTableEvidence[role];
+    if (!roleEvidenceAvailable || inspection.full_inspection !== true
+      || !Array.isArray(requiredEvidence) || requiredEvidence.length === 0
+      || !requiredEvidence.every((entry) => entry?.present === true)) continue;
     const finding = inspectionFinding({ targetRole: role, resource, category, severity, expected: { ready: true }, actual: { ready: checks[check] ?? dimensions[role] ?? false }, authorityRef: authority, repairability: candidate ? "deterministic" : "unknown_fail_closed", mutationRequired: true });
     finding.candidate_capability = candidate;
     findings.push(finding);
