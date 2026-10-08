@@ -56,7 +56,8 @@
             "Document exact Production runtime identity, independent database/principal privilege readiness and backup/Recovery Control Store gates before any provider or SQL mutation.",
             "Preserve actual passed Production preflight through a schema-readiness failure and identify that the direct-grant matrix was not evaluated when table visibility blocked the probe.",
             "Route any missing Runtime, Governance or Runtime Persistence required table through an independent exact-SHA full-object physical census, not the app-principal information_schema visibility count.",
-            "Require Recovery Kernel full-inspection findings to classify verified partial nonempty required-table absence as a non-executable finding, never as an automatically eligible grant or generic migration."
+            "Require Recovery Kernel full-inspection findings to classify verified partial nonempty required-table absence as a non-executable finding, never as an automatically eligible grant or generic migration.",
+            "Refuse empty-role rebuild when full-object metadata visibility cannot be certified independently, and keep required-table gaps invisible-to-principal until authoritative physical proof is available."
           ],
           "assertions": [
             "Provider configured support is distinct from live preflight, actual schema, credential readiness and privilege readback.",
@@ -71,7 +72,10 @@
             "Nonempty schemas with missing tables require role-bound registered migrations and independent approval; exact-grant repair is used only when physically present tables are privilege-invisible.",
             "No new automatic Production SQL executor or schema creation is exposed; Source only generates fail-closed diagnostic next-action candidates.",
             "Unknown or missing readiness booleans cannot be converted into deterministic recovery capabilities; zero-object rebuild is reserved for separately verified empty roles.",
-            "The exact Production provider documentation path is classified as repository governance by the canonical environment-impact authority; it is not exempted or broad-glob whitelisted."
+            "The exact Production provider documentation path is classified as repository governance by the canonical environment-impact authority; it is not exempted or broad-glob whitelisted.",
+            "A Recovery Kernel zero-object baseline candidate requires independent privileged all-object metadata visibility proof at the exact deployed SHA and role-object fingerprint; zero role-visible objects alone produce a non-executable visibility finding.",
+            "Physical inventory classifier must verify every canonical required baseline table by name and boolean presence, detect duplicate/foreign/missing entries and reject report-supplied alternative table totals.",
+            "The existing host-local full inspection does not yet issue independently certified visibility proofs; Production schema mutation remains blocked rather than silently substituting app-principal information_schema counts."
           ],
           "tests": [
             {
