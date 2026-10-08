@@ -2730,82 +2730,44 @@ export function buildAdminCliRoutes(deps) {
   // ?device_id=Y → exact canonical device, or one unique fresh active scoped device.
   // ?format=bat  → returns the file directly as an attachment (for curl)
   router.get("/local-connector/install-bundle", requireBackendApiKey, requireAdminPrincipal, async (req, res) => {
+    res.setHeader("Cache-Control", "no-store, max-age=0");
     try {
-      const format   = String(req.query.format || "json").toLowerCase();
+      const format = String(req.query.format || "json").toLowerCase();
+      if (format === "bat") {
+        return res.status(410).json({
+          ok: false, secrets_included: false,
+          error: { code: "legacy_admin_installer_disabled",
+            message: "Direct BAT generation no longer bypasses signed, expiring, device-scoped installer authorization." },
+          recovery: { method: "POST", path: "/local-connector/install/download-link",
+            requires_authenticated_principal: true, requires_canonical_device_id: true,
+            signed_installer_capability_required: true }
+        });
+      }
+      if (format !== "json") return res.status(400).json({
+        ok: false, secrets_included: false, error: {code:"unsupported_format",message:"Only JSON diagnosis is available."}
+      });
       const scope = adminConnectorScope(req, req.query);
       const target = await resolveAdminConnectorTarget({
         pool: getPool(), scope, requestedDeviceId: req.query.device_id,
-        includeCredentials: format === "bat", intent: format === "bat" ? "installer" : "diagnosis",
-        allowMissingCredentials: format !== "bat",
+        includeCredentials: false, intent: "diagnosis",
       });
-      const userId = scope.user_id;
-      const tenantId = scope.tenant_id;
-      const deviceId = target.row.device_id;
-      if (format === "bat") {
-        const deviceConfirmed = String(req.query.confirm_device_id || "").trim() === deviceId;
-        const configConfirmed = String(req.query.expected_config_id || "").trim() === String(target.row.config_id);
-        if (!deviceConfirmed || !configConfirmed) return res.status(409).json({
-          ok: false, secrets_included: false,
-          error: { code: "recovery_target_confirmation_required",
-            message: "Confirm the canonical device and config ID before generating a credential-bearing installer." }
-        });
-        validateAdminRecoveryEndpoint(target.credentials.tunnel_url, target.credentials.cf_tunnel_id, target.row.config_id);
-      }
-
-      if (format !== "bat") {
-        return res.status(200).json({
-          ok: true,
-          artifact_delivery: "authenticated_direct_download_only",
-          script_content_omitted: true,
-          script_content_reason: "installer contains live tunnel and backend credentials",
-          credential_materialized: false,
-          public_storage_allowed: false,
-          secure_download: {
-            method: "GET",
-            path: "/admin/cli/local-connector/install-bundle",
-            query: { user_id: userId, tenant_id: tenantId, device_id: deviceId,
-              expected_config_id: target.row.config_id, format: "bat" },
-            requires_backend_api_key: true,
-            requires_admin_principal: true
-          },
-          secrets_included: false
-        });
-      }
-
-      const { cf_token: tunnelToken, connector_secret: backendKey } = target.credentials;
-      if (!tunnelToken) return res.status(409).json({
-        ok: false, secrets_included: false,
-        error: { code: "connector_tunnel_provisioning_required",
-          message: "Provision the scoped tunnel token through the governed device flow." }
-      });
-      const configSource = "scoped_db";
-      const resolvedDevice = deviceId;
-
-      const batContent = generateConnectorInstallerBat(tunnelToken, backendKey);
-      const filename   = `install-connector-${new Date().toISOString().slice(0,10)}.bat`;
-
-      writeAuditLogAsync({
-        action: "admin_cli.local_connector_install_bundle",
-        resource_type: "install_bundle",
-        resource_id: filename,
-        payload: {
-          delivery_mode: "authenticated_direct_download",
-          public_storage_allowed: false,
-          config_source: configSource,
-          device_id: resolvedDevice,
-          user_id: userId,
-          secrets_included: false
+      return res.status(200).json({
+        ok: true, user_id: scope.user_id, tenant_id: scope.tenant_id,
+        device_id: target.row.device_id, config_id: target.row.config_id,
+        device_state: target.state, credential_materialized: false,
+        script_content_omitted: true, public_storage_allowed: false,
+        signed_installer: {
+          method: "POST", path: "/local-connector/install/download-link",
+          format: "ps1", requires_authenticated_principal: true,
+          requires_explicit_canonical_target: true, direct_admin_bat_disabled: true
         },
-      });
-
-      res.setHeader("Content-Type", "application/octet-stream");
-      res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
-      return res.send(batContent);
-    } catch (err) {
-      return res.status(err.status || 500).json({
-        ok: false,
-        error: { code: err.code || "install_bundle_failed", message: err.code ? err.message : "Installer request failed closed." },
         secrets_included: false,
+      });
+    } catch (err) {
+      return res.status(err.status || 503).json({
+        ok: false, secrets_included: false,
+        error: { code: err.code || "install_bundle_unavailable",
+          message: err.code ? err.message : "Unable to validate canonical installer target." },
       });
     }
   });
@@ -3147,18 +3109,15 @@ export function buildAdminCliRoutes(deps) {
           script_content_omitted: true,
           script_content_reason: "installer contains live tunnel and backend credentials",
           secure_download: {
-            method: "GET",
-            path: "/admin/cli/local-connector/install-bundle",
-            query: {
-              user_id: resolvedUserId,
-              tenant_id: tenantId,
-              device_id: resolvedDeviceId,
-              expected_config_id: target.row.config_id,
-              format: "bat"
+            method: "POST",
+            path: "/local-connector/install/download-link",
+            body: {
+              user_id: resolvedUserId, tenant_id: tenantId,
+              device_id: resolvedDeviceId, format: "ps1",
             },
-            requires_backend_api_key: true,
-            requires_admin_principal: true,
-            requires_explicit_device_confirmation: true
+            requires_authenticated_principal: true,
+            requires_signed_expiring_capability: true,
+            direct_admin_bat_disabled: true
           },
           secrets_included: false
         },
