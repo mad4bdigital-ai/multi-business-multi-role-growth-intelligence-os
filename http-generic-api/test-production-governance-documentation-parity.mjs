@@ -52,7 +52,7 @@ assert.deepEqual(persistence.required_tables, ["governed_tool_response_chunks"])
 assert.deepEqual(persistence.required_operations, ["SELECT", "INSERT", "UPDATE", "DELETE"]);
 assert.ok(STAGING_ROLE_GRANT_POLICIES.runtime.required_tables.length > runtime.required_tables.length);
 assert.match(readinessDoc, /not an.*authorization to copy the 59-required \/ 11-optional Staging Runtime overlay/s);
-assert.match(readinessDoc, /not.*automatically authorized for Production/);
+assert.match(readinessDoc, /not\*\*[\s\S]*automatically authorized for Production/);
 assert.match(readinessDoc, /No absent or stale evidence becomes\s+permission to apply/);
 assert.match(readinessDoc, /exact Production ref/);
 assert.match(readinessDoc, /Recovery Control Store/);
