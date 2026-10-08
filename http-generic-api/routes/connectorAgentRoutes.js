@@ -890,7 +890,12 @@ async function writeHeartbeat(config, body = {}) {
     ]
   );
 
-  await syncPrimaryRouteFromHeartbeat(config, { status, errorCode, errorMessage });
+  // Only a successful health probe may promote route health. A started,
+  // skipped or failed recovery attempt is not a verified healthy route.
+  const verifiedHealth = eventType === "health_ok" && status === "ok";
+  await syncPrimaryRouteFromHeartbeat(config, {
+    status: verifiedHealth ? "ok" : "failed", errorCode, errorMessage,
+  });
 
   const eventId = crypto.randomUUID();
   await getPool().query(
