@@ -14,7 +14,7 @@ import { createContinuationCheckpoint, planContinuationResume } from "../sharedR
 import { closeGithubPullRequest, deleteGithubBranchRef, githubBranchDeleteConfirmation } from "../githubRepositoryLifecycle.js";
 import { classifyLocalConnectorCompositeHealth, probeLocalConnectorAuthenticatedHealth, probeLocalConnectorPublicHealthWithRetry } from "../localConnectorCompositeHealth.js";
 import { connectorLocalApiKeySelectFragment } from "../connectorSchemaCompatibility.js";
-import { adminConnectorScope, adminConnectorInventory, resolveAdminConnectorTarget } from "../adminLocalConnectorTarget.js";
+import { adminConnectorScope, adminConnectorInventory, resolveAdminConnectorTarget, validateAdminRecoveryEndpoint, classifyAdminRecoveryReadback } from "../adminLocalConnectorTarget.js";
 
 const DEFAULT_COMMAND_TIMEOUT_MS = 120000;
 const MAX_COMMAND_TIMEOUT_MS = 600000;
@@ -2735,7 +2735,8 @@ export function buildAdminCliRoutes(deps) {
       const scope = adminConnectorScope(req, req.query);
       const target = await resolveAdminConnectorTarget({
         pool: getPool(), scope, requestedDeviceId: req.query.device_id,
-        includeCredentials: format === "bat",
+        includeCredentials: format === "bat", intent: format === "bat" ? "installer" : "diagnosis",
+        allowMissingCredentials: format !== "bat",
       });
       const userId = scope.user_id;
       const tenantId = scope.tenant_id;
@@ -2810,7 +2811,7 @@ export function buildAdminCliRoutes(deps) {
       const scope = adminConnectorScope(req, req.body || {});
       const target = await resolveAdminConnectorTarget({
         pool: getPool(), scope, requestedDeviceId: req.body?.device_id,
-        includeCredentials: true,
+        includeCredentials: true, intent: "diagnosis", allowMissingCredentials: true,
         localApiKeySql: await connectorLocalApiKeySelectFragment(getPool()),
       });
       const userId = scope.user_id;
@@ -2823,6 +2824,7 @@ export function buildAdminCliRoutes(deps) {
       const cfTunnelName = target.credentials.cf_tunnel_name;
       const tunnelUrl = target.credentials.tunnel_url;
       const configSource = "scoped_db";
+      const routeUrl = tunnelUrl ? validateAdminRecoveryEndpoint(tunnelUrl, cfTunnelId) : null;
       const resolvedUserId = userId;
       const resolvedDeviceId = deviceId;
       const deviceIdentityResolution = buildLocalConnectorDeviceIdentityResolution({
@@ -2850,16 +2852,23 @@ export function buildAdminCliRoutes(deps) {
       }
 
       const publicHealthProbe = await probeLocalConnectorPublicHealthWithRetry({
-        tunnelUrl: tunnelUrl,
+        tunnelUrl: routeUrl,
         timeoutMs: 8000,
       });
       const authenticatedCommandHealth = await probeLocalConnectorAuthenticatedHealth({
-        tunnelUrl: tunnelUrl,
+        tunnelUrl: routeUrl,
         credentialCandidates: [
           { source: "connector_secret", token: backendKey },
           { source: "connector_local_api_key", token: connectorLocalApiKey },
         ],
         timeoutMs: 8000,
+      });
+      const recoveryReadback = classifyAdminRecoveryReadback({
+        deviceState: target.state,
+        publicStatus: publicHealthProbe.status,
+        authenticatedStatus: authenticatedCommandHealth.status,
+        observedDeviceId: authenticatedCommandHealth.device_id || null,
+        expectedDeviceId: deviceId,
       });
       const compositeHealth = classifyLocalConnectorCompositeHealth({
         tunnelStatus,
