@@ -435,7 +435,7 @@ function inspectionFinding({ targetRole, resource, category, severity, expected,
   return { finding_id: id, ...finding };
 }
 
-function findingsFromInspection(inspection = {}) {
+function findingsFromInspection(inspection = {}, { trustedRoleInventoryVerifier = null } = {}) {
   const findings = [];
   const checks = inspection.checks && typeof inspection.checks === "object" ? inspection.checks : {};
   const dimensions = inspection.dimensions && typeof inspection.dimensions === "object" ? inspection.dimensions : {};
@@ -463,6 +463,11 @@ function findingsFromInspection(inspection = {}) {
         && proof.full_object_visibility_verified === true
         && proof.independent_privileged_census === true
         && proof.read_only === true
+        // Report payload flags are not a trust root; only a server-injected
+        // verifier for an independent durable provider can attest this proof.
+        && typeof trustedRoleInventoryVerifier === "function"
+        && trustedRoleInventoryVerifier({ role, proof, expectedSha: inspection.expected_sha,
+          roleFingerprint: roleCountFingerprints[role], roleObjectCounts: roleCounts[role] }) === true
         && roleCounts[role]?.total === 0;
       if (!verified) {
         zeroVisibilityUnverifiedRoles.add(role);
@@ -1729,11 +1734,11 @@ export async function getRecoveryEvidence(input = {}, { recoveryStore } = {}) {
   return sanitizeEvidence({ ok: true, contract: "mad4b.recovery-evidence.v1", run_id: runId, evidence: run.evidence || {}, redaction: { applied: true, raw_logs_included: false, secrets_included: false }, durability: { durable: Boolean(recoveryStore && typeof recoveryStore.getRun === "function"), mode: recoveryStore ? "injected_store" : "degraded_memory_only_test_state" }, secrets_included: false });
 }
 
-export async function inspectProductionDatabase(input = {}, { env = process.env, repoRoot, hostLocalExecutor = executeHostLocalRoleInspection, recoveryStore } = {}) {
+export async function inspectProductionDatabase(input = {}, { env = process.env, repoRoot, hostLocalExecutor = executeHostLocalRoleInspection, recoveryStore, trustedRoleInventoryVerifier = null } = {}) {
   const request = requireProductionRequest(input, ["expected_sha", "target_key"]);
   const identity = readProductionIdentity({ env, expectedSha: request.expected_sha });
   const inspection = await hostLocalExecutor({ expected_sha: request.expected_sha, target_key: request.target_key }, { env, repoRoot });
-  const findings = findingsFromInspection(inspection);
+  const findings = findingsFromInspection(inspection, { trustedRoleInventoryVerifier });
   const trust = getRecoveryTrustModel({ env, expectedSha: request.expected_sha });
   const attestation = readRuntimeAttestation({ env, expectedSha: request.expected_sha });
   const causalGraph = buildCausalFindingGraph(findings);
