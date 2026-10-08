@@ -25,7 +25,9 @@ if ([string]$watcher.Principal.UserId -ine $expectedPrincipal -or @($watcher.Act
 $action = @($watcher.Actions)[0]
 if ([IO.Path]::GetFileName([string]$action.Execute) -ine "powershell.exe") { Fail "Watcher executable identity mismatch" }
 $working = [IO.Path]::GetFullPath([string]$action.WorkingDirectory).TrimEnd('\')
-if ($working -ine $scriptRoot.TrimEnd('\') -and $working -ine $RepositoryPath.TrimEnd('\')) { Fail "Watcher working directory drift" }
+$sourceRoot = [IO.Path]::GetFullPath([string]$scriptRoot).TrimEnd('\')
+$targetRoot = [IO.Path]::GetFullPath([string]$RepositoryPath).TrimEnd('\')
+if ($working -ine $sourceRoot -and $working -ine $targetRoot) { Fail "Watcher working directory drift" }
 $approved = '^-NoLogo\s+-NoProfile\s+-ExecutionPolicy\s+Bypass\s+-File\s+"' +
     [regex]::Escape($expectedWatcher) + '"\s+-RepositoryPath\s+"' + [regex]::Escape($RepositoryPath) +
     '"\s+-Watch\s+-PollSeconds\s+\d+\s+-BuildMode\s+(?:Smart|ForceBuild|SkipBuild)' +
