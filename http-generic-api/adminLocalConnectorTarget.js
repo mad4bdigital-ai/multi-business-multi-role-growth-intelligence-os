@@ -46,10 +46,19 @@ export function describeDevice(row, now = Date.now()) {
   };
 }
 
-export function chooseDevice(rows, requestedDeviceId = "", now = Date.now()) {
+export function chooseDevice(rows, requestedDeviceId = "", now = Date.now(), {intent = "execution"} = {}) {
   const requested = str(requestedDeviceId);
   if (requested && !/^[a-z0-9][a-z0-9_-]{1,127}$/i.test(requested)) {
     throw targetError("device_id_invalid", "Invalid device ID.", 400);
+  }
+  if (!["execution", "diagnosis", "installer"].includes(intent)) {
+    throw targetError("device_target_intent_invalid", "Unsupported connector target intent.", 400);
+  }
+  // Diagnostic and installer paths must name the canonical device explicitly.
+  // A stale device never becomes an automatic selection or a command target.
+  if (intent !== "execution" && !requested) {
+    throw targetError("target_device_required",
+      "Explicit canonical device selection is required for recovery or installer operations.");
   }
   const examined = rows.map(row => ({ row, state: describeDevice(row, now).state }));
   const candidates = requested ?
@@ -59,11 +68,51 @@ export function chooseDevice(rows, requestedDeviceId = "", now = Date.now()) {
     "Multiple device configurations match; select one canonical device explicitly.");
   if (!candidates.length) throw targetError(
     requested ? "device_target_not_found" : "device_target_unavailable",
-    "No unique fresh active device matches the exact authenticated user and tenant.");
-  if (candidates[0].state !== "ACTIVE") throw targetError("device_target_not_trusted",
-    "The device is offline/stale, disabled, revoked, or archived; canonical re-enrollment is required.");
-  return { row: candidates[0].row,
-    selection_source: requested ? "explicit_canonical_id" : "unique_fresh_device" };
+    "No unique eligible device matches the exact authenticated user and tenant.");
+  const state = candidates[0].state;
+  const permissible = state === "ACTIVE" ||
+    ((intent === "diagnosis" || intent === "installer") && state === "STALE");
+  if (!permissible) throw targetError("device_target_not_trusted",
+    "This device is disabled, revoked, archived, or unavailable for the requested operation.");
+  return { row: candidates[0].row, state,
+    selection_source: requested ? "explicit_canonical_id" : "unique_fresh_device",
+    intent, execution_allowed: state === "ACTIVE" && intent === "execution" };
+}
+
+export function validateAdminRecoveryEndpoint(tunnelUrl, cfTunnelId = null) {
+  let url;
+  try { url = new URL(str(tunnelUrl)); }
+  catch { throw targetError("connector_route_untrusted", "Connector runtime URL is missing or invalid."); }
+  const hostname = url.hostname.toLowerCase();
+  const tunnel = str(cfTunnelId).toLowerCase();
+  const authorized =
+    hostname === "connector.mad4b.com" ||
+    /^lc-[a-z0-9-]+\.mad4b\.com$/.test(hostname) ||
+    (/^[0-9a-f-]{36}\.cfargotunnel\.com$/.test(hostname) && hostname === tunnel + ".cfargotunnel.com");
+  if (url.protocol !== "https:" || !authorized || url.port || url.username || url.password ||
+      url.pathname !== "/" || url.search || url.hash) {
+    throw targetError("connector_route_untrusted",
+      "Connector runtime endpoint must be an exact trusted HTTPS device route.");
+  }
+  return url.origin;
+}
+
+export function classifyAdminRecoveryReadback({deviceState, publicStatus, authenticatedStatus,
+  observedDeviceId = null, expectedDeviceId = null} = {}) {
+  const heartbeatFresh = deviceState === "ACTIVE";
+  const routeReachable = publicStatus === "pass";
+  const authHealthy = authenticatedStatus === "pass";
+  const attestedIdentity = Boolean(expectedDeviceId && observedDeviceId &&
+    str(expectedDeviceId).toLowerCase() === str(observedDeviceId).toLowerCase());
+  const recovered = heartbeatFresh && routeReachable && authHealthy && attestedIdentity;
+  return {
+    status: recovered ? "recovered" : (!heartbeatFresh ? "heartbeat_stale" :
+      !routeReachable ? "route_unverified" : !authHealthy ? "auth_unverified" : "identity_unverified"),
+    recovered, requires_same_cycle_verification: !recovered,
+    heartbeat_fresh: heartbeatFresh, route_reachable: routeReachable,
+    authenticated_probe_passed: authHealthy, device_identity_attested: attestedIdentity,
+    secrets_included: false,
+  };
 }
 
 async function scopedRows(pool, scope) {
@@ -86,7 +135,8 @@ export async function adminConnectorInventory({pool, scope, now = Date.now()}) {
 
 export async function resolveAdminConnectorTarget({
   pool, scope, requestedDeviceId = "", now = Date.now(), includeCredentials = false,
-  localApiKeySql = "NULL AS connector_local_api_key",
+  localApiKeySql = "NULL AS connector_local_api_key", intent = "execution",
+  allowMissingCredentials = false,
 }) {
   const requested = str(requestedDeviceId);
   if (requested) {
@@ -98,7 +148,7 @@ export async function resolveAdminConnectorTarget({
     if (aliases.length) throw targetError("historical_device_alias",
       "A historical device alias cannot be a privileged execution target; select the canonical ID.");
   }
-  const selected = chooseDevice(await scopedRows(pool, scope), requested, now);
+  const selected = chooseDevice(await scopedRows(pool, scope), requested, now, {intent});
   if (!includeCredentials) return {...selected, credentials: null};
   // The second read prevents target switching and rules out revoked/archived rows.
   const [rows] = await pool.query(
@@ -110,11 +160,11 @@ export async function resolveAdminConnectorTarget({
     "AND revoked_at IS NULL AND archived_at IS NULL LIMIT 2",
     [selected.row.config_id, scope.user_id, scope.tenant_id, selected.row.device_id]);
   if (rows.length !== 1) throw targetError("device_target_changed", "Device changed during selection.");
-  const verified = chooseDevice(rows, selected.row.device_id, now);
+  const verified = chooseDevice(rows, selected.row.device_id, now, {intent});
   const row = verified.row;
-  if (!str(row.connector_secret)) throw targetError("device_credential_missing",
+  if (!allowMissingCredentials && !str(row.connector_secret)) throw targetError("device_credential_missing",
     "The selected device lacks a scoped connector identity credential.");
-  if (!str(row.tunnel_url)) throw targetError("device_route_missing",
+  if (!allowMissingCredentials && !str(row.tunnel_url)) throw targetError("device_route_missing",
     "The selected device has no verified registered route.");
   return {...verified, selection_source: selected.selection_source,
     credentials: {
