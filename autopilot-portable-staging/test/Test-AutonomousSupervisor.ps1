@@ -6,11 +6,12 @@ $root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $supervisor = Join-Path $root "Staging-AutonomousSupervisor.ps1"
 $install = Join-Path $root "Install-AutoDeployTask.ps1"
 $uninstall = Join-Path $root "Uninstall-AutoDeployTask.ps1"
+$additiveInstall = Join-Path $root "Install-AutonomousSupervisorTask.ps1"
 $policyFile = Join-Path $root "autonomous-operations-policy.json"
 function Assert([bool]$Condition, [string]$Message) {
     if (-not $Condition) { throw "AUTONOMOUS_SUPERVISOR_TEST_FAILED: $Message" }
 }
-foreach ($source in @($supervisor, $install, $uninstall)) {
+foreach ($source in @($supervisor, $install, $uninstall, $additiveInstall)) {
     $tokens = $null
     $errors = $null
     [void][System.Management.Automation.Language.Parser]::ParseFile($source, [ref]$tokens, [ref]$errors)
@@ -25,7 +26,10 @@ foreach ($name in @("production_mutation", "database_mutation", "migration_apply
     Assert ($Policy.safety.$name -eq $false) "unsafe policy $name"
 }
 # Exercise the actual function bodies without starting any task or live services.
-$ast = [System.Management.Automation.Language.Parser]::ParseFile($supervisor, [ref]$null, [ref]$null)
+$sourceTokens = $null
+$sourceErrors = $null
+$ast = [System.Management.Automation.Language.Parser]::ParseFile($supervisor, [ref]$sourceTokens, [ref]$sourceErrors)
+Assert (@($sourceErrors).Count -eq 0) "Unexpected parser error"
 $funcs = @($ast.FindAll({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $false))
 foreach ($name in @("Get-Prop", "Read-Evidence", "Get-Time", "Test-WatcherTaskIdentity", "Get-RecentWatcherEvidence", "Get-ActiveLease", "Get-Acceptance", "Recover-Watcher")) {
     $sourceFn = $funcs | Where-Object { $_.Name -eq $name } | Select-Object -First 1
@@ -88,6 +92,19 @@ try {
     $deployment | ConvertTo-Json | Set-Content $deployPath
     $drift = Get-Acceptance $now $task $info
     Assert ($drift.accepted -eq $false) "SHA drift was accepted"
+    $deployment.certified_commit = $sha
+    $deployment | ConvertTo-Json | Set-Content $deployPath
+    @{ contract = "mad4b.staging-deployment-lease.v1"; expires_at = $now.AddMinutes(10).ToString("o") } |
+        ConvertTo-Json | Set-Content $leasePath
+    $leased = Get-Acceptance $now $task $info
+    Assert ($leased.accepted -eq $false) "active deployment lease was accepted"
+    $task.State = "Ready"
+    Assert ((Recover-Watcher $now $task $leased) -eq "blocked_by_authority") "recovery ignored active lease"
+    Remove-Item $leasePath -Force
+    @{ contract = "mad4b.staging-autonomous-recovery-state.v1"; attempts_utc = @($now.AddMinutes(-3).ToString("o")) } |
+        ConvertTo-Json | Set-Content $statePath
+    $unleased = Get-Acceptance $now $task $info
+    Assert ((Recover-Watcher $now $task $unleased) -eq "cooldown") "recovery cooldown bypass"
     Write-Output "AUTONOMOUS_SUPERVISOR_STATIC_AND_FIXTURE_TESTS: PASS"
 } finally {
     Remove-Item -LiteralPath $fixtureRoot -Recurse -Force -ErrorAction SilentlyContinue
