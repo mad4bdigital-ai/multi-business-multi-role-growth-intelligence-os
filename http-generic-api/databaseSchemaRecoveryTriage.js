@@ -36,7 +36,10 @@ function triage(role, classification, issue, next, {
   };
 }
 
-function validCensus(census, role, exactSha, databaseKey) {
+function validCensus(census, role, exactSha, databaseKey, trustedPhysicalCensusVerifier) {
+  // This helper deliberately does not trust the booleans inside the report.
+  // Verification is supplied only by separately audited server-side code.
+  if (typeof trustedPhysicalCensusVerifier !== "function") return false;
   if (!census || census.contract !== "mad4b.database-physical-object-inspection.v1"
     || census.read_only !== true || census.privileged_inventory_verified !== true
     || census.role !== role || census.database_key !== databaseKey
@@ -72,12 +75,20 @@ function validCensus(census, role, exactSha, databaseKey) {
   if (sourceTables.some((table) => !byTable.has(table))) return false;
   const countedPresent = [...byTable.values()].filter(Boolean).length;
   if (countedPresent !== present || expected - countedPresent !== missing) return false;
-  return true;
+  return trustedPhysicalCensusVerifier({
+    role, exactSha, databaseKey,
+    inspectionRunId: census.inspection_run_id,
+    evidenceSha256: census.inspection_evidence_sha256,
+    sourceRequiredTables: sourceTables,
+    objectCounts: counts,
+    requiredTableEvidence: observed,
+  }) === true;
 }
 
 export function classifyDatabaseSchemaRecovery({
   role, expectedDeployedSha, databaseKey, principalSchemaReadiness = null,
   privilegedCensus = null, schemaDriftVerified = false,
+  trustedPhysicalCensusVerifier = null,
 } = {}) {
   if (!ROLES.includes(role)) return triage(null, "blocked", "INVALID_ROLE", "resolve_target_role");
   const exactSha = text(expectedDeployedSha);
@@ -86,7 +97,7 @@ export function classifyDatabaseSchemaRecovery({
   }
   // The app-principal schema probe may be incomplete, even when the DB itself is populated.
   // Physical classification always comes from an independent, qualified full-object census.
-  if (!validCensus(privilegedCensus, role, exactSha, text(databaseKey))) {
+  if (!validCensus(privilegedCensus, role, exactSha, text(databaseKey), trustedPhysicalCensusVerifier)) {
     return triage(role, "visibility_unverified", "PHYSICAL_ABSENCE_NOT_PROVEN",
       "database_full_inspection_read_only");
   }
