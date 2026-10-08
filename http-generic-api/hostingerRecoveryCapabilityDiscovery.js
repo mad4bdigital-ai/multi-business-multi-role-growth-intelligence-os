@@ -26,6 +26,8 @@ export function evaluateHostingerRecoveryCapabilities({target, commands, environ
   if (scope(target.registered_environment) !== environment) {
     throw deny("recovery_environment_mismatch", "Registered Hostinger system environment does not match the requested environment.", 403);
   }
+  const systemReady = scope(target.registered_system_status) === "active";
+  const targetReady = target.status === "active" && target.validation_status === "valid" && systemReady;
   const targetAllowlist = new Set(jsonArray(target.command_allowlist_json));
   const candidateKeys = new Set();
   const available = [];
@@ -38,7 +40,8 @@ export function evaluateHostingerRecoveryCapabilities({target, commands, environ
     const catalogEligible = catalogState === "active" || catalogState === "planned";
     const category = /_inspect$|_inventory$|_plan$/.test(key) ? "read_or_plan" : "mutation";
     const prerequisites = [];
-    if (target.status !== "active" || target.validation_status !== "valid") prerequisites.push("validated_live_target");
+    if (!targetReady) prerequisites.push("validated_live_target_and_system");
+    // Inventory/capability discovery is safe, but no provider-backed plan executor exists here.
     if (!targetAllowed) prerequisites.push("target_allowlist_binding");
     if (catalogState !== "active") prerequisites.push("catalog_activation_after_certification");
     if (category === "mutation") prerequisites.push("separate_approval_and_exact_host_authority");
@@ -48,7 +51,8 @@ export function evaluateHostingerRecoveryCapabilities({target, commands, environ
       registry_status: catalogState,
       target_allowlisted: targetAllowed,
       discovery_ready: catalogEligible && targetAllowed,
-      plan_allowed: catalogEligible && targetAllowed && category === "read_or_plan",
+      plan_candidate: catalogEligible && targetAllowed && category === "read_or_plan",
+      plan_allowed: false, // no certified planner in this discovery-only extension
       dispatch_ready: false, execution_allowed: false, // NO executor is registered by this extension.
       requires_approval: Boolean(command.requires_approval),
       prerequisites, secrets_included: false,
@@ -60,6 +64,7 @@ export function evaluateHostingerRecoveryCapabilities({target, commands, environ
     observed_at: observedAt,
     target_status: scope(target.status),
     target_validation_status: scope(target.validation_status),
+    registered_system_status: scope(target.registered_system_status),
     commands: available.sort((a,b)=>a.command_key.localeCompare(b.command_key)),
     capability_claim: "catalog_only_not_host_privilege",
     ssh_used: false, provider_call_performed: false, mutation_performed: false,
@@ -71,9 +76,10 @@ export async function discoverHostingerRecoveryCapabilities({targetId, environme
   const [targetRows] = await pool.query(
     `SELECT t.target_id,t.plugin_key,t.provider_family,t.connector_family,
             t.command_allowlist_json,t.status,t.validation_status,
+            cs.status AS registered_system_status,
             JSON_UNQUOTE(JSON_EXTRACT(cs.config_json,'$.environment')) AS registered_environment
        FROM remote_runtime_targets t
-       JOIN connected_systems cs ON cs.system_id = t.system_id
+       JOIN connected_systems cs ON cs.system_id = t.system_id AND cs.tenant_id = t.tenant_id
       WHERE t.target_id = ? AND t.plugin_key = 'remote_ssh_runtime'
         AND t.target_kind = 'hosting_account' AND t.provider_family = 'hostinger'
         AND t.connector_family = 'hostinger_ssh'
