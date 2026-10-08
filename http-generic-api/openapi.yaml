@@ -13812,7 +13812,17 @@ paths:
           in: query
           required: false
           schema: { type: string, minLength: 1, maxLength: 128 }
-          description: Optional canonical device ID. Omission resolves only one fresh active device for the exact user and tenant; historical aliases and stale devices are rejected.
+          description: Explicit canonical device ID required for recovery. No historical aliases or implicit stale target selection.
+        - name: expected_config_id
+          in: query
+          required: false
+          schema: { type: string }
+          description: Exact current config ID required for a protected BAT download.
+        - name: confirm_device_id
+          in: query
+          required: false
+          schema: { type: string }
+          description: Explicit canonical device confirmation required for a protected BAT download.
         - name: format
           in: query
           required: false
@@ -13844,10 +13854,11 @@ paths:
                       query:
                         type: object
                         additionalProperties: false
-                        required: [user_id, device_id, format]
+                        required: [user_id, device_id, expected_config_id, format]
                         properties:
                           user_id: { type: string }
                           device_id: { type: string }
+                          expected_config_id: { type: string }
                           format: { type: string, const: bat }
                       requires_backend_api_key: { type: boolean, const: true }
                       requires_admin_principal: { type: boolean, const: true }
@@ -13895,7 +13906,7 @@ paths:
                   description: Tenant scope for non-platform user when not supplied by authenticated identity.
                 device_id:
                   type: string
-                  description: Optional canonical device ID; omission requires one fresh active device within the authorized user/tenant scope.
+                  description: Explicit canonical device ID is required. Stale devices may be diagnosed without execution authority.
       responses:
         "200":
           description: Diagnosis and no-secret authenticated repair handoff
@@ -13918,13 +13929,22 @@ paths:
                       cf_tunnel_status: { type: string }
                       config_source: { type: string, enum: [db, db_alias, env, env_fallback] }
                       secrets_included: { type: boolean, const: false }
+                  recovery_plan:
+                    type: object
+                    additionalProperties: true
+                    properties:
+                      status: { type: string }
+                      installer_eligible: { type: boolean }
+                      next_action: { type: string }
                   repair:
                     type: object
                     additionalProperties: true
-                    required: [required, installer_generated, artifact_delivery, public_storage_allowed, secure_download, secrets_included]
+                    required: [required, installer_generated, secrets_included]
                     properties:
                       required: { type: boolean }
                       installer_generated: { type: boolean, const: false }
+                      preview_only: { type: boolean }
+                      verification_pending: { type: boolean }
                       artifact_delivery: { type: string, const: authenticated_direct_download_only }
                       action: { type: string }
                       filename: { type: string }
@@ -13944,13 +13964,15 @@ paths:
                           query:
                             type: object
                             additionalProperties: false
-                            required: [user_id, device_id, format]
+                            required: [user_id, device_id, expected_config_id, format]
                             properties:
                               user_id: { type: string }
                               device_id: { type: string }
+                              expected_config_id: { type: string }
                               format: { type: string, const: bat }
                           requires_backend_api_key: { type: boolean, const: true }
                           requires_admin_principal: { type: boolean, const: true }
+                          requires_explicit_device_confirmation: { type: boolean }
                       secrets_included: { type: boolean, const: false }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
