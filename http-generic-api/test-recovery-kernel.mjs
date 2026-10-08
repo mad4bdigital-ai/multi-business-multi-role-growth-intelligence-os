@@ -344,6 +344,38 @@ test("provider-supplied findings cannot inject a rebuild, grant, migration or ex
   assert.ok(!findings.some((finding) => finding.candidate_capability === "governance.grant.repair"));
 });
 
+test("inconsistent physical census counts cannot authorize schema repair even with a trusted verifier", () => {
+  for (const governanceCounts of [
+    { tables: 1, views: 0, triggers: 0, routines: 0, events: 0, total: 0 },
+    { tables: 0, views: 0, triggers: 0, routines: 0, events: -1, total: 0 },
+    { tables: 0, views: 1, triggers: 0, routines: 0, events: 0, total: 0 },
+    { tables: 0, views: 0, triggers: 0, routines: 0, events: 0, total: "0" },
+  ]) {
+    const inspection = readinessFailure();
+    inspection.role_database_object_counts.governance = governanceCounts;
+    const findings = _testingRecoveryKernel.findingsFromInspection(inspection, {
+      trustedRoleInventoryVerifier: () => true,
+    });
+    assert.ok(!findings.some((f) => f.candidate_capability === "governance.baseline.rebuild_empty"));
+    assert.ok(!findings.some((f) => f.candidate_capability === "governance.grant.repair"));
+  }
+});
+
+test("misclassified full-count inventory cannot generate grant repair", () => {
+  const inspected = readinessFailure();
+  inspected.role_database_object_classifications.governance = "nonempty_objects";
+  inspected.role_database_object_counts.governance = {
+    tables: 1, views: 0, triggers: 0, routines: 0, events: 0, total: 1,
+  };
+  inspected.role_table_evidence = {
+    governance: BOOTSTRAP_ROLE_GRANT_POLICIES.governance.required_tables.map((table) => ({ table, present: true })),
+  };
+  const findings = _testingRecoveryKernel.findingsFromInspection(inspected, {
+    trustedRoleInventoryVerifier: () => true,
+  });
+  assert.ok(!findings.some((f) => f.candidate_capability === "governance.grant.repair"));
+});
+
 test("role evidence verifier crash fails closed for every zero-object candidate", () => {
   const inspected = readinessFailure();
   const findings = _testingRecoveryKernel.findingsFromInspection(inspected, {
