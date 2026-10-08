@@ -2010,7 +2010,19 @@ paths:
             type: string
             minLength: 1
             maxLength: 128
-          description: Optional canonical device ID. Omission selects only one fresh active target for the exact user and tenant; historical aliases and stale devices are rejected.
+          description: Canonical device ID. Required for bat downloads; JSON diagnostics require explicit canonical selection. Stale devices may be diagnosed but not executed.
+        - name: expected_config_id
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Required for credential-bearing bat; must exactly match the current canonical config ID.
+        - name: confirm_device_id
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Required for credential-bearing bat; must exactly match selected canonical device.
         - name: format
           in: query
           required: false
@@ -2020,7 +2032,7 @@ paths:
               - json
               - bat
             default: json
-          description: json returns a no-secret handoff; bat returns the authenticated binary installer.
+          description: json returns a no-secret handoff; bat requires exact device and config confirmation and privileged Admin authentication.
       responses:
         "200":
           description: Metadata-only secure handoff or authenticated installer attachment
@@ -2077,11 +2089,14 @@ paths:
                         required:
                           - user_id
                           - device_id
+                          - expected_config_id
                           - format
                         properties:
                           user_id:
                             type: string
                           device_id:
+                            type: string
+                          expected_config_id:
                             type: string
                           format:
                             type: string
@@ -2141,7 +2156,7 @@ paths:
                   description: Tenant scope for a non-platform user unless carried by authenticated identity.
                 device_id:
                   type: string
-                  description: Optional canonical device ID; if omitted there must be exactly one fresh active device scoped to the authenticated user/tenant.
+                  description: Explicit canonical device ID required. Stale devices may be diagnosed; revoked and archived devices are not eligible.
       responses:
         "200":
           description: Diagnosis and no-secret authenticated repair handoff
@@ -2176,21 +2191,26 @@ paths:
                         type: string
                         enum:
                           - db
-                          - db_alias
-                          - env
-                          - env_fallback
+                          - scoped_db
                       secrets_included:
                         type: boolean
                         const: false
+                  recovery_plan:
+                    type: object
+                    additionalProperties: true
+                    properties:
+                      status:
+                        type: string
+                      installer_eligible:
+                        type: boolean
+                      next_action:
+                        type: string
                   repair:
                     type: object
                     additionalProperties: true
                     required:
                       - required
                       - installer_generated
-                      - artifact_delivery
-                      - public_storage_allowed
-                      - secure_download
                       - secrets_included
                     properties:
                       required:
@@ -2198,6 +2218,10 @@ paths:
                       installer_generated:
                         type: boolean
                         const: false
+                      preview_only:
+                        type: boolean
+                      verification_pending:
+                        type: boolean
                       artifact_delivery:
                         type: string
                         const: authenticated_direct_download_only
@@ -2248,9 +2272,13 @@ paths:
                                 type: string
                               device_id:
                                 type: string
+                              expected_config_id:
+                                type: string
                               format:
                                 type: string
                                 const: bat
+                          requires_explicit_device_confirmation:
+                            type: boolean
                           requires_backend_api_key:
                             type: boolean
                             const: true
