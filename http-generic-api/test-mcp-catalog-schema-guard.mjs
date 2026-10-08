@@ -111,6 +111,20 @@ const metadataFalseNegative = await readMcpCatalogLevelSchemaStatus({
 });
 assert.equal(metadataFalseNegative.available, true);
 assert.equal(metadataFalseNegative.migration_apply_required, false);
+const mixedEvidencePool = {
+  async query(sql, params) {
+    if (/information_schema\.columns/u.test(sql)) return [[{ column_count: 0 }]];
+    const error = new Error("mixed schema evidence");
+    error.code = sql.includes("admin_platform_endpoint_tools") ? "ER_BAD_FIELD_ERROR" : "ER_TABLEACCESS_DENIED_ERROR";
+    throw error;
+  },
+};
+const mixedEvidence = await readMcpCatalogSchemaReadiness({ pool: mixedEvidencePool });
+assert.equal(mixedEvidence.ok, false);
+assert.equal(mixedEvidence.tables[0].migration_apply_required, true);
+assert.equal(mixedEvidence.tables[1].migration_apply_required, false);
+assert.equal(mixedEvidence.migration_apply_required, false,
+  "Migration must not be recommended when one of the two tables is inaccessible");
 const safeDegraded = await readMcpCatalogSchemaReadinessSafe({
   pool: errorPool,
   env: { DB_NAME: "catalog_runtime", DB_USER: "runtime_user" },
