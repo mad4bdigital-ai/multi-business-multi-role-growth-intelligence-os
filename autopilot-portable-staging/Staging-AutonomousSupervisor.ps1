@@ -54,7 +54,8 @@ function Test-WatcherTaskIdentity([object]$Task) {
     if ($null -eq $Task -or @($Task.Actions).Count -ne 1) { return $false }
     $action = @($Task.Actions)[0]
     $arguments = [string]$action.Arguments
-    if ([IO.Path]::GetFileName([string]$action.Execute) -ine "powershell.exe") { return $false }
+    $expectedPowerShell = [IO.Path]::GetFullPath((Join-Path $PSHOME "powershell.exe"))
+    if ([IO.Path]::GetFullPath([string]$action.Execute) -ine $expectedPowerShell) { return $false }
     $working = [IO.Path]::GetFullPath([string]$action.WorkingDirectory).TrimEnd('\')
     $sourceRoot = [IO.Path]::GetFullPath([string]$scriptRoot).TrimEnd('\')
     $targetRoot = [IO.Path]::GetFullPath([string]$RepositoryPath).TrimEnd('\')
@@ -71,7 +72,7 @@ function Test-WatcherTaskIdentity([object]$Task) {
     return [regex]::IsMatch($arguments, $approved, [Text.RegularExpressions.RegexOptions]::IgnoreCase)
 }
 function Get-RecentWatcherEvidence([DateTimeOffset]$Now, [DateTimeOffset]$LastTaskStart) {
-    $result = [ordered]@{ cycles = 0; sleeps = 0; new_errors = 0; latest_poll = $null; latest_sleep = $null; run_id = ""; fresh = $false }
+    $result = [ordered]@{ cycles = 0; sleeps = 0; new_errors = 0; latest_poll = $null; latest_sleep = $null; run_id = ""; observed_sha = ""; fresh = $false }
     if (-not (Test-Path -LiteralPath $operationsPath -PathType Leaf)) { return $result }
     $records = @()
     foreach ($line in @(Get-Content -LiteralPath $operationsPath -Tail 1500 -ErrorAction Stop)) {
@@ -93,12 +94,29 @@ function Get-RecentWatcherEvidence([DateTimeOffset]$Now, [DateTimeOffset]$LastTa
     $windowStart = if ($recentPolls.Count -eq $minCycles) { Get-Time $recentPolls[0].timestamp } else { $LastTaskStart }
     $recentSleeps = @($sleeps | Where-Object { (Get-Time $_.timestamp) -ge $windowStart })
     $errors = @($sameRun | Where-Object { (Get-Time $_.timestamp) -ge $windowStart -and ($_.level -eq "error" -or $_.stage -eq "fail_closed") })
+    # A count of sleeps alone is insufficient: require one chronological
+    # poll->sleep pair for EACH observed cycle in this exact run.
+    $completed = 0
+    $allPairsValid = $true
+    if ($recentPolls.Count -eq $minCycles) {
+        for ($index = 0; $index -lt $recentPolls.Count; $index++) {
+            $start = Get-Time $recentPolls[$index].timestamp
+            $next = if ($index -lt $recentPolls.Count - 1) { Get-Time $recentPolls[$index + 1].timestamp } else { $Now }
+            $matched = @($recentSleeps | Where-Object {
+                $t = Get-Time $_.timestamp
+                $t -gt $start -and $t -lt $next
+            })
+            if ($matched.Count -ne 1) { $allPairsValid = $false; break }
+            $completed++
+        }
+    }
     $result.cycles = $recentPolls.Count
-    $result.sleeps = $recentSleeps.Count
+    $result.sleeps = if ($allPairsValid) { $completed } else { 0 }
     $result.new_errors = $errors.Count
     $result.run_id = $runId
     $result.latest_poll = [string]$polls[-1].timestamp
     if ($recentSleeps.Count -gt 0) { $result.latest_sleep = [string]$recentSleeps[-1].timestamp }
+    $result.observed_sha = ([string](Get-Prop (Get-Prop $polls[-1] "data") "sha")).Trim().ToLowerInvariant()
     $age = ($Now - (Get-Time $result.latest_poll)).TotalSeconds
     $result.fresh = ($age -ge 0 -and $age -le [int]$Policy.watcher_stale_after_seconds)
     return $result
@@ -138,6 +156,11 @@ function Get-Acceptance([DateTimeOffset]$Now, [object]$Task, [object]$TaskInfo) 
     $deployed = ([string](Get-Prop $deploy "deployed_commit")).ToLowerInvariant()
     $certified = ([string](Get-Prop $deploy "certified_commit")).ToLowerInvariant()
     $runtimeCommit = ([string](Get-Prop $runtime "commit")).ToLowerInvariant()
+    # The last witnessed Git poll must identify the same exact commit as
+    # the deployed/certified state. Otherwise stale receipts can look ready.
+    if ($evidence.observed_sha -notmatch '^[0-9a-f]{40}$' -or $evidence.observed_sha -ne $desired) {
+        [void]$reasons.Add("watcher_polled_commit_mismatch")
+    }
     if ($desired -notmatch '^[0-9a-f]{40}$' -or $desired -ne $deployed -or $desired -ne $certified -or $desired -ne $runtimeCommit -or
         [string](Get-Prop $deploy "overall") -ne "ready" -or [string](Get-Prop $deploy "certification_status") -ne "ready" -or
         [string](Get-Prop $runtime "certification_status") -ne "ready" -or
@@ -174,8 +197,23 @@ function Get-Acceptance([DateTimeOffset]$Now, [object]$Task, [object]$TaskInfo) 
 function Recover-Watcher([DateTimeOffset]$Now, [object]$Task, [object]$Decision) {
     $history = Read-Evidence $statePath
     $prior = @()
-    if ($null -ne $history) { $prior = @((Get-Prop $history "attempts_utc")) }
-    $attempts = @($prior | Where-Object { (Get-Time $_) -gt $Now.AddHours(-24) -and (Get-Time $_) -le $Now })
+    if ($null -ne $history) {
+        if ([string](Get-Prop $history "contract") -ne "mad4b.staging-autonomous-recovery-state.v1") {
+            throw "AUTONOMOUS_RECOVERY_BLOCKED: recovery history contract invalid"
+        }
+        $stored = Get-Prop $history "attempts_utc"
+        if ($null -eq $stored -or $stored -is [string]) { throw "AUTONOMOUS_RECOVERY_BLOCKED: recovery history shape invalid" }
+        $prior = @($stored)
+    }
+    $attempts = @()
+    foreach ($stamp in $prior) {
+        $at = Get-Time $stamp
+        if ($at -eq [DateTimeOffset]::MinValue -or $at -gt $Now) {
+            throw "AUTONOMOUS_RECOVERY_BLOCKED: invalid recovery attempt timestamp"
+        }
+        if ($at -gt $Now.AddHours(-24)) { $attempts += $at.ToString("o") }
+    }
+    $attempts = @($attempts | Sort-Object)
     $result = "none"
     if (-not [bool]$Policy.recovery.start_stopped_watcher) { $result = "disabled" }
     elseif ($null -eq $Task -or [string]$Task.State -ne "Ready") { $result = "not_eligible" }
