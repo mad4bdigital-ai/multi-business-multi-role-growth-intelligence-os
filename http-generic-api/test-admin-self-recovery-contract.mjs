@@ -54,8 +54,8 @@ test("diagnosis and installer do not silently auto-select a stale device", () =>
   assert.match(selector, /intent === "diagnosis"/);
   assert.match(selector, /state === "STALE"/);
   assert.match(admin, /intent: "diagnosis", allowMissingCredentials: true/);
-  assert.match(admin, /confirm_device_id/);
-  assert.match(admin, /expected_config_id/);
+  assert.match(admin, /legacy_admin_installer_disabled/);
+  assert.match(admin, /requires_signed_expiring_capability: true/);
 });
 test("recovery probes forbid redirects and require authenticated device and config identity", () => {
   assert((composite.match(/redirect: "manual"/g)||[]).length >= 2);
