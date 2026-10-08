@@ -1,9 +1,12 @@
 -- Forward-only, discoverable Hostinger Recovery allowlist extension (PR #8461).
+-- Site-independent PLANNED command definitions, replayable even on an empty Runtime DB.
 -- Registry-and-target-discovery ONLY: no executor, no live SSH, no DB creation,
 -- no environment mutation, no privileged grant, no provider or credential read.
 -- Command rows stay PLANNED. Production activation requires a separate certified
 -- provider/host executor, exact target authority, independent approval + readback.
 -- Hostinger SSH access alone is not Hostinger hPanel database-create authority.
+-- IMPORTANT: command catalog rows never imply registered/active Hostinger targets.
+-- Dynamic target discovery + exact allowlist and live authority are separate runtime gates.
 -- Do not grant arbitrary command, SQL, filesystem or environment-value input.
 
 INSERT INTO remote_runtime_command_allowlists
@@ -26,9 +29,6 @@ SELECT UUID(),'remote_ssh_runtime','hostinger_recovery_database_inventory','Host
          'additionalProperties',false),
        'high',1,0,'summary_only','planned',
        'Read-only metadata for existing production runtime/governance/persistence databases. No external execution or secret return; unimplemented executor.'
-WHERE EXISTS (SELECT 1 FROM connected_systems
-              WHERE system_key='hostinger_ssh_prod_platform'
-                AND provider_family='hostinger' AND connector_family='hostinger_ssh')
 ON DUPLICATE KEY UPDATE
   notes = notes;
 
@@ -52,9 +52,6 @@ SELECT UUID(),'remote_ssh_runtime','hostinger_recovery_control_store_plan','Host
          'additionalProperties',false),
        'high',1,0,'summary_only','planned',
        'Inspect existing DB roles and produce an immutable recovery-control-store proposal. No external execution or secret return; unimplemented executor.'
-WHERE EXISTS (SELECT 1 FROM connected_systems
-              WHERE system_key='hostinger_ssh_prod_platform'
-                AND provider_family='hostinger' AND connector_family='hostinger_ssh')
 ON DUPLICATE KEY UPDATE
   notes = notes;
 
@@ -78,9 +75,6 @@ SELECT UUID(),'remote_ssh_runtime','hostinger_recovery_database_create','Hosting
          'additionalProperties',false),
        'admin_recovery',1,1,'summary_only','planned',
        'Provider-certified creation of an exact new empty recovery control database only. No external execution or secret return; unimplemented executor.'
-WHERE EXISTS (SELECT 1 FROM connected_systems
-              WHERE system_key='hostinger_ssh_prod_platform'
-                AND provider_family='hostinger' AND connector_family='hostinger_ssh')
 ON DUPLICATE KEY UPDATE
   notes = notes;
 
@@ -104,9 +98,6 @@ SELECT UUID(),'remote_ssh_runtime','hostinger_recovery_environment_binding_plan'
          'additionalProperties',false),
        'high',1,0,'summary_only','planned',
        'Preview named secret-reference bindings without reading or returning secret values. No external execution or secret return; unimplemented executor.'
-WHERE EXISTS (SELECT 1 FROM connected_systems
-              WHERE system_key='hostinger_ssh_prod_platform'
-                AND provider_family='hostinger' AND connector_family='hostinger_ssh')
 ON DUPLICATE KEY UPDATE
   notes = notes;
 
@@ -130,9 +121,6 @@ SELECT UUID(),'remote_ssh_runtime','hostinger_recovery_environment_binding_apply
          'additionalProperties',false),
        'admin_recovery',1,1,'summary_only','planned',
        'Separate approved, atomic server-side environment binding operation using stored credential references. No external execution or secret return; unimplemented executor.'
-WHERE EXISTS (SELECT 1 FROM connected_systems
-              WHERE system_key='hostinger_ssh_prod_platform'
-                AND provider_family='hostinger' AND connector_family='hostinger_ssh')
 ON DUPLICATE KEY UPDATE
   notes = notes;
 
@@ -156,9 +144,6 @@ SELECT UUID(),'remote_ssh_runtime','hostinger_recovery_grants_plan','Hostinger R
          'additionalProperties',false),
        'high',1,0,'summary_only','planned',
        'Read-only least-privilege grant reconciliation preview. No external execution or secret return; unimplemented executor.'
-WHERE EXISTS (SELECT 1 FROM connected_systems
-              WHERE system_key='hostinger_ssh_prod_platform'
-                AND provider_family='hostinger' AND connector_family='hostinger_ssh')
 ON DUPLICATE KEY UPDATE
   notes = notes;
 
@@ -182,9 +167,6 @@ SELECT UUID(),'remote_ssh_runtime','hostinger_recovery_grants_apply','Hostinger 
          'additionalProperties',false),
        'admin_recovery',1,1,'summary_only','planned',
        'Apply separately approved exact scoped privileges, without GRANT OPTION. No external execution or secret return; unimplemented executor.'
-WHERE EXISTS (SELECT 1 FROM connected_systems
-              WHERE system_key='hostinger_ssh_prod_platform'
-                AND provider_family='hostinger' AND connector_family='hostinger_ssh')
 ON DUPLICATE KEY UPDATE
   notes = notes;
 
