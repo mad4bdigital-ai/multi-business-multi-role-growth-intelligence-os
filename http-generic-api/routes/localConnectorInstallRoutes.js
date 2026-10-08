@@ -1286,13 +1286,9 @@ export function buildLocalConnectorInstallRoutes(deps) {
           WHERE c.user_id = ? AND c.is_enabled = 1
             AND c.lifecycle_state = 'active' AND c.revoked_at IS NULL AND c.archived_at IS NULL
             AND c.tenant_id <=> ?
-            AND (c.device_id = ? OR EXISTS (
-              SELECT 1 FROM \`local_connector_device_aliases\` a
-               WHERE a.canonical_config_id = c.config_id AND a.canonical_device_id = c.device_id
-                 AND a.alias_device_id = ? AND a.user_id = c.user_id
-                 AND a.tenant_id <=> c.tenant_id AND a.status = 'active'))
+            AND c.device_id = ?
           LIMIT 2`,
-        [device.user_id, device.tenant_id || null, device.device_id, device.device_id]
+        [device.user_id, device.tenant_id || null, device.device_id]
       );
       if (rows.length > 1) return res.status(409).json({ ok: false, error: { code: "connector_config_ambiguous", message: "Multiple connector identities match this device. Reconcile before repair." }, secrets_included: false });
       const config = rows[0] || null;
