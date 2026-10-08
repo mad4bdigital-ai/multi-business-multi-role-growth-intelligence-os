@@ -905,17 +905,33 @@ async function writeHeartbeat(config, body = {}) {
     ]
   );
 
+  // MySQL/MariaDB may report zero affectedRows for an idempotent UPDATE,
+  // depending on CLIENT_FOUND_ROWS and second-resolution updated_at.
+  // Revalidate the scoped lifecycle rather than treating that as revocation.
   if (Number(healthWrite?.affectedRows || 0) !== 1) {
-    throw httpError(409, "device_lifecycle_changed_during_heartbeat",
-      "The connector identity was disabled or changed before the heartbeat could be recorded.");
+    const [verifiedRows] = await getPool().query(
+      "SELECT config_id FROM local_connector_user_configs " +
+      "WHERE config_id = ? AND user_id = ? AND tenant_id = ? AND device_id = ? " +
+      "AND is_enabled = 1 AND lifecycle_state = 'active' " +
+      "AND revoked_at IS NULL AND archived_at IS NULL LIMIT 2",
+      [config.config_id, config.user_id, config.tenant_id, config.device_id]
+    );
+    if (verifiedRows.length !== 1) {
+      throw httpError(409, "device_lifecycle_changed_during_heartbeat",
+        "The device identity is no longer a unique active scoped configuration.");
+    }
   }
 
-  // Only a successful health probe may promote route health. A started,
-  // skipped or failed recovery attempt is not a verified healthy route.
-  const verifiedHealth = eventType === "health_ok" && status === "ok";
-  await syncPrimaryRouteFromHeartbeat(config, {
-    status: verifiedHealth ? "ok" : "failed", errorCode, errorMessage,
-  });
+  // Health transitions require a health event, not a maintenance attempt.
+  // A started/skipped/restart/rollback event is evidence of an action, not a
+  // failure of the previously verified route.
+  const healthTransition = eventType === "health_ok" && status === "ok" ? "ok"
+    : (eventType === "health_failed" && status === "failed" ? "failed" : null);
+  if (healthTransition) {
+    await syncPrimaryRouteFromHeartbeat(config, {
+      status: healthTransition, errorCode, errorMessage,
+    });
+  }
 
   const eventId = crypto.randomUUID();
   await getPool().query(
