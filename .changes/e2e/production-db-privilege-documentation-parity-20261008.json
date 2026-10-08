@@ -17,7 +17,9 @@
       "http-generic-api/test-governance-db-privilege-readiness.mjs",
       "http-generic-api/databaseSchemaRecoveryTriage.js",
       "http-generic-api/test-database-schema-recovery-triage.mjs",
-      "docs/runbooks/database-schema-recovery-classification.md"
+      "docs/runbooks/database-schema-recovery-classification.md",
+      "http-generic-api/recoveryKernel.js",
+      "http-generic-api/test-recovery-kernel.mjs"
     ]
   },
   "environment_impact": {
@@ -52,7 +54,8 @@
             "Prove the minimum Production Runtime and Runtime Persistence bootstrap grant surfaces remain distinct from the larger Staging runtime overlay.",
             "Document exact Production runtime identity, independent database/principal privilege readiness and backup/Recovery Control Store gates before any provider or SQL mutation.",
             "Preserve actual passed Production preflight through a schema-readiness failure and identify that the direct-grant matrix was not evaluated when table visibility blocked the probe.",
-            "Route any missing Runtime, Governance or Runtime Persistence required table through an independent exact-SHA full-object physical census, not the app-principal information_schema visibility count."
+            "Route any missing Runtime, Governance or Runtime Persistence required table through an independent exact-SHA full-object physical census, not the app-principal information_schema visibility count.",
+            "Require Recovery Kernel full-inspection findings to classify verified partial nonempty required-table absence as a non-executable finding, never as an automatically eligible grant or generic migration."
           ],
           "assertions": [
             "Provider configured support is distinct from live preflight, actual schema, credential readiness and privilege readback.",
@@ -65,7 +68,8 @@
             "The shared readiness runtime projection behavior is regression-tested on Staging and Production; Production actual schema changes remain explicitly excluded.",
             "Zero required tables visible to a Governance app principal never proves physically empty database; role-empty rebuild requires a complete independent census of tables, views, triggers, routines and events.",
             "Nonempty schemas with missing tables require role-bound registered migrations and independent approval; exact-grant repair is used only when physically present tables are privilege-invisible.",
-            "No new automatic Production SQL executor or schema creation is exposed; Source only generates fail-closed diagnostic next-action candidates."
+            "No new automatic Production SQL executor or schema creation is exposed; Source only generates fail-closed diagnostic next-action candidates.",
+            "Unknown or missing readiness booleans cannot be converted into deterministic recovery capabilities; zero-object rebuild is reserved for separately verified empty roles."
           ],
           "tests": [
             {
@@ -88,6 +92,13 @@
               "working_directory": "http-generic-api",
               "path": "test-database-schema-recovery-triage.mjs",
               "args": []
+            },
+            {
+              "id": "production-recovery-kernel-partial-schema-vs-grants-boundary",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-recovery-kernel.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
@@ -101,7 +112,9 @@
             "http-generic-api/test-governance-db-privilege-readiness.mjs",
             "http-generic-api/databaseSchemaRecoveryTriage.js",
             "http-generic-api/test-database-schema-recovery-triage.mjs",
-            "docs/runbooks/database-schema-recovery-classification.md"
+            "docs/runbooks/database-schema-recovery-classification.md",
+            "http-generic-api/recoveryKernel.js",
+            "http-generic-api/test-recovery-kernel.mjs"
           ]
         }
       ]
