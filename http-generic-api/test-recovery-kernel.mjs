@@ -344,6 +344,21 @@ test("unknown/null database readiness cannot generate a deterministic recovery c
   assert.ok(!findings.some((entry) => entry.candidate_capability === "governance.mcp_catalog.repair"));
 });
 
+test("readiness failure alone cannot authorize grants when full role-table evidence is missing", () => {
+  const inspected = readinessFailure();
+  inspected.role_database_object_classifications.governance = "nonempty_objects";
+  inspected.role_database_object_counts.governance = {
+    tables: 17, views: 0, triggers: 0, routines: 0, events: 0, total: 17,
+  };
+  const withoutEvidence = _testingRecoveryKernel.findingsFromInspection(inspected);
+  assert.ok(!withoutEvidence.some((item) => item.candidate_capability === "governance.grant.repair"));
+
+  inspected.role_table_evidence = {
+    governance: [{ table: "approval_holds", present: true }],
+  };
+  const withProof = _testingRecoveryKernel.findingsFromInspection(inspected);
+  assert.ok(withProof.some((item) => item.candidate_capability === "governance.grant.repair"));
+});
 test("Recovery Kernel capability catalog is static, bounded, and secret-safe", () => {
   const result = getRecoveryCapabilities();
   assert.equal(result.ok, true);
