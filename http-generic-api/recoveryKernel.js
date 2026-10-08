@@ -442,6 +442,7 @@ function findingsFromInspection(inspection = {}) {
   const roleClassifications = inspection.role_database_object_classifications && typeof inspection.role_database_object_classifications === "object" ? inspection.role_database_object_classifications : {};
   const roleCountFingerprints = inspection.role_database_object_count_fingerprints && typeof inspection.role_database_object_count_fingerprints === "object" ? inspection.role_database_object_count_fingerprints : {};
   const roleBundleBindings = inspection.role_bundle_bindings && typeof inspection.role_bundle_bindings === "object" ? inspection.role_bundle_bindings : {};
+  const roleTableEvidence = inspection.role_table_evidence && typeof inspection.role_table_evidence === "object" ? inspection.role_table_evidence : {};
   const roleEvidenceAvailable = ["runtime", "governance", "runtime_persistence"].every((role) => Object.prototype.hasOwnProperty.call(roleClassifications, role) && Object.prototype.hasOwnProperty.call(roleCounts, role));
   const emptyRoles = new Set();
   if (roleEvidenceAvailable && inspection.full_inspection === true) {
@@ -463,13 +464,40 @@ function findingsFromInspection(inspection = {}) {
       findings.push(finding);
     }
   }
+  // A required table absent from a non-empty role is a partial-schema incident,
+  // not permission to run grant repair or the zero-object baseline rebuild.
+  // All missing physical evidence comes from the privileged full inspection only.
+  const partialMissingRoles = new Set();
+  if (roleEvidenceAvailable && inspection.full_inspection === true) {
+    for (const role of ["runtime", "governance", "runtime_persistence"]) {
+      if (roleClassifications[role] !== "nonempty_objects") continue;
+      const roleTables = roleTableEvidence[role];
+      if (!Array.isArray(roleTables)) continue; // Unverified evidence cannot prove absence.
+      const missingCount = roleTables.filter((entry) => entry?.present === false).length;
+      if (!missingCount) continue;
+      partialMissingRoles.add(role);
+      findings.push(inspectionFinding({
+        targetRole: role,
+        resource: "role required database schema",
+        category: "partial_schema_missing_table",
+        severity: "high",
+        expected: { required_tables_present: true },
+        actual: { nonempty_objects: true, missing_required_table_count: missingCount },
+        authorityRef: null,
+        repairability: "unknown_fail_closed",
+        mutationRequired: false,
+      }));
+    }
+  }
   const checkMap = [
     ["mcp_catalog_schema_ready", "governance", "admin_platform_endpoint_tools.mcp_catalog_level", "known_migration_gap", "high", "governance.mcp_catalog.repair", "20260815_custom_gpt_mcp_catalog_levels.sql"],
     ["governance_db_privilege_ready", "governance", "governance database privilege contract", "known_grant_gap", "high", "governance.grant.repair", "repository grant contract"],
     ["runtime_persistence_ready", "runtime_persistence", "governed_tool_response_chunks", "schema_drift", "high", "runtime_persistence.schema.repair", "persistence schema bundle"],
   ];
   for (const [check, role, resource, category, severity, candidate, authority] of checkMap) {
-    if (checks[check] === true || emptyRoles.has(role)) continue;
+    // Unknown/null readiness is NOT a failed readiness probe. Neither a
+    // verified partial schema nor an empty role may be treated as a grant gap.
+    if (checks[check] !== false || emptyRoles.has(role) || partialMissingRoles.has(role)) continue;
     const finding = inspectionFinding({ targetRole: role, resource, category, severity, expected: { ready: true }, actual: { ready: checks[check] ?? dimensions[role] ?? false }, authorityRef: authority, repairability: candidate ? "deterministic" : "unknown_fail_closed", mutationRequired: true });
     finding.candidate_capability = candidate;
     findings.push(finding);
