@@ -37,7 +37,7 @@ for (const forbidden of [/Register-ScheduledTask/, /Unregister-ScheduledTask/, /
   assert.doesNotMatch(supervisor, forbidden, `supervisor must not mutate external resources: ${forbidden}`);
 }
 assert.match(installer, /Custom task names are outside the governed supervisor policy/);
-assert.match(installer, /existing.*different configuration; refusing overwrite/);
+assert.match(installer, /exists with a different configuration; refusing overwrite/);
 assert.match(installer, /\$trustedPowerShell/);
 assert.match(originalInstaller, /Staging-AutonomousSupervisor\.ps1/);
 assert.match(removal, /STAGING_SUPERVISOR_TASK_REMOVED/);
