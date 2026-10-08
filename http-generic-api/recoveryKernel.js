@@ -63,6 +63,7 @@ import {
 } from "./recoveryExceptionLifecycle.js";
 import { readCanonicalStagingGrantBinding } from "./stagingGrantBinding.js";
 import { readCanonicalProductionGrantBinding } from "./productionGrantBinding.js";
+import { BOOTSTRAP_ROLE_GRANT_POLICIES } from "./databasePrivilegeContracts.js";
 
 export { assertTrustForMutation, deriveRoleTargetFingerprints, getRecoveryTrustModel, readRuntimeAttestation, readRecoveryManifest, activateExceptionLifecycle, approveExceptionLifecycle, buildDisasterRecoveryPreview, consumeExceptionLifecycle, createExceptionLifecycle, createExceptionLifecycleRecord, expireExceptionLifecycle, heartbeatExceptionLease, revokeExceptionLifecycle };
 
@@ -502,9 +503,13 @@ function findingsFromInspection(inspection = {}) {
     // schema inventory is unverified. Only a full independent inspection with
     // explicit required-table presence may authorize a deterministic candidate.
     const requiredEvidence = roleTableEvidence[role];
+    const requiredTables = BOOTSTRAP_ROLE_GRANT_POLICIES[role]?.required_tables || [];
+    const physicallyPresent = new Set(Array.isArray(requiredEvidence)
+      ? requiredEvidence.filter((entry) => entry?.present === true).map((entry) => String(entry.table || "").trim())
+      : []);
     if (!roleEvidenceAvailable || inspection.full_inspection !== true
-      || !Array.isArray(requiredEvidence) || requiredEvidence.length === 0
-      || !requiredEvidence.every((entry) => entry?.present === true)) continue;
+      || !Array.isArray(requiredEvidence) || requiredTables.length === 0
+      || !requiredTables.every((table) => physicallyPresent.has(table))) continue;
     const finding = inspectionFinding({ targetRole: role, resource, category, severity, expected: { ready: true }, actual: { ready: checks[check] ?? dimensions[role] ?? false }, authorityRef: authority, repairability: candidate ? "deterministic" : "unknown_fail_closed", mutationRequired: true });
     finding.candidate_capability = candidate;
     findings.push(finding);
