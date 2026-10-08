@@ -84,5 +84,6 @@ test("inactive Hostinger connected-system cannot be treated as a ready planner",
   const out=evaluateHostingerRecoveryCapabilities({target:{...target(),registered_system_status:"disabled"},
     commands:commands(),environment:"production"});
   assert(out.commands.every(x=>x.plan_allowed===false));
+  assert(out.commands.every(x=>x.discovery_ready===false && x.plan_candidate===false));
   assert(out.commands.every(x=>x.prerequisites.includes("validated_live_target_and_system")));
 });
