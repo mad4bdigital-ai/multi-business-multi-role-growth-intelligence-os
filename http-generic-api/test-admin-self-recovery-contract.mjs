@@ -176,3 +176,12 @@ test("recovery validates enrolled per-device route, never the shared control-pla
   assert.match(validator,/cfargotunnel\.com/);
   assert.match(validator,/configId/);
 });
+
+test("heartbeat cannot resurrect disabled device route or bypass current config lifecycle",()=>{
+  const start=agent.indexOf("async function syncPrimaryRouteFromHeartbeat");
+  const end=agent.indexOf("async function writeHeartbeat",start);
+  const route=agent.slice(start,end);
+  assert.match(route, /revoked_at IS NULL AND archived_at IS NULL/);
+  assert.match(route, /activeRows\.length !== 1/);
+  assert.doesNotMatch(route, /ON DUPLICATE KEY UPDATE[\s\S]*?is_enabled = 1/);
+});
