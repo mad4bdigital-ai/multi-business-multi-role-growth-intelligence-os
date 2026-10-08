@@ -179,3 +179,39 @@ The existing deep-audit handoff reports **48/48 source-oriented isolated checks*
 - Official Hostinger API: https://developers.hostinger.com/
 
 **Delivery verdict:** PR source delivered; Hostinger registration exists in the supplied observed inventory; requested Production provisioning capability and MCP Runtime schema readiness are **not certified**. This is a controlled handoff, not operational closure.
+
+
+## 12. Follow-up implementation cycle — 2026-10-09 (source-only)
+
+**Evidence boundary:** This cycle changed the PR branch only. No live Hostinger API/SSH call, SQL mutation, runtime database migration, host environment replacement, grant, rollout, Production deploy, or merge occurred. Source-oriented V8 checks are not native Node/MySQL/MariaDB/PowerShell or browser acceptance.
+
+### A. MCP Runtime schema guard hardening
+- `mcpCatalogSchemaGuard.js` now treats a zero `information_schema.columns` count as ambiguous until a whitelisted `SELECT mcp_catalog_level FROM <catalog_table> LIMIT 0` read-only probe establishes the column state.
+- `ER_BAD_FIELD_ERROR` confirms a missing column. `ER_NO_SUCH_TABLE`, access denial, or an unknown metadata/probe error do **not** confer migration authority.
+- In a two-table contract, migration recommendation is blocked if either table remains unknown/inaccessible; an invalid Runtime identity suppresses migration advice even if the schema of the wrong database appears deficient.
+- The tools' no-secret not-ready projection only declares `migration_apply_required=true` for a verified missing-field condition.
+- Regressions were added for confirmed missing, wrong Runtime, inaccessible table, absent table, metadata false negative, mixed certainty, and safe error projection. They are source tests, not live Runtime readback.
+
+### B. Hostinger discovery and safety semantics
+- `assessHostingerNodeEnvReplacement` can complete an evaluation without claiming successful or permissible execution. `ok=false`, `evaluation_completed=true`, `candidate_ready=false`, `execution_allowed=false` when safeguards block.
+- A disabled Hostinger connected system can no longer report `discovery_ready` or `plan_candidate` even if the planned catalog command is listed.
+- The seven recovery commands remain catalog-only; no executor/entitlement/target approval has been activated. No generic environment PUT is safe without complete unmasked authoritative values, a bounded host lease/revision mechanism, exact approval and independent readback.
+
+### C. Installer epoch secret-boundary correction
+- Removed reliance on global `BACKEND_API_KEY` from `installerCredentialEpoch.js` and its test fixture.
+- Epoch HMAC now uses the already-enrolled connector secret as its key and binds exact device/config/user/tenant, connector secret and Cloudflare token. Credential rotation invalidates the previous epoch.
+- This changes the derived epoch compared to the earlier nondeployed PR candidate: signed installer tokens issued under that earlier source must be reissued. Do not silently accept old epochs or use an administrator/backend shared key as a device identity.
+
+### D. E2E, frontend, and Configuration Drift governance
+- Added explicit `.changes/e2e/pr8461-device-hostinger-recovery-maintenance.json` with `delivery_mode=single_pr`, secret-free source-only synthetic scope, concrete tests, and exact changed-path coverage.
+- Classified `POST /platform/remote-runtime/hosting/recovery-allowlist/discover` as a bounded `read_action` in `frontend-surface-policy.json`, and registered the tests in the command manifest and frontend evidence registry.
+- Downloaded the exact Repository Tool Lifecycle CI artifact from workflow run `37854733570`. Its **three** catalog findings were: one new installer `BACKEND_API_KEY` secret candidate, and unregistered `connector.config.id` / `connector.device.id`. The **five** drift findings were the three installer/test `BACKEND_API_KEY` references and the two connector identity refs.
+- Addressed these exact source findings by removing the global key from the installer and tests, registering the two non-secret device identity settings in the Config Catalog, and adding only their reviewed non-secret fingerprints to the permanent drift extension. No suppression or authority expansion was used.
+
+### E. Verification and remaining gates
+- Targeted dynamic checks against fetched source passed: **13/13** MCP/Hostinger first-cycle behavioral cases, **9/9** registry/secret-boundary checks, and **5/5** second-cycle MCP/Hostinger/E2E cases. The fixtures mocked providers and database responses; these are **not** native DB, remote host, or deployment certificates.
+- On the latest checked candidate before this report update, `f932dd58640816511e6ff560dc67da10e9318bb6`, CI still had pending/queued checks and Docs Agent had failed without job-level details. Do not count unresolved jobs as PASS.
+- Still P0 and outside this source-only work: live Hostinger account entitlement; external independently governed Recovery Control Store provisioning and connection; actual Production Runtime schema/privilege readback and if needed separately approved migration; independent device-generation attestation; staging fault injection / rollback; exact generated artifact convergence; native multi-runtime certification.
+- Keep PR Draft/Open and `main` unchanged until current exact-head functional tests and operational authority/readbacks are certified. A reported `mergeable=true` is not release acceptance.
+
+**Cycle result:** source-side defects and documented CI drift findings were addressed; **full operational closure has not been achieved or claimed**.
