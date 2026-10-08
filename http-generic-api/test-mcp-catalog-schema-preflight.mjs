@@ -21,9 +21,17 @@ function fakePool(columnCounts = {}, identity = { current_database: "catalog_run
     async query(sql, params) {
       calls.push({ sql, params });
       if (/SELECT DATABASE\(\)/u.test(sql)) return [[identity]];
-      assert.match(sql, /information_schema\.columns/u);
-      const table = String(params?.[0] || "");
-      return [[{ column_count: Number(columnCounts[table] || 0) }]];
+      if (/information_schema\.columns/u.test(sql)) {
+        const table = String(params?.[0] || "");
+        return [[{ column_count: Number(columnCounts[table] || 0) }]];
+      }
+      if (/LIMIT 0/u.test(sql)) {
+        const error = new Error("Column not present");
+        error.code = "ER_BAD_FIELD_ERROR";
+        throw error;
+      }
+      throw new Error("unexpected query");
+
     },
   };
 }
@@ -52,6 +60,14 @@ assert.equal(missing.sql_readback_performed, true);
 assert.equal(missing.tables.every((table) => table.available === false), true);
 assert.equal(missing.secrets_included, false);
 assert.equal(missing.identity.ok, true);
+assert.equal(missing.tables.every(table => table.migration_apply_required === true), true);
+
+const wrongSchema = await readMcpCatalogSchemaReadinessSafe({
+  pool: fakePool(), env: { DB_NAME: "not-the-runtime-db", DB_USER: "runtime_user" },
+});
+assert.equal(wrongSchema.ok, false);
+assert.equal(wrongSchema.identity.database_matches, false);
+assert.equal(wrongSchema.migration_apply_required, false, "Wrong database must not recommend migration");
 
 const missingIdentityEnv = await readMcpCatalogRuntimeIdentity({ pool: readyPool, env: {} });
 assert.equal(missingIdentityEnv.ok, false);
@@ -116,6 +132,12 @@ assert.equal(projected.code, "schema_contract_not_ready");
 assert.equal(projected.details.migration, MCP_CATALOG_LEVEL_MIGRATION);
 assert.equal(projected.details.column, MCP_CATALOG_LEVEL_COLUMN);
 assert.equal(projected.details.migration_apply_required, true);
+const unverified = buildMcpCatalogSchemaNotReadyResponse({
+  code: "mcp_catalog_schema_metadata_unavailable",
+  details: { table: "admin_platform_endpoint_tools" },
+});
+assert.equal(unverified.details.migration_apply_required, false);
+assert.equal(unverified.secrets_included, false);
 assert.equal(projected.details.table, MCP_CATALOG_TABLES[0]);
 assert.equal(JSON.stringify(projected).includes("must-not-leak"), false);
 assert.equal(projected.secrets_included, false);
