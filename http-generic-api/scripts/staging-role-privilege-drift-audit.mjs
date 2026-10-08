@@ -37,11 +37,19 @@ export function compareRolePrivilegeEvidence({
   const tables = [...spec.required_tables, ...spec.optional_tables];
   const operationsByTable = spec.required_operations_by_table || {};
   const expected = new Set();
+  const unassessedRequired = new Set();
   const invisibleRequired = [];
   const invisibleOptional = [];
   for (const table of tables) {
     if (!visible.has(table)) {
       (optional.has(table) ? invisibleOptional : invisibleRequired).push(table);
+      if (!optional.has(table)) {
+        // A table hidden from this identity might be physically present. Do not
+        // report its unobserved privileges as granted, missing, or schema-absent.
+        for (const op of (operationsByTable[table] || spec.required_operations)) {
+          unassessedRequired.add(table + ":" + normalized(op).toUpperCase());
+        }
+      }
       continue;
     }
     for (const op of (operationsByTable[table] || spec.required_operations)) {
@@ -95,6 +103,9 @@ export function compareRolePrivilegeEvidence({
     principal_verified: Boolean(principal), required_tables: spec.required_tables.length,
     optional_tables: spec.optional_tables.length, visible_tables: visible.size,
     expected_direct_grants_on_visible_surfaces: expected.size,
+    unassessed_required_grants_on_hidden_surfaces: ordered([...unassessedRequired]),
+    unassessed_required_grant_count: unassessedRequired.size,
+    expected_direct_grants_if_all_required_surfaces_exist: expected.size + unassessedRequired.size,
     observed_direct_grants: actual.size,
     missing_required_grants: missing, excessive_table_grants: excessive,
     required_tables_missing_or_invisible: ordered(invisibleRequired),
