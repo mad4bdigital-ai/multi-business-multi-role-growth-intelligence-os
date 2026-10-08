@@ -6,6 +6,7 @@ on:
       - 'autopilot-portable-staging/autonomous-operations-policy.json'
       - 'autopilot-portable-staging/Install-AutoDeployTask.ps1'
       - 'autopilot-portable-staging/Uninstall-AutoDeployTask.ps1'
+      - 'autopilot-portable-staging/Install-AutonomousSupervisorTask.ps1'
       - 'autopilot-portable-staging/test/Test-AutonomousSupervisor.ps1'
       - '.github/workflows/staging-autonomous-supervisor.yml'
   workflow_dispatch:
