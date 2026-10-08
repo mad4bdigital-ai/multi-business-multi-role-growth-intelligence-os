@@ -9,6 +9,7 @@ const admin = read("./routes/adminCliRoutes.js");
 const composite = read("./localConnectorCompositeHealth.js");
 const selector = read("./adminLocalConnectorTarget.js");
 const localServer = read("../local-connector/server.mjs");
+const watchdog = read("../local-connector/connector-watchdog.ps1");
 
 test("heartbeat cannot inherit the global backend key or resurrect revoked device", () => {
   const start = agent.indexOf("async function resolveHeartbeatConfig(");
@@ -96,4 +97,19 @@ test("connector policy cannot treat a platform API key as device-owned authority
   assert.match(policy, /revoked_at IS NULL AND archived_at IS NULL/);
   assert.match(policy, /connectorAuthPredicateForToken\(token\)/);
   assert.doesNotMatch(policy, /if \(backendToken && token === backendToken\) \{\s*sql \+=/);
+});
+
+test("watchdog heartbeat and public probe are bound to enrolled canonical device, not old hostname",()=>{
+  assert.match(watchdog, /CONNECTOR_CONFIG_ID/);
+  assert.match(watchdog, /CONNECTOR_DEVICE_ID/);
+  assert.match(watchdog, /CONNECTOR_SECRET_FILE/);
+  assert.match(watchdog, /CONNECTOR_PUBLIC_HEALTH_URL/);
+  assert.match(watchdog, /Test-PublicHealthBinding/);
+  assert.match(watchdog, /config_id = \$configId/);
+  assert.match(watchdog, /device_id = \$deviceId/);
+  assert.match(watchdog, /\$response\.event\.event_id/);
+  assert.doesNotMatch(watchdog, /device_id = \[Environment\]::MachineName/);
+  assert.doesNotMatch(watchdog, /\$PublicHealthUrl = "https:\/\/connector\.mad4b\.com\/health"/);
+  assert.match(agent, /CONNECTOR_PUBLIC_HEALTH_URL=/);
+  assert.match(agent, /CONNECTOR_TUNNEL_ID=/);
 });
