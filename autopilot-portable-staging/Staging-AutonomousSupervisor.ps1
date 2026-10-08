@@ -201,9 +201,13 @@ function Recover-Watcher([DateTimeOffset]$Now, [object]$Task, [object]$Decision)
         if ([string](Get-Prop $history "contract") -ne "mad4b.staging-autonomous-recovery-state.v1") {
             throw "AUTONOMOUS_RECOVERY_BLOCKED: recovery history contract invalid"
         }
-        $stored = Get-Prop $history "attempts_utc"
-        if ($null -eq $stored -or $stored -is [string]) { throw "AUTONOMOUS_RECOVERY_BLOCKED: recovery history shape invalid" }
-        $prior = @($stored)
+        $entry = $history.PSObject.Properties["attempts_utc"]
+        if ($null -eq $entry -or $null -eq $entry.Value -or $entry.Value -isnot [array]) {
+            throw "AUTONOMOUS_RECOVERY_BLOCKED: recovery history shape invalid"
+        }
+        # Avoid PowerShell's automatic unrolling of one-element arrays through
+        # Get-Prop. The raw JSON property must remain an array by contract.
+        $prior = @($entry.Value)
     }
     $attempts = @()
     foreach ($stamp in $prior) {
