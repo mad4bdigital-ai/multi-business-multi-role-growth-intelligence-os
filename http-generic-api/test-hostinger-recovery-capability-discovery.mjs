@@ -5,7 +5,7 @@ import { evaluateHostingerRecoveryCapabilities, discoverHostingerRecoveryCapabil
 
 const target=()=>({
   target_id:"target-1",plugin_key:"remote_ssh_runtime",provider_family:"hostinger",
-  connector_family:"hostinger_ssh",registered_environment:"production",status:"active",
+  connector_family:"hostinger_ssh",registered_environment:"production",registered_system_status:"active",status:"active",
   validation_status:"valid",command_allowlist_json:JSON.stringify([
     "status","hostinger_recovery_database_inventory",
     "hostinger_recovery_database_create",
@@ -23,12 +23,13 @@ test("discovery never infers execution from an active SSH account or target allo
   assert(result.commands.every(x=>x.execution_allowed===false && x.dispatch_ready===false));
   assert.equal(result.ssh_used,false);assert.equal(result.mutation_performed,false);
   assert.equal(result.secrets_included,false);
+  assert(result.commands.every(x=>x.plan_allowed===false));
   assert.equal(result.commands.find(x=>x.command_key==="hostinger_recovery_database_create").plan_allowed,false);
 });
 test("inactive target or planned command is not promoted by presence of credential binding",()=>{
   const t={...target(),status:"planned",validation_status:"pending_configuration"};
   const result=evaluateHostingerRecoveryCapabilities({target:t,commands:commands(),environment:"production"});
-  assert(result.commands.every(x=>x.prerequisites.includes("validated_live_target")));
+  assert(result.commands.every(x=>x.prerequisites.includes("validated_live_target_and_system")));
   assert(result.commands.every(x=>x.prerequisites.includes("catalog_activation_after_certification")));
 });
 test("tenant, provider and environment crossings fail closed",()=>{
@@ -76,4 +77,11 @@ test("migration adds planned capabilities only and does not widen SSH shell exec
   assert(sql.includes("is_enabled=0"));
   assert(sql.includes("JSON_VALID(t.command_allowlist_json)"));
   assert(!/freeform_command|raw_sql_execute/i.test(sql));
+});
+
+test("inactive Hostinger connected-system cannot be treated as a ready planner",()=>{
+  const out=evaluateHostingerRecoveryCapabilities({target:{...target(),registered_system_status:"disabled"},
+    commands:commands(),environment:"production"});
+  assert(out.commands.every(x=>x.plan_allowed===false));
+  assert(out.commands.every(x=>x.prerequisites.includes("validated_live_target_and_system")));
 });
