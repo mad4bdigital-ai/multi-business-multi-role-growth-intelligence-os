@@ -137,3 +137,12 @@ test("download, canonical PS1 and one-time redeem fence old credential generatio
   assert.match(epoch, /connector_secret, cf_token/);
   assert.match(epoch, /installer_credential_epoch_changed/);
 });
+
+test("final redemption and heartbeat update are fenced against concurrent identity mutation",()=>{
+  assert.match(agent, /const selectedEpoch = deriveInstallerCredentialEpoch/);
+  assert.match(agent, /compareInstallerCredentialEpoch\(selectedEpoch, payload\.credential_epoch\)/);
+  assert.match(agent, /device_lifecycle_changed_during_heartbeat/);
+  assert.match(agent, /healthWrite\?\.affectedRows/);
+  assert.match(agent, /last_reconnect_at = IF\(\? IN/);
+  assert.match(agent, /last_health_at = IF\(\? = 'health_ok' AND \? = 'ok'/);
+});
