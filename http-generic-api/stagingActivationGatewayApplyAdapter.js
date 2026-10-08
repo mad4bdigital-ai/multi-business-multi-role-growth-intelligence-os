@@ -637,6 +637,7 @@ function classifyStagingGatewayCertificationBaseline(health, ready, expectedComm
     ready: exactRelease || driftOnly,
     mode: exactRelease ? "healthy_exact" : driftOnly ? "release_identity_drift" : "blocked",
     observed_source_commit: canonicalHealth ? sourceCommit : null,
+    observed_worker_bundle_sha256: canonicalHealth ? workerBundleSha256 : null,
     expected_source_commit: expectedCommit,
     expected_policy_hash: expectedPolicyHash,
     health_status: health?.status || 0,
@@ -758,6 +759,7 @@ export async function buildStagingActivationGatewayApplyPlan(input = {}, deps = 
     purpose: planPurpose,
     ...(certificationPurpose ? { certification_baseline: {
       mode: baseline.mode, observed_source_commit: baseline.observed_source_commit,
+      observed_worker_bundle_sha256: baseline.ready ? baseline.observed_worker_bundle_sha256 : null,
       expected_policy_hash: expectedPolicyHash,
     } } : {}),
     environment_convergence_plan_sha256: convergencePlanSha, expected_source_commit: expectedSourceCommit,
@@ -1447,6 +1449,7 @@ export async function runStagingActivationGatewayTransactionCertification(input 
 
   const baselineMode = planBody.certification_baseline?.mode;
   if (!["healthy_exact", "release_identity_drift"].includes(baselineMode)
+    || !SHA256_RE.test(planBody.certification_baseline?.observed_worker_bundle_sha256 || "")
     || planBody.certification_baseline?.expected_policy_hash !== planBody.expected_policy_hash) {
     throw adapterError("staging_activation_gateway_certification_baseline_binding_invalid",
       "Prepared certification plan has no exact-bound public Gateway baseline.", 409);
@@ -1456,7 +1459,8 @@ export async function runStagingActivationGatewayTransactionCertification(input 
     publicFetch, gateway.public_host, planBody.expected_source_commit, planBody.expected_policy_hash, deps.smokeTimeoutMs);
   if (!preClaimBaseline.classification.ready
     || preClaimBaseline.classification.mode !== baselineMode
-    || preClaimBaseline.classification.observed_source_commit !== planBody.certification_baseline.observed_source_commit) {
+    || preClaimBaseline.classification.observed_source_commit !== planBody.certification_baseline.observed_source_commit
+    || preClaimBaseline.classification.observed_worker_bundle_sha256 !== planBody.certification_baseline.observed_worker_bundle_sha256) {
     throw adapterError("staging_activation_gateway_certification_baseline_drifted",
       "The current public Gateway baseline no longer matches the prepared certification plan.", 409);
   }
@@ -1520,7 +1524,8 @@ export async function runStagingActivationGatewayTransactionCertification(input 
     previousHealth = claimedBaseline.health;
     previousReady = claimedBaseline.ready;
     if (!claimedBaseline.classification.ready || claimedBaseline.classification.mode !== baselineMode
-      || claimedBaseline.classification.observed_source_commit !== planBody.certification_baseline.observed_source_commit) {
+      || claimedBaseline.classification.observed_source_commit !== planBody.certification_baseline.observed_source_commit
+      || claimedBaseline.classification.observed_worker_bundle_sha256 !== planBody.certification_baseline.observed_worker_bundle_sha256) {
       throw adapterError(
         "staging_activation_gateway_certification_public_baseline_unready",
         "Claimed Gateway baseline differs from the prepared exact-commit certification plan.",
@@ -1542,6 +1547,7 @@ export async function runStagingActivationGatewayTransactionCertification(input 
         previous_deployment_id: previousDeployment.id,
         baseline_mode: baselineMode,
         baseline_source_commit: planBody.certification_baseline.observed_source_commit,
+        baseline_worker_bundle_sha256: planBody.certification_baseline.observed_worker_bundle_sha256,
         provider_mutation_performed: false,
         rollback_required: true,
         production_mutation: false,
@@ -1649,6 +1655,7 @@ export async function runStagingActivationGatewayTransactionCertification(input 
       rollback_verified: true,
       baseline_mode: baselineMode,
       baseline_source_commit: planBody.certification_baseline.observed_source_commit,
+      baseline_worker_bundle_sha256: planBody.certification_baseline.observed_worker_bundle_sha256,
       candidate_public_ready_verified: candidatePublicVerified,
       degraded_baseline_restored: rollbackResult.degraded_baseline_restored === true,
       public_health_restored: rollbackResult.public_health_restored === true,
