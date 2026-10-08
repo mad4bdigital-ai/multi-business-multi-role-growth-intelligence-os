@@ -54,6 +54,7 @@ const EXPECTED_GOVERNED_LEDGER_MIGRATIONS = [
   "052_sprint49_local_connector_install_bundle.sql",
   "054_sprint50_admin_device_seed_and_self_repair_tool.sql",
   "20261008_admin_local_connector_target_catalog_alignment.sql",
+  "20261009_hostinger_recovery_allowlist_discovery.sql",
   "055_sprint51_sql_primary_data_source.sql",
   "057_sprint53_admin_session_turn_tools.sql",
   "162_sprint66_cms_site_resource_access_grants.sql",
