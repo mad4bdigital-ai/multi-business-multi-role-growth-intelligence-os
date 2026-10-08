@@ -756,10 +756,12 @@ const candidateHealth = { ok: true, stale: false, policyKey: staging.policy_key,
 const candidateReady = { ok: true, policyHash: staging.expected_policy_hash, upstreamSourceCommit: sourceSha,
   recoveryTrustedIngress: otherBundle.origin_trust };
 const smokeFetch = async (url) => new Response(JSON.stringify(deployedCandidate
-  ? (url.endsWith("/health") ? candidateHealth : { ...candidateReady, recoveryTrustedIngress: currentCandidateBundle.origin_trust })
+  ? (url.endsWith("/health") ? { ...candidateHealth, workerBundleSha256: currentCandidateBundle.worker_bundle_sha256 }
+    : { ...candidateReady, recoveryTrustedIngress: currentCandidateBundle.origin_trust })
   : (url.endsWith("/health")
-    ? { ok: true, sourceCommit: "b".repeat(40), policyHash: staging.expected_policy_hash }
-    : { ok: true, upstreamSourceCommit: "b".repeat(40), recoveryTrustedIngress: {
+    ? { ok: true, stale: false, policyKey: staging.policy_key, sourceCommit: "b".repeat(40),
+      workerBuildSha: "b".repeat(40), policyHash: staging.expected_policy_hash }
+    : { ok: true, upstreamSourceCommit: "b".repeat(40), policyHash: staging.expected_policy_hash, recoveryTrustedIngress: {
       key_id: "old-key", public_key: "old-public" } })), { status: 200 });
 const auditActions = [];
 const applied = await runStagingActivationGatewayApply({ ...dryRunInput, mode: "apply",
@@ -1003,6 +1005,28 @@ assert.equal(driftCandidateDeployed, false);
 assert.equal(savedPlans.get(driftPrepared.plan_id).status, "succeeded");
 assert.equal(driftCalls.some((call) => call.method === "POST" && call.apiPath.endsWith("/deployments?force=true")), true);
 assert.equal(driftCalls.some((call) => call.method === "DELETE"), false);
+
+// Regression: independent certification restores the old degraded Worker;
+// governed permanent apply must now be able to replace that very baseline.
+const driftApplyPlan = await runStagingActivationGatewayApply(dryRunInput, driftDeps);
+registerEnvelope(driftApplyPlan, "drift-recovery-permanent-apply-envelope");
+driftPreparedBundle = openStagingGatewayArtifact(savedArtifacts.get(driftApplyPlan.bundle_ref),
+  { env: executionEnv, planId: driftApplyPlan.plan_id }).bundle;
+const permanentRecovered = await runStagingActivationGatewayApply({
+  ...dryRunInput, mode: "apply",
+  plan_id: driftApplyPlan.plan_id, plan_sha256: driftApplyPlan.plan_sha256,
+  confirm: driftApplyPlan.required_confirmation,
+  capability_envelope_id: "drift-recovery-permanent-apply-envelope",
+  execution_nonce: "nonce:drift-recovery:123456",
+}, { ...driftDeps, cloudflareClient: driftProvider, audit: async () => {},
+  repositoryRoot: "/do-not-rebuild-permanent-recovery-bundle" });
+assert.equal(permanentRecovered.classification, "staging_activation_gateway_apply_succeeded");
+assert.equal(permanentRecovered.execution.executed, true);
+assert.equal(permanentRecovered.readback.health.ok, true);
+assert.equal(permanentRecovered.readback.ready.ok, true);
+assert.equal(driftCandidateDeployed, true);
+assert.equal(savedPlans.get(driftApplyPlan.plan_id).status, "succeeded");
+assert.equal(envelopeStates.get("drift-recovery-permanent-apply-envelope").execution_status, "executed");
 
 const applyAfterCertification = await buildStagingActivationGatewayApplyPlan({
   expected_source_commit: sourceSha,
