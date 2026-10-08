@@ -177,12 +177,42 @@ function Get-RoleObjectCensus([object]$Item, [string[]]$ComposeArgs) {
   }
 }
 
+function Assert-CanonicalCatalogRows([object]$RuntimeService, [string[]]$ComposeArgs, [object]$Contract) {
+  Require ($null -ne $Contract -and [string]$Contract.contract -eq "mad4b.staging.canonical-catalog-readback.v1") "Canonical catalog readback contract is missing."
+  Require ([string]$Contract.target_role -eq "runtime" -and $Contract.production_access_forbidden -eq $true -and $Contract.provider_access_forbidden -eq $true -and $Contract.read_only -eq $true -and $Contract.secrets_included -eq $false) "Canonical catalog readback cannot leave Staging read-only mode."
+  $rows = @($Contract.rows)
+  Require ($rows.Count -ge 1 -and $rows.Count -le 64) "Canonical catalog readback row count out of bounds."
+  $seen = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+  $counts = [ordered]@{}
+  foreach ($row in $rows) {
+    $table = [string]$row.table
+    if ($table -ceq "remote_runtime_command_allowlists") {
+      $plugin = [string]$row.plugin_key
+      $command = [string]$row.command_key
+      $status = [string]$row.status
+      Require ($plugin -cmatch '^[a-z][a-z0-9_]{1,63}$' -and $command -cmatch '^[a-z][a-z0-9_]{1,127}$' -and $status -ceq "planned") "Canonical catalog command identity/status is unsafe."
+      $identity = "$table/$plugin/$command"
+      Require ($seen.Add($identity)) "Duplicate canonical catalog readback identity: $identity"
+      $statement = "SELECT COUNT(*) FROM remote_runtime_command_allowlists WHERE plugin_key = '$plugin' AND command_key = '$command' AND status = 'planned'"
+    } elseif ($table -ceq "admin_platform_endpoint_tools") {
+      $tool = [string]$row.tool_key
+      Require ($tool -cmatch '^[a-z][a-z0-9_]{1,127}$' -and [string]$row.is_enabled -ceq "0") "Canonical Admin discovery must remain disabled."
+      $identity = "$table/$tool"
+      Require ($seen.Add($identity)) "Duplicate canonical catalog readback identity: $identity"
+      $statement = "SELECT COUNT(*) FROM admin_platform_endpoint_tools WHERE tool_key = '$tool' AND is_enabled = 0"
+    } else { Fail "Unexpected canonical catalog table: $table" }
+    $counts[$identity] = Assert-CountExactly (Invoke-DatabaseScalar $RuntimeService $ComposeArgs $statement) 1 "canonical catalog row $identity"
+  }
+  return $counts
+}
+
 function Assert-CompletedImportLiveReadback(
   [object[]]$Services,
   [string[]]$ComposeArgs,
   [string[]]$RequiredRuntimeCensus,
   [string[]]$RequiredRuntimeSupportTables,
-  [object]$SemanticSnapshotManifest
+  [object]$SemanticSnapshotManifest,
+  [object]$CatalogReadbackContract
 ) {
   $runtimeService = $null
   $runtimeTableNames = @()
@@ -214,7 +244,8 @@ function Assert-CompletedImportLiveReadback(
   Assert-CountExactly (Invoke-DatabaseScalar $runtimeService $ComposeArgs "SELECT COUNT(*) FROM admin_platform_endpoint_tools WHERE tool_key = 'wordpress_staging_plugin_deploy' AND http_method = 'POST' AND http_path = '/platform/remote-runtime/wordpress/staging/deploy-plugin' AND is_enabled = 1") 1 "completed-state canonical WordPress Staging deploy admin tool" | Out-Null
   Assert-CountExactly (Invoke-DatabaseScalar $runtimeService $ComposeArgs "SELECT COUNT(*) FROM execution_policies WHERE policy_group = 'wordpress_staging_plugin_deploy_governance' AND policy_key = 'wordpress_staging_plugin_deploy_exact_artifact_guard' AND active = 'true'") 1 "completed-state canonical WordPress Staging deploy execution policy" | Out-Null
 
-  $semanticSnapshotReadback = [ordered]@{}
+  $catalogRowCounts = Assert-CanonicalCatalogRows $runtimeService $ComposeArgs $CatalogReadbackContract
+  $semanticSnapshotReadback = [ordered]@{
   foreach ($table in @($SemanticSnapshotManifest.tables)) {
     $tableName = [string]$table
     Require ($tableName -match '^[A-Za-z0-9_]+$') "Completed-state semantic snapshot table name is unsafe: $tableName"
@@ -229,6 +260,7 @@ function Assert-CompletedImportLiveReadback(
     runtime_table_count = $runtimeTableNames.Count
     semantic_readback = "passed"
     canonical_semantic_snapshot_readback = $semanticSnapshotReadback
+    canonical_catalog_readback = $catalogRowCounts
     database_mutation_performed = $false
     provider_access_performed = $false
     production_access_performed = $false
@@ -387,7 +419,7 @@ try {
   $existingState = $null
   if (Test-Path -LiteralPath $BundleStatePath) { $existingState = Read-Json $BundleStatePath }
   if ($null -ne $existingState -and [string]$existingState.status -eq "completed" -and [string]$existingState.source_commit -eq $ExpectedCommit.ToLowerInvariant() -and [string]$existingState.manifest_sha256 -eq $manifestSha -and [string]$existingState.canonical_semantic_snapshot_status -eq "completed" -and [string]$existingState.canonical_semantic_snapshot_readback.status -eq "passed" -and [string]$existingState.canonical_seed_status -eq "completed" -and [string]$existingState.authority_seed_status -eq "completed" -and [string]$existingState.canonical_seed_readback.status -eq "passed") {
-    $completedStateLiveReadback = Assert-CompletedImportLiveReadback $services $compose $requiredRuntimeCensus $requiredRuntimeSupportTables $semanticSnapshotManifest
+    $completedStateLiveReadback = Assert-CompletedImportLiveReadback $services $compose $requiredRuntimeCensus $requiredRuntimeSupportTables $semanticSnapshotManifest $roleMigrationManifest.canonical_catalog_readback
     Require ($completedStateLiveReadback.verified -eq $true -and $completedStateLiveReadback.semantic_readback -eq "passed") "Completed schema-import state did not survive live semantic readback."
     Write-Host "SCHEMA_IMPORT_ALREADY_COMPLETE: source_commit=$ExpectedCommit manifest_sha256=$manifestSha live_semantic_readback=passed"
     exit 0
@@ -536,8 +568,10 @@ try {
     admin_tool_catalog_query = Assert-CountAtLeast (Invoke-DatabaseScalar $runtimeService $compose "SELECT COUNT(*) FROM admin_platform_endpoint_tools WHERE mcp_catalog_level IS NOT NULL") 0 "admin tool catalog"
     tenant_tool_catalog_query = Assert-CountAtLeast (Invoke-DatabaseScalar $runtimeService $compose "SELECT COUNT(*) FROM tenant_platform_endpoint_tools WHERE mcp_catalog_level IS NOT NULL") 0 "tenant tool catalog"
   }
+  $catalogRowCounts = Assert-CanonicalCatalogRows $runtimeService $compose $roleMigrationManifest.canonical_catalog_readback
   $state.canonical_seed_readback = [ordered]@{
     status = "passed"
+    catalog_registry_row_counts = $catalogRowCounts
     required_runtime_table_census = @($requiredRuntimeCensus)
     required_runtime_support_tables = @($requiredRuntimeSupportTables)
     mcp_catalog_columns = @($mcpColumns)
