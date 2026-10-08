@@ -40,6 +40,7 @@ $fixtureRoot = Join-Path $env:TEMP ("mad4b-autonomy-" + [guid]::NewGuid().ToStri
 New-Item -ItemType Directory -Path $fixtureRoot | Out-Null
 try {
     $RepositoryPath = $fixtureRoot
+    $scriptRoot = $PSScriptRoot
     $expectedScript = Join-Path $PSScriptRoot "Auto-Deploy-Staging.ps1"
     $expectedPrincipal = "$env:USERDOMAIN\$env:USERNAME"
     $operationsPath = Join-Path $fixtureRoot "operations.jsonl"
