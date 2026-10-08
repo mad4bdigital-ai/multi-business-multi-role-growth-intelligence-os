@@ -2796,94 +2796,35 @@ export function buildAdminCliRoutes(deps) {
 
   // ── POST /admin/cli/local-connector/self-repair ───────────────────────────
   // Single-shot self-repair for the admin's local connector.
-  // 1. Reads device config from DB (user_id + device_id, defaults to admin / mohammedlap).
+  // 1. Reads device config from DB (user_id + device_id, selects a fresh canonical user/tenant/device).
   // 2. Checks CF tunnel health via Cloudflare API.
   // 3. Retries transient Cloudflare 1033/HTTP 530 health failures up to three total attempts and returns retry evidence.
   // 4. After retry exhaustion, returns diagnosis and an authenticated admin-only download handoff.
   // 5. Never generates installer content in this JSON route or uploads the secret-bearing installer to shared or public storage.
   router.post("/local-connector/self-repair", requireBackendApiKey, requireAdminPrincipal, async (req, res) => {
     try {
-      const userId   = String(req.body?.user_id   || "").trim() || "00000000-0000-4000-a000-000000000002";
-      const deviceId = String(req.body?.device_id || "").trim() || "mohammedlap";
-
-      // 1. Load config from DB
-      let tunnelToken  = "";
-      let backendKey   = "";
-      let connectorLocalApiKey = "";
-      let cfTunnelId   = null;
-      let cfTunnelName = null;
-      let tunnelUrl    = null;
-      let configSource = "env";
-      let resolvedUserId = userId;
-      let resolvedDeviceId = deviceId;
-      let deviceIdentityResolution = null;
-      try {
-        const pool = getPool();
-        const connectorLocalApiKeySelect = await connectorLocalApiKeySelectFragment(pool);
-        const [[row]] = await pool.query(
-          `SELECT config_id, user_id, device_id, cf_token, connector_secret, ${connectorLocalApiKeySelect}, cf_tunnel_id, cf_tunnel_name, tunnel_url FROM \`local_connector_user_configs\` WHERE user_id = ? AND device_id = ? AND is_enabled = 1 LIMIT 1`,
-          [userId, deviceId]
-        );
-        let selectedRow = row || null;
-        let matchSource = "direct";
-        if (!localConnectorConfigHasUsableToken(selectedRow)) {
-          const aliasPatterns = localConnectorDeviceAliasLikePatterns(deviceId);
-          if (aliasPatterns.length) {
-            const aliasWhere = aliasPatterns.map(() => "LOWER(device_id) LIKE ?").join(" OR ");
-            const [aliasRows] = await pool.query(
-              `SELECT config_id, user_id, device_id, cf_token, connector_secret, ${connectorLocalApiKeySelect}, cf_tunnel_id, cf_tunnel_name, tunnel_url, last_health_at, updated_at
-                 FROM \`local_connector_user_configs\`
-                WHERE is_enabled = 1
-                  AND COALESCE(NULLIF(cf_token,''),'') <> ''
-                  AND (${aliasWhere})
-                ORDER BY
-                  CASE WHEN user_id = ? THEN 0 ELSE 1 END,
-                  CASE WHEN last_health_at IS NULL THEN 1 ELSE 0 END,
-                  last_health_at DESC,
-                  updated_at DESC
-                LIMIT 5`,
-              [...aliasPatterns, userId]
-            );
-            if (aliasRows.length === 1) {
-              selectedRow = aliasRows[0];
-              matchSource = "db_alias";
-            }
-          }
-        }
-        if (selectedRow) {
-          tunnelToken  = selectedRow.cf_token || "";
-          backendKey   = selectedRow.connector_secret || "";
-          connectorLocalApiKey = selectedRow.connector_local_api_key || "";
-          cfTunnelId   = selectedRow.cf_tunnel_id || null;
-          cfTunnelName = selectedRow.cf_tunnel_name || null;
-          tunnelUrl    = selectedRow.tunnel_url || null;
-          resolvedUserId = selectedRow.user_id || userId;
-          resolvedDeviceId = selectedRow.device_id || deviceId;
-          configSource = tunnelToken ? matchSource === "db_alias" ? "db_alias" : "db" : "env_fallback";
-          deviceIdentityResolution = buildLocalConnectorDeviceIdentityResolution({ requestedUserId: userId, requestedDeviceId: deviceId, row: selectedRow, matchSource });
-        }
-      } catch (dbErr) {
-        console.warn("[self-repair] DB lookup failed:", dbErr.message);
-      }
-      if (!tunnelToken) {
-        tunnelToken  = process.env.CLOUDFLARE_TUNNEL_TOKEN || "";
-        backendKey   = backendKey || process.env.BACKEND_API_KEY || "";
-        // connectorLocalApiKey remains DB-owned; do not introduce a second secret env authority in this route.
-        configSource = deviceIdentityResolution ? "db_with_env_tunnel_fallback" : "env";
-        // Persist to DB so future calls resolve from DB
-        if (tunnelToken) {
-          try {
-            const pool = getPool();
-            await pool.query(
-              `UPDATE \`local_connector_user_configs\`
-               SET cf_token = COALESCE(NULLIF(cf_token,''), ?),
-                   connector_secret = COALESCE(NULLIF(connector_secret,''), ?)
-               WHERE user_id = ? AND device_id = ?`,
-              [tunnelToken, backendKey || null, userId, deviceId]
-            );
-          } catch {}
-        }
-      }
+      const scope = adminConnectorScope(req, req.body || {});
+      const target = await resolveAdminConnectorTarget({
+        pool: getPool(), scope, requestedDeviceId: req.body?.device_id,
+        includeCredentials: true,
+        localApiKeySql: await connectorLocalApiKeySelectFragment(getPool()),
+      });
+      const userId = scope.user_id;
+      const tenantId = scope.tenant_id;
+      const deviceId = target.row.device_id;
+      const tunnelToken = target.credentials.cf_token;
+      const backendKey = target.credentials.connector_secret;
+      const connectorLocalApiKey = target.credentials.connector_local_api_key;
+      const cfTunnelId = target.credentials.cf_tunnel_id;
+      const cfTunnelName = target.credentials.cf_tunnel_name;
+      const tunnelUrl = target.credentials.tunnel_url;
+      const configSource = "scoped_db";
+      const resolvedUserId = userId;
+      const resolvedDeviceId = deviceId;
+      const deviceIdentityResolution = buildLocalConnectorDeviceIdentityResolution({
+        requestedUserId: userId, requestedDeviceId: req.body?.device_id,
+        row: {...target.row, ...target.credentials}, matchSource: target.selection_source,
+      });
 
       // 2. Check CF tunnel status via API (best-effort, non-blocking)
       let tunnelStatus = null;
@@ -2905,11 +2846,11 @@ export function buildAdminCliRoutes(deps) {
       }
 
       const publicHealthProbe = await probeLocalConnectorPublicHealthWithRetry({
-        tunnelUrl: tunnelUrl || "https://connector.mad4b.com",
+        tunnelUrl: tunnelUrl,
         timeoutMs: 8000,
       });
       const authenticatedCommandHealth = await probeLocalConnectorAuthenticatedHealth({
-        tunnelUrl: tunnelUrl || "https://connector.mad4b.com",
+        tunnelUrl: tunnelUrl,
         credentialCandidates: [
           { source: "connector_secret", token: backendKey },
           { source: "connector_local_api_key", token: connectorLocalApiKey },
@@ -2939,7 +2880,7 @@ export function buildAdminCliRoutes(deps) {
             composite_status: compositeHealth.status,
             repair_required: false,
             config_source: configSource,
-            alias_resolution_applied: configSource === "db_alias",
+            alias_resolution_applied: false,
             secrets_included: false,
           },
         });
@@ -2952,7 +2893,7 @@ export function buildAdminCliRoutes(deps) {
             resolved_user_id: resolvedUserId,
             resolved_device_id: resolvedDeviceId,
             device_identity_resolution: deviceIdentityResolution,
-            tunnel_url: tunnelUrl || "https://connector.mad4b.com",
+            tunnel_url: tunnelUrl,
             cf_tunnel_id: cfTunnelId,
             cf_tunnel_name: cfTunnelName,
             cf_tunnel_status: tunnelStatus,
@@ -3000,7 +2941,7 @@ export function buildAdminCliRoutes(deps) {
             resolved_user_id: resolvedUserId,
             resolved_device_id: resolvedDeviceId,
             device_identity_resolution: deviceIdentityResolution,
-            tunnel_url: tunnelUrl || "https://connector.mad4b.com",
+            tunnel_url: tunnelUrl,
             cf_tunnel_id: cfTunnelId,
             cf_tunnel_name: cfTunnelName,
             cf_tunnel_status: tunnelStatus,
@@ -3067,7 +3008,7 @@ export function buildAdminCliRoutes(deps) {
           continuation,
           error: {
             code: "connector_tunnel_provisioning_required",
-            message: `No cf_token in DB for user=${userId} device=${deviceId} and CLOUDFLARE_TUNNEL_TOKEN env not set. Provision the tunnel token, then retry POST /admin/cli/local-connector/self-repair.`,
+            message: "Device-owned tunnel credential not provisioned. Use governed provisioning before retrying.",
           },
           secrets_included: false,
         });
@@ -3094,7 +3035,7 @@ export function buildAdminCliRoutes(deps) {
           composite_status: compositeHealth.status,
           repair_required: compositeHealth.repair_required,
           config_source: configSource,
-          alias_resolution_applied: configSource === "db_alias",
+          alias_resolution_applied: false,
           drive_uploaded: !!driveResult,
           drive_upload_status: driveUploadStatus,
           secrets_included: false
@@ -3110,12 +3051,12 @@ export function buildAdminCliRoutes(deps) {
           resolved_user_id: resolvedUserId,
           resolved_device_id: resolvedDeviceId,
           device_identity_resolution: deviceIdentityResolution,
-          tunnel_url: tunnelUrl || "https://connector.mad4b.com",
+          tunnel_url: tunnelUrl,
           cf_tunnel_id: cfTunnelId,
           cf_tunnel_name: cfTunnelName,
           cf_tunnel_status: tunnelStatus,
           config_source: configSource,
-          alias_resolution_applied: configSource === "db_alias",
+          alias_resolution_applied: false,
           transport_health: publicHealthProbe,
           authenticated_command_health: authenticatedCommandHealth,
           public_health_probe: publicHealthProbe,
@@ -3141,6 +3082,7 @@ export function buildAdminCliRoutes(deps) {
             path: "/admin/cli/local-connector/install-bundle",
             query: {
               user_id: resolvedUserId,
+              tenant_id: tenantId,
               device_id: resolvedDeviceId,
               format: "bat"
             },
@@ -3153,7 +3095,8 @@ export function buildAdminCliRoutes(deps) {
     } catch (err) {
       return res.status(err.status || 500).json({
         ok: false,
-        error: { code: "self_repair_failed", message: err.message },
+        error: { code: err.code || "self_repair_failed", message: err.code ? err.message : "Connector diagnostics failed closed." },
+        secrets_included: false,
       });
     }
   });
