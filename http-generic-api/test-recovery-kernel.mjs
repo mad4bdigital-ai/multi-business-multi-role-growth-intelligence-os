@@ -280,6 +280,19 @@ async function prepareExecutableStep(idempotencyKey) {
   return { durable, plan, step, challenge, ticket };
 }
 
+function roleZeroProof(role, objectCountFingerprint) {
+  return {
+    contract: "mad4b.role-physical-object-visibility.v1",
+    role, expected_sha: SHA, object_count_fingerprint: objectCountFingerprint,
+    database_identity_verified: true, full_object_visibility_verified: true,
+    independent_privileged_census: true, read_only: true,
+  };
+}
+const verifiedZeroRoleProofs = () => ({
+  governance: roleZeroProof("governance", "b".repeat(64)),
+  runtime_persistence: roleZeroProof("runtime_persistence", "c".repeat(64)),
+});
+
 function readinessFailure() {
   return {
     ok: false,
@@ -302,10 +315,34 @@ function readinessFailure() {
     full_inspection: true,
     role_database_object_counts: { runtime: { tables: 7, views: 0, triggers: 0, routines: 0, events: 0, total: 7 }, governance: { tables: 0, views: 0, triggers: 0, routines: 0, events: 0, total: 0 }, runtime_persistence: { tables: 0, views: 0, triggers: 0, routines: 0, events: 0, total: 0 } },
     role_database_object_classifications: { runtime: "nonempty_objects", governance: "zero_objects", runtime_persistence: "zero_objects" },
+    expected_sha: SHA,
     role_database_object_count_fingerprints: { runtime: "a".repeat(64), governance: "b".repeat(64), runtime_persistence: "c".repeat(64) },
+    role_full_object_inventory_proofs: verifiedZeroRoleProofs(),
     secrets_included: false,
   };
 }
+
+test("zero visible objects without independent privileged proof cannot become empty rebuild plans", () => {
+  const inspected = readinessFailure();
+  delete inspected.role_full_object_inventory_proofs;
+  const findings = _testingRecoveryKernel.findingsFromInspection(inspected);
+  assert.deepEqual(
+    findings.filter((x) => x.category === "zero_visible_objects_unverified").map((x) => x.subject.target_role),
+    ["governance", "runtime_persistence"],
+  );
+  assert.ok(!findings.some((x) => x.candidate_capability?.endsWith(".baseline.rebuild_empty")));
+  assert.ok(!findings.some((x) => x.candidate_capability === "governance.grant.repair"));
+  assert.ok(findings.every((x) => x.candidate_capability === null && x.mutation_required === false));
+});
+
+test("wrong-sha zero-object physical inventory proof cannot authorize rebuild candidate", () => {
+  const inspected = readinessFailure();
+  inspected.role_full_object_inventory_proofs.governance.expected_sha = "d".repeat(40);
+  const findings = _testingRecoveryKernel.findingsFromInspection(inspected);
+  assert.ok(findings.some((x) => x.subject.target_role === "governance" &&
+    x.category === "zero_visible_objects_unverified"));
+  assert.ok(!findings.some((x) => x.candidate_capability === "governance.baseline.rebuild_empty"));
+});
 
 test("unverified required-table visibility in a nonempty role cannot become a grant or generic migration candidate", () => {
   const inspected = readinessFailure();
@@ -571,7 +608,9 @@ test("host-local database inspection remains exact-SHA dry-run and registers san
           full_inspection: true,
           role_database_object_counts: { runtime: { tables: 7, views: 0, triggers: 0, routines: 0, events: 0, total: 7 }, governance: { tables: 0, views: 0, triggers: 0, routines: 0, events: 0, total: 0 }, runtime_persistence: { tables: 0, views: 0, triggers: 0, routines: 0, events: 0, total: 0 } },
           role_database_object_classifications: { runtime: "nonempty_objects", governance: "zero_objects", runtime_persistence: "zero_objects" },
+          expected_sha: SHA,
           role_database_object_count_fingerprints: { runtime: "a".repeat(64), governance: "b".repeat(64), runtime_persistence: "c".repeat(64) },
+          role_full_object_inventory_proofs: verifiedZeroRoleProofs(),
           role_bundle_bindings: ROLE_BUNDLE_BINDINGS,
           read_only: true,
           secrets_included: false,
