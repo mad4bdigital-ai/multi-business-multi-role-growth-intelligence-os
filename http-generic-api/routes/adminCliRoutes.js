@@ -2994,6 +2994,41 @@ export function buildAdminCliRoutes(deps) {
         });
       }
 
+      // Inconclusive or host-level failure is never evidence that installing
+      // a new device service will help. Preserve diagnosis without installer advice.
+      if (["validating", "degraded_tunnel", "authorization_gated"].includes(compositeHealth.status)) {
+        writeAuditLogAsync({
+          action: "admin_cli.local_connector_self_repair.diagnostics_required",
+          resource_type: "local_connector_health",
+          resource_id: resolvedDeviceId,
+          payload: { user_id: userId, tenant_id: tenantId, device_id: resolvedDeviceId,
+            composite_status: compositeHealth.status,
+            recovery_readback: recoveryReadback, secrets_included: false },
+        });
+        return res.status(200).json({
+          ok: true,
+          diagnosis: { device_id: resolvedDeviceId, user_id: userId, tenant_id: tenantId,
+            composite_health: compositeHealth, recovery_readback: recoveryReadback,
+            transport_health: publicHealthProbe,
+            authenticated_command_health: authenticatedCommandHealth,
+            secrets_included: false },
+          recovery_plan: {
+            status: "diagnostics_required",
+            installer_eligible: false,
+            next_action: compositeHealth.status === "degraded_tunnel"
+              ? "inspect_cloudflare_tunnel_and_host_separately"
+              : compositeHealth.status === "authorization_gated"
+                ? "verify_authorization_binding"
+                : "collect_independent_route_and_device_evidence",
+            requires_independent_verification: true,
+            secrets_included: false,
+          },
+          repair: { required: compositeHealth.status !== "authorization_gated",
+            installer_generated: false, action: "Do not reinstall until the failing boundary is identified.",
+            secrets_included: false },
+        });
+      }
+
       // 3. Generate install bundle, or return a resumable provisioning handoff.
       if (!tunnelToken) {
         const continuation = buildLocalConnectorTunnelProvisioningContinuationEvidence({
