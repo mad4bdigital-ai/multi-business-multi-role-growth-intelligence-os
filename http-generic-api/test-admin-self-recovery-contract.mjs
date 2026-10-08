@@ -59,3 +59,11 @@ test("recovery probes forbid redirects and require authenticated device and conf
   assert.match(selector, /device_identity_attested/);
   assert.match(selector, /config_identity_attested/);
 });
+
+test("inconclusive, Cloudflare and authorization faults never recommend blind reinstall", () => {
+  assert.match(admin, /\["validating", "degraded_tunnel", "authorization_gated"\]\.includes\(compositeHealth\.status\)/);
+  assert.match(admin, /installer_eligible: false/);
+  assert.match(admin, /inspect_cloudflare_tunnel_and_host_separately/);
+  assert.match(admin, /collect_independent_route_and_device_evidence/);
+  assert.match(admin, /verify_authorization_binding/);
+});
