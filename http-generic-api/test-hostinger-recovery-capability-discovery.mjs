@@ -75,7 +75,8 @@ test("migration adds planned capabilities only and does not widen SSH shell exec
   assert(sql.includes("status IN")===false);
   assert(!/UPDATE\s+remote_runtime_command_allowlists\s+SET\s+status\s*=\s*'active'/i.test(sql));
   assert(sql.includes("is_enabled=0"));
-  assert(sql.includes("JSON_VALID(t.command_allowlist_json)"));
+  assert(!/UPDATE remote_runtime_targets/i.test(sql),
+    "Catalog-only migration must never pre-authorize target command allowlist writes");
   assert(!/freeform_command|raw_sql_execute/i.test(sql));
 });
 
