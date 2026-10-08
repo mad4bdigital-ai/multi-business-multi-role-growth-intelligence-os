@@ -2902,7 +2902,8 @@ export function buildAdminCliRoutes(deps) {
             authenticated_command_status: authenticatedCommandHealth.status,
             retry_evidence: publicHealthProbe.retry_evidence || null,
             composite_status: compositeHealth.status,
-            repair_required: false,
+            repair_required: !recoveryReadback.recovered,
+            recovery_readback: recoveryReadback,
             config_source: configSource,
             alias_resolution_applied: false,
             secrets_included: false,
@@ -2927,12 +2928,16 @@ export function buildAdminCliRoutes(deps) {
             composite_health: compositeHealth,
             config_source: configSource,
             likely_cause: compositeHealth.likely_cause,
-            repair_required: false,
+            repair_required: !recoveryReadback.recovered,
+            recovery_readback: recoveryReadback,
             secrets_included: false,
           },
           repair: {
-            required: false,
-            action: compositeHealth.status === "authorization_gated"
+            required: !recoveryReadback.recovered,
+            verification_pending: !recoveryReadback.recovered,
+            action: !recoveryReadback.recovered
+              ? "Transport is reachable but current device identity and heartbeat are not both verified. Complete same-cycle verification before declaring recovery."
+              : compositeHealth.status === "authorization_gated"
               ? "Connector transport is reachable. Validate the connector authorization binding before reinstalling services."
               : "No repair action is required; same-cycle public connector health passed.",
             installer_generated: false,
@@ -3093,6 +3098,7 @@ export function buildAdminCliRoutes(deps) {
           required: true,
           installer_generated: false,
           artifact_delivery: "authenticated_direct_download_only",
+          preview_only: true,
           action: "Use the authenticated admin-only download endpoint, then run the installer as Administrator on the Windows device.",
           filename,
           public_storage_allowed: false,
@@ -3108,10 +3114,12 @@ export function buildAdminCliRoutes(deps) {
               user_id: resolvedUserId,
               tenant_id: tenantId,
               device_id: resolvedDeviceId,
+              expected_config_id: target.row.config_id,
               format: "bat"
             },
             requires_backend_api_key: true,
-            requires_admin_principal: true
+            requires_admin_principal: true,
+            requires_explicit_device_confirmation: true
           },
           secrets_included: false
         },
