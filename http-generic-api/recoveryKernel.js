@@ -454,7 +454,8 @@ function findingsFromInspection(inspection = {}, { trustedRoleInventoryVerifier 
   // not accepted through inspectProductionDatabase request input.
   const trustedRoleProof = (role, requiredTableEvidence = null) => {
     const proof = roleFullObjectInventoryProofs[role];
-    return proof?.contract === "mad4b.role-physical-object-visibility.v1"
+    try {
+      return proof?.contract === "mad4b.role-physical-object-visibility.v1"
       && proof.role === role && proof.expected_sha === inspection.expected_sha
       && /^[0-9a-f]{40}$/u.test(String(proof.expected_sha || ""))
       && proof.object_count_fingerprint === roleCountFingerprints[role]
@@ -473,6 +474,10 @@ function findingsFromInspection(inspection = {}, { trustedRoleInventoryVerifier 
           : stableHash(requiredTableEvidence),
         sourceRequiredTables: BOOTSTRAP_ROLE_GRANT_POLICIES[role]?.required_tables || [],
       }) === true;
+    } catch {
+      // A failing trust verifier may block recovery, never open a mutation path.
+      return false;
+    }
   };
   const emptyRoles = new Set();
   const zeroVisibilityUnverifiedRoles = new Set();
