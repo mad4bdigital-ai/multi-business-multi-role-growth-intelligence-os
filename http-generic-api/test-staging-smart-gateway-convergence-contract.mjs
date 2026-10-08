@@ -646,8 +646,23 @@ const certificationExactHealth = { ok: true, stale: false, policyKey: staging.po
   policyHash: staging.expected_policy_hash, sourceCommit: sourceSha, workerBuildSha: sourceSha,
   workerBundleSha256: "a".repeat(64), secretsIncluded: false };
 const certificationExactReady = { ok: true, policyHash: staging.expected_policy_hash, upstreamSourceCommit: sourceSha,
-  recoveryTrustedIngress: { key_id: "cert-old-key", public_key: "cert-old-public",
-    policy_hash: staging.expected_policy_hash, deployment_sha: sourceSha } };
+  recoveryTrustedIngress: { contract: "mad4b.staging.activation-recovery-origin-trust.v2",
+    key_id: "cert-old-key", public_key: "cert-old-public",
+    policy_hash: staging.expected_policy_hash, deployment_sha: sourceSha,
+    worker_bundle_sha256: "a".repeat(64), trusted_ingress_mode: "signature", secrets_included: false } };
+const classifyTrust = _testingStagingGatewayTransaction.classifyStagingGatewayCertificationBaseline;
+assert.equal(classifyTrust({ ok: true, status: 200, body: certificationExactHealth },
+  { ok: true, status: 200, body: certificationExactReady }, sourceSha, staging.expected_policy_hash).mode, "healthy_exact");
+for (const invalidTrust of [
+  null,
+  { ...certificationExactReady.recoveryTrustedIngress, worker_bundle_sha256: "c".repeat(64) },
+  { ...certificationExactReady.recoveryTrustedIngress, secrets_included: true },
+  { ...certificationExactReady.recoveryTrustedIngress, policy_hash: "c".repeat(64) },
+]) {
+  assert.equal(classifyTrust({ ok: true, status: 200, body: certificationExactHealth },
+    { ok: true, status: 200, body: { ...certificationExactReady, recoveryTrustedIngress: invalidTrust } },
+    sourceSha, staging.expected_policy_hash).ready, false, "healthy baseline must reject incomplete ingress trust");
+}
 const certificationExactFetch = async (url) => new Response(JSON.stringify(
   url.endsWith("/health") ? certificationExactHealth : certificationExactReady), { status: 200 });
 const executionDeps = { runtimePool, governancePool, auth, env: executionEnv, cloudflareClient: fakeCloudflareClient,
@@ -761,9 +776,13 @@ const smokeFetch = async (url) => new Response(JSON.stringify(deployedCandidate
     : { ...candidateReady, recoveryTrustedIngress: currentCandidateBundle.origin_trust })
   : (url.endsWith("/health")
     ? { ok: true, stale: false, policyKey: staging.policy_key, sourceCommit: "b".repeat(40),
-      workerBuildSha: "b".repeat(40), policyHash: staging.expected_policy_hash }
-    : { ok: true, upstreamSourceCommit: "b".repeat(40), policyHash: staging.expected_policy_hash, recoveryTrustedIngress: {
-      key_id: "old-key", public_key: "old-public" } })), { status: 200 });
+      workerBuildSha: "b".repeat(40), workerBundleSha256: "b".repeat(64),
+      secretsIncluded: false, policyHash: staging.expected_policy_hash }
+    : { ok: true, upstreamSourceCommit: "b".repeat(40), policyHash: staging.expected_policy_hash,
+      recoveryTrustedIngress: { contract: "mad4b.staging.activation-recovery-origin-trust.v2",
+        key_id: "old-key", public_key: "old-public", policy_hash: staging.expected_policy_hash,
+        deployment_sha: "b".repeat(40), worker_bundle_sha256: "b".repeat(64),
+        trusted_ingress_mode: "signature", secrets_included: false } })), { status: 200 });
 const auditActions = [];
 const applied = await runStagingActivationGatewayApply({ ...dryRunInput, mode: "apply",
   plan_id: secondExecution.plan_id, plan_sha256: secondExecution.plan_sha256,
