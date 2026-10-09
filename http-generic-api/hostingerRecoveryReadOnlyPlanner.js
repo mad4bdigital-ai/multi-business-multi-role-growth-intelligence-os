@@ -6,7 +6,7 @@ import { createHash } from "node:crypto";
 const ORIGIN = "https://developers.hostinger.com";
 const ACCOUNT = /^u[0-9]{4,16}$/;
 const DATABASE = /^[a-zA-Z0-9_]{1,64}$/;
-const DOMAIN = /^(?=.{3,253}$)[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)+$/;
+const DOMAIN = /^(?=.{3,253}$)(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,63}$/;
 const MAX_BYTES = 262_144;
 
 function refuse(code, status=409) {
