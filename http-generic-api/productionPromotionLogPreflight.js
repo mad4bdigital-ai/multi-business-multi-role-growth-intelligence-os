@@ -47,8 +47,11 @@ export function assessProductionPromotionLog(log,{queueRequired=false,expectedSo
       }
       if(event.event==="mcp_catalog_schema_startup_preflight"){
         if(event.environment==="unknown")flags.add("RUNTIME_ENVIRONMENT_IDENTITY_UNKNOWN");
-        if(event.ready!==true || event.readiness?.ok!==true)
+        if(event.ready!==true || event.readiness?.ok!==true) {
           flags.add("MCP_CATALOG_SCHEMA_NOT_READY");
+          if(event.startup_blocked===false)
+            flags.add("MCP_SCHEMA_UNREADY_STARTUP_FAIL_OPEN");
+        }
         for(const table of event.readiness?.tables||[]){
           if(table?.required_field==="mcp_catalog_level" && table?.available===false &&
              ["admin_platform_endpoint_tools","tenant_platform_endpoint_tools"].includes(table.table))
@@ -75,6 +78,9 @@ export function assessProductionPromotionLog(log,{queueRequired=false,expectedSo
     if(line.includes("response_chunk_schema_incomplete")||
        line.includes("response_chunk_persistence_unavailable"))
       flags.add("DURABLE_TOOL_RESPONSE_CHUNK_STORE_UNAVAILABLE");
+    if(line.includes("EXECUTION_AUTHORITY_MANIFEST_GUARD:") &&
+       line.includes('"enforced":false'))
+      flags.add("EXECUTION_AUTHORITY_MANIFEST_ENFORCEMENT_DISABLED");
     if(line.includes("execution_log append failed"))
       flags.add("EXECUTION_JOURNAL_WRITE_UNAVAILABLE");
     if(line.includes("json_assets append failed"))
