@@ -26,10 +26,12 @@ function makeStore(){
     async putPlan(p){plans.set(p.plan_id,p);return {durable:true,plan_hash:p.plan_hash};},
     async getPlan(id){return plans.get(id)||null;},
     async claimStep({plan_id}){this.claims++;if(steps.has(plan_id))return {claimed:false,durable:true};
-      steps.set(plan_id,{status:"claimed"});return {claimed:true,durable:true};},
+      steps.set(plan_id,{status:"executing"});return {claimed:true,durable:true};},
     async appendIntent(v){this.intents.push(v);return {durable:true,
       plan_hash:v.plan_hash,evidence_sha256:evidence};},
-    async markUnknown({plan_id,status,retry_forbidden}){steps.set(plan_id,{status,retry_forbidden});
+    async markUnknown({plan_id,status,retry_forbidden,expected_status}){
+      if(steps.get(plan_id)?.status!==expected_status)return {durable:false,status:"stale"};
+      steps.set(plan_id,{status,retry_forbidden});
       return {durable:true,status};},
     async finishStep({plan_id,status}){steps.set(plan_id,{status});
       return {durable:true,status};},
@@ -209,4 +211,15 @@ test("resource inspection drift before approval is denied without claiming or di
     errorCode("recovery_orchestrator_resource_state_drift"));
   assert.equal(h.store.claims,0);
   assert.equal(dispatched,before);
+});
+
+test("UNKNOWN marking cannot downgrade an already recovered state after finalization ACK loss",async()=>{
+  const h=harness(),p=await planned(h);
+  h.store.finishStep=async({plan_id,status})=>{
+    h.store.steps.set(plan_id,{status});
+    throw Error("finalization response lost after durable commit");
+  };
+  await assert.rejects(execute(p,h),
+    errorCode("recovery_orchestrator_unknown_state_persistence_failed"));
+  assert.equal(h.store.steps.get(p.plan_id).status,"recovered");
 });
