@@ -887,6 +887,36 @@
       "readback_proof_required": true,
       "rollback_proof_required": false,
       "secrets_included": false
+    },
+    {
+      "id": "mcp.schema_unready_startup_not_blocked",
+      "domain": "mcp",
+      "trigger": "MCP required catalog column missing while startup_blocked is false",
+      "expected_state": "blocked",
+      "live_evidence": "mcp_startup_fail_closed_release_authority",
+      "required_response": "Block Production promotion until Runtime Catalog schema and authorized probes are ready",
+      "source_coverage": "partial_or_negative_contract_only",
+      "live_certified": false,
+      "execution_authorized": false,
+      "production_mutation_allowed": false,
+      "readback_proof_required": true,
+      "rollback_proof_required": false,
+      "secrets_included": false
+    },
+    {
+      "id": "release.execution_authority_manifest_disabled",
+      "domain": "release",
+      "trigger": "Production log shows execution authority manifest enforcement disabled",
+      "expected_state": "blocked",
+      "live_evidence": "execution_authority_manifest_policy_attestation",
+      "required_response": "Require write-capability enforcement or independently authorized safe exception",
+      "source_coverage": "partial_or_negative_contract_only",
+      "live_certified": false,
+      "execution_authorized": false,
+      "production_mutation_allowed": false,
+      "readback_proof_required": true,
+      "rollback_proof_required": true,
+      "secrets_included": false
     }
   ]
 }
