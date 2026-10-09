@@ -637,7 +637,8 @@
         "http-generic-api/test-staging-one-click-autopilot-core.mjs",
         "http-generic-api/test-staging-post-build-image-discovery.mjs",
         "http-generic-api/test-staging-schema-governance-powershell-revision-contract.mjs",
-        "http-generic-api/test-staging-smart-gateway-convergence-contract.mjs"
+        "http-generic-api/test-staging-smart-gateway-convergence-contract.mjs",
+        "http-generic-api/test-staging-coldboot-recovery.mjs"
       ]
     },
     {
