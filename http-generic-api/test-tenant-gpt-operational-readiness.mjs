@@ -39,7 +39,10 @@ const readyPool = {
     throw new Error(`unexpected readiness query: ${sql}`);
   },
   async getConnection() {
-    return { async beginTransaction() {}, async rollback() {}, release() {} };
+    return {
+      async query(sql, params) { return readyPool.query(sql, params); },
+      async beginTransaction() {}, async rollback() {}, release() {},
+    };
   },
 };
 const refreshReady = await buildTenantGptOperationalReadiness({ env: { ...env, TENANT_GPT_REFRESH_TOKENS_ENABLED: "true" }, pool: readyPool });
