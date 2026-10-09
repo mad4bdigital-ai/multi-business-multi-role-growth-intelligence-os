@@ -294,3 +294,45 @@ This gate is **provider-target-independent**: it validates canonical catalog row
 - Live Hostinger provider entitlements, independent Recovery Control Store, correct Production Runtime DB identity/schema/grants, and per-device generation attestation are not established.
 - The connected Remote Desktop Commander device was found offline; no local/remote native test execution was represented as performed.
 - Production mutation, secret exposure, DDL/grants, arbitrary SSH, environment PUT, deploy, and merging to main remain forbidden.
+
+
+## 16. Adversarial source evidence audit — follow-up
+
+**Identity boundary:** GitHub CI for candidate `34f8f316020605bc174be6256a316c2eb1eb4396` reported 23 successes, 11 failures, one skipped and one still in progress at its last check. Latest branch commits supersede that candidate; *do not* transfer its CI status to the new HEAD.
+
+### 16.1 Native syntax regression recovered from Policy CI
+
+- The repository fixed-point report for the prior candidate isolated exactly one unvalidated executable, `autopilot-portable-staging/Clone-StagingDatabases.Legacy.ps1`, with PowerShell parser failure `Missing '=' operator after key in hash literal.`
+- Root cause in the previously added Staging catalog readback integration: `$semanticSnapshotReadback = [ordered]@{` was left unclosed before a `foreach` block. This was a real code defect, not a stale test.
+- Corrected to `$semanticSnapshotReadback = [ordered]@{}` and added a dedicated source regression in `test-hostinger-recovery-seed-replay.mjs`.
+- **Important:** source assertions alone cannot certify PowerShell syntax; require the exact new HEAD's native `powershell_parser` validator to complete successfully before release.
+
+### 16.2 Connector reachability is not Recovery completion
+
+- A prior ordered test suite failed because `test-local-connector-composite-health.mjs` still expected the obsolete `admin_cli.local_connector_self_repair.not_required` event.
+- The current runtime intentionally separates `verified_no_repair` and `verification_pending`, requiring independent device-generation attestation before marking recovery accepted. The test now checks both states, `recoveryReadback.operational_verified`, `recoveryReadback.recovered` and the explicit attestation warning.
+- Safety objection: deleting this check to pass CI would falsely equate transport reachability with cryptographically proven device identity. No such relaxation was made.
+
+### 16.3 Runtime schema metadata is not SELECT authority
+
+- Previously, a positive `information_schema.columns` count meant `mcp_catalog_level` was accepted as available without testing the Runtime user's effective projection permission.
+- The guard now always performs a whitelist-only `SELECT `mcp_catalog_level` FROM `<catalog_table>` LIMIT 0`. This is read-only; no DDL or provider access.
+- Positive metadata but a denied projection is `MCP_CATALOG_SCHEMA_PRIVILEGE_DENIED` with `migration_apply_required=false`.
+- Positive metadata but `ER_BAD_FIELD_ERROR` is contradictory evidence `MCP_CATALOG_SCHEMA_METADATA_CONFLICT`, **not** an ALTER instruction.
+- Hidden/zero metadata but a successful direct projection is valid; hidden metadata plus `ER_BAD_FIELD_ERROR` is the verified missing-column case, still subject to full runtime identity and two-table certainty before any migration planning.
+- Added source regressions to the guard and updated the startup-preflight metadata-positive mock. Eight independent source-isolated checks passed across positive/missing/denied/conflict/absent/hidden cases; they do not establish live Production privileges.
+
+### 16.4 Hostinger provider privilege fail-closed matrix
+
+- Exercised 15 isolated source assertions: active vs disabled connected-system state, only recognized command identities, provider/plugin/environment mismatch refusal, provider dispatch and secret-denial invariants, Node environment replacement denial even with nominally satisfied inputs, and database-create execution denial even when the decision predicate is candidate-ready.
+- These tests contain no host calls or database mutation. Hostinger SSH, Hosting API database creation, and hPanel/Node environment replacement are distinct entitlements and must not be conflated.
+
+### 16.5 Generated artifacts are not waiveable
+
+- Recent Custom GPT Contract Guard generated 14 expected source-owned surfaces but found stale outputs in all 14 generated OpenAPI surfaces plus the registration manifest and admin schema index. Staging Admin Schema, Frontend Dispatch and Remote MCP inventory fail for related source/output parity reasons.
+- The Source of Truth stays `http-generic-api/openapi.yaml`, the registry `canonicals/openapi/custom-gpt-surfaces.yaml`, and registered generators. **Do not hand-edit or suppress derived output checks.**
+- Current blocking derived-state families remain frontend/OpenAPI projection, remote MCP scope inventory, portable Staging manifest, and Spec Kit Work Maps; repository inventory/evaluation are separately advisory.
+- The Work Map writer is governed by exact-head delegation; do not forge owner authorization, grant implicit write authority or force-merge to bypass it.
+- External acceptance remains open: disposable MariaDB replay/rollback, native Node/PowerShell after exact commit, Staging route/browser observations, independent Hostinger provider entitlement and Control Store, Production Runtime DB identity and permissions, and device-generation attestation.
+
+**End state of this review:** bounded code changes uploaded; no Production operation or merge occurred. Full operational closure is **not** achieved and is not being represented as complete.
