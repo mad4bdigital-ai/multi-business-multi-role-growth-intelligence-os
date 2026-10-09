@@ -209,7 +209,7 @@ export async function executeRecovery({plan_id,plan_hash}={},{
   only({plan_id,plan_hash},["plan_id","plan_hash"]);
   if(mode!=="staging")refuse("recovery_orchestrator_execution_disabled",403);
   if(!registry||typeof registry.lookup!=="function")refuse("recovery_orchestrator_registry_missing",503);
-  for(const method of ["getPlan","claimStep","appendIntent","getIntent","markUnknown","finishStep"])
+  for(const method of ["getPlan","claimStep","appendIntent","getIntent","markUnknown","failBeforeDispatch","finishStep"])
     validateStore(store,method);
   if(typeof approvalVerifier?.verify!=="function"||
      typeof lease?.acquire!=="function"||typeof lease?.assertFence!=="function"||
@@ -249,10 +249,12 @@ export async function executeRecovery({plan_id,plan_hash}={},{
      !SAFE_ID.test(String(lock.fence_token||"")))
     refuse("recovery_orchestrator_fenced_lease_missing",409);
   let dispatched=false;
+  let executionClaimed=false;
   try {
     const claimed=await store.claimStep({plan_id,plan_hash,fence_token:lock.fence_token});
     if(claimed?.claimed!==true||claimed?.durable!==true)
       refuse("recovery_orchestrator_atomic_claim_denied",409);
+    executionClaimed=true;
     const immutableIntent={
       contract:"mad4b.recovery-intent.v1",plan_id,plan_hash,
       fence_token:lock.fence_token,source_sha:current.source_sha,
@@ -299,6 +301,18 @@ export async function executeRecovery({plan_id,plan_hash}={},{
           refuse("recovery_orchestrator_unknown_state_persistence_failed",503);
       }catch{refuse("recovery_orchestrator_unknown_state_persistence_failed",503);}
       return safeStatus("execution_outcome_unknown",plan);
+    }
+    if(executionClaimed) {
+      // A blocked pre-dispatch claim must not remain indistinguishable from an
+      // in-flight provider operation after a process restart.
+      try {
+        const aborted=await store.failBeforeDispatch({plan_id,plan_hash,
+          fence_token:lock.fence_token,expected_status:"executing",
+          status:"blocked_pre_dispatch",dispatched:false,
+          error_code:typeof error?.code==="string"?error.code:"internal_error"});
+        if(aborted?.durable!==true||aborted?.status!=="blocked_pre_dispatch")
+          refuse("recovery_orchestrator_pre_dispatch_state_unverified",503);
+      }catch{refuse("recovery_orchestrator_pre_dispatch_state_unverified",503);}
     }
     throw error;
   }finally{

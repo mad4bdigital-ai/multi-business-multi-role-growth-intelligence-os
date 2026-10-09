@@ -38,6 +38,11 @@ function makeStore(){
       const found=this.intents.find(v=>v.plan_id===plan_id&&v.plan_hash===plan_hash&&v.fence_token===fence_token);
       return found?{...found,durable:true,commit_state:"committed",evidence_sha256:evidence}:null;
     },
+    async failBeforeDispatch({plan_id,status,expected_status,dispatched}){
+      if(dispatched!==false||steps.get(plan_id)?.status!==expected_status)
+        return {durable:false,status:"state_mismatch"};
+      steps.set(plan_id,{status});return {durable:true,status};
+    },
     async markUnknown({plan_id,status,retry_forbidden,expected_status}){
       if(steps.get(plan_id)?.status!==expected_status)return {durable:false,status:"stale"};
       steps.set(plan_id,{status,retry_forbidden});
@@ -269,5 +274,20 @@ test("wrong fence or intent digest never validates a committed pre-dispatch inte
     plan_hash:p.plan_hash,intent_hash:"d".repeat(64),
     evidence_sha256:evidence,fence_token:"fence:one"});
   await assert.rejects(execute(p,h),errorCode("recovery_orchestrator_intent_readback_unverified"));
+  assert.equal(dispatched,before);
+});
+
+test("a failure after claiming but before provider dispatch is durably marked blocked, not executing",async()=>{
+  const h=harness(),p=await planned(h),before=dispatched;
+  h.store.getIntent=async()=>null;
+  await assert.rejects(execute(p,h),errorCode("recovery_orchestrator_intent_readback_unverified"));
+  assert.equal(h.store.steps.get(p.plan_id).status,"blocked_pre_dispatch");
+  assert.equal(dispatched,before);
+});
+test("missing durable pre-dispatch abort evidence fails closed without side effects",async()=>{
+  const h=harness(),p=await planned(h),before=dispatched;
+  h.store.getIntent=async()=>null;
+  h.store.failBeforeDispatch=async()=>({durable:false});
+  await assert.rejects(execute(p,h),errorCode("recovery_orchestrator_pre_dispatch_state_unverified"));
   assert.equal(dispatched,before);
 });

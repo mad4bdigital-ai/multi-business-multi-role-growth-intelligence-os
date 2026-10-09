@@ -23,3 +23,6 @@ Only server injection; strict dynamic method/protocol discovery. No stored crede
 
 ## Pre-dispatch independent persistence readback
 The durable store must expose `getIntent` with a verified persisted record; the engine requires the exact plan hash, intent hash, evidence digest, fence token and `commit_state=committed` after `appendIntent` and before provider dispatch. Similarly, creating a plan requires a successful `getPlan` integrity check, not just a successful put acknowledgement. A process-local mock or flags copied from the caller cannot certify this boundary.
+
+## Pre-dispatch failure classification
+After an atomic claim but before invoking a provider, every failure must be durably recorded through a fenced conditional `failBeforeDispatch` as `blocked_pre_dispatch` with `dispatched=false`. A missing or stale-fence acknowledgement must fail closed; it must never be treated as an unknown provider commit or silently leave the claim in an indistinguishable `executing` state. New attempts require a new approved plan.
