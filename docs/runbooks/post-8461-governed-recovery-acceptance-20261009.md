@@ -84,7 +84,7 @@ The following are **not** release certificates. Each issue is resolved only at t
 - `GitHub`: admin verifies effective Rulesets for `main` and `Production`, then applies typed minimal-diff policy in a separately authorized policy-controller operation.
 - `Staging / Production`: perform Native PowerShell, MariaDB replay, browser acceptance, governed release promotion and rollback only after prior evidence; no deployment from this PR.
 
-## Operational scenario expansion — 42 cases in six independent acceptance lanes
+## Operational scenario expansion — 60 cases in six independent acceptance lanes
 
 Canonical source: `http-generic-api/config/post8461-operational-scenario-matrix.json`. It is validated in `http-generic-api/test-post8461-operational-scenario-matrix.mjs` and registered in the PR's E2E + Test Authority. All records are **source-level negative contracts**, not proof of live operations.
 
@@ -111,3 +111,5 @@ Never auto-repeat 429 requests within a shared account rate-limit budget, and ne
 - Real operational certification must attach exact scope (account/site/tenant/device), signed identity and nonexportable key where appropriate, evidence source, issued/expiry times, runtime commit SHA, mutation and inverse receipts, and same-cycle readback.
 - Retest the negative paths after credential rotation, host restart, schema drift, service reconnection, Release Cut changes or provider permission changes.
 
+
+Additional Production-log scenarios: see [the Hostinger Production release preflight](./pr8471-production-promotion-preflight-from-hostinger-logs-20261009.md), including schema startup fail-open, manifest-enforcement state, OAuth and audit writes, Production source divergence and auto-deploy. These are part of a 60-scenario source matrix, not a live certification.
