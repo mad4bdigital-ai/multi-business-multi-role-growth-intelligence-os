@@ -12,7 +12,7 @@ const productionEvidence=[
     bootstrap_credentials:{configured:false}
   }),
   event("mcp_catalog_schema_startup_preflight",{
-    environment:"unknown",ready:false,
+    environment:"unknown",ready:false,startup_blocked:false,
     readiness:{ok:false,identity:{ok:true,database_matches:true,principal_matches:true},
       tables:["admin_platform_endpoint_tools","tenant_platform_endpoint_tools"].map(table=>({
         table,required_field:"mcp_catalog_level",available:false,migration_apply_required:true
@@ -30,7 +30,8 @@ const productionEvidence=[
   "[sinkOrchestration] SQL execution_log append failed - fail-open: INSERT command denied for table",
   "[sinkOrchestration] SQL json_assets append failed - fail-open: INSERT command denied for table",
   "[gpt-tools] durable response chunk persistence degraded {\"code\":\"response_chunk_persistence_unavailable\",\"cause_code\":\"response_chunk_schema_incomplete\"}",
-  "tenant_gpt_oauth_token_exchange_v2_diagnostic_failed {\"code\":\"ER_TABLEACCESS_DENIED_ERROR\"}"
+  "tenant_gpt_oauth_token_exchange_v2_diagnostic_failed {\"code\":\"ER_TABLEACCESS_DENIED_ERROR\"}",
+  'EXECUTION_AUTHORITY_MANIFEST_GUARD: {"enforced":false,"guard_status":"not_enforced","reason":"execution_authority_manifest_enforcement_disabled"}'
 ].join("\n");
 const sha="a".repeat(40);
 
@@ -48,7 +49,9 @@ test("actual sanitized production symptoms block promotion irrespective of healt
     "OPENAPI_INVENTORY_WRITE_UNAVAILABLE","RUNTIME_PARITY_RECONCILIATION_DEGRADED",
     "DURABLE_TOOL_RESPONSE_CHUNK_STORE_UNAVAILABLE","EXECUTION_JOURNAL_WRITE_UNAVAILABLE",
     "JSON_ASSET_WRITE_UNAVAILABLE","TENANT_OAUTH_RUNTIME_DIAGNOSTIC_FAILED",
-    "RUNTIME_ENVIRONMENT_IDENTITY_UNKNOWN"
+    "RUNTIME_ENVIRONMENT_IDENTITY_UNKNOWN",
+    "MCP_SCHEMA_UNREADY_STARTUP_FAIL_OPEN",
+    "EXECUTION_AUTHORITY_MANIFEST_ENFORCEMENT_DISABLED"
   ])assert(report.operational_blockers.includes(required),required);
   assert(report.advisories.includes("QUEUE_DISABLED_REQUIREMENTS_DEPENDENT"));
   assert(!report.operational_blockers.includes("QUEUE_WORKER_DISABLED"));
