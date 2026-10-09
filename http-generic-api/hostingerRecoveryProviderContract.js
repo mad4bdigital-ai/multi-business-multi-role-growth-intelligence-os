@@ -80,13 +80,13 @@ export function assessHostingerDatabaseCreate({
   exactProductionPlan=false, separateOwnerApproval=false,
 }={}) {
   const blockers=[];
-  if(!exactHostingAccount)blockers.push("exact_hosting_account_required");
-  if(!exactWebsiteDomain)blockers.push("exact_hostinger_website_domain_required");
-  if(!databaseAbsent)blockers.push("database_absence_unproven_or_exists");
-  if(!providerAccountEntitlementProven)blockers.push("provider_db_create_entitlement_unverified");
-  if(!managedCredentialIntakeReady)blockers.push("managed_secret_intake_required");
-  if(!exactProductionPlan)blockers.push("exact_production_plan_required");
-  if(!separateOwnerApproval)blockers.push("independent_database_create_approval_required");
+  if(exactHostingAccount !== true)blockers.push("exact_hosting_account_required");
+  if(exactWebsiteDomain !== true)blockers.push("exact_hostinger_website_domain_required");
+  if(databaseAbsent !== true)blockers.push("database_absence_unproven_or_exists");
+  if(providerAccountEntitlementProven !== true)blockers.push("provider_db_create_entitlement_unverified");
+  if(managedCredentialIntakeReady !== true)blockers.push("managed_secret_intake_required");
+  if(exactProductionPlan !== true)blockers.push("exact_production_plan_required");
+  if(separateOwnerApproval !== true)blockers.push("independent_database_create_approval_required");
   return {contract:"mad4b.hostinger-database-create-safety.v1",
     provider_operation:HOSTINGER_RECOVERY_PROVIDER_API.database_create,
     discovery_only:true, account_specific_authority_verified:providerAccountEntitlementProven===true,
