@@ -84,6 +84,26 @@
       "live_certified": false,
       "production_mutation_allowed": false,
       "secrets_included": false
+    },
+    {
+      "id": "windows_boot.execution_policy_blocks_direct_ps1",
+      "trigger": "Windows PowerShell rejects direct installer invocation with PSSecurityException because running scripts is disabled",
+      "expected_state": "blocked",
+      "required_evidence": "PowerShell 5.1 child process with per-process ExecutionPolicy argument, exact trusted source, nonzero-exit handling and independent Scheduled Task readback",
+      "source_coverage": "negative_or_static",
+      "live_certified": false,
+      "production_mutation_allowed": false,
+      "secrets_included": false
+    },
+    {
+      "id": "windows_boot.watcher_principal_or_actions_drift",
+      "trigger": "Existing Auto Deploy task belongs to another Windows SID or contains zero/multiple Actions, causing the additive supervisor installer to block",
+      "expected_state": "blocked",
+      "required_evidence": "native SID-normalized principal identity, exactly one canonical approved scheduled action, interactive logon, read-only diagnosis, and independent root task readback",
+      "source_coverage": "negative_or_static",
+      "live_certified": false,
+      "production_mutation_allowed": false,
+      "secrets_included": false
     }
   ],
   "production_promotion_authorized": false
