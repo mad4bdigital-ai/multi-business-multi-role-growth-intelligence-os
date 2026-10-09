@@ -42,6 +42,7 @@
       "http-generic-api/test-recovery-orchestrator.mjs",
       "http-generic-api/test-staging-coldboot-recovery.mjs",
       "specs/022-governed-recovery-orchestrator/contracts.md",
+      "specs/022-governed-recovery-orchestrator/e2e-phases.json",
       "specs/022-governed-recovery-orchestrator/plan.md",
       "specs/022-governed-recovery-orchestrator/spec.md",
       "specs/022-governed-recovery-orchestrator/tasks.md"
