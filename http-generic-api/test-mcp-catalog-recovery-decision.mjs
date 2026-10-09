@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { classifyMcpCatalogRecoveryReadback } from "./mcpCatalogRecoveryDecision.js";
+import { classifyMcpCatalogRecoveryReadback, collectMcpCatalogRecoveryDecision } from "./mcpCatalogRecoveryDecision.js";
 import { MCP_CATALOG_TABLES, MCP_CATALOG_LEVEL_MIGRATION_SHA256 } from "./mcpCatalogSchemaGuard.js";
 
 const identity={ok:true,database_matches:true,principal_matches:true,identity_readback_performed:true};
@@ -55,4 +55,37 @@ test("caller-provided ready=true without same-session evidence is never accepted
   });
   assert.equal(report.schema_ready,false);
   assert.equal(report.status,"diagnosis_blocked");
+});
+
+
+test("same reused DB connection cannot replay cached available column after migration drift",async()=>{
+  let available=true, releases=0, projectionQueries=0;
+  const conn={
+    async query(sql) {
+      if(sql.includes("SELECT DATABASE()"))return [[{
+        current_database:"catalog_runtime",current_account:"runtime_user@localhost"
+      }]];
+      if(sql.includes("information_schema.columns"))
+        return [[{column_count:available?1:0}]];
+      if(sql.includes("LIMIT 0")){
+        projectionQueries++;
+        if(available)return [[],[]];
+        const err=new Error("Column removed");err.code="ER_BAD_FIELD_ERROR";throw err;
+      }
+      throw Error("unexpected probe");
+    },
+    release(){releases++;}
+  };
+  const pool={getConnection:async()=>conn};
+  const opts={pool,env:{DB_NAME:"catalog_runtime",DB_USER:"runtime_user"}};
+  const ready=await collectMcpCatalogRecoveryDecision(opts);
+  assert.equal(ready.status,"ready_verified");
+  assert.equal(projectionQueries,2);
+  available=false;
+  const drift=await collectMcpCatalogRecoveryDecision(opts);
+  assert.equal(drift.status,"migration_proposal_only");
+  assert.equal(drift.schema_ready,false);
+  assert.equal(drift.migration_apply_allowed,false);
+  assert.equal(projectionQueries,4,"freshly probe both tables rather than return 30s cached status");
+  assert.equal(releases,2);
 });
