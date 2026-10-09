@@ -56,11 +56,18 @@ assert.match(readiness, /repositoryState\.allow_auto_merge !== false/, "native r
 assert.match(readiness, /rules\/branches\/\$\{encodeURIComponent\(branch\)\}/, "verifier must read active branch rules instead of relying on classic branch protection only");
 assert.match(readiness, /rulesets\?includes_parents=true&per_page=100/, "verifier must read the complete applicable ruleset index");
 assert.match(readiness, /managedRuleset\.bypass_actors/, "verifier must prove the managed ruleset has no bypass actors");
-assert.match(readiness, /activeBinding\.integration_id !== expectedAttestorAppId/, "active required status must be bound to the exact trusted App id");
-assert.match(readiness, /managedBinding\.integration_id !== expectedAttestorAppId/, "managed ruleset required status must be bound to the exact trusted App id");
+assert.match(readiness, /activeBinding\.integration_id === expectedAttestorAppId/, "active app-bound status must be tied to trusted Attestor App");
+assert.match(readiness, /managedBinding\.integration_id === expectedAttestorAppId/, "managed app-bound status must be tied to trusted Attestor App");
 assert.match(readiness, /commits\/\$\{expectedCandidate\}\/statuses\?per_page=100/, "verifier must read exact-candidate statuses");
-assert.match(readiness, /Number\(status\?\.creator\?\.id \|\| 0\) === expectedStatusCreatorId/, "candidate success status must come from the same-cycle attestor creator");
+assert.match(readiness, /Number\(newestStatus\?\.creator\?\.id \|\| 0\) === expectedStatusCreatorId/, "latest candidate success status must come from the attestor creator");
 assert.match(readiness, /safe_to_register_auto_merge: false/, "native auto-merge registration must remain forbidden");
+assert.match(workflow, /attestor_status_id: \$\{\{ steps\.final\.outputs\.attestor_status_id \}\}/, "attestation must return the exact newly created status ID");
+assert.match(workflow, /EXPECTED_ATTESTOR_STATUS_ID="\$ATTESTOR_STATUS_ID"/, "finalizer must carry the same-cycle status ID to the verifier");
+assert.match(readiness, /expectedAttestorStatusId = Number\(process\.env\.EXPECTED_ATTESTOR_STATUS_ID/, "status ID must be explicitly supplied");
+assert.match(readiness, /Number\(newestStatus\?\.id \|\| 0\) === expectedAttestorStatusId/, "old success must not pass after newer spoofed statuses");
+assert.match(readiness, /mainSourcePolicy\.required_check_source_mode === "any_source_with_independent_finalizer_readback"/, "only Constitution-authorized main Any source mode may pass");
+assert.match(readiness, /anySourceEnabled && activeBinding\.integration_id === null/, "unbound check is permitted only under main's explicit Any source authority");
+assert.match(readiness, /anySourceEnabled && managedBinding\.integration_id === null/, "managed ruleset must match Constitution source mode");
 assert.match(readiness, /safe_to_merge_now: true/, "verifier may authorize only an immediate exact-head finalizer merge");
 assert.doesNotMatch(readiness, /allow_auto_merge !== true/, "retired native auto-merge prerequisite must not return");
 
