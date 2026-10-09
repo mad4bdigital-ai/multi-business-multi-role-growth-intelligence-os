@@ -56,12 +56,18 @@ assert.equal(refreshReady.mcp_catalog_schema.identity.database_matches, true);
 assert.equal(refreshReady.mcp_catalog_schema.identity.principal_matches, true);
 const wrongDatabasePool = {
   ...readyPool,
-  async query(sql) {
-    if (String(sql).includes("SELECT DATABASE()")) return [[{
-      current_database: "wrong_database",
-      current_account: "tenant_runtime_reader@localhost",
-    }]];
-    return readyPool.query(sql);
+  async getConnection() {
+    const session = await readyPool.getConnection();
+    return {
+      ...session,
+      async query(sql, params) {
+        if (String(sql).includes("SELECT DATABASE()")) return [[{
+          current_database: "wrong_database",
+          current_account: "tenant_runtime_reader@localhost",
+        }]];
+        return session.query(sql, params);
+      },
+    };
   },
 };
 const wrongDatabase = await buildTenantGptOperationalReadiness({
