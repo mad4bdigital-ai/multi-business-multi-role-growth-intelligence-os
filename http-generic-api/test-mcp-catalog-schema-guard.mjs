@@ -14,6 +14,7 @@ const presentPool = {
     if (/SELECT DATABASE\(\)/u.test(String(sql))) {
       return [[{ current_database: "catalog_runtime", current_account: "runtime_user@localhost" }]];
     }
+    if (/LIMIT 0/u.test(String(sql))) return [[], []];
     assert.match(String(sql), /information_schema\.columns/);
     assert.deepEqual(params?.[1], "mcp_catalog_level");
     return [[{ column_count: 1 }]];
@@ -39,6 +40,43 @@ assert.equal(safeReady.migration_apply_performed, false);
 assert.equal(safeReady.provider_mutation_performed, false);
 assert.equal(safeReady.deployment_performed, false);
 assert.equal((await assertMcpCatalogLevelColumn({ pool: presentPool, table: "admin_platform_endpoint_tools" })).available, true);
+
+
+const metadataPresentPrivilegeDeniedPool = {
+  async query(sql) {
+    if (/information_schema\.columns/u.test(sql)) return [[{ column_count: 1 }]];
+    if (/LIMIT 0/u.test(sql)) {
+      const error = new Error("Runtime role lacks SELECT");
+      error.code = "ER_COLUMNACCESS_DENIED_ERROR";
+      throw error;
+    }
+    throw new Error("unexpected query");
+  },
+};
+const deniedWithVisibleColumn = await readMcpCatalogLevelSchemaStatus({
+  pool: metadataPresentPrivilegeDeniedPool, table: "admin_platform_endpoint_tools",
+});
+assert.equal(deniedWithVisibleColumn.available, false);
+assert.equal(deniedWithVisibleColumn.code, "MCP_CATALOG_SCHEMA_PRIVILEGE_DENIED");
+assert.equal(deniedWithVisibleColumn.migration_apply_required, false);
+const inconsistentMetadataPool = {
+  async query(sql) {
+    if (/information_schema\.columns/u.test(sql)) return [[{ column_count: 1 }]];
+    if (/LIMIT 0/u.test(sql)) {
+      const error = new Error("metadata and direct projection disagree");
+      error.code = "ER_BAD_FIELD_ERROR";
+      throw error;
+    }
+    throw new Error("unexpected query");
+  },
+};
+const metadataConflict = await readMcpCatalogLevelSchemaStatus({
+  pool: inconsistentMetadataPool, table: "tenant_platform_endpoint_tools",
+});
+assert.equal(metadataConflict.available, false);
+assert.equal(metadataConflict.code, "MCP_CATALOG_SCHEMA_METADATA_CONFLICT");
+assert.equal(metadataConflict.migration_apply_required, false,
+  "Contradictory metadata must not authorize an ALTER on Production");
 
 const missingPool = {
   async query(sql) {
