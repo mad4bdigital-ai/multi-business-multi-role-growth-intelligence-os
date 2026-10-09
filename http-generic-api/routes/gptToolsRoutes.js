@@ -8,7 +8,7 @@ import { promisify } from "node:util";
 import { getPool, getRuntimePersistencePool } from "../db.js";
 import {
   assertMcpCatalogLevelColumn,
-  readMcpCatalogSchemaReadiness,
+  readMcpCatalogSchemaReadinessSafe,
   buildMcpCatalogSchemaNotReadyResponse,
   isMcpCatalogSchemaNotReadyError,
 } from "../mcpCatalogSchemaGuard.js";
@@ -2642,7 +2642,8 @@ async function fetchTools(callerType, executionCapsule = null) {
 }
 
 export async function readGptToolsCatalogSchemaReadiness() {
-  return readMcpCatalogSchemaReadiness({ pool: getPool() });
+  // Admin/tenant reporting must not certify Schema from an unknown DB/principal.
+  return readMcpCatalogSchemaReadinessSafe({ pool: getPool(), env: process.env });
 }
 
 async function resolveToolPreflightDescriptor(callerType, toolKey, executionCapsule = null) {
