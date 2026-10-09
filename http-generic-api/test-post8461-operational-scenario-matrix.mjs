@@ -21,9 +21,9 @@ const evidencePath={
   policy:"test-github-repository-policy-controller.mjs",
   release:"test-production-promotion-candidate-workflow.mjs",
 };
-test("58 exact documented operating cases across six domains remain distinct and nonexecuting",()=>{
+test("60 exact documented operating cases across six domains remain distinct and nonexecuting",()=>{
   assert.equal(scenarios.contract,"mad4b.post8461-operational-scenario-matrix.v1");
-  assert.equal(scenarios.scenarios.length,58);
+  assert.equal(scenarios.scenarios.length,60);
   assert.deepEqual(scenarios.families,required);
   for(const entry of scenarios.scenarios){
     assert.match(entry.id,/^(hostinger|mcp|device|migration|policy|release)\.[a-z][a-z0-9_]+$/);
