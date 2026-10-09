@@ -59,7 +59,8 @@ test("tenant, user, device, config and generation mismatch fail before nonce con
 
 test("invalid signature, expired challenge, and missing nonce store fail closed",async()=>{
   await assert.rejects(verifyBoundDeviceGenerationChallenge(args({
-    signature_der_base64:signed().replace(/.$/,"A")
+    signature_der_base64:sign("sha256",Buffer.from("different-challenge"),
+      {key:privateKey,dsaEncoding:"der"}).toString("base64")
   })),e=>e.code==="device_generation_signature_invalid");
   await assert.rejects(verifyBoundDeviceGenerationChallenge(args({
     now:challenge.expires_at_ms
