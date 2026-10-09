@@ -35,7 +35,10 @@
       "docs/runbooks/pr8471-windows-coldboot-recovery-20261009.md",
       "http-generic-api/config/pr8471-windows-coldboot-scenarios.json",
       "http-generic-api/test-staging-coldboot-recovery.mjs",
-      "autopilot-portable-staging/Staging-TaskPrincipalIdentity.ps1"
+      "autopilot-portable-staging/Staging-TaskPrincipalIdentity.ps1",
+      "http-generic-api/executionAuthorityManifestGuard.js",
+      "http-generic-api/runtimeGuards.js",
+      "http-generic-api/test-staging-autonomous-supervisor-contract.mjs"
     ]
   },
   "merge_contract": {
