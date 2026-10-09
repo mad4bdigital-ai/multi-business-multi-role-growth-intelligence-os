@@ -90,12 +90,12 @@ export function assessHostingerDatabaseCreate({
   // These booleans are caller-supplied *claims*, not independently signed
   // provider-account proof. A syntactically complete plan is never an executable
   // or provider-certified database-creation candidate in the discovery adapter.
-  const reportedPrerequisitesComplete = blockers.length === 0;
-  blockers.push("independent_provider_account_proof_and_certified_executor_missing");
   return {contract:"mad4b.hostinger-database-create-safety.v1",
     provider_operation:HOSTINGER_RECOVERY_PROVIDER_API.database_create,
     discovery_only:true, account_specific_authority_verified:false,
-    reported_prerequisites_complete:reportedPrerequisitesComplete,
+    reported_prerequisites_complete:blockers.length === 0,
     candidate_ready:false, plan_eligible:false,
-    execution_allowed:false, blockers, secrets_included:false};
+    execution_allowed:false,
+    blockers:[...blockers,"independent_provider_account_proof_and_certified_executor_missing"],
+    secrets_included:false};
 }
