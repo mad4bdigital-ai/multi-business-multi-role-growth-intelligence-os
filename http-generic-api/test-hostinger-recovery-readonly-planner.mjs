@@ -27,7 +27,8 @@ test("managed Hostinger inventory only performs exact GET and returns no credent
   assert.equal(calls[0].opts.method,"GET");
   assert.equal(calls[0].opts.redirect,"manual");
   assert.equal(calls[0].opts.headers.Authorization,`Bearer ${token}`);
-  assert.equal(report.inventory_readback_proven,true);
+  assert.equal(report.provider_inventory_response_accepted,true);
+  assert.equal(report.inventory_readback_proven,false);
   assert.equal(report.target_database_exists,true);
   assert.equal(report.plan_allowed,false);
   assert.equal(report.execution_allowed,false);
