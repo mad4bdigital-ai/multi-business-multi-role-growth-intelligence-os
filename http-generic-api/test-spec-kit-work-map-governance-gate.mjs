@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { buildScaffoldManifest } from "./scripts/spec-kit-work-map-integration-gate.mjs";
 import {
   buildEffectiveWorkMapRegistry,
@@ -202,6 +203,56 @@ function finalize(manifest) {
   assert.equal(changedDraft.ok, false);
   assert.deepEqual(changedDraft.integration.targets, ["002-draft"]);
   assert(changedDraft.findings.some((row) => row.feature === "002-draft"));
+}
+
+// Regression: design classification does not become a false operational or Production certificate.
+{
+  const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+  const featurePath = "specs/009-local-connector-reachability-recovery";
+  const manifest = JSON.parse(fs.readFileSync(path.join(root, featurePath, "work-map-integration.json"), "utf8"));
+  const spec = fs.readFileSync(path.join(root, featurePath, "spec.md"), "utf8");
+  const tasks = fs.readFileSync(path.join(root, featurePath, "tasks.md"), "utf8");
+  const knownAcceptance = new Set([...spec.matchAll(/^### (US[0-9]+: .+)$/gm)]
+    .map(([, heading]) => heading.toLowerCase().replace(/:/g, "").replace(/[^a-z0-9 -]/g, "").trim().replace(/ +/g, "-")));
+  assert.equal(manifest.review_state, "ready_for_implementation");
+  assert.equal(manifest.implementation_readiness.status, "ready");
+  assert.equal(manifest.implementation_readiness.scope, "source_architecture_ready_for_phased_implementation_only");
+  assert.equal(manifest.implementation_readiness.staging_runtime_verified, false);
+  assert.equal(manifest.implementation_readiness.device_generation_attested, false);
+  assert.equal(manifest.implementation_readiness.production_promotion_authorized, false);
+  assert.equal(manifest.design_review.execution_authority_granted, false);
+  assert.equal(manifest.design_review.independent_operational_acceptance_required, true);
+  assert.equal(Object.keys(manifest.work_map_decisions).length, manifest.registry.map_count);
+  assert.equal(Object.keys(manifest.domain_decisions).length, manifest.registry.domain_count);
+  for (const [scope, decisions] of Object.entries({
+    maps: manifest.work_map_decisions,
+    domains: manifest.domain_decisions,
+  })) {
+    for (const [dimension, decision] of Object.entries(decisions)) {
+      assert.notEqual(decision.decision, "needs_analysis", `${scope}:${dimension} remained unresolved`);
+      assert(decision.rationale.length >= 24, `${scope}:${dimension} has no useful rationale`);
+      assert(Array.isArray(decision.evidence_refs) && decision.evidence_refs.length > 0);
+      for (const evidencePath of decision.evidence_refs) {
+        assert(fs.existsSync(path.join(root, evidencePath)), `Missing evidence for ${scope}:${dimension}: ${evidencePath}`);
+      }
+      if (decision.decision === "not_applicable") {
+        assert(Array.isArray(decision.non_applicability_evidence) &&
+          decision.non_applicability_evidence.length > 0, `Unproved non-applicability: ${dimension}`);
+      } else {
+        assert(decision.integration_points.length > 0);
+        for (const requirement of decision.requirement_refs) {
+          assert(spec.includes(`${requirement}:`), `Unknown requirement: ${dimension}/${requirement}`);
+        }
+        for (const task of decision.task_refs) {
+          assert(tasks.includes(`${task} `), `Unknown delivery task: ${dimension}/${task}`);
+        }
+        for (const acceptance of decision.acceptance_refs) {
+          assert(acceptance.startsWith(`${featurePath}/spec.md#`));
+          assert(knownAcceptance.has(acceptance.split("#")[1]), `Unknown acceptance story: ${acceptance}`);
+        }
+      }
+    }
+  }
 }
 
 console.log("spec kit Work Map governance tests passed");
