@@ -146,15 +146,17 @@
             "Keep remote Git watcher alive during bounded transport outages without reusing prior exact-head/eligibility receipts",
             "Re-check local Compose health after Docker readiness instead of trusting pre-reboot source certification",
             "Reconcile missing supervisor only through explicit additive approved task installer bound to principal/path/arguments",
-            "Verify silent Scheduled Task actions and eight reboot-specific synthetic failure scenarios",
-            "Require separate native Windows reboot, device attestation, Staging acceptance and rollback evidence"
+            "Verify silent Scheduled Task actions and nine reboot-specific synthetic failure scenarios",
+            "Require separate native Windows reboot, device attestation, Staging acceptance and rollback evidence",
+            "Use a PowerShell 5.1 child process with per-process ExecutionPolicy for trusted maintenance scripts on restricted hosts, and verify nonzero exits and Task Scheduler readback"
           ],
           "assertions": [
             "No Production deploy, credential changes, database DDL, DNS updates or provider mutations are authorized",
             "Stopped local Docker containers cannot inherit a healthy status from stale pre-reboot certification",
             "DNS or Git failure cannot select a stale SHA or authorize an unverified deployment",
             "Silent watcher arguments remain exact and reject injected/unrecognized switches",
-            "Eight source-only cold-boot scenarios never constitute live Windows or hardware recovery certification"
+            "Nine source-only cold-boot scenarios never constitute live Windows or hardware recovery certification",
+            "Direct .ps1 execution blocked by Windows policy never counts as an installation attempt or a recovered supervisor; Group Policy restrictions are not bypassed"
           ],
           "tests": [
             {
