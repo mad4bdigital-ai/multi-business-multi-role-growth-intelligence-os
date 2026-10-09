@@ -23,7 +23,10 @@ const signed=()=>sign("sha256",Buffer.from([
 ].join("\n")), {key:privateKey,dsaEncoding:"der"}).toString("base64");
 const args=(change={})=>({
   expected,claimed:{...expected},challenge,signature_der_base64:signed(),
-  public_key_pem:publicKey.export({type:"spki",format:"pem"}),
+  lookupRegisteredGeneration:async scope=>({
+    ...scope,public_key_pem:publicKey.export({type:"spki",format:"pem"}),
+    status:"active",is_enabled:true,revoked_at:null,archived_at:null
+  }),
   now,consumeNonce:async()=>true,...change
 });
 
@@ -86,4 +89,46 @@ test("caller-provided true or possession receipt cannot claim nonexportable reco
   assert.equal(proof.device_generation_possession_verified,true);
   assert.equal(proof.device_generation_attested,false);
   assert.equal(proof.recovered,false);
+});
+
+
+test("attacker-provided EC public key never substitutes the exact registered key",async()=>{
+  const attacker=generateKeyPairSync("ec",{namedCurve:"prime256v1"});
+  let consumed=false;
+  const forged=sign("sha256",Buffer.from([
+    "mad4b.local-connector.generation-possession.v1",
+    ...["user_id","tenant_id","device_id","config_id","generation_id"].map(x=>expected[x]),
+    challenge.id,challenge.nonce,String(challenge.issued_at_ms),
+    String(challenge.expires_at_ms)
+  ].join("\n")), {key:attacker.privateKey,dsaEncoding:"der"}).toString("base64");
+  await assert.rejects(verifyBoundDeviceGenerationChallenge(args({
+    signature_der_base64:forged,
+    public_key_pem:attacker.publicKey.export({type:"spki",format:"pem"}),
+    consumeNonce:async()=>{consumed=true;return true;}
+  })),e=>e.code==="device_generation_signature_invalid");
+  assert.equal(consumed,false);
+});
+test("inactive, revoked or scope-mismatched registered key fails before challenge consume",async()=>{
+  for(const reg of [
+    {status:"revoked"},{is_enabled:false},{archived_at:"2026-10-09"},
+    {revoked_at:"2026-10-09"},{device_id:"another-device"},{generation_id:"stale-generation"}
+  ]){
+    let consumed=false;
+    await assert.rejects(verifyBoundDeviceGenerationChallenge(args({
+      lookupRegisteredGeneration:async()=>({
+        ...expected,status:"active",is_enabled:true,revoked_at:null,archived_at:null,
+        public_key_pem:publicKey.export({type:"spki",format:"pem"}),...reg
+      }),
+      consumeNonce:async()=>{consumed=true;return true;}
+    })),e=>e.code==="device_generation_registered_key_not_trusted");
+    assert.equal(consumed,false);
+  }
+  await assert.rejects(verifyBoundDeviceGenerationChallenge(args({
+    lookupRegisteredGeneration:null
+  })),e=>e.code==="device_generation_registered_key_lookup_unavailable");
+});
+test("noncanonical signature encoding cannot pass even if decoded bytes might be valid",async()=>{
+  await assert.rejects(verifyBoundDeviceGenerationChallenge(args({
+    signature_der_base64:signed().replace(/=+$/,"")
+  })),e=>e.code==="device_generation_signature_invalid");
 });
