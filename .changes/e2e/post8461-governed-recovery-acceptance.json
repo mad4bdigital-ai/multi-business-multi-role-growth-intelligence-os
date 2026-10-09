@@ -1,0 +1,133 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "post8461-governed-recovery-acceptance",
+  "title": "Post-8461 governed recovery read-only plans and device generation possession safety",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/post8461-governed-recovery-acceptance.json",
+      ".github/governance/test-authority-registry.json",
+      "docs/runbooks/post-8461-governed-recovery-acceptance-20261009.md",
+      "http-generic-api/adminLocalConnectorTarget.js",
+      "http-generic-api/deviceGenerationChallengeVerifier.js",
+      "http-generic-api/hostingerRecoveryReadOnlyPlanner.js",
+      "http-generic-api/mcpCatalogRecoveryDecision.js",
+      "http-generic-api/test-admin-local-connector-target.mjs",
+      "http-generic-api/test-device-generation-challenge-verifier.mjs",
+      "http-generic-api/test-hostinger-recovery-readonly-planner.mjs",
+      "http-generic-api/test-mcp-catalog-recovery-decision.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Source-only typed Hostinger inventory, MCP catalog readback decision and cryptographic device possession guard; never claim Production provisioning, TPM hardware attestation or schema migration.",
+      "blockers": [],
+      "e2e_journeys": [
+        {
+          "id": "post8461-recovery-negative-and-positive-regressions",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "repository_maintainer",
+          "entrypoint": "Internal read-only provider planner and source-only security contracts",
+          "terminal_outcome": "All unsafe, mismatched, absent or caller-injected authority remains nonexecutable; positive read-only evidence can only create a proposal.",
+          "steps": [
+            "Call bounded Hostinger GET-only inventory with managed token callback and validate exact account binding.",
+            "Derive MCP schema recovery classification from one-session runtime identity and both table states.",
+            "Verify ECDSA challenge replay resistance and reject caller generation booleans.",
+            "Confirm independent live Staging, DB-grants, hardware and Production gates remain open."
+          ],
+          "assertions": [
+            "Hostinger database CREATE, Node environment PUT, SSH mutation and Production deploy are never invoked.",
+            "No provider credential, secret, or environment value is present in reports.",
+            "Unknown or inaccessible schema/DB role never proposes migration execution.",
+            "Stale device aliases or ECDSA proof without nonexportable hardware attestation cannot claim RECOVERED."
+          ],
+          "tests": [
+            {
+              "id": "hostinger-readonly",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-hostinger-recovery-readonly-planner.mjs",
+              "args": []
+            },
+            {
+              "id": "catalog-runtime-readonly",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-mcp-catalog-recovery-decision.mjs",
+              "args": []
+            },
+            {
+              "id": "generation-proof",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-device-generation-challenge-verifier.mjs",
+              "args": []
+            },
+            {
+              "id": "admin-generation-recovery",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-admin-local-connector-target.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/hostingerRecoveryReadOnlyPlanner.js",
+            "http-generic-api/mcpCatalogRecoveryDecision.js",
+            "http-generic-api/deviceGenerationChallengeVerifier.js",
+            "docs/runbooks/post-8461-governed-recovery-acceptance-20261009.md"
+          ]
+        }
+      ],
+      "tests": [
+        {
+          "id": "hostinger-readonly",
+          "runner": "node",
+          "working_directory": ".",
+          "path": "http-generic-api/test-hostinger-recovery-readonly-planner.mjs",
+          "args": []
+        },
+        {
+          "id": "catalog-runtime-readonly",
+          "runner": "node",
+          "working_directory": ".",
+          "path": "http-generic-api/test-mcp-catalog-recovery-decision.mjs",
+          "args": []
+        },
+        {
+          "id": "generation-proof",
+          "runner": "node",
+          "working_directory": ".",
+          "path": "http-generic-api/test-device-generation-challenge-verifier.mjs",
+          "args": []
+        },
+        {
+          "id": "admin-generation-recovery",
+          "runner": "node",
+          "working_directory": ".",
+          "path": "http-generic-api/test-admin-local-connector-target.mjs",
+          "args": []
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}
