@@ -32,21 +32,34 @@ Docker reported local context `desktop-linux` and Engine `29.7.2`. Local repo dr
 
 ## Read-only verification on a Windows checkout containing the updated source
 
-Open a Windows PowerShell 5.1 terminal for the local checkout that contains the reviewed patch, then:
+On 9 October 2026 the operator also reported a local `PSSecurityException / UnauthorizedAccess` with `running scripts is disabled on this system` after attempting to invoke the installer directly with `& "$Repo\\...\\Install-AutonomousSupervisorTask.ps1"`. The following scheduled-task lookup then returned not found. **This establishes an Execution Policy launch failure; it does not prove an installer execution failure.**
+
+Open an elevated Windows PowerShell 5.1 terminal for the reviewed **local checkout**. Run local scripts in a child PowerShell process with a per-process execution-policy argument, rather than invoking `.ps1` directly:
 
 ```powershell
-cd M:\Users\Nagy\Repo\multi-business-multi-role-growth-intelligence-os\autopilot-portable-staging
-.\Staging-ColdBoot-Diagnostics.ps1
-.\Staging-Doctor.ps1 -Mode Status
+$Repo = "M:\Users\Nagy\Repo\multi-business-multi-role-growth-intelligence-os"
+$PS51 = "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe"
+$Scripts = Join-Path $Repo "autopilot-portable-staging"
+if (-not (Test-Path -LiteralPath $Scripts -PathType Container)) { throw "Checkout missing: $Scripts" }
+& $PS51 -NoLogo -NoProfile -ExecutionPolicy Bypass -File (Join-Path $Scripts "Staging-ColdBoot-Diagnostics.ps1") -RepositoryPath $Repo
+& $PS51 -NoLogo -NoProfile -ExecutionPolicy Bypass -File (Join-Path $Scripts "Staging-Doctor.ps1") -RepositoryPath $Repo -Mode Status
 ```
 
-Path is the historically used checkout, not a verified current device identity. Use the actual checkout path if different; **do not use an old hostname as a device target**.
+These diagnostic commands are read-only apart from their sanitized local report files. A nonzero Doctor result means the machine remains degraded and must not be treated as an approval to deploy. The path is a previously observed checkout, not a verified current device identity; replace it with the actual trusted checkout if different.
 
-If and only if the `MAD4B Staging Autonomous Supervisor` task is missing and the existing watcher action/policy passes identity verification, an administrator may explicitly run:
+If and only if `MAD4B Staging Autonomous Supervisor` is missing and the existing watcher action/policy passes identity verification, an administrator may explicitly run:
 
 ```powershell
-.\Install-AutonomousSupervisorTask.ps1 -RepositoryPath (Resolve-Path ..).Path -Activate
+$Installer = Join-Path $Scripts "Install-AutonomousSupervisorTask.ps1"
+if (-not (Test-Path -LiteralPath $Installer -PathType Leaf)) { throw "Missing trusted installer" }
+& $PS51 -NoLogo -NoProfile -ExecutionPolicy Bypass -File $Installer -RepositoryPath $Repo -Activate
+if ($LASTEXITCODE -ne 0) { throw "Supervisor installer failed; do not claim repaired state" }
+$Task = Get-ScheduledTask -TaskName "MAD4B Staging Autonomous Supervisor" -ErrorAction Stop
+$TaskInfo = Get-ScheduledTaskInfo -TaskName $Task.TaskName -ErrorAction Stop
+[pscustomobject]@{ State = $Task.State; LastResult = $TaskInfo.LastTaskResult; LastRun = $TaskInfo.LastRunTime }
 ```
+
+The `-ExecutionPolicy Bypass` switch applies **only to this child process** and is not an instruction to change the machine or current-user policy. It does not override enforced Group Policy (`MachinePolicy` / `UserPolicy`). If still blocked, inspect `Get-ExecutionPolicy -List`, the exact script origin/signature and IT policy; **do not use `Set-ExecutionPolicy -Scope LocalMachine` or `Unblock-File` as a workaround for an untrusted file**. A successful Scheduled Task registration is not a native reboot/runtime certificate.
 
 This creates only the absent Supervisor task. If an unexpected conflicting task or watcher identity is found, stop and investigate; do not use `-Force`, bypass signature checks, or re-register broad tasks without reviewing the exact tunnel and gateway flags.
 
