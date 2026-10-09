@@ -33,13 +33,13 @@ $working = [IO.Path]::GetFullPath([string]$action.WorkingDirectory).TrimEnd('\')
 $sourceRoot = [IO.Path]::GetFullPath([string]$scriptRoot).TrimEnd('\')
 $targetRoot = [IO.Path]::GetFullPath([string]$RepositoryPath).TrimEnd('\')
 if ($working -ine $sourceRoot -and $working -ine $targetRoot) { Fail "Watcher working directory drift" }
-$approved = '^-NoLogo\s+-NoProfile\s+-ExecutionPolicy\s+Bypass\s+-File\s+"' +
+$approved = '^-NoLogo\s+-NoProfile(?:\s+-WindowStyle\s+Hidden)?\s+-ExecutionPolicy\s+Bypass\s+-File\s+"' +
     [regex]::Escape($expectedWatcher) + '"\s+-RepositoryPath\s+"' + [regex]::Escape($RepositoryPath) +
     '"\s+-Watch\s+-PollSeconds\s+\d+\s+-BuildMode\s+(?:Smart|ForceBuild|SkipBuild)' +
     '\s+-TunnelMode\s+(?:disabled|windows_service|docker_sidecar)(?:\s+-EnableActivationGateway)?$'
 if (-not [regex]::IsMatch([string]$action.Arguments, $approved, [Text.RegularExpressions.RegexOptions]::IgnoreCase)) { Fail "Existing Staging watcher task action/path does not match this checkout" }
 
-$arguments = "-NoLogo -NoProfile -ExecutionPolicy Bypass -File `"$supervisorScript`" -RepositoryPath `"$RepositoryPath`" -IntervalSeconds $IntervalSeconds"
+$arguments = "-NoLogo -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$supervisorScript`" -RepositoryPath `"$RepositoryPath`" -IntervalSeconds $IntervalSeconds"
 $installed = Get-ScheduledTask -TaskName $SupervisorTaskName -ErrorAction SilentlyContinue
 if ($null -ne $installed) {
     $existingActions = @($installed.Actions)
