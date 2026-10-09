@@ -297,7 +297,10 @@ export async function reconcileRecovery({plan_id,plan_hash}={},{
   only({plan_id,plan_hash},["plan_id","plan_hash"]);
   for(const name of ["getPlan","getStep","finishReconciliation"])validateStore(store,name);
   if(typeof evidenceVerifier?.verify!=="function")refuse("recovery_orchestrator_verifier_missing",503);
-  const scope=trustedScope(binding),plan=assertPlan(await store.getPlan(plan_id));
+  const scope=trustedScope(binding);
+  if(scope.environment!=="staging")
+    refuse("recovery_orchestrator_production_reconciliation_forbidden",403);
+  const plan=assertPlan(await store.getPlan(plan_id));
   if(plan.plan_hash!==plan_hash||plan.plan_id!==plan_id)refuse("recovery_orchestrator_plan_reference_mismatch",409);
   if(Object.keys(scope).some(k=>scope[k]!==plan.binding[k]))
     refuse("recovery_orchestrator_scope_drift",409);

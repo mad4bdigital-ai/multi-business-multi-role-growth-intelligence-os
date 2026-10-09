@@ -238,3 +238,11 @@ test("store inside the target database or lacking independently verified authori
     target_database_binding:"target_runtime"}}),
     errorCode("recovery_orchestrator_durable_store_authority_unverified"));
 });
+
+test("production reconciliation cannot become a backdoor to a recovered verdict",async()=>{
+  const h=harness(),p=await planned(h);
+  await assert.rejects(
+    reconcileRecovery({plan_id:p.plan_id,plan_hash:p.plan_hash},{
+      ...h,binding:{...scope,environment:"production"},evidenceVerifier:authorities().evidenceVerifier,
+    }),errorCode("recovery_orchestrator_production_reconciliation_forbidden"));
+});
