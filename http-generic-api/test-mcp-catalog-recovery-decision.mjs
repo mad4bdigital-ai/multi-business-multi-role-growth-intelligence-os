@@ -1,14 +1,15 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { classifyMcpCatalogRecoveryReadback, collectMcpCatalogRecoveryDecision } from "./mcpCatalogRecoveryDecision.js";
-import { MCP_CATALOG_TABLES, MCP_CATALOG_LEVEL_MIGRATION_SHA256 } from "./mcpCatalogSchemaGuard.js";
+import { MCP_CATALOG_TABLES, MCP_CATALOG_LEVEL_MIGRATION_SHA256, readMcpCatalogRuntimeIdentity } from "./mcpCatalogSchemaGuard.js";
 
 const identity={ok:true,database_matches:true,principal_matches:true,identity_readback_performed:true};
 const base=()=>({ok:false,identity,tables:MCP_CATALOG_TABLES.map(table=>({
   table,available:false,migration_apply_required:true,code:"mcp_catalog_schema_migration_required"
 })),database_connection_performed:true,sql_readback_performed:true,migration_apply_required:true});
 
-const liveEnv={DB_NAME:"catalog_runtime",DB_USER:"runtime_user"};
+const liveEnv={DB_NAME:"catalog_runtime",DB_USER:"runtime_user",
+  MCP_RUNTIME_EXPECTED_SQL_ACCOUNT:"runtime_user@localhost"};
 function observedPool(available) {
   const connection={async query(sql) {
     if(sql.includes("SELECT DATABASE()"))return [[{
@@ -99,7 +100,7 @@ test("same reused DB connection cannot replay cached available column after migr
     release(){releases++;}
   };
   const pool={getConnection:async()=>conn};
-  const opts={pool,env:{DB_NAME:"catalog_runtime",DB_USER:"runtime_user"}};
+  const opts={pool,env:liveEnv};
   const ready=await collectMcpCatalogRecoveryDecision(opts);
   assert.equal(ready.status,"ready_verified");
   assert.equal(projectionQueries,2);
@@ -127,4 +128,37 @@ test("metadata suggesting a missing column without a lease never proposes a migr
   const decision=await collectMcpCatalogRecoveryDecision({pool:{query:conn.query},env:liveEnv});
   assert.equal(decision.governed_migration_proposed,false);
   assert.equal(decision.migration_apply_allowed,false);
+});
+
+test("username matches but host part of CURRENT_USER differs: no Recovery certificate",async()=>{
+  const d=await collectMcpCatalogRecoveryDecision({
+    pool:observedPool(true),
+    env:{...liveEnv,MCP_RUNTIME_EXPECTED_SQL_ACCOUNT:"runtime_user@%"}
+  });
+  assert.equal(d.schema_ready,false);
+  assert.equal(d.status,"diagnosis_blocked");
+  assert.equal(d.migration_apply_allowed,false);
+});
+
+test("missing exact SQL account identity forbids migration recommendation",async()=>{
+  const d=await collectMcpCatalogRecoveryDecision({
+    pool:observedPool(false),
+    env:{DB_NAME:"catalog_runtime",DB_USER:"runtime_user"}
+  });
+  assert.equal(d.governed_migration_proposed,false);
+  assert.equal(d.status,"diagnosis_blocked");
+});
+
+test("raw Runtime identity cannot report ok for missing or mismatched MariaDB account host",async()=>{
+  const conn=await observedPool(true).getConnection();
+  const correct=await readMcpCatalogRuntimeIdentity({pool:conn,env:liveEnv});
+  assert.equal(correct.ok,true);
+  assert.equal(correct.exact_sql_account_matches,true);
+  const mismatch=await readMcpCatalogRuntimeIdentity({pool:conn,env:{...liveEnv,MCP_RUNTIME_EXPECTED_SQL_ACCOUNT:"runtime_user@%"}});
+  assert.equal(mismatch.ok,false);
+  assert.equal(mismatch.code,"MCP_CATALOG_RUNTIME_SQL_ACCOUNT_MISMATCH");
+  assert.equal(mismatch.principal_matches,true,"matching DB_USER prefix must not confer exact identity");
+  const missing=await readMcpCatalogRuntimeIdentity({pool:conn,env:{DB_NAME:liveEnv.DB_NAME,DB_USER:liveEnv.DB_USER}});
+  assert.equal(missing.ok,false);
+  assert.equal(missing.code,"MCP_CATALOG_RUNTIME_SQL_ACCOUNT_CONFIG_MISSING");
 });

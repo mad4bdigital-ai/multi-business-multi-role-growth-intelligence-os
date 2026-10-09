@@ -77,6 +77,7 @@ export async function readMcpCatalogRuntimeIdentity({ pool, env = process.env } 
   }
   const expectedDatabase = String(env?.DB_NAME || "").trim();
   const expectedPrincipal = String(env?.DB_USER || "").trim();
+  const expectedSqlAccount = String(env?.MCP_RUNTIME_EXPECTED_SQL_ACCOUNT || "").trim();
   try {
     const [rows] = await pool.query(
       "SELECT DATABASE() AS current_database, CURRENT_USER() AS current_account",
@@ -86,9 +87,12 @@ export async function readMcpCatalogRuntimeIdentity({ pool, env = process.env } 
     const databaseMatches = expectedDatabase ? currentDatabase === expectedDatabase : null;
     const observedPrincipal = currentAccount.split("@", 1)[0].replace(/[`'"]+/gu, "").trim();
     const principalMatches = expectedPrincipal ? observedPrincipal === expectedPrincipal : null;
-    const ready = Boolean(expectedDatabase && expectedPrincipal && currentDatabase && currentAccount)
+    // The account HOST portion changes MariaDB grants despite identical DB_USER.
+    const accountMatches = Boolean(expectedSqlAccount && currentAccount === expectedSqlAccount);
+    const ready = Boolean(expectedDatabase && expectedPrincipal && expectedSqlAccount && currentDatabase && currentAccount)
       && databaseMatches === true
-      && principalMatches === true;
+      && principalMatches === true
+      && accountMatches === true;
     return {
       ok: ready,
       code: ready
@@ -97,7 +101,9 @@ export async function readMcpCatalogRuntimeIdentity({ pool, env = process.env } 
           ? "MCP_CATALOG_RUNTIME_IDENTITY_CONFIG_MISSING"
           : (databaseMatches === false
             ? "MCP_CATALOG_RUNTIME_DATABASE_MISMATCH"
-            : (principalMatches === false ? "MCP_CATALOG_RUNTIME_PRINCIPAL_MISMATCH" : "MCP_CATALOG_RUNTIME_IDENTITY_UNAVAILABLE"))),
+            : (principalMatches === false ? "MCP_CATALOG_RUNTIME_PRINCIPAL_MISMATCH"
+              : (!expectedSqlAccount ? "MCP_CATALOG_RUNTIME_SQL_ACCOUNT_CONFIG_MISSING"
+                : (!accountMatches ? "MCP_CATALOG_RUNTIME_SQL_ACCOUNT_MISMATCH" : "MCP_CATALOG_RUNTIME_IDENTITY_UNAVAILABLE"))))),
       database_role: MCP_CATALOG_RUNTIME_SCHEMA_CONTRACT.database_role,
       database_name_env: MCP_CATALOG_RUNTIME_SCHEMA_CONTRACT.database_name_env,
       principal_env: MCP_CATALOG_RUNTIME_SCHEMA_CONTRACT.principal_env,
@@ -107,6 +113,8 @@ export async function readMcpCatalogRuntimeIdentity({ pool, env = process.env } 
       observed_principal_present: Boolean(currentAccount),
       database_matches: databaseMatches,
       principal_matches: principalMatches,
+      exact_sql_account_configured: Boolean(expectedSqlAccount),
+      exact_sql_account_matches: accountMatches,
       identity_readback_performed: true,
       secrets_included: false,
     };
@@ -123,6 +131,8 @@ export async function readMcpCatalogRuntimeIdentity({ pool, env = process.env } 
       observed_principal_present: false,
       database_matches: expectedDatabase ? false : null,
       principal_matches: expectedPrincipal ? false : null,
+      exact_sql_account_configured: Boolean(expectedSqlAccount),
+      exact_sql_account_matches: false,
       identity_readback_performed: true,
       secrets_included: false,
     };
