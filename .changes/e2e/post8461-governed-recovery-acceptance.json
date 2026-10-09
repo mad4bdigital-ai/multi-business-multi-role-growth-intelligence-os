@@ -10,17 +10,21 @@
       ".changes/e2e/post8461-governed-recovery-acceptance.json",
       ".github/governance/test-authority-registry.json",
       "docs/runbooks/post-8461-governed-recovery-acceptance-20261009.md",
+      "docs/runbooks/pr8471-production-promotion-preflight-from-hostinger-logs-20261009.md",
       "http-generic-api/adminLocalConnectorTarget.js",
       "http-generic-api/config/post8461-operational-scenario-matrix.json",
       "http-generic-api/deviceGenerationChallengeVerifier.js",
       "http-generic-api/hostingerRecoveryReadOnlyPlanner.js",
       "http-generic-api/mcpCatalogRecoveryDecision.js",
       "http-generic-api/mcpCatalogSchemaGuard.js",
+      "http-generic-api/productionPromotionLogPreflight.js",
+      "http-generic-api/scripts/production-promotion-log-preflight.mjs",
       "http-generic-api/test-admin-local-connector-target.mjs",
       "http-generic-api/test-device-generation-challenge-verifier.mjs",
       "http-generic-api/test-hostinger-recovery-readonly-planner.mjs",
       "http-generic-api/test-mcp-catalog-recovery-decision.mjs",
-      "http-generic-api/test-post8461-operational-scenario-matrix.mjs"
+      "http-generic-api/test-post8461-operational-scenario-matrix.mjs",
+      "http-generic-api/test-production-promotion-log-preflight.mjs"
     ]
   },
   "merge_contract": {
@@ -40,7 +44,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Source-only typed Hostinger inventory, MCP catalog readback decision and cryptographic device possession guard; never claim Production provisioning, TPM hardware attestation or schema migration.",
+      "objective": "Source-only Hostinger inventory, MCP/runtime schema decision, device generation possession safety, 58 operational cases, and Production log-based NO-GO diagnostic; no provider/Production mutation.",
       "blockers": [],
       "e2e_journeys": [
         {
@@ -55,14 +59,16 @@
             "Derive MCP schema recovery classification from one-session runtime identity and both table states.",
             "Verify ECDSA challenge replay resistance and reject caller generation booleans.",
             "Confirm independent live Staging, DB-grants, hardware and Production gates remain open.",
-            "Validate 40 Hostinger/MCP/Windows/migration/policy/release operational cases and map their independent live proof."
+            "Validate 40 Hostinger/MCP/Windows/migration/policy/release operational cases and map their independent live proof.",
+            "Classify sanitized Hostinger Production log symptoms and reject upgrades with missing schema, privileges, bootstrap or audit persistence."
           ],
           "assertions": [
             "Hostinger database CREATE, Node environment PUT, SSH mutation and Production deploy are never invoked.",
             "No provider credential, secret, or environment value is present in reports.",
             "Unknown or inaccessible schema/DB role never proposes migration execution.",
             "Stale device aliases or ECDSA proof without nonexportable hardware attestation cannot claim RECOVERED.",
-            "Zero of the 40 synthetic scenarios can certify Runtime/Production writes or device recovery without external evidence."
+            "Zero of the 40 synthetic scenarios can certify Runtime/Production writes or device recovery without external evidence.",
+            "Even HTTP 200 and synthetic all-ready log lines cannot authorize Production branch push, DDL, grants, DB creation or deployment."
           ],
           "tests": [
             {
@@ -99,6 +105,13 @@
               "working_directory": ".",
               "path": "http-generic-api/test-post8461-operational-scenario-matrix.mjs",
               "args": []
+            },
+            {
+              "id": "production-promotion-log-preflight",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-production-promotion-log-preflight.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
@@ -106,7 +119,9 @@
             "http-generic-api/mcpCatalogRecoveryDecision.js",
             "http-generic-api/deviceGenerationChallengeVerifier.js",
             "docs/runbooks/post-8461-governed-recovery-acceptance-20261009.md",
-            "http-generic-api/config/post8461-operational-scenario-matrix.json"
+            "http-generic-api/config/post8461-operational-scenario-matrix.json",
+            "http-generic-api/productionPromotionLogPreflight.js",
+            "docs/runbooks/pr8471-production-promotion-preflight-from-hostinger-logs-20261009.md"
           ]
         }
       ],
@@ -144,6 +159,13 @@
           "runner": "node",
           "working_directory": ".",
           "path": "http-generic-api/test-post8461-operational-scenario-matrix.mjs",
+          "args": []
+        },
+        {
+          "id": "production-promotion-log-preflight",
+          "runner": "node",
+          "working_directory": ".",
+          "path": "http-generic-api/test-production-promotion-log-preflight.mjs",
           "args": []
         }
       ]
