@@ -38,7 +38,8 @@ function fakePool(columnCounts = {}, identity = { current_database: "catalog_run
   };
 }
 
-const readinessEnv = { DB_NAME: "catalog_runtime", DB_USER: "runtime_user" };
+const readinessEnv = { DB_NAME: "catalog_runtime", DB_USER: "runtime_user",
+  MCP_RUNTIME_EXPECTED_SQL_ACCOUNT: "runtime_user@localhost" };
 const readyPool = fakePool(Object.fromEntries(MCP_CATALOG_TABLES.map((table) => [table, 1])));
 const ready = await readMcpCatalogSchemaReadinessSafe({ pool: readyPool, env: readinessEnv });
 assert.equal(ready.ok, true);
@@ -70,6 +71,15 @@ const wrongSchema = await readMcpCatalogSchemaReadinessSafe({
 assert.equal(wrongSchema.ok, false);
 assert.equal(wrongSchema.identity.database_matches, false);
 assert.equal(wrongSchema.migration_apply_required, false, "Wrong database must not recommend migration");
+
+const missingExactAccount = await readMcpCatalogSchemaReadinessSafe({
+  pool: readyPool,
+  env: { DB_NAME: readinessEnv.DB_NAME, DB_USER: readinessEnv.DB_USER },
+});
+assert.equal(missingExactAccount.ok, false);
+assert.equal(missingExactAccount.identity.exact_sql_account_matches, false);
+assert.equal(missingExactAccount.identity.code, "MCP_CATALOG_RUNTIME_SQL_ACCOUNT_CONFIG_MISSING");
+assert.equal(missingExactAccount.migration_apply_required, false);
 
 const missingIdentityEnv = await readMcpCatalogRuntimeIdentity({ pool: readyPool, env: {} });
 assert.equal(missingIdentityEnv.ok, false);
