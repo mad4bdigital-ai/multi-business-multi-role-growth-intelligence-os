@@ -135,3 +135,59 @@ export function verifyHostReceipt({receipt,expected,trust,verifier,replayStore,n
   if(replayStore.consumeOnce(receipt.verifier_id+"|"+receipt.nonce,receipt.observed_at)!==true)return deny("REPLAY_DETECTED");
   return {status:"ATTESTED_FOR_REVIEW_ONLY",checks:required.length,requires_human_approval:true,operational_acceptance:false,publication_authorized:false,release_authorized:false};
 }
+
+export function importPersonaMatrix({matrix,scope,source,persona_key}){
+ const bound=requireScoped(scope);
+ if(!persona_key||typeof persona_key!=="string"||!source?.source_key||!source.revision||!Array.isArray(matrix)||!matrix.length)throw new Error("PERSONA_SOURCE_AND_REVISION_REQUIRED");
+ const fields=[
+ ["frustration","Frustrations","Frustrations - Why It Matters"],
+ ["desire","Desires","Desires - Why It Matters"],
+ ["fear","Fears","Fears - Why It Matters"],
+ ["objection","Objections","Objections - Why It Matters"],
+ ["pain_point","Pain Points","Pain Points – Why It Matters"],
+ ["message_angle","Creative Messages","Creative Messages - Why It Matters"]
+ ];
+ const header=matrix[0].map(norm);
+ const index=fields.map(([kind,text,why])=>({kind,from:header.indexOf(norm(text)),reason:header.indexOf(norm(why))}));
+ if(index.some(x=>x.from<0||x.reason<0))throw new Error("PERSONA_MATRIX_HEADERS_MISSING");
+ const records=[],quarantine=[];
+ if(matrix.length>5001)throw new Error("ROW_LIMIT");
+ for(let rowNum=1;rowNum<matrix.length;rowNum++){
+  const row=matrix[rowNum];
+  if(!Array.isArray(row)||row.length>64||row.some(v=>String(v??"").length>4096)){quarantine.push({row_index:rowNum+1,reason:"ROW_LIMIT"});continue;}
+  if(row.some(suspiciousValue)){quarantine.push({row_index:rowNum+1,reason:"SENSITIVE_VALUE_QUARANTINED"});continue;}
+  for(const {kind,from,reason} of index){
+   const value=String(row[from]??"").trim(),why=String(row[reason]??"").trim();
+   if(!value)continue;
+   const flags=reviewFlags({title:value,writer_brief:why});
+   if(!why)flags.push("MISSING_REASON");
+   records.push({candidate_ref:`persona:${rowNum}:${kind}`,persona_key,kind,value,why_it_matters:why,flags,status:"CANDIDATE_ONLY",publish_authorized:false});
+  }
+ }
+ return {status:"CANDIDATE_ONLY",scope:bound,source:{source_key:source.source_key,revision:source.revision},persona_key,records,quarantine,side_effects:false};
+}
+
+export function assessEditorialRow({row,headers,scope,source}){
+ const scoped=requireScoped(scope);
+ if(!Array.isArray(row)||!Array.isArray(headers)||!source?.source_key||!source.revision)throw new Error("PUBLISH_SOURCE_REQUIRED");
+ if(row.some(suspiciousValue))return {status:"QUARANTINED",reason:"SENSITIVE_VALUE",publish_authorized:false};
+ const h=headers.map(norm);
+ const get=x=>{const i=h.indexOf(norm(x));return i>=0?String(row[i]??"").trim():""};
+ const fields={title:get("Blog Title"),content:get("Blog Content"),excerpt:get("Excerpt"),slug:get("Slug"),status:get("Status"),featured_image:get("Blog Featured Image"),meta_title:get("SEO Meta Title"),meta_description:get("SEO Meta Description"),source_publish_ready:get("Publish Ready ?"),publish_date:get("Publish Date")};
+ const flags=reviewFlags({title:fields.title,writer_brief:fields.content.slice(0,4096)});
+ if(!fields.title)flags.push("MISSING_TITLE");
+ if(!fields.content)flags.push("MISSING_BODY");
+ if(!fields.slug)flags.push("MISSING_SLUG");
+ if(!fields.meta_title||!fields.meta_description)flags.push("SEO_INCOMPLETE");
+ if(!fields.featured_image)flags.push("IMAGE_NOT_REVIEWED");
+ if(/^(yes|true|1|ready|نعم)$/i.test(fields.source_publish_ready))flags.push("SOURCE_READY_UNVERIFIED");
+ return {status:"EDITORIAL_REVIEW_REQUIRED",scope:scoped,source:{source_key:source.source_key,revision:source.revision},content_complete:!!(fields.title&&fields.content&&fields.excerpt),seo_complete:!!(fields.meta_title&&fields.meta_description&&fields.slug),flags,publish_authorized:false,side_effects:false};
+}
+
+export function assessDocumentFidelity({mime_type,text,locale,independent_visual_receipt}){
+ if(mime_type!=="application/pdf"&&!String(mime_type||"").startsWith("image/"))return {status:"UNSUPPORTED_MIME",certified:false};
+ if(typeof text!=="string")throw new Error("TEXT_EXTRACTION_REQUIRED");
+ const empty=!text.trim(),arabic=String(locale||"").toLowerCase().startsWith("ar");
+ if(independent_visual_receipt)return {status:"VISUAL_RECEIPT_PRESENT_REQUIRES_EXTERNAL_VALIDATION",certified:false,text_available:!empty};
+ return {status:empty?"VISUAL_REVIEW_REQUIRED":arabic?"TEXT_FIDELITY_REQUIRES_VISUAL_REVIEW":mime_type.startsWith("image/")?"VISUAL_REVIEW_REQUIRED":"TEXT_ONLY_UNVERIFIED",certified:false,text_available:!empty};
+}

@@ -25,3 +25,7 @@ This is a **structural inventory**, not a 100%-complete content audit. It contai
 ## Still open
 
 Full visual review of every screenshot and all 22 PDFs, all media/audio/video, nested folders beyond those enumerated, independent factual claims review, live connector streaming adapter and browser/site acceptance. No false claim of exhaustive coverage is made.
+
+## Sampled PDFs and fidelity limits
+
+Five module PDFs were sampled through the source connector. Four returned empty extracted text (customer journey, configurations, system logs and a B2B portal); the payments guide returned readable text concerning transaction/authorization/refund lifecycle. Empty extraction does not establish an empty PDF. All 22 module PDF files require page-level visual QA before accepting their semantics; this sample was **not** a full review.

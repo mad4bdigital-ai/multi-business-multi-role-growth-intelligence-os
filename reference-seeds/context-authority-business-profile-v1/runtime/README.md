@@ -24,3 +24,7 @@ This exercises only in-memory synthetic cases. Static V8 smoke tests run before 
 - No trusted source-signature verification in the importer; source revision is *declared* and must be independently checked by the host.
 - Title/brief heuristics are warnings, not proof that all false claims or secrets were detected. No bulk PII detection, media analysis, perceptual deduplication or Arabic semantic classification.
 - Template inheritance is not an active business policy runtime. This module is the first safe in-memory implementation layer, not complete operational acceptance.
+
+## Additional source adapters
+
+`importPersonaMatrix` reads six verified header-pairs from a user-scoped persona tab, preserving `why_it_matters` and keeping all candidates unapproved. `assessEditorialRow` separates content/SEO completeness from publication authority and treats any `Publish Ready?` source field as unverified. `assessDocumentFidelity` flags blank/Arabic PDF extraction for independent page review; it does not render pages or certify extraction quality.
