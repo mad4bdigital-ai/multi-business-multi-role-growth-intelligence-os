@@ -65,7 +65,9 @@
       "http-generic-api/scripts/spec-kit-work-map-integration-gate.mjs",
       ".github/ops/github-finalizer-check-source.mjs",
       "http-generic-api/test-github-finalizer-any-source-guard.mjs",
-      "docs/runbooks/github-any-source-main-trusted-finalizer-20261009.md"
+      "docs/runbooks/github-any-source-main-trusted-finalizer-20261009.md",
+      "http-generic-api/scripts/manifests/test-manifest-upstream-main.mjs",
+      "http-generic-api/scripts/manifests/test-manifest-spec011.mjs"
     ]
   },
   "merge_contract": {
