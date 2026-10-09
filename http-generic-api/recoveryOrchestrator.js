@@ -37,6 +37,9 @@ function noSecrets(value,depth=0) {
   if(Array.isArray(value))return value.forEach(x=>noSecrets(x,depth+1));
   if(!object(value))return;
   for(const [key,part] of Object.entries(value)) {
+    // Explicit false confidentiality attestations are safe metadata, not
+    // credential content. Never allow the flag to be true or a string.
+    if(key==="secrets_included" && part===false)continue;
     if(FORBIDDEN_FIELDS.test(key)||key==="__proto__"||key==="constructor"||key==="prototype")
       refuse("recovery_orchestrator_sensitive_or_unsafe_field",400);
     noSecrets(part,depth+1);
