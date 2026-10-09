@@ -88,13 +88,13 @@ if (-not $workingVerified) { Fail "watcher_working_directory_mismatch" }
 if (-not $argumentsVerified) { Fail "watcher_arguments_mismatch" }
 
 $arguments = "-NoLogo -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$supervisorScript`" -RepositoryPath `"$RepositoryPath`" -IntervalSeconds $IntervalSeconds"
-$installed = Get-ScheduledTask -TaskName $SupervisorTaskName -ErrorAction SilentlyContinue
+$installed = Get-ScheduledTask -TaskPath "\" -TaskName $SupervisorTaskName -ErrorAction SilentlyContinue
 if ($null -ne $installed) {
     $existingActions = @($installed.Actions)
     if ($existingActions.Count -ne 1 -or [string]$existingActions[0].Arguments -cne $arguments -or
         [IO.Path]::GetFullPath([string]$existingActions[0].Execute) -ine $trustedPowerShell -or
         [IO.Path]::GetFullPath([string]$existingActions[0].WorkingDirectory).TrimEnd('\') -ine $sourceRoot -or
-        [string]$installed.Principal.UserId -ine $expectedPrincipal -or
+        -not (Test-StagingTaskPrincipalIsCurrentUser ([string]$installed.Principal.UserId)) -or
         [string]$installed.Principal.LogonType -ne "Interactive" -or
         [string]$installed.Principal.RunLevel -ne "Highest") {
         Fail "Supervisor task exists with a different configuration; refusing overwrite"
@@ -109,10 +109,10 @@ if ($null -ne $installed) {
     Register-ScheduledTask -TaskName $SupervisorTaskName -Action $taskAction -Trigger $trigger -Settings $settings -Principal $principal -ErrorAction Stop | Out-Null
     Write-Host "STAGING_SUPERVISOR_INSTALLED: existing_watcher_unchanged=True"
 }
-$readback = Get-ScheduledTask -TaskName $SupervisorTaskName -ErrorAction Stop
+$readback = Get-ScheduledTask -TaskPath "\" -TaskName $SupervisorTaskName -ErrorAction Stop
 if (@($readback.Actions).Count -ne 1 -or [string]@($readback.Actions)[0].Arguments -cne $arguments -or
     [IO.Path]::GetFullPath([string]@($readback.Actions)[0].Execute) -ine $trustedPowerShell -or
     [IO.Path]::GetFullPath([string]@($readback.Actions)[0].WorkingDirectory).TrimEnd('\') -ine $sourceRoot -or
-    [string]$readback.Principal.UserId -ine $expectedPrincipal) { Fail "Supervisor installation readback mismatch" }
+    -not (Test-StagingTaskPrincipalIsCurrentUser ([string]$readback.Principal.UserId))) { Fail "Supervisor installation readback mismatch" }
 if ($Activate -and [string]$readback.State -ne "Running") { Start-ScheduledTask -TaskName $SupervisorTaskName -ErrorAction Stop }
 Write-Host "STAGING_SUPERVISOR_READBACK_PASS: task=$SupervisorTaskName active=$([bool]$Activate) unchanged_watcher=True provider_mutation=False production_mutation=False"
