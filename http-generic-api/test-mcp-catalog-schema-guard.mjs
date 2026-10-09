@@ -124,6 +124,34 @@ assert.equal(leaseDenied.ok, false);
 assert.equal(leaseDenied.migration_apply_required, false);
 assert.equal(failingLeaseReleases, 1, "Denied Runtime sessions must also be released");
 
+let mismatchedSessionQueries = 0;
+let mismatchedSessionReleases = 0;
+const mismatchedSession = await readMcpCatalogSchemaReadinessSafe({
+  env: { DB_NAME: "catalog_runtime", DB_USER: "runtime_user" },
+  pool: {
+    async getConnection() {
+      return {
+        async query(sql) {
+          mismatchedSessionQueries += 1;
+          if (/SELECT DATABASE\(\)/u.test(String(sql))) return [[{
+            current_database: "other_database",
+            current_account: "runtime_user@localhost",
+          }]];
+          throw new Error("Wrong Runtime identity must not issue table queries");
+        },
+        release() { mismatchedSessionReleases += 1; },
+      };
+    },
+  },
+});
+assert.equal(mismatchedSession.ok, false);
+assert.equal(mismatchedSession.identity.database_matches, false);
+assert.equal(mismatchedSession.migration_apply_required, false);
+assert(mismatchedSession.tables.every(row =>
+  row.code === "MCP_CATALOG_RUNTIME_IDENTITY_UNVERIFIED"));
+assert.equal(mismatchedSessionQueries, 1, "No SQL beyond Runtime identity is permitted");
+assert.equal(mismatchedSessionReleases, 1);
+
 const missingPool = {
   async query(sql) {
     if (/information_schema\.columns/u.test(sql)) return [[{ column_count: 0 }]];
