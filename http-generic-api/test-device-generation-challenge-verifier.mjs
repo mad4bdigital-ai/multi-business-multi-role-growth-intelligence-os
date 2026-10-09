@@ -32,9 +32,13 @@ const args=(change={})=>({
 
 test("ECDSA possession requires exact current generation and atomic nonce consumption",async()=>{
   let calls=0;const used=new Set();
-  const opts=args({consumeNonce:async({challenge_id,nonce,expected_scope})=>{
+  const opts=args({consumeNonce:async({challenge_id,nonce,expected_scope,
+    registered_key_sha256,issued_at_ms,expires_at_ms})=>{
     calls++;
     assert.deepEqual(expected_scope,expected);
+    assert.match(registered_key_sha256,/^[a-f0-9]{64}$/);
+    assert.equal(issued_at_ms,challenge.issued_at_ms);
+    assert.equal(expires_at_ms,challenge.expires_at_ms);
     const key=challenge_id+":"+nonce;if(used.has(key))return false;
     used.add(key);return true;
   }});
