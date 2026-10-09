@@ -9,6 +9,25 @@ import {classifyAdminRecoveryReadback} from "./adminLocalConnectorTarget.js";
 import {assessHostingerDatabaseCreate,assessHostingerNodeEnvReplacement} from "./hostingerRecoveryProviderContract.js";
 
 const root=dirname(fileURLToPath(import.meta.url));
+
+const e2eContract=JSON.parse(readFileSync(join(root,"../.changes/e2e/post8461-governed-recovery-acceptance.json"),"utf8"));
+const acceptanceRunbook=readFileSync(join(root,"../docs/runbooks/post-8461-governed-recovery-acceptance-20261009.md"),"utf8");
+
+test("canonical 60-case matrix, E2E text and runbook family counts cannot diverge",()=>{
+  const total=scenarios.scenarios.length;
+  const journey=e2eContract.phases.find(x=>x.id===e2eContract.current_phase)?.e2e_journeys?.[0];
+  assert(journey,"missing current-phase recovery E2E journey");
+  assert(e2eContract.phases.some(x=>x.objective.includes(total+" operational cases")),"stale E2E objective");
+  assert(journey.steps.some(x=>x.includes("Validate "+total+" Hostinger/MCP/Windows/migration/policy/release operational cases")),"stale E2E step");
+  assert(journey.assertions.some(x=>x.includes("Zero of the "+total+" synthetic scenarios")),"stale E2E assertion");
+  const labels={hostinger:"Hostinger",mcp:"MCP",device:"Windows Device",migration:"DB migrations",policy:"GitHub Rulesets",release:"Release"};
+  for(const domain of required){
+    const count=scenarios.scenarios.filter(x=>x.domain===domain).length;
+    const prefix="| "+labels[domain]+" | "+count+":";
+    assert(acceptanceRunbook.split("\n").some(line=>line.startsWith(prefix)),"stale runbook count for "+domain+" (expected "+count+")");
+  }
+});
+
 const scenarios=JSON.parse(readFileSync(join(root,"config/post8461-operational-scenario-matrix.json"),"utf8"));
 const required=["hostinger","mcp","device","migration","policy","release"];
 const ids=new Set();

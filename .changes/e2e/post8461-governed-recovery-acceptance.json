@@ -44,7 +44,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Source-only Hostinger inventory, MCP/runtime schema decision, device generation possession safety, 58 operational cases, and Production log-based NO-GO diagnostic; no provider/Production mutation.",
+      "objective": "Source-only Hostinger inventory, MCP/runtime schema decision, device generation possession safety, 60 operational cases, and Production log-based NO-GO diagnostic; no provider/Production mutation.",
       "blockers": [],
       "e2e_journeys": [
         {
@@ -59,7 +59,7 @@
             "Derive MCP schema recovery classification from one-session runtime identity and both table states.",
             "Verify ECDSA challenge replay resistance and reject caller generation booleans.",
             "Confirm independent live Staging, DB-grants, hardware and Production gates remain open.",
-            "Validate 40 Hostinger/MCP/Windows/migration/policy/release operational cases and map their independent live proof.",
+            "Validate 60 Hostinger/MCP/Windows/migration/policy/release operational cases and map their independent live proof.",
             "Classify sanitized Hostinger Production log symptoms and reject upgrades with missing schema, privileges, bootstrap or audit persistence."
           ],
           "assertions": [
@@ -67,7 +67,7 @@
             "No provider credential, secret, or environment value is present in reports.",
             "Unknown or inaccessible schema/DB role never proposes migration execution.",
             "Stale device aliases or ECDSA proof without nonexportable hardware attestation cannot claim RECOVERED.",
-            "Zero of the 40 synthetic scenarios can certify Runtime/Production writes or device recovery without external evidence.",
+            "Zero of the 60 synthetic scenarios can certify Runtime/Production writes or device recovery without external evidence.",
             "Even HTTP 200 and synthetic all-ready log lines cannot authorize Production branch push, DDL, grants, DB creation or deployment."
           ],
           "tests": [
