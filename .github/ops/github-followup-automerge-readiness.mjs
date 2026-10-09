@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { isAuthorizedMainAnySource, allowedCheckSource, latestSameCycleAttestorStatus } from "./github-finalizer-check-source.mjs";
 
 const repository = String(process.env.GITHUB_REPOSITORY || "").trim();
 const token = String(process.env.GH_TOKEN || "").trim();
@@ -15,10 +16,7 @@ const expectedStatusCreatorId = Number(process.env.EXPECTED_STATUS_CREATOR_ID ||
 const expectedAttestorStatusId = Number(process.env.EXPECTED_ATTESTOR_STATUS_ID || 0);
 const governanceConstitution = JSON.parse(readFileSync(new URL("../../http-generic-api/config/repository-governance-constitution.json", import.meta.url), "utf8"));
 const mainSourcePolicy = governanceConstitution?.branches?.main || {};
-const anySourceEnabled = mainSourcePolicy.required_check_source_mode === "any_source_with_independent_finalizer_readback"
-  && mainSourcePolicy.required_check_producer === "trusted_github_app_attestor"
-  && mainSourcePolicy.any_source_governed_merge_requires === "same_cycle_trusted_attestor_status_creator_and_exact_candidate"
-  && mainSourcePolicy.native_auto_merge_forbidden === true;
+const anySourceEnabled = isAuthorizedMainAnySource(mainSourcePolicy);
 
 const prNumber = String(process.env.PR_NUMBER || "").trim();
 
@@ -137,7 +135,7 @@ if (activeRuleTypes.has("merge_queue")) {
 
 const activeBindings = requiredStatusBindings(activeRules);
 const activeBinding = activeBindings.find((entry) => entry.context === requiredContext);
-if (!activeBinding || !(activeBinding.integration_id === expectedAttestorAppId || (anySourceEnabled && activeBinding.integration_id === null))) {
+if (!allowedCheckSource(activeBinding, { context: requiredContext, appId: expectedAttestorAppId, anySourceOptIn: anySourceEnabled })) {
   fail("blocked_required_check_app_binding_missing", `${requiredContext} is neither App-bound nor explicitly any-source with trusted candidate attestation.`, {
     observed_base_sha: observedBaseHead,
     observed_required_status_bindings: activeBindings,
@@ -167,7 +165,7 @@ if (!Array.isArray(managedRuleset?.bypass_actors) || managedRuleset.bypass_actor
 }
 const managedBindings = requiredStatusBindings(managedRuleset?.rules || []);
 const managedBinding = managedBindings.find((entry) => entry.context === requiredContext);
-if (!managedBinding || !(managedBinding.integration_id === expectedAttestorAppId || (anySourceEnabled && managedBinding.integration_id === null))) {
+if (!allowedCheckSource(managedBinding, { context: requiredContext, appId: expectedAttestorAppId, anySourceOptIn: anySourceEnabled })) {
   fail("blocked_managed_ruleset_attestor_binding_missing", "Managed governance ruleset lacks an approved App-bound or independently-attested any-source setting.", {
     observed_base_sha: observedBaseHead,
     managed_ruleset_id: Number(managedMatches[0].id),
@@ -221,10 +219,9 @@ if (blockingLabels.length > 0) {
 const statuses = await github(`commits/${expectedCandidate}/statuses?per_page=100`);
 // GitHub returns newest statuses first. Never accept an older trusted success
 // when an untrusted actor has overwritten the same context in any-source mode.
-const newestStatus = (Array.isArray(statuses) ? statuses : []).find((status) => status?.context === requiredContext);
-const latestIsTrusted = newestStatus?.state === "success"
-  && Number(newestStatus?.id || 0) === expectedAttestorStatusId
-  && Number(newestStatus?.creator?.id || 0) === expectedStatusCreatorId;
+const latestIsTrusted = latestSameCycleAttestorStatus(statuses, {
+  context: requiredContext, statusId: expectedAttestorStatusId, creatorId: expectedStatusCreatorId,
+});
 if (!latestIsTrusted) {
   fail("blocked_exact_attestor_status_missing", "Exact merge candidate does not expose the same-cycle trusted attestor success status.", {
     observed_base_sha: observedBaseHead,
