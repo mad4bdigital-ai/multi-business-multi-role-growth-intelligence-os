@@ -136,7 +136,8 @@
       "id": "governed_execution_x0_evidence_baseline",
       "test_paths": [
         "http-generic-api/test-governed-execution-baseline-benchmark.mjs",
-        "http-generic-api/test-governed-execution-baseline-telemetry.mjs"
+        "http-generic-api/test-governed-execution-baseline-telemetry.mjs",
+        "http-generic-api/test-sink-orchestration-json-asset-lookup-failure.mjs"
       ]
     },
     {
@@ -1020,7 +1021,8 @@
         "http-generic-api/test-recovery-execution-ticket.mjs",
         "http-generic-api/test-recovery-kernel-routes.mjs",
         "http-generic-api/test-recovery-kernel.mjs",
-        "http-generic-api/test-runtime-bootstrap-contract.mjs"
+        "http-generic-api/test-runtime-bootstrap-contract.mjs",
+        "http-generic-api/test-sink-orchestration-json-asset-lookup-failure.mjs"
       ],
       "protected_by_verifiers": [
         "exact_durable_run_reference",

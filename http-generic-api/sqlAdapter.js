@@ -385,7 +385,7 @@ export async function appendRowWithReadback(sheetName,rowObject,{append=appendRo
     if(!Number.isSafeInteger(insertId)||insertId<=0)throw Error("insert_id_unverified");
     const pool=queryPool||getPool();
     const [rows]=await pool.query(`SELECT id FROM \`${table}\` WHERE id = ? LIMIT 2`,[insertId]);
-    if(!Array.isArray(rows)||rows.length!==1||Number(rows[0]?.id)!==insertId)
+    if(!Array.isArray(rows)||rows.length!==1||!rows.every((row)=>Number(row?.id)===insertId))
       throw Error("row_presence_unverified");
     return {insertId,row_presence_readback_verified:true,
       independent_authority_attested:false,secrets_included:false};
