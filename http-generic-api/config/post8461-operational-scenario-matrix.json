@@ -617,6 +617,36 @@
       "readback_proof_required": true,
       "rollback_proof_required": true,
       "secrets_included": false
+    },
+    {
+      "id": "release.browser_canary_unverified",
+      "domain": "release",
+      "trigger": "Staging browser acceptance sees a 200 response but did not validate role/tenant data identity",
+      "expected_state": "blocked",
+      "live_evidence": "staging_browser_dataset_parity",
+      "required_response": "Do not promote; independently verify browser and protected API dataset identity",
+      "source_coverage": "partial_or_negative_contract_only",
+      "live_certified": false,
+      "execution_authorized": false,
+      "production_mutation_allowed": false,
+      "readback_proof_required": true,
+      "rollback_proof_required": true,
+      "secrets_included": false
+    },
+    {
+      "id": "release.production_rollback_receipt_missing",
+      "domain": "release",
+      "trigger": "Production deployment performed but independent rollback receipt is absent",
+      "expected_state": "blocked",
+      "live_evidence": "production_rollback_receipt_and_state",
+      "required_response": "Hold release acceptance and initiate governed rollback/readback escalation",
+      "source_coverage": "partial_or_negative_contract_only",
+      "live_certified": false,
+      "execution_authorized": false,
+      "production_mutation_allowed": false,
+      "readback_proof_required": true,
+      "rollback_proof_required": true,
+      "secrets_included": false
     }
   ]
 }
