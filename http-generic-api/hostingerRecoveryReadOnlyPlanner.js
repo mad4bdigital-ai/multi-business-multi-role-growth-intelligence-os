@@ -82,7 +82,9 @@ export function createHostingerReadOnlyTransport({
       }catch{throw refuse("hostinger_provider_inventory_transport_unavailable",503);}
       if(response.status===401||response.status===403)
         throw refuse("hostinger_provider_inventory_permission_denied",403);
-      if(!response.ok)throw refuse("hostinger_provider_inventory_failed",503);
+      // Only a complete HTTP 200 inventory is authoritative for a preview.
+      // A 206 Partial Content response must never become a false absent DB.
+      if(response.status!==200)throw refuse("hostinger_provider_inventory_failed",503);
       const list=records(await boundedBody(response));
       if(new Set(list).size!==list.length)
         throw refuse("hostinger_inventory_duplicate_names",502);
@@ -102,9 +104,12 @@ export async function previewHostingerRecoveryDatabase({
   if(!provider || typeof provider.databaseInventory!=="function")
     throw refuse("hostinger_provider_inventory_executor_missing",503);
   const observed=await provider.databaseInventory(account);
+  if(observed?.provider_http_status!==200)
+    throw refuse("hostinger_inventory_http_readback_unverified",503);
   const names=observed?.database_names;
-  if(!Array.isArray(names)||names.length>1000||names.some(n=>typeof n!=="string"||!DATABASE.test(n)))
-    throw refuse("hostinger_inventory_shape_unverified",502);
+  if(!Array.isArray(names)||names.length>1000||names.some(n=>
+      typeof n!=="string"||!DATABASE.test(n)||!n.startsWith(`${account}_`)))
+    throw refuse("hostinger_inventory_shape_or_account_scope_unverified",502);
   if(new Set(names).size!==names.length)
     throw refuse("hostinger_inventory_duplicate_names",502);
   const exists=names.includes(database);
@@ -121,6 +126,8 @@ export async function previewHostingerRecoveryDatabase({
     inventory_readback_proven:false,
     target_database_exists:exists,
     suggested_operation:exists?"verify_existing_database_ownership":"request_governed_database_create_plan",
+    // Supplied website domain has NOT been looked up against Hostinger's website inventory.
+    website_identity_verified:false,
     provider_create_entitlement_proven:false,
     managed_credential_intake_proven:false,
     owner_approval_proven:false,
