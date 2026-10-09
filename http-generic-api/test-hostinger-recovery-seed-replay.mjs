@@ -96,3 +96,10 @@ test("eight canonical catalog rows have independent readback on first import and
   assert.match(importer, /\$CatalogReadbackContract/);
   assert.match(importer, /\$roleMigrationManifest\.canonical_catalog_readback/);
 });
+
+test("PowerShell semantic snapshot dictionary closes before foreach and is not a statement block", () => {
+  assert.match(importer, /\$semanticSnapshotReadback\s*=\s*\[ordered\]@\{\}\s*\r?\n\s*foreach\s*\(\$table\s+in\s+@\(\$SemanticSnapshotManifest\.tables\)\)/,
+    "The completed-state readback map must be an empty dictionary before filling it");
+  assert.doesNotMatch(importer, /\$semanticSnapshotReadback\s*=\s*\[ordered\]@\{\s*\r?\n\s*foreach\s*\(/,
+    "Never accidentally parse a foreach statement as an unclosed PowerShell hashtable key");
+});
