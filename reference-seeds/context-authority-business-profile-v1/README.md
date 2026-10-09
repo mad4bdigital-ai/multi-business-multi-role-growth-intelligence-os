@@ -68,3 +68,7 @@ A deeper review of the owner's strategy/Sheets/template library produced a **sec
 - \`tools/validate_content_fabric.py\` and \`tools/test_content_fabric.py\` provide additional offline-only structural and adversarial checks. The main seed validator delegates to them.
 
 This preserves the difference between *learned structure*, *candidate template*, *verified brand context*, and *runtime execution permission*. No source library file is a direct policy or permission grant.
+
+## Round 2: bounded offline import and scoped preview
+
+`runtime/portable-content-runtime.mjs` adds deterministic in-memory CSV/matrix candidate ingestion, sensitive-value quarantine, row-quality warnings, fail-closed scoped context preview, and a detached-evidence host-verification boundary that **never authorizes publishing**. See [runtime/README.md](runtime/README.md) and [structural inventory delta](docs/source-inventory-round2-2026-10-10.md). Native Node tests remain NOT_RUN until independently executed. No source data, passwords, Google IDs, or private business claims are included.
