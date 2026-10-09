@@ -99,8 +99,7 @@
           "enum": [
             "public",
             "internal",
-            "restricted",
-            "secret"
+            "restricted"
           ]
         }
       }
