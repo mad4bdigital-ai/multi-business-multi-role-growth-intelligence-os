@@ -103,12 +103,13 @@ test("malformed, paginated, duplicate or unbounded inventory is never accepted",
 
 test("no secret, token or arbitrary endpoint may be returned by preview",async()=>{
   const provider={databaseInventory:async()=>({
-    database_names:[],provider_http_status:200,token,secret:"secret",password:"password"
+    database_names:[],provider_http_status:200,token,
+    secret:"my-secret-credential-marker",password:"my-password-marker"
   })};
   const result=await previewHostingerRecoveryDatabase({
     accountUsername:account,websiteDomain:domain,recoveryDatabaseName:database,provider
   });
-  for (const secret of [token,"secret","password"]){
+  for (const secret of [token,"my-secret-credential-marker","my-password-marker"]){
     assert(!JSON.stringify(result).includes(secret));
   }
   assert.equal(result.provider_create_entitlement_proven,false);
