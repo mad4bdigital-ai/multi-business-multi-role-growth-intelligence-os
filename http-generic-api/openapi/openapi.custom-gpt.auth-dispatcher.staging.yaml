@@ -278,12 +278,6 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/ErrorResponse"
-    NotFound:
-      description: Resource not found
-      content:
-        application/json:
-          schema:
-            $ref: "#/components/schemas/ErrorResponse"
 security:
   - backendBearerAuth: []
 paths:
@@ -1988,57 +1982,112 @@ paths:
       security:
         - backendBearerAuth: []
       operationId: getLocalConnectorInstallBundle
-      summary: Inspect an exact connector device and discover the governed installer workflow
-      description: JSON-only no-secret diagnosis. Legacy inline BAT credential generation is permanently retired and returns HTTP 410. Signed, expiring installer authorization is a separate POST workflow.
+      summary: Resolve a canonical connector device and a protected signed-installer handoff
+      description: Legacy format=bat direct credential delivery is retired (410). JSON returns no secrets and references the separate signed, scoped, expiring installer authorization POST workflow.
       parameters:
         - name: user_id
           in: query
           required: false
-          schema: { type: string }
+          schema:
+            type: string
         - name: tenant_id
           in: query
           required: false
-          schema: { type: string }
+          schema:
+            type: string
         - name: device_id
           in: query
           required: true
-          schema: { type: string, minLength: 2, maxLength: 128 }
+          schema:
+            type: string
+            minLength: 2
+            maxLength: 128
         - name: format
           in: query
           required: false
-          schema: { type: string, enum: [json, bat], default: json }
-          description: bat is retired and responds 410 with the governed installer migration path.
+          schema:
+            type: string
+            enum:
+              - json
+              - bat
+            default: json
+          description: bat returns 410 with the secure migration route; only json returns 200.
       responses:
         "200":
-          description: Metadata and protected installer workflow reference, without credentials
+          description: Read-only scoped diagnosis and installer workflow metadata
           content:
             application/json:
               schema:
                 type: object
-                required: [ok, user_id, tenant_id, device_id, config_id, device_state, credential_materialized, signed_installer, secrets_included]
+                required:
+                  - ok
+                  - user_id
+                  - tenant_id
+                  - device_id
+                  - config_id
+                  - device_state
+                  - credential_materialized
+                  - signed_installer
+                  - secrets_included
                 properties:
-                  ok: { type: boolean, const: true }
-                  user_id: { type: string }
-                  tenant_id: { type: string }
-                  device_id: { type: string }
-                  config_id: { type: string }
-                  device_state: { type: string, enum: [ACTIVE, STALE] }
-                  credential_materialized: { type: boolean, const: false }
-                  script_content_omitted: { type: boolean }
-                  public_storage_allowed: { type: boolean, const: false }
+                  ok:
+                    type: boolean
+                    const: true
+                  user_id:
+                    type: string
+                  tenant_id:
+                    type: string
+                  device_id:
+                    type: string
+                  config_id:
+                    type: string
+                  device_state:
+                    type: string
+                    enum:
+                      - ACTIVE
+                      - STALE
+                  credential_materialized:
+                    type: boolean
+                    const: false
+                  script_content_omitted:
+                    type: boolean
+                    const: true
+                  public_storage_allowed:
+                    type: boolean
+                    const: false
                   signed_installer:
                     type: object
-                    required: [method, path, format, requires_authenticated_principal, requires_explicit_canonical_target, direct_admin_bat_disabled]
+                    required:
+                      - method
+                      - path
+                      - format
+                      - requires_authenticated_principal
+                      - requires_explicit_canonical_target
+                      - direct_admin_bat_disabled
                     properties:
-                      method: { type: string, const: POST }
-                      path: { type: string, const: /local-connector/install/download-link }
-                      format: { type: string, const: ps1 }
-                      requires_authenticated_principal: { type: boolean, const: true }
-                      requires_explicit_canonical_target: { type: boolean, const: true }
-                      direct_admin_bat_disabled: { type: boolean, const: true }
-                  secrets_included: { type: boolean, const: false }
+                      method:
+                        type: string
+                        const: POST
+                      path:
+                        type: string
+                        const: /local-connector/install/download-link
+                      format:
+                        type: string
+                        const: ps1
+                      requires_authenticated_principal:
+                        type: boolean
+                        const: true
+                      requires_explicit_canonical_target:
+                        type: boolean
+                        const: true
+                      direct_admin_bat_disabled:
+                        type: boolean
+                        const: true
+                  secrets_included:
+                    type: boolean
+                    const: false
         "400":
-          description: Missing device or invalid requested format
+          description: Invalid device or format
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -2046,9 +2095,9 @@ paths:
         "409":
           $ref: "#/components/responses/Conflict"
         "410":
-          description: Legacy direct BAT installer has been retired
+          description: Legacy direct BAT credential generation is retired
         "503":
-          description: No trusted device inventory available
+          description: Device inventory unavailable
   /admin/cli/local-connector/self-repair:
     post:
       tags:
@@ -2176,21 +2225,46 @@ paths:
                       secure_download:
                         type: object
                         additionalProperties: false
-                        required: [method, path, body, requires_authenticated_principal, requires_signed_expiring_capability, direct_admin_bat_disabled]
+                        required:
+                          - method
+                          - path
+                          - body
+                          - requires_authenticated_principal
+                          - requires_signed_expiring_capability
+                          - direct_admin_bat_disabled
                         properties:
-                          method: { type: string, const: POST }
-                          path: { type: string, const: /local-connector/install/download-link }
+                          method:
+                            type: string
+                            const: POST
+                          path:
+                            type: string
+                            const: /local-connector/install/download-link
                           body:
                             type: object
-                            required: [user_id, tenant_id, device_id, format]
+                            required:
+                              - user_id
+                              - tenant_id
+                              - device_id
+                              - format
                             properties:
-                              user_id: { type: string }
-                              tenant_id: { type: string }
-                              device_id: { type: string }
-                              format: { type: string, const: ps1 }
-                          requires_authenticated_principal: { type: boolean, const: true }
-                          requires_signed_expiring_capability: { type: boolean, const: true }
-                          direct_admin_bat_disabled: { type: boolean, const: true }
+                              user_id:
+                                type: string
+                              tenant_id:
+                                type: string
+                              device_id:
+                                type: string
+                              format:
+                                type: string
+                                const: ps1
+                          requires_authenticated_principal:
+                            type: boolean
+                            const: true
+                          requires_signed_expiring_capability:
+                            type: boolean
+                            const: true
+                          direct_admin_bat_disabled:
+                            type: boolean
+                            const: true
                       secrets_included:
                         type: boolean
                         const: false
@@ -2386,9 +2460,9 @@ paths:
 x-custom-gpt-generation:
   generator: http-generic-api/scripts/split-openapi.mjs
   source_openapi: http-generic-api/openapi.yaml
-  source_openapi_sha256: eb3495958878e876b40056628caf2dcc327653d8834cdab12b7286aed2150e30
+  source_openapi_sha256: c09b6d93a11edb0e9fc5d99f18bcf6d7b537fe6a51652746fa8477704dca4e87
   registry_file: canonicals/openapi/custom-gpt-surfaces.yaml
-  registry_sha256: 155e3332cc8359116ad5f437eea298f18808e179dadc49d6dea12a71a6fe7ac9
+  registry_sha256: c7ee3b98b51106ccee3240fd77c5e5dab33dfc7aa5c087acc93a8cbecadee7d6
   domain_family_policy: http-generic-api/config/domain-family-policy.json
   domain_family_policy_sha256: 5cdcb4b16a07d999dcff35d8a1fef14d441f4bac4ee26b8326cba1b2d92b3d3d
   environment: staging
@@ -2569,8 +2643,8 @@ x-mad4b-registration-contract:
   environment: staging
   source_surface: admin_core
   generation_mode: generated_from_openapi
-  source_openapi_sha256: eb3495958878e876b40056628caf2dcc327653d8834cdab12b7286aed2150e30
-  source_manifest_sha256: 155e3332cc8359116ad5f437eea298f18808e179dadc49d6dea12a71a6fe7ac9
+  source_openapi_sha256: c09b6d93a11edb0e9fc5d99f18bcf6d7b537fe6a51652746fa8477704dca4e87
+  source_manifest_sha256: c7ee3b98b51106ccee3240fd77c5e5dab33dfc7aa5c087acc93a8cbecadee7d6
   surface_operation_manifest_sha256: 2dc7848f69e19d0d3cc17ea085300f46658bf182ac4f4573ed7193c76f7ef26a
   surface_operation_manifest_hash_scope: split_surface_operation_manifest.v1
   registration_operation_manifest_sha256: a9f3e9d72ff24ecbbf6245e7e3d1f7ec2ede5b6b102605351b654fdf711c7089

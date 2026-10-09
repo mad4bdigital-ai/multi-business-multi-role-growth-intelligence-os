@@ -3215,9 +3215,9 @@ paths:
 x-custom-gpt-generation:
   generator: http-generic-api/scripts/split-openapi.mjs
   source_openapi: http-generic-api/openapi.yaml
-  source_openapi_sha256: eb3495958878e876b40056628caf2dcc327653d8834cdab12b7286aed2150e30
+  source_openapi_sha256: c09b6d93a11edb0e9fc5d99f18bcf6d7b537fe6a51652746fa8477704dca4e87
   registry_file: canonicals/openapi/custom-gpt-surfaces.yaml
-  registry_sha256: 155e3332cc8359116ad5f437eea298f18808e179dadc49d6dea12a71a6fe7ac9
+  registry_sha256: c7ee3b98b51106ccee3240fd77c5e5dab33dfc7aa5c087acc93a8cbecadee7d6
   domain_family_policy: http-generic-api/config/domain-family-policy.json
   domain_family_policy_sha256: 5cdcb4b16a07d999dcff35d8a1fef14d441f4bac4ee26b8326cba1b2d92b3d3d
   environment: staging
@@ -3237,6 +3237,10 @@ x-custom-gpt-generation:
       - session-archive
     omission: fail
     exclusion_records:
+      - operation_id: discoverHostingerRecoveryAllowlist
+        reason: Admin-backend-only Hostinger recovery metadata endpoint; even read-only target and provider inventory requires an independent platform admin principal. Tenant Core OAuth must not gain this capability by tag matching.
+        owner: remote-runtime
+        review_after: 2027-01-15
       - operation_id: redeemConnectorAgentInstallerSecrets
         reason: One-time installer secret redemption is a device-bound internal bearer exchange and must never be exposed through a Custom GPT operation surface.
         owner: local-connector
