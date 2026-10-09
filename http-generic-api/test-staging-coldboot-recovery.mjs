@@ -89,4 +89,24 @@ test("operator guide differentiates synthetic contracts from reboot certificate 
   assert.match(readme, /NO PRODUCTION PROMOTION/i);
 });
 
+
+const matrix = JSON.parse(read("http-generic-api/config/pr8471-windows-coldboot-scenarios.json"));
+test("eight additional cold-boot scenarios require independent native proof", () => {
+  assert.equal(matrix.contract, "mad4b.pr8471-windows-coldboot-scenarios.v1");
+  assert.equal(matrix.environment, "staging");
+  assert.equal(matrix.native_reboot_certificate, "missing");
+  assert.equal(matrix.scenarios.length, 8);
+  const ids = new Set();
+  for (const row of matrix.scenarios) {
+    assert.match(row.id, /^windows_boot\.[a-z][a-z0-9_]+$/);
+    assert(!ids.has(row.id));
+    ids.add(row.id);
+    assert(["blocked","retry_later"].includes(row.expected_state));
+    assert.equal(row.live_certified, false);
+    assert.equal(row.production_mutation_allowed, false);
+    assert.equal(row.secrets_included, false);
+  }
+  assert.equal(matrix.production_promotion_authorized, false);
+});
+
 console.log("STAGING_COLDBOOT_SOURCE_CONTRACTS: available; live Windows reboot certification remains unproven");
