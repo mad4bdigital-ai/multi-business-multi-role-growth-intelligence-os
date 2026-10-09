@@ -8,7 +8,8 @@ const base=()=>({ok:false,identity,tables:MCP_CATALOG_TABLES.map(table=>({
   table,available:false,migration_apply_required:true,code:"mcp_catalog_schema_migration_required"
 })),database_connection_performed:true,sql_readback_performed:true,migration_apply_required:true});
 
-const liveEnv={DB_NAME:"catalog_runtime",DB_USER:"runtime_user"};
+const liveEnv={DB_NAME:"catalog_runtime",DB_USER:"runtime_user",
+  MCP_RUNTIME_EXPECTED_SQL_ACCOUNT:"runtime_user@localhost"};
 function observedPool(available) {
   const connection={async query(sql) {
     if(sql.includes("SELECT DATABASE()"))return [[{
@@ -99,7 +100,7 @@ test("same reused DB connection cannot replay cached available column after migr
     release(){releases++;}
   };
   const pool={getConnection:async()=>conn};
-  const opts={pool,env:{DB_NAME:"catalog_runtime",DB_USER:"runtime_user"}};
+  const opts={pool,env:liveEnv};
   const ready=await collectMcpCatalogRecoveryDecision(opts);
   assert.equal(ready.status,"ready_verified");
   assert.equal(projectionQueries,2);
@@ -127,4 +128,23 @@ test("metadata suggesting a missing column without a lease never proposes a migr
   const decision=await collectMcpCatalogRecoveryDecision({pool:{query:conn.query},env:liveEnv});
   assert.equal(decision.governed_migration_proposed,false);
   assert.equal(decision.migration_apply_allowed,false);
+});
+
+test("username matches but host part of CURRENT_USER differs: no Recovery certificate",async()=>{
+  const d=await collectMcpCatalogRecoveryDecision({
+    pool:observedPool(true),
+    env:{...liveEnv,MCP_RUNTIME_EXPECTED_SQL_ACCOUNT:"runtime_user@%"}
+  });
+  assert.equal(d.schema_ready,false);
+  assert.equal(d.status,"diagnosis_blocked");
+  assert.equal(d.migration_apply_allowed,false);
+});
+
+test("missing exact SQL account identity forbids migration recommendation",async()=>{
+  const d=await collectMcpCatalogRecoveryDecision({
+    pool:observedPool(false),
+    env:{DB_NAME:"catalog_runtime",DB_USER:"runtime_user"}
+  });
+  assert.equal(d.governed_migration_proposed,false);
+  assert.equal(d.status,"diagnosis_blocked");
 });

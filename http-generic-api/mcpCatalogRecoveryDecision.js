@@ -19,6 +19,7 @@ export function classifyMcpCatalogRecoveryReadback(readiness) {
     MCP_CATALOG_TABLES.every(name=>tables.filter(t=>t?.table===name).length===1);
   const verifiedIdentity=collectorProven && identity?.ok===true &&
     identity.database_matches===true && identity.principal_matches===true &&
+    identity.exact_sql_account_configured===true && identity.exact_sql_account_matches===true &&
     identity.identity_readback_performed===true;
   const readback=collectorProven && readiness?.database_connection_performed===true &&
     readiness.sql_readback_performed===true && readiness.same_session_proven===true && exactTables;

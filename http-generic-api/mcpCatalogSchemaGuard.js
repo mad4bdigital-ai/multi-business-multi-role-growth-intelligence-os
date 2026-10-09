@@ -77,6 +77,7 @@ export async function readMcpCatalogRuntimeIdentity({ pool, env = process.env } 
   }
   const expectedDatabase = String(env?.DB_NAME || "").trim();
   const expectedPrincipal = String(env?.DB_USER || "").trim();
+  const expectedSqlAccount = String(env?.MCP_RUNTIME_EXPECTED_SQL_ACCOUNT || "").trim();
   try {
     const [rows] = await pool.query(
       "SELECT DATABASE() AS current_database, CURRENT_USER() AS current_account",
@@ -86,6 +87,8 @@ export async function readMcpCatalogRuntimeIdentity({ pool, env = process.env } 
     const databaseMatches = expectedDatabase ? currentDatabase === expectedDatabase : null;
     const observedPrincipal = currentAccount.split("@", 1)[0].replace(/[`'"]+/gu, "").trim();
     const principalMatches = expectedPrincipal ? observedPrincipal === expectedPrincipal : null;
+    // The account HOST portion changes MariaDB grants despite identical DB_USER.
+    const accountMatches = Boolean(expectedSqlAccount && currentAccount === expectedSqlAccount);
     const ready = Boolean(expectedDatabase && expectedPrincipal && currentDatabase && currentAccount)
       && databaseMatches === true
       && principalMatches === true;
@@ -107,6 +110,8 @@ export async function readMcpCatalogRuntimeIdentity({ pool, env = process.env } 
       observed_principal_present: Boolean(currentAccount),
       database_matches: databaseMatches,
       principal_matches: principalMatches,
+      exact_sql_account_configured: Boolean(expectedSqlAccount),
+      exact_sql_account_matches: accountMatches,
       identity_readback_performed: true,
       secrets_included: false,
     };
@@ -123,6 +128,8 @@ export async function readMcpCatalogRuntimeIdentity({ pool, env = process.env } 
       observed_principal_present: false,
       database_matches: expectedDatabase ? false : null,
       principal_matches: expectedPrincipal ? false : null,
+      exact_sql_account_configured: Boolean(expectedSqlAccount),
+      exact_sql_account_matches: false,
       identity_readback_performed: true,
       secrets_included: false,
     };
