@@ -70,6 +70,7 @@ function buildDeps(overrides = {}) {
       executionRows.push(row);
       return {
         headerSignature: "execution-log-header",
+        row_presence_readback_verified: true,
         row2Read: true,
         formulaManagedColumnsProtected: true,
         safeColumns: [],
@@ -80,6 +81,7 @@ function buildDeps(overrides = {}) {
       jsonAssetRows.push(row);
       return {
         headerSignature: "json-asset-header",
+        row_presence_readback_verified: true,
         row2Read: true,
         safeColumns: [],
         unsafeColumns: [],
@@ -102,6 +104,8 @@ function assertProviderFailurePreserved(result) {
   );
   assert.equal(result.writeback.output_summary, "failed:provider_request_failed");
   assert.equal(result.governedWriteState.pre_response_log_guard_passed, true);
+  assert.equal(result.governedWriteState.execution_log_readback_verified,true);
+  assert.equal(result.governedWriteState.independent_authority_attested,false);
 }
 
 try {
@@ -180,6 +184,40 @@ try {
   assert.equal(jsonAssetRows.length, 1);
   assert.equal(sqlResult.jsonAssetRow, undefined);
   assert.equal(warnings.length, warningsBeforeSqlLookup);
+
+  let count=0;
+  await assert.rejects(performUniversalServerWriteback(
+    buildInput("trace-unknown-commit"),buildDeps({
+      dataSourceMode:"sql",enforceDurableJournal:true,
+      findJsonAssetRows:async()=>[],
+      writeExecutionLogUnifiedRow:async()=>{
+        count++;
+        const e=new Error("ambiguous INSERT response");
+        e.non_idempotent_retry_forbidden=true;throw e;
+      }
+    })),err=>err.code==="governed_execution_journal_unverified" &&
+      err.execution_outcome_uncertain===true);
+  assert.equal(count,1,"no blind retry of possibly committed SQL INSERT");
+
+  await assert.rejects(performUniversalServerWriteback(
+    buildInput("trace-forged-receipt"),buildDeps({
+      dataSourceMode:"sql",enforceDurableJournal:true,
+      findJsonAssetRows:async()=>[],
+      writeExecutionLogUnifiedRow:async()=>({headerSignature:"sql_runtime_authority"})
+    })),err=>err.code==="governed_execution_journal_readback_missing");
+
+  await assert.rejects(performUniversalServerWriteback(
+    buildInput("trace-asset-denied"),buildDeps({
+      dataSourceMode:"sql",enforceDurableJournal:true,
+      findJsonAssetRows:async()=>[],
+      writeJsonAssetRegistryRow:async()=>{throw Error("denied")}
+    })),err=>err.code==="governed_json_asset_registry_unverified");
+
+  await assert.rejects(performUniversalServerWriteback(
+    buildInput("trace-dedupe-unavailable"),buildDeps({
+      dataSourceMode:"sql",enforceDurableJournal:true,
+      findJsonAssetRows:async()=>{throw Error("lookup untrusted")}
+    })),err=>err.code==="json_asset_dedupe_readback_unavailable");
 } finally {
   console.warn = originalWarn;
 }

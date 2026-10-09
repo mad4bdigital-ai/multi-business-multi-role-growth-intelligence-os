@@ -8,6 +8,7 @@ import {classifyMcpCatalogRecoveryReadback} from "./mcpCatalogRecoveryDecision.j
 import {classifyAdminRecoveryReadback} from "./adminLocalConnectorTarget.js";
 import {assessHostingerDatabaseCreate,assessHostingerNodeEnvReplacement} from "./hostingerRecoveryProviderContract.js";
 import {enforceExecutionAuthorityManifestGuard} from "./executionAuthorityManifestGuard.js";
+import {appendRowWithReadback} from "./sqlAdapter.js";
 
 const root=dirname(fileURLToPath(import.meta.url));
 
@@ -171,4 +172,34 @@ test("request may tighten but cannot weaken plugin-connection authority policy",
   assert.throws(()=>enforceExecutionAuthorityManifestGuard({
     requestPayload:request,policies:[],manifest,
   },{policyValue}),err=>err.code==="execution_authority_plugin_connection_missing");
+});
+
+test("SQL sink persistence requires uncached id-based row presence, not insert ack alone",async()=>{
+  let calls=0;
+  const verified=await appendRowWithReadback("Execution Log Unified",{},{
+    append:async()=>{calls++;return 17},
+    queryPool:{query:async(sql,params)=>{
+      assert.match(sql,/FROM `execution_log` WHERE id = \?/);
+      assert.deepEqual(params,[17]);
+      return [[{id:17}]];
+    }},
+  });
+  assert.equal(calls,1);
+  assert.equal(verified.insertId,17);
+  assert.equal(verified.row_presence_readback_verified,true);
+  assert.equal(verified.independent_authority_attested,false);
+});
+
+test("lost SQL post-insert readback forbids a second mutation attempt",async()=>{
+  let calls=0;
+  await assert.rejects(appendRowWithReadback("JSON Asset Registry",{},{
+    append:async()=>{calls++;return 23},
+    queryPool:{query:async()=>{throw Error("read access denied")}}
+  }),err=>err.code==="sql_sink_write_outcome_unverified" &&
+    err.non_idempotent_retry_forbidden===true &&
+    err.execution_outcome_uncertain===true);
+  assert.equal(calls,1);
+  await assert.rejects(appendRowWithReadback("Execution Log Unified",{},{
+    append:async()=>null,queryPool:{query:async()=>[[]]}
+  }),err=>err.code==="sql_sink_write_outcome_unverified");
 });

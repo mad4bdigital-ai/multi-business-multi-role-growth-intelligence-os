@@ -108,6 +108,7 @@ export async function performUniversalServerWriteback(input = {}, deps = {}) {
     assertExecutionLogRowIsSpillSafe,
     writeExecutionLogUnifiedRow,
     writeJsonAssetRegistryRow,
+    enforceDurableJournal = false,
     executionLogUnifiedSheet,
     jsonAssetRegistrySheet,
     executionLogUnifiedSpreadsheetId,
@@ -213,7 +214,12 @@ export async function performUniversalServerWriteback(input = {}, deps = {}) {
         existingAssetRow = selectExistingJsonAssetRow(rows, nextAssetKey);
       }
     } catch (err) {
-      console.warn("[sinkOrchestration] findExistingJsonAssetByAssetKey failed — continuing:", err.message);
+      if(enforceDurableJournal){
+        const e=new Error("json_asset_dedupe_readback_unavailable");
+        e.code="json_asset_dedupe_readback_unavailable";e.status=503;
+        e.execution_outcome_uncertain=true;throw e;
+      }
+      console.warn("[sinkOrchestration] findExistingJsonAssetByAssetKey failed — continuing:",err.message);
     }
 
     if (!existingAssetRow) {
@@ -371,28 +377,45 @@ export async function performUniversalServerWriteback(input = {}, deps = {}) {
   let executionLogWriteMeta;
   let jsonAssetWriteMeta;
   let workflowLogRetryAttempted = false;
+  let workflowLogRetryExhausted = false;
   assertExecutionLogRowIsSpillSafe(row);
 
   try {
-    executionLogWriteMeta = await writeExecutionLogUnifiedRow(row);
-  } catch (err) {
-    workflowLogRetryAttempted = true;
-    try {
-      executionLogWriteMeta = await writeExecutionLogUnifiedRow(row);
-    } catch (retryErr) {
-      retryErr.error_code =
-        retryErr.error_code || err.error_code || "authoritative_log_write_failed";
-      retryErr.logging_retry_attempted = true;
-      retryErr.logging_retry_exhausted = true;
-      console.error("[sinkOrchestration] writeExecutionLogUnifiedRow exhausted — continuing:", retryErr.message);
+    executionLogWriteMeta=await writeExecutionLogUnifiedRow(row);
+  } catch(err) {
+    // The first INSERT could have committed despite loss of its acknowledgement.
+    if(enforceDurableJournal||err?.non_idempotent_retry_forbidden===true) {
+      const e=new Error("governed_execution_journal_unverified");
+      e.code="governed_execution_journal_unverified";e.status=503;
+      e.execution_outcome_uncertain=true;e.retry_requires_durable_idempotency_proof=true;
+      throw e;
+    }
+    workflowLogRetryAttempted=true;
+    try {executionLogWriteMeta=await writeExecutionLogUnifiedRow(row);}
+    catch(e) {workflowLogRetryExhausted=true;
+      console.error("[sinkOrchestration] log retry exhausted:",e.code||"unknown");
     }
   }
-
+  if(enforceDurableJournal&&executionLogWriteMeta?.row_presence_readback_verified!==true) {
+    const e=new Error("governed_execution_journal_readback_missing");
+    e.code="governed_execution_journal_readback_missing";e.status=503;
+    e.execution_outcome_uncertain=true;throw e;
+  }
   if (jsonAssetRow) {
     try {
       jsonAssetWriteMeta = await writeJsonAssetRegistryRow(jsonAssetRow);
     } catch (err) {
-      console.error("JSON Asset Registry write failed", err);
+      if(enforceDurableJournal) {
+        const e=new Error("governed_json_asset_registry_unverified");
+        e.code="governed_json_asset_registry_unverified";e.status=503;
+        e.execution_outcome_uncertain=true;throw e;
+      }
+      console.error("JSON Asset Registry write failed",err.code||"unknown");
+    }
+    if(enforceDurableJournal&&jsonAssetWriteMeta?.row_presence_readback_verified!==true){
+      const e=new Error("governed_json_asset_registry_readback_missing");
+      e.code="governed_json_asset_registry_readback_missing";e.status=503;
+      e.execution_outcome_uncertain=true;throw e;
     }
   }
 
@@ -430,10 +453,11 @@ export async function performUniversalServerWriteback(input = {}, deps = {}) {
     execution_log_row2_template_read: !!executionLogWriteMeta?.row2Read,
     execution_log_formula_managed_columns_protected:
       !!executionLogWriteMeta?.formulaManagedColumnsProtected,
-    pre_response_log_guard_passed: !!executionLogWriteMeta,
-    execution_log_readback_verified: true,
+    pre_response_log_guard_passed: executionLogWriteMeta?.row_presence_readback_verified===true,
+    execution_log_readback_verified: executionLogWriteMeta?.row_presence_readback_verified===true,
+    independent_authority_attested: executionLogWriteMeta?.independent_authority_attested===true,
     workflow_log_retry_attempted: workflowLogRetryAttempted,
-    workflow_log_retry_exhausted: false,
+    workflow_log_retry_exhausted: workflowLogRetryExhausted,
     json_asset_header_schema_validated: jsonAssetRow
       ? !!jsonAssetWriteMeta?.headerSignature
       : null,
@@ -441,7 +465,7 @@ export async function performUniversalServerWriteback(input = {}, deps = {}) {
       ? !!jsonAssetWriteMeta?.row2Read
       : null,
     json_asset_readback_verified: jsonAssetRow
-      ? !!jsonAssetWriteMeta
+      ? jsonAssetWriteMeta?.row_presence_readback_verified===true
       : null,
     prewrite_header_schema_validated:
       !!executionLogWriteMeta?.headerSignature &&
