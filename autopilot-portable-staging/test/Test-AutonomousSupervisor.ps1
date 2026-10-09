@@ -54,6 +54,11 @@ try {
     $action = [pscustomobject]@{ Execute = "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe"; Arguments = $arguments; WorkingDirectory = $PSScriptRoot }
     $task = [pscustomobject]@{ Actions = @($action); Principal = [pscustomobject]@{ UserId = $expectedPrincipal }; State = "Running"; Settings = [pscustomobject]@{ Enabled = $true } }
     Assert (Test-WatcherTaskIdentity $task) "valid task rejected"
+    $action.Arguments = $arguments -replace '-NoProfile', '-NoProfile -WindowStyle Hidden'
+    Assert (Test-WatcherTaskIdentity $task) "silent logon watcher rejected"
+    $action.Arguments = $arguments -replace '-NoProfile', '-NoProfile -WindowStyle Visible'
+    Assert (-not (Test-WatcherTaskIdentity $task)) "unapproved visible watcher accepted"
+    $action.Arguments = $arguments
     $action.WorkingDirectory = $RepositoryPath
     $repoRootAllowed = Test-WatcherTaskIdentity $task
     if (-not $repoRootAllowed) {
