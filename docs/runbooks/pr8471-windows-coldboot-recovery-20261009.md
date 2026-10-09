@@ -1,0 +1,72 @@
+# PR #8471 — Windows Cold-Boot Recovery and Silent Runtime Supervision
+
+**Scope:** source-level safety and local Staging operations only. **NO PRODUCTION PROMOTION.**
+This change does not activate remote Hostinger, manage Windows credentials, create a database, authorize a migration, apply a GitHub Ruleset, or certify a physical device. It never changes Production/DNS/Provider state.
+
+## Operator evidence: 9 October 2026
+
+The native Windows Task Scheduler readout following reboot reported:
+
+| Scheduled task | State | LastTaskResult |
+| --- | --- | --- |
+| MAD4B Staging Docker Bootstrap | Ready | 1 |
+| MAD4B Staging Auto Deploy | Ready | 1 |
+| MAD4B Staging Health Monitor | Running | 267009 |
+| MAD4B Staging Autonomous Supervisor | MISSING | none |
+
+Docker reported local context `desktop-linux` and Engine `29.7.2`. Local repo drive `M:\` was mounted and Windows `Dnscache` was running. The Local Manager screenshot showed `dns_unresolved` for `auth.mad4b.com`, and Git transport emitted three retry records at 2/4/8 seconds. DNS recovery and Compose health were not independently read back.
+
+`LastTaskResult=1` is a failed **previous** task execution, not proof that Docker Engine is still unavailable. `267009` is the Task Scheduler running-state value; it does not prove service health. A stopped `com.docker.service` alone does not establish Docker Engine failure under WSL2.
+
+**Root-cause hypothesis (not native proof):** A logon race among network/GitHub eligibility, Docker Desktop startup, and unattended watchers; the additive supervisor task is absent. An older watcher could also reuse a saved successful certification while Compose is stopped.
+
+## Source changes
+
+- The independent Docker bootstrap remains scheduled before Auto Deploy and proves Engine readiness using `docker info`; process presence and service status are not authority.
+- All four interactive user-logon Scheduled Task PowerShell actions request `-WindowStyle Hidden`. This removes persistent console windows in normal execution but cannot guarantee zero transient process flashes on every Windows configuration. Log files remain authoritative.
+- Auto Deploy watcher does not terminate on temporary Git/DNS/eligibility query failure. It records `auto-deploy-transport.json` with `status=retry_later`, clears in-memory verified SHA/eligibility, never deploys from previous Git receipts, and retries after the governed poll interval. One-shot mode continues to fail closed.
+- Once Git eligibility is independently re-established, a previously certified commit must pass live local Compose service health verification after Docker Engine readiness. Stopped containers re-enter the approved exact-SHA startup pipeline rather than inheriting stale ready status.
+- The existing additive `Install-AutonomousSupervisorTask.ps1` remains the preferred narrowly scoped repair for a **missing** supervisor. It verifies the exact existing watcher principal, script, arguments, working directory, and policy before registering the missing supervisor. It does not modify watcher configuration.
+- `Staging-Doctor.ps1` reports failed task result and whether continuous watchers are actually running. Its optional `-RepairMissingSupervisor` invokes the additive installer, never the broad replacement by default.
+- `Staging-ColdBoot-Diagnostics.ps1` inspects local task states, Docker Engine, DNS name resolution, Git transport state and fresh health/acceptance evidence, writing sanitized `logs/coldboot-diagnostics.json`. It never repairs tasks or marks an offline device recovered.
+
+## Read-only verification on a Windows checkout containing the updated source
+
+Open a Windows PowerShell 5.1 terminal for the local checkout that contains the reviewed patch, then:
+
+```powershell
+cd M:\Users\Nagy\Repo\multi-business-multi-role-growth-intelligence-os\autopilot-portable-staging
+.\Staging-ColdBoot-Diagnostics.ps1
+.\Staging-Doctor.ps1 -Mode Status
+```
+
+Path is the historically used checkout, not a verified current device identity. Use the actual checkout path if different; **do not use an old hostname as a device target**.
+
+If and only if the `MAD4B Staging Autonomous Supervisor` task is missing and the existing watcher action/policy passes identity verification, an administrator may explicitly run:
+
+```powershell
+.\Install-AutonomousSupervisorTask.ps1 -RepositoryPath (Resolve-Path ..).Path -Activate
+```
+
+This creates only the absent Supervisor task. If an unexpected conflicting task or watcher identity is found, stop and investigate; do not use `-Force`, bypass signature checks, or re-register broad tasks without reviewing the exact tunnel and gateway flags.
+
+The broader `Install-AutoDeployTask.ps1` updates the other task actions to hidden execution, but it is **not** automatically invoked on users' machines. Before any reinstall, preserve and review the existing `-TunnelMode`, `-EnableActivationGateway`, user principal, paths and deployment options. Do not treat this PR as approval to silently change runtime topology.
+
+## Acceptance and failure injection
+
+Source regressions: `node http-generic-api/test-staging-coldboot-recovery.mjs` from the repository root; additionally run existing `test-windows-staging-bootstrap-supervisor.mjs` and `autopilot-portable-staging/test/Test-AutonomousSupervisor.ps1` (native Windows PowerShell 5.1).
+
+**A native Windows reboot is still required to certify behavior.** With separate approved Staging access, capture independent evidence for:
+
+1. Cold logon with Docker closed, delayed Docker Engine, delayed WSL2, and missing network; no console leaks and no automatic Production or database writes.
+2. Intermittent DNS failure for `auth.mad4b.com` and `github.com`; watcher remains alive, does not reuse stale SHA, and retries without requiring a fresh operator login.
+3. GitHub authentication or eligibility denial after DNS recovers; no deploy, no cached approval, and bounded retry.
+4. Docker Engine healthy but Compose stopped after reboot; previous source certificate must not mark services healthy. Restore only an exact eligible local Staging build, read back container health, certify anew.
+5. Missing Supervisor; additive install succeeds with exact watcher identity, but fails closed for unexpected task command, user principal or path.
+6. Reboot with disconnected removable drive and with the intended Windows user not logged on; report blocked rather than claiming service-independent operation.
+7. Repeat restart, overlapping task triggers, and transient task failure; verify named mutexes, `IgnoreNew`, log continuity, rollback and task result readback.
+8. Recovered DNS/network and stable Compose; require two clean watcher poll/sleep cycles, fresh `health-snapshot.json`, exact SHAs and supervisor acceptance. Native hardware/device-generation and Production status remain separate.
+
+Windows Docker Desktop under an `Interactive` user task **requires user logon**. Boot-before-login or headless 24/7 operation requires a separately approved system-service/WSL architecture, not a hidden Scheduled Task.
+
+**Release decision:** This source hardening does not supersede PR #8471's independent policy objections, exact-head owner approval or the NO-GO Production decision.
