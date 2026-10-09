@@ -65,7 +65,7 @@ function Test-WatcherTaskIdentity([object]$Task) {
     $scriptRegex = [regex]::Escape($expectedScript)
     $repoRegex = [regex]::Escape($RepositoryPath)
     # Exact approved action, no appended switches, injected command or new target.
-    $approved = '^-NoLogo\s+-NoProfile\s+-ExecutionPolicy\s+Bypass\s+-File\s+"' + $scriptRegex +
+    $approved = '^-NoLogo\s+-NoProfile(?:\s+-WindowStyle\s+Hidden)?\s+-ExecutionPolicy\s+Bypass\s+-File\s+"' + $scriptRegex +
         '"\s+-RepositoryPath\s+"' + $repoRegex +
         '"\s+-Watch\s+-PollSeconds\s+\d+\s+-BuildMode\s+(?:Smart|ForceBuild|SkipBuild)' +
         '\s+-TunnelMode\s+(?:disabled|windows_service|docker_sidecar)(?:\s+-EnableActivationGateway)?$'
