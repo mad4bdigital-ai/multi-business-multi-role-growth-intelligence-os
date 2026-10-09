@@ -89,7 +89,10 @@ test("string-typed approvals are not equivalent to independently verified boolea
   });
   assert.equal(database.execution_allowed,false);
   assert.equal(database.candidate_ready,false);
-  assert.equal(database.blockers.length,7);
+  assert.equal(database.reported_prerequisites_complete,false);
+  assert(database.blockers.includes("independent_provider_account_proof_and_certified_executor_missing"));
+  assert(database.blockers.includes("provider_db_create_entitlement_unverified"));
+  assert(database.blockers.includes("independent_database_create_approval_required"));
 });
 
 test("untrusted environment keys and opaque secret reference values fail closed",()=>{
