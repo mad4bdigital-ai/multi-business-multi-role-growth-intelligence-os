@@ -64,7 +64,7 @@ test("doctor distinguishes registered task from running supervisor and exposes a
   for (const name of ["MAD4B Staging Docker Bootstrap", "MAD4B Staging Autonomous Supervisor"])
     assert(doctor.includes(name));
   assert.match(doctor, /Get-ScheduledTaskInfo -TaskName \$Name/);
-  assert.match(doctor, /-RepairMissingSupervisor/);
+  assert.match(doctor, /\$RepairMissingSupervisor/);
   assert.match(doctor, /Install-AutonomousSupervisorTask\.ps1/);
   assert.match(doctor, /if \(\$RepairTasks -and \$RepairMissingSupervisor\)/);
 });
