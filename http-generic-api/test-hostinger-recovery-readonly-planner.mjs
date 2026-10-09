@@ -83,7 +83,7 @@ test("wrong account, domain, database prefix, or untrusted provider fails before
 });
 
 test("provider HTTP 401/403 and redirects cannot be interpreted as capabilities",async()=>{
-  for (const status of [401,403,302,503]) {
+  for (const status of [401,403,206,302,503]) {
     const provider=createHostingerReadOnlyTransport({boundAccountUsername:account,
       getManagedToken:async()=>token,
       fetchImpl:async()=>new Response("",{status,headers:status===302?{location:"https://invalid.test"}:{}})
@@ -117,6 +117,18 @@ test("malformed, paginated, duplicate or unbounded inventory is never accepted",
   });
   await assert.rejects(provider.databaseInventory(account),
     e=>e.code==="hostinger_inventory_response_unbounded");
+});
+
+test("fake inventory success, cross-account records or partial API pages never trigger create preview",async()=>{
+  for(const provider of [
+    {databaseInventory:async()=>({database_names:[],provider_http_status:206})},
+    {databaseInventory:async()=>({database_names:["u987654321_other"],provider_http_status:200})},
+    {databaseInventory:async()=>({database_names:[],provider_http_status:null})}
+  ]){
+    await assert.rejects(previewHostingerRecoveryDatabase({
+      accountUsername:account,websiteDomain:domain,recoveryDatabaseName:database,provider
+    }),e=>Boolean(e.code));
+  }
 });
 
 test("no secret, token or arbitrary endpoint may be returned by preview",async()=>{
