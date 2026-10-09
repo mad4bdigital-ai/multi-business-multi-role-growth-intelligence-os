@@ -11,7 +11,7 @@
   "top_items": [
     {
       "migration_file": "20260808_github_issue_comment_dispatch_parity.sql",
-      "score": 908,
+      "score": 907,
       "queue_class": "critical_review",
       "gap_severity": "high",
       "documentation_complete": false,
@@ -248,7 +248,7 @@
     },
     {
       "migration_file": "20260815_custom_gpt_mcp_catalog_levels.sql",
-      "score": 850,
+      "score": 849,
       "queue_class": "critical_review",
       "gap_severity": "high",
       "documentation_complete": false,
