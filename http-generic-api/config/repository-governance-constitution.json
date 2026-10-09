@@ -337,7 +337,9 @@
         "SECURITY.md",
         "CONTRIBUTING.md",
         "Updating Registry Patch Index.md",
-        "deployment_parity_checklist.md"
+        "deployment_parity_checklist.md",
+        "GPT_Admin_Assistant_Knowledge_Guide.md",
+        "runtime_confirmation_procedure.md"
       ]
     },
     {
