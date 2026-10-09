@@ -330,17 +330,27 @@ function unavailableSchemaReadiness(error) {
 export async function readMcpCatalogSchemaReadinessSafe({ pool, env = process.env } = {}) {
   try {
     const targetPool = pool || getPool();
-    const identity = await readMcpCatalogRuntimeIdentity({ pool: targetPool, env });
-    const readiness = await readMcpCatalogSchemaReadiness({ pool: targetPool });
-    return {
-      ...readiness,
-      ...MCP_CATALOG_RUNTIME_SCHEMA_CONTRACT,
-      ok: readiness.ok === true && identity.ok === true,
-      identity,
-      migration_apply_required: identity.ok === true && readiness.migration_apply_required === true,
-      ...readOnlyEvidence({ databaseConnectionPerformed: true, sqlReadbackPerformed: true }),
-      secrets_included: false,
-    };
+    // Runtime identity and both table probes must come from the SAME DB session.
+    // A mysql2 pool can otherwise rotate between database or credential contexts
+    // between DATABASE()/CURRENT_USER() and its metadata/SELECT probes.
+    const leased = typeof targetPool?.getConnection === "function"
+      ? await targetPool.getConnection() : null;
+    const session = leased || targetPool;
+    try {
+      const identity = await readMcpCatalogRuntimeIdentity({ pool: session, env });
+      const readiness = await readMcpCatalogSchemaReadiness({ pool: session });
+      return {
+        ...readiness,
+        ...MCP_CATALOG_RUNTIME_SCHEMA_CONTRACT,
+        ok: readiness.ok === true && identity.ok === true,
+        identity,
+        migration_apply_required: identity.ok === true && readiness.migration_apply_required === true,
+        ...readOnlyEvidence({ databaseConnectionPerformed: true, sqlReadbackPerformed: true }),
+        secrets_included: false,
+      };
+    } finally {
+      if (leased) leased.release();
+    }
   } catch (error) {
     return unavailableSchemaReadiness(error);
   }
