@@ -381,3 +381,42 @@ The semantic generated state includes:
 Operational release still requires a clean disposable native MariaDB rebuild/second replay/fault injection, native PowerShell syntax and completed import readbacks, live Staging route/browser tests, Hostinger provider account entitlement and independent Control Store, Production Runtime principal/schema/grants, signed generation attestation for the current device, and all exact-head policy tests.
 
 **No repository main merge, Production environment update, provider request, database/grant mutation, token or password exposure, or schema migration was performed by this follow-up.**
+
+## 18. PR8461 bounded closure matrix — security / source / runtime (9 October 2026)
+
+This section tracks the **separate evidence authorities** for PR #8461; source CI is not a Production execution ticket. All operations described here are conditional future gates, **not actions executed by this review**.
+
+### 18.1 Source corrections performed on PR #8461
+
+| Source boundary | Exact implementation artifact | Evidence and limitation |
+| --- | --- | --- |
+| Fresh Local Manager installer and tenant/config selection | `http-generic-api/test-local-manager-environment-recovery.mjs` | Canonical scoped SQL assertions, active/nonrevoked/nonarchived selection, max-two cardinality and no writes; previous E2E 500/404 fixture mismatch repaired in commit `abcae5fd5696a6b2bf9e6f6b3f3ab492c0b8c116`. |
+| Dynamic Work Map convergence | `docs/work-maps/*` and `specs/*/work-map-integration.json` | Sole writer successfully regenerated 18 files in commit `7919f2a6b4e9e888d183a672e3bba08c06f27683`; 20 generated maps, drift=0, idempotency proven. This is **not** final source governance acceptance. |
+| Feature 009 architecture coverage | `specs/009-local-connector-reachability-recovery/work-map-integration.json` | 19 Work Map plus 16 domain decisions now have reviewed rationales, mapped requirements/tasks/user-story acceptance, explicit non-applicability evidence where relevant; `b77ab2c5dc39baed6be7a3647e904fc4ce23e503`. `ready_for_implementation` means source-level phased architecture only; never live runtime, physical generation or Production approval. The independent Spec Kit Work Map Integration workflow passed on that exact commit. |
+| Feature 009 evidence-regression guard | `http-generic-api/test-spec-kit-work-map-governance-gate.mjs` | Verifies decision coverage, referenced source files, requirement/task and user-story IDs, and that all runtime/Production attestations remain false. `5b4ab23b6457bba7c9c2dc9322b79ecc1f208ca9`. Await final exact-head CI. |
+| Hostinger caller-asserted privilege isolation | `http-generic-api/hostingerRecoveryProviderContract.js`, `http-generic-api/test-hostinger-recovery-provider-safety.mjs` | Every boolean flag may be caller-forged. `reported_prerequisites_complete=true` is never `account_specific_authority_verified`; database create stays `candidate_ready=false`, `plan_eligible=false`, `execution_allowed=false` absent independently authenticated provider entitlement and a certified executor. `363b16d42426e121f0033b6b5158ebf2c927322b` and `6c19f8bb915ecd91881179161b795f7ebe56f258`. |
+| Windows Watchdog exact device binding | `http-generic-api/test-windows-staging-bootstrap-supervisor.mjs` | Removed the obsolete shared `connector.mad4b.com/health` expectation and require scoped `CONNECTOR_PUBLIC_HEALTH_URL` validation in the actual Watchdog. `f1925602937370d2bcc5a51543eb8fc14682314c`. Await final E2E verification. |
+
+### 18.2 Separate operational acceptance authorities
+
+| Dependency | Minimum proof before marking Done | Owner / mutation boundary |
+| --- | --- | --- |
+| Current physical Windows device | Discover the actual active device; capture exact environment + tenant + user + config + canonical device; prove possession of a **nonexportable generation key** with a bounded server nonce and independent signature verification; negative clone/old generation/revoked tests | Device-attestation authority; **no hostname / historic `mohammedlap` fallback** |
+| Local Connector repair | Native Windows Service and Task readbacks, tunnel ownership isolation, scoped credential `/policy` command success, 401/403 negative cases, same-cycle route and generation readback, rollback/compensation evidence | Staging device-owned canary only, separately approved |
+| MCP Catalog `mcp_catalog_level` | Same connection: `DATABASE()`, `CURRENT_USER()`, exact `information_schema` metadata for both catalog tables, effective `SELECT` rights and live Tool Catalog request; if missing, a separately approved migration plan and post-apply readback | Runtime DB/schema principal, not metadata-only nor implicit DB fallback |
+| Hostinger Recovery Control Store | Account/domain identity, actual provider DB inventory and **live CREATE entitlement**, empty/nonempty classification, independently approved name+credential vault intake, environment-bound plan hash, exact changes, same-cycle database/schema/grants readback; never grant generic SSH/raw SQL | Separate governed Hostinger adapter/executor; discovery catalog entries are not actions |
+| Hostinger Node environment | Provider API is **full replacement and app restart**; masked GET is not an authoritative complete value snapshot. Require independently trusted full secret snapshot, exclusive mutation lease, revision-conflict control, approved exact key diff, rollback receipt and independent readback. Without supported compare-and-set this operation remains blocked | Separate credential owner and exact site authority; **never PUT masked values** |
+| Governance DB / migrations 225 and 1051 | Exact migration file identity and dependency order, DB object inventory, grants, plan SHA, native MariaDB first apply + second replay + fault injection, evidence that schema privileges are complete and operation reversible | Separate database migration controller, never triggered by PR merge |
+| GitHub Rulesets | Effective current ruleset inventory, branch targets, source policy digest, authority with GitHub administrative write permissions, minimal diff, exact readback of effective policy gates | Independent repository policy controller; not inferred from mergeability |
+| Staging acceptance | Release exact head, PowerShell parse and native task/service tests, MariaDB replay, browser plus auth/tenant/device negative tests, schema and rollback canary, same-cycle independent readback | Staging only, separately planned; CI simulation does not satisfy this row |
+| Production acceptance | Exact release cut, independent authorization of site/account environment, provenance, migration readiness, operator approval, maintenance window, promotion and rollback/readback | **No Production execution in #8461 source merge** |
+
+### 18.3 Go/no-go rule
+
+- **Source merge gate:** all required final **exact-HEAD** tests (native unit/contract, Spec Kit, E2E, policy objection, Derived State, OpenAPI/generated parity and security regression) must pass or have a separately tracked, formally authorized exception. `mergeable=true` alone is not acceptance.
+- **Operational gate:** Staging evidence for current device-generation, scope ownership, same-cycle command authority and rollback is independent of source merge; leave as `NOT_CERTIFIED` until readback.
+- **Hostinger gate:** seven `hostinger_recovery_*` commands remain discovery-only. Account privilege claims and caller-provided Boolean values cannot grant plan/write authority. No DB create, env replacement, grants, password movement, SSH mutations or Production operations from this PR.
+- **Governance gate:** the repository self-amendment/manual source-policy objection is separate and must not be made green by source code edits, backfilled signatures, broad waiver or bypass.
+- **Follow-on streams:** implement nonexportable device-generation proof, Hostinger Recovery Control Store provisioning, Runtime MCP schema acceptance, Governance migrations and GitHub rulesets as independently evidenced approval streams. Their absence cannot be hidden by a green generator or passing unit tests.
+
+**Closure state for this report:** improved source and source-architecture coverage, operational acceptance and Production still **open / not certified**. The exact final HEAD and resulting CI must be re-read after the last commit; prior CI is never promoted to a newer SHA by inference.
