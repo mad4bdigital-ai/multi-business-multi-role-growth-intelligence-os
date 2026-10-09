@@ -32,6 +32,7 @@ const readyPool = {
     if (String(sql).includes("information_schema.tables")) return [[{ present: 1 }]];
     if (String(sql).includes("information_schema.statistics")) return [[{ index_count: 5 }]];
     if (String(sql).includes("information_schema.columns")) return [[{ column_count: 1 }]];
+    if (/SELECT `mcp_catalog_level` FROM `(admin_platform_endpoint_tools|tenant_platform_endpoint_tools)` LIMIT 0/u.test(String(sql))) return [[], []];
     throw new Error(`unexpected readiness query: ${sql}`);
   },
   async getConnection() {
