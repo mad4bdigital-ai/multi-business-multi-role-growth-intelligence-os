@@ -36,12 +36,12 @@ const productionEvidence=[
 const sha="a".repeat(40);
 
 test("actual sanitized production symptoms block promotion irrespective of healthy HTTP 200",()=>{
-  const report=assessProductionPromotionLog(productionEvidence+"\nPROVIDER_RESPONSE_STATUS: 200",{expectedSourceSha:sha});
-  assert.equal(report.contract,CONTRACT);
-  assert.equal(report.pre_promotion_state,"NO_GO");
-  assert.equal(report.promotion_authorized,false);
-  assert.equal(report.production_mutation_authorized,false);
-  assert.equal(report.rollback_certified,false);
+  const verdict=assessProductionPromotionLog(productionEvidence+"\nPROVIDER_RESPONSE_STATUS: 200",{expectedSourceSha:sha});
+  assert.equal(verdict.contract,CONTRACT);
+  assert.equal(verdict.pre_promotion_state,"NO_GO");
+  assert.equal(verdict.promotion_authorized,false);
+  assert.equal(verdict.production_mutation_authorized,false);
+  assert.equal(verdict.rollback_certified,false);
   for(const required of [
     "BOOTSTRAP_HOOK_NOT_CONFIGURED","BOOTSTRAP_EXACT_RELEASE_OR_TARGET_UNBOUND",
     "MCP_CATALOG_SCHEMA_NOT_READY","MCP_CATALOG_REQUIRED_COLUMN_MISSING_ON_2_TABLES",
@@ -52,9 +52,9 @@ test("actual sanitized production symptoms block promotion irrespective of healt
     "RUNTIME_ENVIRONMENT_IDENTITY_UNKNOWN",
     "MCP_SCHEMA_UNREADY_STARTUP_FAIL_OPEN",
     "EXECUTION_AUTHORITY_MANIFEST_ENFORCEMENT_DISABLED"
-  ])assert(report.operational_blockers.includes(required),required);
-  assert(report.advisories.includes("QUEUE_DISABLED_REQUIREMENTS_DEPENDENT"));
-  assert(!report.operational_blockers.includes("QUEUE_WORKER_DISABLED"));
+  ])assert(verdict.operational_blockers.includes(required),required);
+  assert(verdict.advisories.includes("QUEUE_DISABLED_REQUIREMENTS_DEPENDENT"));
+  assert(!verdict.operational_blockers.includes("QUEUE_WORKER_DISABLED"));
 });
 
 test("queue is conditional but required worker disable becomes a blocker",()=>{
@@ -86,9 +86,9 @@ test("even all apparently healthy anonymous log events never supply independent 
     event("mcp_catalog_schema_startup_preflight",{environment:"production",ready:true,
       readiness:{ok:true,identity:{ok:true,database_matches:true,principal_matches:true},tables:[]}})
   ].join("\n");
-  const report=assessProductionPromotionLog(fakeLog,{expectedSourceSha:sha});
-  assert.equal(report.promotion_authorized,false);
-  assert(report.operational_blockers.includes("INDEPENDENT_PRODUCTION_PRIVILEGE_SCHEMA_AND_ROLLBACK_EVIDENCE_REQUIRED"));
+  const verdict=assessProductionPromotionLog(fakeLog,{expectedSourceSha:sha});
+  assert.equal(verdict.promotion_authorized,false);
+  assert(verdict.operational_blockers.includes("INDEPENDENT_PRODUCTION_PRIVILEGE_SCHEMA_AND_ROLLBACK_EVIDENCE_REQUIRED"));
 });
 
 test("oversized and high-line-count operator logs are rejected before parsing",()=>{
@@ -98,7 +98,7 @@ test("oversized and high-line-count operator logs are rejected before parsing",(
     x.code==="production_log_line_limit_exceeded");
 });
 
-test("report never exports user identity, API header, secrets or raw log lines",()=>{
+test("verdict never exports user identity, API header, secrets or raw log lines",()=>{
   const canary="canary-UNPRINTABLE-credential-and-db-identifier";
   const log=productionEvidence+ "\nAPP_SECRET="+canary+"\nDB_USER="+canary;
   const result=assessProductionPromotionLog(log,{expectedSourceSha:sha});
@@ -109,9 +109,9 @@ test("report never exports user identity, API header, secrets or raw log lines",
 
 test("startup errors repeated across restarts do not become evidence of successful migrations",()=>{
   const many=Array(20).fill(productionEvidence).join("\n");
-  const report=assessProductionPromotionLog(many,{expectedSourceSha:sha});
-  assert.equal(report.recognized_event_counts.runtime_bootstrap_status,20);
-  assert.equal(report.migration_apply_authorized,false);
-  assert.equal(report.provider_db_create_authorized,false);
-  assert.equal(report.same_cycle_signed_readback_verified,false);
+  const verdict=assessProductionPromotionLog(many,{expectedSourceSha:sha});
+  assert.equal(verdict.recognized_event_counts.runtime_bootstrap_status,20);
+  assert.equal(verdict.migration_apply_authorized,false);
+  assert.equal(verdict.provider_db_create_authorized,false);
+  assert.equal(verdict.same_cycle_signed_readback_verified,false);
 });
