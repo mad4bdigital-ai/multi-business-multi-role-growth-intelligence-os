@@ -129,7 +129,23 @@ test("repair ignores tenant overrides and denies ambiguous configs without write
   const handler=router.stack.find(layer=>layer.route?.path==="/local-connector/install/device-download-link").route.stack[0].handle;
   const original=query;
   for(const count of [0,2]) {
-    query=(sql,values)=>{assert.doesNotMatch(sql,/^(UPDATE|INSERT|DELETE)/u);if(sql.includes("local_connector_user_configs")){assert.match(sql,/c\.tenant_id <=> \?/u);assert.match(sql,/a\.tenant_id <=> c\.tenant_id/u);assert.deepEqual(values,["user","tenant","device","device"]);return Promise.resolve([Array.from({length:count},(_,i)=>({config_id:`config-${i}`,tenant_id:"tenant",device_id:"device"}))]);}return original(sql,values);};
+    query=(sql,values)=>{
+      assert.doesNotMatch(sql,/^(UPDATE|INSERT|DELETE)/u);
+      if(sql.includes("local_connector_user_configs")){
+        assert.match(sql,/FROM `local_connector_user_configs` c/u);
+        assert.match(sql,/c\.user_id = \?/u);
+        assert.match(sql,/c\.tenant_id <=> \?/u);
+        assert.match(sql,/c\.device_id = \?/u);
+        assert.match(sql,/c\.is_enabled = 1/u);
+        assert.match(sql,/c\.lifecycle_state = 'active'/u);
+        assert.match(sql,/c\.revoked_at IS NULL/u);
+        assert.match(sql,/c\.archived_at IS NULL/u);
+        assert.match(sql,/LIMIT 2/u);
+        assert.deepEqual(values,["user","tenant","device"]);
+        return Promise.resolve([Array.from({length:count},(_,i)=>({config_id:`config-${i}`,tenant_id:"tenant",device_id:"device"}))]);
+      }
+      return original(sql,values);
+    };
     const result=f.res();await handler({headers:{authorization:`Bearer ${token}`},body:{tenant_id:"other"},auth:{is_admin:true}},result);
     assert.equal(result.headers["cache-control"],"no-store, max-age=0");
     assert.equal(result.headers["referrer-policy"],"no-referrer");
