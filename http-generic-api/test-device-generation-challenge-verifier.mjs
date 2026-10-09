@@ -11,7 +11,7 @@ const expected={
   user_id:"user-a",tenant_id:"tenant-a",device_id:"device-001",
   config_id:"config-001",generation_id:"generation-001"
 };
-const now=Date.parse("2026-10-09T08:00:00Z");
+const now=Date.now();
 const challenge={
   id:"challenge-001",nonce:"0123456789abcdefghijklmnopqrstuv",
   issued_at_ms:now-30000,expires_at_ms:now+30000
@@ -43,7 +43,9 @@ test("ECDSA possession requires exact current generation and atomic nonce consum
     used.add(key);return true;
   }});
   const receipt=await verifyBoundDeviceGenerationChallenge(opts);
-  assert.equal(isTrustedDeviceGenerationReceipt(receipt,expected),true);
+  assert.equal(isTrustedDeviceGenerationReceipt(receipt,expected,now),true);
+  assert.equal(isTrustedDeviceGenerationReceipt(receipt,expected,challenge.expires_at_ms),false,
+    "A validly minted possession receipt cannot be replayed after its TTL");
   assert.equal(isTrustedDeviceGenerationReceipt({...receipt},expected),false);
   assert.equal(receipt.hardware_nonexportability_verified,false);
   assert.equal(receipt.execution_allowed,false);
