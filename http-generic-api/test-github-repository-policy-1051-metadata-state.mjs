@@ -213,6 +213,18 @@ assert.equal(RECORD_CONFIRM, "RECORD_1051_GITHUB_REPOSITORY_POLICY_LIVE_APPLY_AU
 assert.equal(RECONCILE_CONFIRM, "RECONCILE_1051_GITHUB_REPOSITORY_POLICY_RECORD_ONLY_LEDGER");
 assert.equal(RECONCILED_APPLY_CONFIRM, "APPLY_1051_GITHUB_REPOSITORY_POLICY_AFTER_RECORD_ONLY_RECONCILIATION");
 
+// The read-only Verify job must consume the environment-scoped backend credential
+// used by GitHub policy readback, without granting that environment to mutating jobs.
+const verifyScope = workflow.split("\n  verify:\n");
+assert.equal(verifyScope.length, 2, "exactly one Verify job is required");
+const [unprivilegedJobs, verifyJob] = verifyScope;
+assert.match(verifyJob, /^    environment:\n      name: Production\n      deployment: false\n    runs-on:/m);
+assert.match(verifyJob, /ROLLOUT_PHASE: verify/);
+assert.match(verifyJob, /BACKEND_API_KEY: \$\{\{ secrets\.BACKEND_API_KEY \}\}/);
+assert.doesNotMatch(unprivilegedJobs, /^    environment:/m, "readiness/reconcile/apply must not inherit Production secret scope");
+assert.match(verifyJob, /Capture bounded Migration 1051 metadata diagnostic without Apply/);
+assert.match(verifyJob, /Verify exact ledger and authority metadata without Apply/);
+
 assert.match(workflow, /RECONCILE_1051_GITHUB_REPOSITORY_POLICY_RECORD_ONLY_LEDGER/);
 assert.match(workflow, /APPLY_1051_GITHUB_REPOSITORY_POLICY_AFTER_RECORD_ONLY_RECONCILIATION/);
 assert.match(workflow, /ROLLOUT_PHASE: record_only/);
