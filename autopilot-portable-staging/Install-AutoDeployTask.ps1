@@ -63,7 +63,8 @@ $settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -AllowStartIfOnBatt
 # runs Compose, mutates a database, or touches any provider. Auto Deploy remains
 # the sole authority for deployment/certification after its eligibility gate.
 $escapedPreflightLiteral = $preflightScript.Replace("'", "''")
-$dockerBootstrapCommand = ". '$escapedPreflightLiteral'; `$dockerReady = Ensure-StagingDockerDesktopReady -TimeoutSeconds $BootGraceSeconds -PollSeconds 3; if (`$dockerReady.ready -ne `$true) { throw 'STAGING_DOCKER_BOOTSTRAP_NOT_READY' }"
+$escapedLogLiteral = (Join-Path $scriptRoot "Staging-Operations-Log.ps1").Replace("'", "''")
+$dockerBootstrapCommand = ". '$escapedLogLiteral'; . '$escapedPreflightLiteral'; try { `$dockerReady = Ensure-StagingDockerDesktopReady -TimeoutSeconds $BootGraceSeconds -PollSeconds 3; if (`$dockerReady.ready -ne `$true) { throw 'STAGING_DOCKER_BOOTSTRAP_NOT_READY' }; Write-StagingLog -Level info -Component 'docker-bootstrap' -Stage 'engine' -Message 'Docker Desktop Engine ready' -Data @{} } catch { Write-StagingLog -Level error -Component 'docker-bootstrap' -Stage 'engine' -Message 'Docker Engine boot task blocked' -Data @{}; throw }"
 $encodedDockerBootstrapCommand = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($dockerBootstrapCommand))
 $dockerAction = New-ScheduledTaskAction -Execute (Join-Path $PSHOME "powershell.exe") -Argument "-NoLogo -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -EncodedCommand $encodedDockerBootstrapCommand" -WorkingDirectory $scriptRoot
 $dockerTrigger = New-ScheduledTaskTrigger -AtLogOn -User "$env:USERDOMAIN\$env:USERNAME"
