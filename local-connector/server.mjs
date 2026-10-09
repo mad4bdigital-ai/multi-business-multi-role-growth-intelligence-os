@@ -54,6 +54,8 @@ loadEnv(path.join(__dirname, '.env'));
 const PORT = parseInt(process.env.CONNECTOR_PORT ?? '7070', 10);
 const CONNECTOR_SECRET = String(process.env.CONNECTOR_SECRET ?? '').trim();
 const CONNECTOR_LOCAL_API_KEY = String(process.env.CONNECTOR_LOCAL_API_KEY ?? '').trim();
+const CONNECTOR_CONFIG_ID = String(process.env.CONNECTOR_CONFIG_ID ?? '').trim();
+const CONNECTOR_DEVICE_ID = String(process.env.CONNECTOR_DEVICE_ID ?? '').trim();
 const LEGACY_BACKEND_API_KEY = String(process.env.BACKEND_API_KEY ?? '').trim();
 const LEGACY_BACKEND_API_KEY_FALLBACK_ENABLED = process.env.CONNECTOR_LEGACY_BACKEND_API_KEY_FALLBACK_ENABLED === 'true';
 const CONNECTOR_AUTH_SECRETS = [
@@ -709,6 +711,8 @@ function policyBody() {
   return {
     ok: true,
     service: 'local-connector',
+    config_id: CONNECTOR_CONFIG_ID || null,
+    device_id: CONNECTOR_DEVICE_ID || null,
     principal_scope: 'platform_admin_break_glass_only',
     hostname: os.hostname(),
     platform: process.platform,

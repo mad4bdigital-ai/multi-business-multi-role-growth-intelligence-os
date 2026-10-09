@@ -3,7 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { tenantGptRefreshReady } from "./tenantGptOAuthGrantStore.js";
 import { buildTrustedIngressReadiness } from "./trustedIngressContract.js";
-import { readMcpCatalogSchemaReadiness } from "./mcpCatalogSchemaGuard.js";
+import { readMcpCatalogSchemaReadiness, readMcpCatalogSchemaReadinessSafe } from "./mcpCatalogSchemaGuard.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const mutationRegistryFile = path.resolve(__dirname, "openapi/openapi-mutation-policy.generated.json");
@@ -27,7 +27,12 @@ function readMutationRegistry() {
 export async function buildTenantGptOperationalReadiness({ env = process.env, pool = null } = {}) {
   const refresh = await tenantGptRefreshReady(env, pool);
   const trustedIngress = buildTrustedIngressReadiness(env);
-  const mcpCatalogSchema = await readMcpCatalogSchemaReadiness({ pool: pool || undefined });
+  // A visible column on the wrong database or under the wrong Runtime principal
+  // is not a usable data plane. Do not silently initialize a DB pool if the
+  // caller deliberately supplied none (e.g. health/introspection preflight).
+  const mcpCatalogSchema = pool
+    ? await readMcpCatalogSchemaReadinessSafe({ pool, env })
+    : await readMcpCatalogSchemaReadiness({ pool: null });
   const registry = readMutationRegistry();
   const ssoSecretReady = secretReady(env.TENANT_GPT_SSO_SIGNING_SECRET);
   const jwtSecretReady = secretReady(env.JWT_SECRET);

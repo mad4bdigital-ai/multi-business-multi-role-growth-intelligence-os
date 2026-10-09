@@ -2,21 +2,21 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "7b668692bd055b0842491585a2a8f080bf5cf8916d67addc0a18f0033ccff57a",
+    "source_digest": "f6543486f4242f8dd377262c9358c65efd81e26d30e776c6dc2b541e0d166877",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
-        "sha256": "155e3332cc8359116ad5f437eea298f18808e179dadc49d6dea12a71a6fe7ac9",
+        "sha256": "c7ee3b98b51106ccee3240fd77c5e5dab33dfc7aa5c087acc93a8cbecadee7d6",
         "present": true
       },
       {
         "file": "frontend-operation-governance.generated.json",
-        "sha256": "2958fc5605af6fd3cc0849a5e8eff8f70e4357af972b5ee00a9fdfbdba3a3011",
+        "sha256": "1eab5f4348a9ddf80c84e6d25e444af4caead523305b5dc59792d194c8c4d7cf",
         "present": true
       },
       {
         "file": "frontend-surface-policy.json",
-        "sha256": "145043c577227d77dd7c05321ab2ba72625a372b90445cb221e02fec431ce1b0",
+        "sha256": "d26b080ceb94fc7626304728957de9c3750a9c494a868f51cddbcf117c0a38ee",
         "present": true
       },
       {
@@ -26,7 +26,7 @@
       },
       {
         "file": "openapi.yaml",
-        "sha256": "e2d6546ce541455437efb02e8c9e6facec279069cc5bb7adb023cea033631d18",
+        "sha256": "c09b6d93a11edb0e9fc5d99f18bcf6d7b537fe6a51652746fa8477704dca4e87",
         "present": true
       },
       {
@@ -131,7 +131,7 @@
       },
       {
         "file": "openapi/openapi.custom-gpt.staging-admin.yaml",
-        "sha256": "153ecae1489de73ac44d170b6d4ce4be2d26ff9857dfcb21c7f5b4b81d491473",
+        "sha256": "f475937abebd6d577ecc1b95d5b0f89289992843a5534bb6fb23323e571f41a9",
         "present": true
       },
       {
@@ -511,7 +511,7 @@
       },
       {
         "file": "routes/connectorAgentRoutes.js",
-        "sha256": "e86080bce15bcbc6a141dadff3c178985fe9db6029c6c87b58790f65a7a757a6",
+        "sha256": "0c9722529cc8ccb901e0a1d2d777978aa473b07e4f8f866d0770ea9627262df4",
         "present": true
       },
       {
@@ -616,7 +616,7 @@
       },
       {
         "file": "routes/gptToolsRoutes.js",
-        "sha256": "ea6dcff78a1178c16a9ea45f5808d568600c635aa6ceec71dc571ac88785bb81",
+        "sha256": "bc73e1410beb182ed6b77754a62896d770f893cb1bed555077165281708ee837",
         "present": true
       },
       {
@@ -661,7 +661,7 @@
       },
       {
         "file": "routes/localConnectorInstallRoutes.js",
-        "sha256": "c7542beb0a43503567b27e459b12698b890fb64c4353ca5fd2f1d5da4c2dbd4f",
+        "sha256": "a18c194f3cf9af4afeb861bfb16c18ca8842530af18ab3f9137bf14b83855511",
         "present": true
       },
       {
@@ -766,7 +766,7 @@
       },
       {
         "file": "routes/platformPluginRoutes.js",
-        "sha256": "55c2efe7d971473777883c6b5f7e049640f78376ecc3b51272cd1d566dde8592",
+        "sha256": "e69097b9e5ad7549ae5cdc9e7d3d7db3170781cddc290b4273ba5cfed8ba0967",
         "present": true
       },
       {
@@ -1096,7 +1096,7 @@
       },
       {
         "file": "scripts/test-manifest.mjs",
-        "sha256": "c73a3a2a2520ebcd729298dd2e973a9c314cf95e78358c833735a263c9022842",
+        "sha256": "230404cd34a1bae73b52083229678596f3981acaa79b9b951d0073f4821990e2",
         "present": true
       },
       {
@@ -1122,6 +1122,11 @@
       {
         "file": "test-frontend-surface-coverage-claims.mjs",
         "sha256": "0c1e23801419a5039e392fdee60cc1a4707da6eaac743b165a101ea71894618b",
+        "present": true
+      },
+      {
+        "file": "test-hostinger-recovery-capability-discovery.mjs",
+        "sha256": "0fe44077ac00c13a16473c5ec06e882d867a042cb1929c0fd389f5111736d449",
         "present": true
       },
       {
@@ -1219,21 +1224,21 @@
     "mounted_family_count": 177,
     "mounted_route_file_count": 146,
     "mixed_scope_route_file_count": 26,
-    "operation_count": 1081,
-    "openapi_documented_count": 1065,
-    "openapi_canonical_documented_count": 742,
+    "operation_count": 1082,
+    "openapi_documented_count": 1066,
+    "openapi_canonical_documented_count": 743,
     "openapi_generated_index_count": 323,
     "openapi_exemption_count": 16,
     "openapi_gap_count": 0,
     "openapi_detail_gap_count": 323,
     "openapi_detail_gap_policy": "accepted_generated_index_only",
     "auth_parity_counts": {
-      "equivalent": 1065,
+      "equivalent": 1066,
       "exempt": 16
     },
     "auth_contract_gap_count": 0,
     "operation_policy_issue_count": 0,
-    "non_get_candidate_count": 659,
+    "non_get_candidate_count": 660,
     "unresolved_operation_class_count": 0,
     "classified_mutation_count": 38,
     "governed_mutation_operation_count": 38,
@@ -1241,7 +1246,7 @@
     "unresolved_surface_decision_count": 0,
     "test_owned_family_count": 177,
     "untested_family_count": 0,
-    "test_owned_operation_count": 1081,
+    "test_owned_operation_count": 1082,
     "untested_operation_count": 0,
     "ready_task_count": 177,
     "blocked_task_count": 0,
@@ -5870,7 +5875,7 @@
       "family_key": "connector-agent.developer",
       "label": "connector agent (developer)",
       "source_file": "routes/connectorAgentRoutes.js",
-      "source_digest": "e86080bce15bcbc6a141dadff3c178985fe9db6029c6c87b58790f65a7a757a6",
+      "source_digest": "0c9722529cc8ccb901e0a1d2d777978aa473b07e4f8f866d0770ea9627262df4",
       "mount_prefix": "/",
       "mount_order": 14140,
       "split_from_mixed_scope_file": true,
@@ -6002,7 +6007,7 @@
       "family_key": "connector-agent.local_device",
       "label": "connector agent (local_device)",
       "source_file": "routes/connectorAgentRoutes.js",
-      "source_digest": "e86080bce15bcbc6a141dadff3c178985fe9db6029c6c87b58790f65a7a757a6",
+      "source_digest": "0c9722529cc8ccb901e0a1d2d777978aa473b07e4f8f866d0770ea9627262df4",
       "mount_prefix": "/",
       "mount_order": 14140,
       "split_from_mixed_scope_file": true,
@@ -6286,7 +6291,7 @@
       "family_key": "connector-agent.public",
       "label": "connector agent (public)",
       "source_file": "routes/connectorAgentRoutes.js",
-      "source_digest": "e86080bce15bcbc6a141dadff3c178985fe9db6029c6c87b58790f65a7a757a6",
+      "source_digest": "0c9722529cc8ccb901e0a1d2d777978aa473b07e4f8f866d0770ea9627262df4",
       "mount_prefix": "/",
       "mount_order": 14140,
       "split_from_mixed_scope_file": true,
@@ -8770,7 +8775,7 @@
       "family_key": "local-connector-install.developer",
       "label": "local connector install (developer)",
       "source_file": "routes/localConnectorInstallRoutes.js",
-      "source_digest": "c7542beb0a43503567b27e459b12698b890fb64c4353ca5fd2f1d5da4c2dbd4f",
+      "source_digest": "a18c194f3cf9af4afeb861bfb16c18ca8842530af18ab3f9137bf14b83855511",
       "mount_prefix": "/",
       "mount_order": 14514,
       "split_from_mixed_scope_file": true,
@@ -9213,7 +9218,7 @@
       "family_key": "local-connector-install.local_device",
       "label": "local connector install (local_device)",
       "source_file": "routes/localConnectorInstallRoutes.js",
-      "source_digest": "c7542beb0a43503567b27e459b12698b890fb64c4353ca5fd2f1d5da4c2dbd4f",
+      "source_digest": "a18c194f3cf9af4afeb861bfb16c18ca8842530af18ab3f9137bf14b83855511",
       "mount_prefix": "/",
       "mount_order": 14514,
       "split_from_mixed_scope_file": true,
@@ -49258,7 +49263,7 @@
       "family_key": "gpt-tools.admin",
       "label": "gpt tools (admin)",
       "source_file": "routes/gptToolsRoutes.js",
-      "source_digest": "ea6dcff78a1178c16a9ea45f5808d568600c635aa6ceec71dc571ac88785bb81",
+      "source_digest": "bc73e1410beb182ed6b77754a62896d770f893cb1bed555077165281708ee837",
       "mount_prefix": "/",
       "mount_order": 19226,
       "split_from_mixed_scope_file": true,
@@ -49489,7 +49494,7 @@
       "family_key": "gpt-tools.developer",
       "label": "gpt tools (developer)",
       "source_file": "routes/gptToolsRoutes.js",
-      "source_digest": "ea6dcff78a1178c16a9ea45f5808d568600c635aa6ceec71dc571ac88785bb81",
+      "source_digest": "bc73e1410beb182ed6b77754a62896d770f893cb1bed555077165281708ee837",
       "mount_prefix": "/",
       "mount_order": 19226,
       "split_from_mixed_scope_file": true,
@@ -60192,7 +60197,7 @@
       "family_key": "platform-plugin",
       "label": "platform plugin",
       "source_file": "routes/platformPluginRoutes.js",
-      "source_digest": "55c2efe7d971473777883c6b5f7e049640f78376ecc3b51272cd1d566dde8592",
+      "source_digest": "e69097b9e5ad7549ae5cdc9e7d3d7db3170781cddc290b4273ba5cfed8ba0967",
       "mount_prefix": "/",
       "mount_order": 21979,
       "split_from_mixed_scope_file": false,
@@ -62366,6 +62371,88 @@
         },
         {
           "method": "POST",
+          "path": "/platform/remote-runtime/hosting/recovery-allowlist/discover",
+          "signature": "POST /platform/remote-runtime/hosting/recovery-allowlist/discover",
+          "source_file": "routes/platformPluginRoutes.js",
+          "scope": "admin",
+          "runtime_auth": {
+            "state": "resolved",
+            "profile": "admin_backend",
+            "alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "principal": "admin",
+            "guard_chain": [
+              "requireAdmin",
+              "requireAdminPrincipal",
+              "requireBackendApiKey"
+            ],
+            "evidence": [
+              "route:requireAdmin",
+              "route:requireAdminPrincipal",
+              "route:requireBackendApiKey"
+            ],
+            "configuration_dependencies": [
+              "BACKEND_API_KEY"
+            ]
+          },
+          "openapi_auth": {
+            "source_file": "openapi.yaml",
+            "security_declared": true,
+            "security_alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "unknown_security_schemes": []
+          },
+          "auth_parity": {
+            "state": "equivalent",
+            "reasons": []
+          },
+          "openapi_documented": true,
+          "openapi_canonical_documented": true,
+          "openapi_exempt": false,
+          "openapi_contract_level": "canonical",
+          "evidence_candidate": false,
+          "embedded_ui": false,
+          "embedded_ui_evidence": [],
+          "delivery_kind": "api",
+          "tests": [
+            "test-hostinger-recovery-capability-discovery.mjs"
+          ],
+          "governance": {
+            "classification": "read_action",
+            "classification_source": "operation_rule",
+            "mutation_candidate": true,
+            "governed": true,
+            "controls": null,
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "hostinger-recovery-allowlist-readonly-discovery",
+            "owner": "remote-runtime",
+            "rationale": "Admin-only bounded metadata SELECT over exact registered Hostinger target and planned allowlist entries. It never calls provider/SSH, mutates SQL or environment variables, creates a database, exposes credentials or certifies an executor; no production apply authority is inferred.",
+            "evidence_refs": [
+              "hostingerRecoveryCapabilityDiscovery.js",
+              "hostingerRecoveryProviderContract.js",
+              "openapi.yaml",
+              "routes/platformPluginRoutes.js",
+              "test-hostinger-recovery-capability-discovery.mjs"
+            ]
+          },
+          "mutation_candidate": true,
+          "mutation": false
+        },
+        {
+          "method": "POST",
           "path": "/platform/remote-runtime/hosting/ssh-probe",
           "signature": "POST /platform/remote-runtime/hosting/ssh-probe",
           "source_file": "routes/platformPluginRoutes.js",
@@ -63895,6 +63982,7 @@
       ],
       "tests": [
         "test-frontend-surface-coverage-claims.mjs",
+        "test-hostinger-recovery-capability-discovery.mjs",
         "test-remote-runtime-catalog-probe.mjs"
       ],
       "untested_operations": [],
@@ -63924,6 +64012,7 @@
         "routes/platformPluginRoutes.js",
         "scripts/test-manifest.mjs",
         "test-frontend-surface-coverage-claims.mjs",
+        "test-hostinger-recovery-capability-discovery.mjs",
         "test-remote-runtime-catalog-probe.mjs"
       ],
       "surface_decision": {
@@ -97973,6 +98062,7 @@
         "routes/platformPluginRoutes.js",
         "scripts/test-manifest.mjs",
         "test-frontend-surface-coverage-claims.mjs",
+        "test-hostinger-recovery-capability-discovery.mjs",
         "test-remote-runtime-catalog-probe.mjs"
       ],
       "acceptance_gates": [
@@ -97987,6 +98077,7 @@
         "node scripts/frontend-surface-dispatch.mjs --check",
         "node scripts/resource-api-coverage-audit.mjs --changed",
         "node test-frontend-surface-coverage-claims.mjs",
+        "node test-hostinger-recovery-capability-discovery.mjs",
         "node test-remote-runtime-catalog-probe.mjs"
       ]
     },

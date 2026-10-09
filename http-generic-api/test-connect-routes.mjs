@@ -952,7 +952,7 @@ const doc = (() => {
       source.includes('router.post("/local-connector/install"') &&
       source.includes("provisionLocalConnectorInstall(req, req.body || {})") &&
       source.includes("shared provisioning helper"));
-    assert("admin installer link and redemption lookups are tenant scoped", source.includes("WHERE user_id = ? AND tenant_id = ? AND device_id = ? AND is_enabled = 1 LIMIT 1") && source.includes("[principal.userId, principal.tenantId, device_id]") && source.includes("[payload.config_id, payload.user_id, payload.tenant_id, payload.device_id]"));
+    assert("admin installer link and redemption lookups are tenant scoped", source.includes("WHERE user_id = ? AND tenant_id = ? AND device_id = ? AND is_enabled = 1 AND lifecycle_state = 'active' AND revoked_at IS NULL AND archived_at IS NULL LIMIT 2") && source.includes("[principal.userId, principal.tenantId, device_id]") && source.includes("if (configs.length !== 1)") && source.includes("[payload.config_id, payload.user_id, payload.tenant_id, payload.device_id]") && source.includes("config_id = ? AND user_id = ? AND tenant_id = ? AND device_id = ? AND is_enabled = 1 AND lifecycle_state = 'active' AND revoked_at IS NULL AND archived_at IS NULL LIMIT 1"));
 assert("local connector requires fresh Local Manager authorization for privileged repair installer links",
       source.includes('router.post("/local-connector/install/device-download-link"') &&
       source.includes("requireFreshLocalManagerDeviceForPrivilegedInstaller(req)") &&
@@ -961,7 +961,7 @@ assert("local connector requires fresh Local Manager authorization for privilege
       source.includes("auth_context: device.auth_context") &&
       source.includes("reauth_required_for_stale_device_tokens: true") &&
       source.includes("secrets_included: false"));
-    assert("device installer lookup requires token tenant and unambiguous canonical identity", source.includes("AND c.tenant_id <=> ?") && source.includes("a.tenant_id <=> c.tenant_id") && source.includes("connector_config_ambiguous") && source.includes("[device.user_id, device.tenant_id || null, device.device_id, device.device_id]"));
+    assert("device installer lookup requires token tenant and unambiguous canonical identity", source.includes("AND c.tenant_id <=> ?") && source.includes("AND c.device_id = ?") && source.includes("LIMIT 2") && source.includes("c.lifecycle_state = 'active' AND c.revoked_at IS NULL AND c.archived_at IS NULL") && source.includes("connector_config_ambiguous") && source.includes("[device.user_id, device.tenant_id || null, device.device_id]"));
     assert("Local Manager privileged installer authorization requires bounded fresh user step-up for stale device tokens",
       deviceLinkSource.includes("requireFreshLocalManagerDeviceForPrivilegedInstaller") &&
       deviceLinkSource.includes("DEVICE_TOKEN_TTL_SECONDS = 365 * 24 * 60 * 60") &&
