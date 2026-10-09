@@ -325,6 +325,12 @@ function Test-LocalDeploymentHealthy([string]$Sha, $Runtime) {
         $health = (& docker inspect --format "{{.State.Health.Status}}" $id 2>$null | Out-String).Trim()
         $running = (& docker inspect --format "{{.State.Running}}" $id 2>$null | Out-String).Trim().ToLowerInvariant()
         if ($health -ne "healthy" -or $running -ne "true") { return $false }
+        if ($service -eq "app") {
+            # The previous runtime receipt is only a candidate. Verify that
+            # the *current container* still runs the exact certified image ID.
+            $liveImageId = (& docker inspect --format "{{.Image}}" $id 2>$null | Out-String).Trim().ToLowerInvariant()
+            if ($LASTEXITCODE -ne 0 -or $liveImageId -ne $imageDigest.ToLowerInvariant()) { return $false }
+        }
     }
     return $true
 }
