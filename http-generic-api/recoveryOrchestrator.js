@@ -104,6 +104,15 @@ export function createRecoveryCapabilityRegistry(adapters=[]) {
 function validateStore(store,method) {
   if(!object(store)||typeof store[method]!=="function")
     refuse("recovery_orchestrator_durable_store_unavailable",503);
+  // Match the existing Recovery Composition durable-store provenance contract.
+  // Shape flags alone are not native certification: the server composition
+  // must additionally attest and independently test its backing implementation.
+  if(store.recovery_store_contract!=="mad4b.recovery-durable-store.v1"||
+     store.independent_of_target_databases!==true||
+     store.shared_replica_safe!==true||
+     store.payload_integrity_verified_on_read!==true||
+     store.target_database_binding!=="forbidden")
+    refuse("recovery_orchestrator_durable_store_authority_unverified",503);
 }
 function verifyPlan(plan) {
   if(!object(plan)||plan.contract!=="mad4b.recovery-orchestrator-plan.v1")

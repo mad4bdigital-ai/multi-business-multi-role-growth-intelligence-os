@@ -22,6 +22,11 @@ function provider({fail=false}={}){
 function makeStore(){
   const plans=new Map(),steps=new Map();
   return {
+    recovery_store_contract:"mad4b.recovery-durable-store.v1",
+    independent_of_target_databases:true,
+    shared_replica_safe:true,
+    payload_integrity_verified_on_read:true,
+    target_database_binding:"forbidden",
     plans,steps,intents:[],claims:0,
     async putPlan(p){plans.set(p.plan_id,p);return {durable:true,plan_hash:p.plan_hash};},
     async getPlan(id){return plans.get(id)||null;},
@@ -222,4 +227,14 @@ test("UNKNOWN marking cannot downgrade an already recovered state after finaliza
   await assert.rejects(execute(p,h),
     errorCode("recovery_orchestrator_unknown_state_persistence_failed"));
   assert.equal(h.store.steps.get(p.plan_id).status,"recovered");
+});
+
+test("store inside the target database or lacking independently verified authority is rejected",async()=>{
+  const h=harness();
+  await assert.rejects(planned({...h,store:{...h.store,
+    independent_of_target_databases:false}}),
+    errorCode("recovery_orchestrator_durable_store_authority_unverified"));
+  await assert.rejects(planned({...h,store:{...h.store,
+    target_database_binding:"target_runtime"}}),
+    errorCode("recovery_orchestrator_durable_store_authority_unverified"));
 });
