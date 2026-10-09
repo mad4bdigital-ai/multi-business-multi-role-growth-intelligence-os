@@ -127,41 +127,41 @@ The operator supplied these **native, read-only** results:
 
 | Observation | Value |
 | --- | --- |
-| Legacy textual task principal comparison | \`LegacyNameMatch=False\` |
-| Canonical Windows SID comparison | \`SameWindowsSID=True\` |
+| Legacy textual task principal comparison | `LegacyNameMatch=False` |
+| Canonical Windows SID comparison | `SameWindowsSID=True` |
 | Existing watcher actions | exactly one |
 | Existing watcher logon type | Interactive |
-| Old principal/action guard present in local installer | \`OldGuardPresent=True\` |
-| SID-safe guard present in local installer | \`SIDFixPresent=False\` |
-| Read-only diagnostic mode present in local installer | \`DiagnoseOnlyAvailable=False\` |
+| Old principal/action guard present in local installer | `OldGuardPresent=True` |
+| SID-safe guard present in local installer | `SIDFixPresent=False` |
+| Read-only diagnostic mode present in local installer | `DiagnoseOnlyAvailable=False` |
 | Local branch | empty (detached HEAD) |
-| Local short HEAD | \`f9d80998ca\` |
+| Local short HEAD | `f9d80998ca` |
 
-GitHub source review confirmed that \`main@f9d80998ca3fce852d47465dbe990a8c08458462\` contains textual principal matching in **both** \`Install-AutonomousSupervisorTask.ps1\` and \`Staging-AutonomousSupervisor.ps1\`. Updated source in PR #8471 normalizes SID in both paths and supports \`-DiagnoseOnly\`; it is **not** installed on the operator's machine.
+GitHub source review confirmed that `main@f9d80998ca3fce852d47465dbe990a8c08458462` contains textual principal matching in **both** `Install-AutonomousSupervisorTask.ps1` and `Staging-AutonomousSupervisor.ps1`. Updated source in PR #8471 normalizes SID in both paths and supports `-DiagnoseOnly`; it is **not** installed on the operator's machine.
 
 **Root cause demonstrated:** a string-display alias mismatch blocks the legacy installer even though the canonical SID and action count are valid; the detached checkout is older than the PR branch. This is an expected source-revision mismatch, not proof that Scheduler task ownership is unsafe. It is **not** proof that Staging runtime is healthy.
 
 **Do not attempt these unsafe workarounds:**
 
 - Force-register the Supervisor task with the old script: the running Supervisor independently repeats the same textual principal guard, so installing a task is insufficient.
-- \`git switch\`, \`git checkout\`, \`git pull\` or \`git reset --hard\` inside the active detached Staging checkout. The governed Auto Deploy pins that checkout to an eligible \`main\` commit and requires a clean worktree; altering it can conflict with the deploy controller.
+- `git switch`, `git checkout`, `git pull` or `git reset --hard` inside the active detached Staging checkout. The governed Auto Deploy pins that checkout to an eligible `main` commit and requires a clean worktree; altering it can conflict with the deploy controller.
 - Overwrite only the local installer with the PR version: the updated installer depends on the SID helper, and the old Supervisor still has its own outdated identity logic.
-- Relax or disable identity validation, patch Windows user environment variables to simulate a match, use \`-Force\` or alter the existing watcher's principal/actions.
+- Relax or disable identity validation, patch Windows user environment variables to simulate a match, use `-Force` or alter the existing watcher's principal/actions.
 
 **Approved remediation paths:**
 
-1. **Normal governed rollout**: complete #8471 source checks and owner/governance approval; promote the selected fix to the eligible \`main\` release using existing release procedures; verify the local Staging checkout independently converges to the exact approved SHA; then invoke the same-release additive installer using process-scoped execution policy and verify both Scheduled Task state and Supervisor acceptance. This path **does not authorize Production promotion**.
+1. **Normal governed rollout**: complete #8471 source checks and owner/governance approval; promote the selected fix to the eligible `main` release using existing release procedures; verify the local Staging checkout independently converges to the exact approved SHA; then invoke the same-release additive installer using process-scoped execution policy and verify both Scheduled Task state and Supervisor acceptance. This path **does not authorize Production promotion**.
 2. **Independent minimal hotfix**: if the operator needs recovery before #8471 can be merged, prepare a separate, reviewed release containing the *installer, Supervisor and SID helper together*, with exact-SHA certification and native Windows tests. Deliver through the existing Staging eligibility channel; do not copy files into the detached working tree or weaken the test authority checks.
 3. **Separately certified sidecar**: a pinned, signed sidecar supervisor pointing at an older Staging checkout would require explicit cross-root script/path/policy support, verified task identity and durable logs. Such support is **not currently certified** and must not be inferred from this PR.
 
 The user can inspect the current task state without changing the repository:
 
-\`\`\`powershell
+```powershell
 Get-ScheduledTask -TaskPath "\" -TaskName "MAD4B Staging Auto Deploy" |
     Select-Object TaskName, State
 Get-ScheduledTaskInfo -TaskPath "\" -TaskName "MAD4B Staging Auto Deploy" |
     Select-Object LastRunTime, LastTaskResult
-\`\`\`
+```
 
 A successfully running watcher is only evidence for that process. An uninstalled Supervisor means cold-boot autonomous acceptance remains incomplete until the approved version is deployed and native reboot tests pass.
 
