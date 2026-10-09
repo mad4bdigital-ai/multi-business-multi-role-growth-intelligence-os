@@ -56,3 +56,9 @@ Use `--queue-required` only if BullMQ is part of this release's explicitly accep
 - No database/user/environment/SSH write and no direct `Production` push from this PR. Production deployment requires separately scoped owner approval.
 - Do not put secrets, masked values, DB credentials, GitHub App private key, access tokens, full raw Production logs or personal user identifiers into generated evidence or GitHub comments.
 - Current logs are historical observations, not fresh same-cycle certificates. After remediation, explicitly re-query each status and the exact principal/host/DB with independent readbacks.
+
+## Additional release-enforcement objections from live logs
+
+- `mcp_catalog_schema_startup_preflight.ready=false` while `startup_blocked=false`: the application remains routable despite missing catalog columns. The preflight blocks on `MCP_SCHEMA_UNREADY_STARTUP_FAIL_OPEN`.
+- `EXECUTION_AUTHORITY_MANIFEST_GUARD.enforced=false` with reason `execution_authority_manifest_enforcement_disabled`: verify explicit read-only exemptions and enforce write-capability checks independently. Preflight flags `EXECUTION_AUTHORITY_MANIFEST_ENFORCEMENT_DISABLED`.
+- The 60 operational scenarios remain source-level negative contracts, never proof of live Hostinger privileges.
