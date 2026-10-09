@@ -4,6 +4,8 @@ import { buildTenantGptOperationalReadiness } from "./tenantGptOperationalReadin
 const env = {
   NODE_ENV: "staging",
   REMOTE_MCP_ENVIRONMENT: "staging",
+  DB_NAME: "tenant_gpt_runtime",
+  DB_USER: "tenant_runtime_reader",
   JWT_SECRET: "jwt_secret_for_operational_readiness_32_chars",
   TENANT_GPT_SSO_SIGNING_SECRET: "sso_secret_for_operational_readiness_32_chars",
   TENANT_GPT_SSO_TRUST_BOUNDARY_ATTESTED: "true",
@@ -29,6 +31,7 @@ assert.equal(readiness.mutation_governance_ready, false);
 assert.deepEqual(readiness.readiness_domains.mutation_governance.blocking_checks, ["mutation_governance_ready"]);
 const readyPool = {
   async query(sql) {
+    if (String(sql).includes("SELECT DATABASE()")) return [[{current_database: "tenant_gpt_runtime",current_account: "tenant_runtime_reader@localhost"}]];
     if (String(sql).includes("information_schema.tables")) return [[{ present: 1 }]];
     if (String(sql).includes("information_schema.statistics")) return [[{ index_count: 5 }]];
     if (String(sql).includes("information_schema.columns")) return [[{ column_count: 1 }]];
@@ -45,6 +48,28 @@ assert.equal(refreshReady.refresh_readiness.migration_present, true);
 assert.equal(refreshReady.refresh_readiness.indexes_present, true);
 assert.equal(refreshReady.refresh_readiness.transaction_probe_ready, true);
 assert.equal(refreshReady.checks.mcp_catalog_schema_ready, true);
+assert.equal(refreshReady.mcp_catalog_schema.identity.ok, true);
+assert.equal(refreshReady.mcp_catalog_schema.identity.database_matches, true);
+assert.equal(refreshReady.mcp_catalog_schema.identity.principal_matches, true);
+const wrongDatabasePool = {
+  ...readyPool,
+  async query(sql) {
+    if (String(sql).includes("SELECT DATABASE()")) return [[{
+      current_database: "wrong_database",
+      current_account: "tenant_runtime_reader@localhost",
+    }]];
+    return readyPool.query(sql);
+  },
+};
+const wrongDatabase = await buildTenantGptOperationalReadiness({
+  env: { ...env, TENANT_GPT_REFRESH_TOKENS_ENABLED: "true" },
+  pool: wrongDatabasePool,
+});
+assert.equal(wrongDatabase.checks.mcp_catalog_schema_ready, false,
+  "Metadata from the wrong Runtime DB must not approve Tenant data-plane readiness");
+assert.equal(wrongDatabase.data_plane_ready, false);
+assert.equal(wrongDatabase.mcp_catalog_schema.identity.database_matches, false);
+
 assert.equal(refreshReady.data_plane_ready, true);
 assert.equal(refreshReady.oauth_token_ready, true);
 assert.equal(refreshReady.readiness_domains.data_plane.ready, true);
