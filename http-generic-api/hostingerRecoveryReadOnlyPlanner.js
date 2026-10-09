@@ -23,10 +23,19 @@ function records(value) {
   const rows = Array.isArray(value) ? value
     : (value && typeof value === "object" && Array.isArray(value.data) ? value.data : null);
   if (!rows || rows.length > 1000) throw refuse("hostinger_inventory_shape_unverified",502);
-  if (value && typeof value === "object" && !Array.isArray(value) &&
-      (value.links?.next || value.next_page_url || value.meta?.next_page)) {
+  // Hostinger's documented list response is paginated via meta.total,
+  // meta.per_page and meta.current_page even when links.next is absent.
+  // A partial first page MUST NOT be used to decide a database is absent.
+  if (!value || Array.isArray(value) || typeof value !== "object" ||
+      !value.meta || typeof value.meta !== "object")
+    throw refuse("hostinger_inventory_pagination_metadata_missing",502);
+  const {current_page:page,per_page:pageSize,total}=value.meta;
+  if (!Number.isSafeInteger(page) || page!==1 ||
+      !Number.isSafeInteger(pageSize) || pageSize<1 || pageSize>1000 ||
+      !Number.isSafeInteger(total) || total<0 ||
+      rows.length!==total || rows.length>pageSize ||
+      value.links?.next || value.next_page_url || value.meta?.next_page)
     throw refuse("hostinger_inventory_pagination_unverified",502);
-  }
   return rows.map(row=>{
     if (!row || typeof row !== "object" || typeof row.name !== "string" ||
         !DATABASE.test(row.name)) throw refuse("hostinger_inventory_record_invalid",502);
