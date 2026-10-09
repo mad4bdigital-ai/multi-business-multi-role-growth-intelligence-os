@@ -129,7 +129,7 @@
             "The final required main status is emitted by the trusted GitHub App, not by PR-controlled workflow code.",
             "Repository native auto-merge must be disabled before main automated finalization; generated writers cannot register auto-merge and the finalizer never uses --auto.",
             "The finalizer merge actor has no admin/ruleset-bypass path; the active managed Ruleset must contain zero bypass actors and the merge command never uses --admin.",
-            "The finalizer verifier reads active branch rules and the managed Ruleset, requires Derived State Closure to be bound to the exact attestor App id, and requires the exact candidate success status to be created by the status creator returned from the same-cycle attestation.",
+            "The finalizer verifier reads active branch rules and the managed Ruleset; main may opt in to GitHub Any source only when the latest exact candidate success status ID and its creator match the trusted same-cycle attestation, while app-bound policies still require the exact attestor App ID. An unbound Ruleset never proves server-side source restriction.",
             "Main automated finalization is allowed only when manual_count=0 and base SHA, source head SHA, and merge-candidate SHA remain exactly attested; same-cycle merged-state readback is mandatory.",
             "Production generic PR merge is blocked by the App-bound Governed Production Promotion status and same-tree/same-candidate proof; the generic main finalizer merge job does not run for Production.",
             "Workflow count cannot increase while above target, and becomes hard-capped at 160 once the target is reached.",
