@@ -34,4 +34,5 @@ negative("relation escalation","ontology-registry.json",lambda x:x["relations"][
 negative("closed dimensions","ontology-registry.json",lambda x:x.update(custom_dimensions_allowed=False),"extension_locked")
 negative("cyclic packs","profile-packs.json",lambda x:x["profile_packs"][0].update(extends_pack="software_vendor"),"profile_cycle")
 negative("acceptance false pass","workflow.json",lambda x:x["acceptance"][0].update(status="PASS"),"acceptance_false_pass")
+negative("secret value schema", "schemas/candidate-claim.schema.json", lambda x:x["properties"]["candidate"]["properties"]["sensitivity"]["enum"].append("secret"), "secret_candidate_value_schema")
 print("BUSINESS_CONTEXT_SEED_ADVERSARIAL_TESTS: PASS_STATIC_ONLY")
