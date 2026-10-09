@@ -11,6 +11,8 @@ const addSupervisor = read("autopilot-portable-staging/Install-AutonomousSupervi
 const supervisor = read("autopilot-portable-staging/Staging-AutonomousSupervisor.ps1");
 const autoDeploy = read("autopilot-portable-staging/Auto-Deploy-Staging.ps1");
 const doctor = read("autopilot-portable-staging/Staging-Doctor.ps1");
+const additiveInstaller = read("autopilot-portable-staging/Install-AutonomousSupervisorTask.ps1");
+const principalIdentity = read("autopilot-portable-staging/Staging-TaskPrincipalIdentity.ps1");
 const diagnostic = read("autopilot-portable-staging/Staging-ColdBoot-Diagnostics.ps1");
 const readme = read("docs/runbooks/pr8471-windows-coldboot-recovery-20261009.md");
 
@@ -89,15 +91,24 @@ test("operator guide differentiates synthetic contracts from reboot certificate 
   assert.match(readme, /Staging-ColdBoot-Diagnostics\.ps1/);
   assert.match(readme, /native Windows reboot/i);
   assert.match(readme, /NO PRODUCTION PROMOTION/i);
+  assert.match(readme, /PSSecurityException/);
+  assert.match(readme, /-ExecutionPolicy Bypass -File \$Installer/);
+  assert.match(readme, /\$LASTEXITCODE -ne 0/);
+  assert.match(readme, /Get-ScheduledTask -TaskName "MAD4B Staging Autonomous Supervisor"/);
+  assert.match(readme, /Get-ExecutionPolicy -List/);
+  assert.match(readme, /MachinePolicy/);
+  assert.match(readme, /do not use `Set-ExecutionPolicy/);
+  assert.match(readme, /Unexpected watcher principal\/actions/);
+  assert.match(readme, /SameWindowsSID/);
 });
 
 
 const matrix = JSON.parse(read("http-generic-api/config/pr8471-windows-coldboot-scenarios.json"));
-test("eight additional cold-boot scenarios require independent native proof", () => {
+test("ten additional cold-boot scenarios require independent native proof", () => {
   assert.equal(matrix.contract, "mad4b.pr8471-windows-coldboot-scenarios.v1");
   assert.equal(matrix.environment, "staging");
   assert.equal(matrix.native_reboot_certificate, "missing");
-  assert.equal(matrix.scenarios.length, 8);
+  assert.equal(matrix.scenarios.length, 10);
   const ids = new Set();
   for (const row of matrix.scenarios) {
     assert.match(row.id, /^windows_boot\.[a-z][a-z0-9_]+$/);
@@ -109,6 +120,22 @@ test("eight additional cold-boot scenarios require independent native proof", ()
     assert.equal(row.secrets_included, false);
   }
   assert.equal(matrix.production_promotion_authorized, false);
+});
+
+test("watcher identity mismatch is separately diagnosable without task mutation", () => {
+  assert.match(additiveInstaller, /\[switch\]\$DiagnoseOnly/);
+  assert.match(additiveInstaller, /watcher_principal_sid_mismatch/);
+  assert.match(additiveInstaller, /watcher_action_count_invalid/);
+  assert.match(additiveInstaller, /watcher_noninteractive_logon/);
+  assert.match(additiveInstaller, /watcher_exact_arguments_verified/);
+  assert.match(additiveInstaller, /Test-StagingTaskPrincipalIsCurrentUser/);
+  assert.match(principalIdentity, /WindowsIdentity\]::GetCurrent\(\)\.User\.Value/);
+  assert.match(principalIdentity, /NTAccount/);
+  assert.match(principalIdentity, /SecurityIdentifier/);
+  assert(additiveInstaller.indexOf("if ($DiagnoseOnly)") < additiveInstaller.indexOf("Register-ScheduledTask"),
+    "diagnosis must return without registering a task");
+  assert.match(additiveInstaller, /production_mutation_allowed = \$false/);
+  assert.equal(matrix.scenarios.some(x=>x.id==="windows_boot.watcher_principal_or_actions_drift"),true);
 });
 
 console.log("STAGING_COLDBOOT_SOURCE_CONTRACTS: available; live Windows reboot certification remains unproven");

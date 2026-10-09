@@ -1,0 +1,1059 @@
+{
+  "schema_version": 1,
+  "feature_key": "022-governed-recovery-orchestrator",
+  "review_state": "ready_for_implementation",
+  "registry": {
+    "fingerprint": "bcd6f19ee97a5108ecd040b157c3f0e1c27101a3238b34878af7f3b775db1cf0",
+    "index_source_hash": "7773b8dfa63ef73d4b917b13f5ea510562871e078d0812679208686d6dc9c300",
+    "coverage_source_hash": "c4494c1a46b32fd4c33543da71b11cb7061123a5d72121d2897847224271bc7f",
+    "map_count": 19,
+    "domain_count": 16,
+    "uncategorized_count": 0,
+    "taxonomy_gap_cluster_count": 0
+  },
+  "work_map_decisions": {
+    "activation-access-map": {
+      "decision": "not_applicable",
+      "rationale": "Feature 022 does not create activation entitlements or alter activation gate decisions; capability inventory is admin-only and execution-authority-free.",
+      "owner": "platform-team",
+      "evidence_refs": [
+        "specs/022-governed-recovery-orchestrator/spec.md",
+        "specs/022-governed-recovery-orchestrator/plan.md",
+        "specs/022-governed-recovery-orchestrator/tasks.md",
+        "specs/022-governed-recovery-orchestrator/contracts.md",
+        "specs/022-governed-recovery-orchestrator/e2e-phases.json"
+      ],
+      "depends_on": [],
+      "non_applicability_evidence": [
+        "specs/022-governed-recovery-orchestrator/spec.md",
+        "specs/022-governed-recovery-orchestrator/plan.md"
+      ]
+    },
+    "activation-onboarding-map": {
+      "decision": "not_applicable",
+      "rationale": "No activation, tenant signup, onboarding or client registration flow is introduced by source-only Recovery Orchestrator.",
+      "owner": "platform-team",
+      "evidence_refs": [
+        "specs/022-governed-recovery-orchestrator/spec.md",
+        "specs/022-governed-recovery-orchestrator/plan.md",
+        "specs/022-governed-recovery-orchestrator/tasks.md",
+        "specs/022-governed-recovery-orchestrator/contracts.md",
+        "specs/022-governed-recovery-orchestrator/e2e-phases.json"
+      ],
+      "depends_on": [],
+      "non_applicability_evidence": [
+        "specs/022-governed-recovery-orchestrator/spec.md",
+        "specs/022-governed-recovery-orchestrator/plan.md"
+      ]
+    },
+    "agent-skill-plugin-map": {
+      "decision": "not_applicable",
+      "rationale": "No model-directed tool privileges, plugin activation or installation is permitted; future adapters remain explicit trusted server composition.",
+      "owner": "platform-team",
+      "evidence_refs": [
+        "specs/022-governed-recovery-orchestrator/spec.md",
+        "specs/022-governed-recovery-orchestrator/plan.md",
+        "specs/022-governed-recovery-orchestrator/tasks.md",
+        "specs/022-governed-recovery-orchestrator/contracts.md",
+        "specs/022-governed-recovery-orchestrator/e2e-phases.json"
+      ],
+      "depends_on": [],
+      "non_applicability_evidence": [
+        "specs/022-governed-recovery-orchestrator/spec.md",
+        "specs/022-governed-recovery-orchestrator/plan.md"
+      ]
+    },
+    "asset-package-map": {
+      "decision": "not_applicable",
+      "rationale": "Plans and evidence are operational records, not asset packages or distribution artifacts; no asset lifecycle is created.",
+      "owner": "platform-team",
+      "evidence_refs": [
+        "specs/022-governed-recovery-orchestrator/spec.md",
+        "specs/022-governed-recovery-orchestrator/plan.md",
+        "specs/022-governed-recovery-orchestrator/tasks.md",
+        "specs/022-governed-recovery-orchestrator/contracts.md",
+        "specs/022-governed-recovery-orchestrator/e2e-phases.json"
+      ],
+      "depends_on": [],
+      "non_applicability_evidence": [
+        "specs/022-governed-recovery-orchestrator/spec.md",
+        "specs/022-governed-recovery-orchestrator/plan.md"
+      ]
+    },
+    "commercial-usage-map": {
+      "decision": "not_applicable",
+      "rationale": "The feature neither prices nor meters recovery; its source-only scope contains no billing, quota, or commercial entitlement adjustment.",
+      "owner": "platform-team",
+      "evidence_refs": [
+        "specs/022-governed-recovery-orchestrator/spec.md",
+        "specs/022-governed-recovery-orchestrator/plan.md",
+        "specs/022-governed-recovery-orchestrator/tasks.md",
+        "specs/022-governed-recovery-orchestrator/contracts.md",
+        "specs/022-governed-recovery-orchestrator/e2e-phases.json"
+      ],
+      "depends_on": [],
+      "non_applicability_evidence": [
+        "specs/022-governed-recovery-orchestrator/spec.md",
+        "specs/022-governed-recovery-orchestrator/plan.md"
+      ]
+    },
+    "connector-provider-map": {
+      "decision": "integrate",
+      "rationale": "Bounded capability descriptors form a generic provider-neutral adapter inventory; no provider connector is authorized to execute until separately certified.",
+      "owner": "platform-team",
+      "evidence_refs": [
+        "specs/022-governed-recovery-orchestrator/spec.md",
+        "specs/022-governed-recovery-orchestrator/plan.md",
+        "specs/022-governed-recovery-orchestrator/tasks.md",
+        "specs/022-governed-recovery-orchestrator/contracts.md",
+        "specs/022-governed-recovery-orchestrator/e2e-phases.json"
+      ],
+      "depends_on": [],
+      "integration_points": [
+        "http-generic-api/recoveryOrchestrator.js",
+        "specs/022-governed-recovery-orchestrator/contracts.md"
+      ],
+      "requirement_refs": [
+        "FR-01",
+        "FR-02",
+        "FR-03",
+        "FR-04",
+        "FR-05",
+        "FR-06",
+        "FR-07",
+        "FR-08",
+        "FR-09",
+        "FR-10"
+      ],
+      "task_refs": [
+        "specs/022-governed-recovery-orchestrator/tasks.md"
+      ],
+      "acceptance_refs": [
+        "http-generic-api/test-recovery-orchestrator.mjs",
+        "http-generic-api/test-recovery-orchestrator-routes.mjs",
+        "specs/022-governed-recovery-orchestrator/e2e-phases.json"
+      ]
+    },
+    "data-model-domain-map": {
+      "decision": "deferred_with_risk",
+      "rationale": "Persistent plan, intent, claim, evidence and lease schemas are specified but no live MariaDB durable schema or migration is delivered in P0.",
+      "owner": "platform-team",
+      "evidence_refs": [
+        "specs/022-governed-recovery-orchestrator/spec.md",
+        "specs/022-governed-recovery-orchestrator/plan.md",
+        "specs/022-governed-recovery-orchestrator/tasks.md",
+        "specs/022-governed-recovery-orchestrator/contracts.md",
+        "specs/022-governed-recovery-orchestrator/e2e-phases.json"
+      ],
+      "depends_on": [],
+      "risk_ref": "specs/022-governed-recovery-orchestrator/tasks.md#blocked-pending-independent-native-evidence",
+      "target_gate": "P1/P2 native staging acceptance before any live provider mutation",
+      "approval_ref": "specs/022-governed-recovery-orchestrator/spec.md#acceptance"
+    },
+    "delivery-support-map": {
+      "decision": "reuse",
+      "rationale": "Recovery uncertainty is explicitly surfaced as UNKNOWN rather than a claimed successful incident resolution; the existing support path remains authoritative.",
+      "owner": "platform-team",
+      "evidence_refs": [
+        "specs/022-governed-recovery-orchestrator/spec.md",
+        "specs/022-governed-recovery-orchestrator/plan.md",
+        "specs/022-governed-recovery-orchestrator/tasks.md",
+        "specs/022-governed-recovery-orchestrator/contracts.md",
+        "specs/022-governed-recovery-orchestrator/e2e-phases.json"
+      ],
+      "depends_on": [],
+      "integration_points": [
+        "specs/022-governed-recovery-orchestrator/spec.md",
+        "http-generic-api/recoveryOrchestrator.js"
+      ],
+      "requirement_refs": [
+        "FR-01",
+        "FR-02",
+        "FR-03",
+        "FR-04",
+        "FR-05",
+        "FR-06",
+        "FR-07",
+        "FR-08",
+        "FR-09",
+        "FR-10"
+      ],
+      "task_refs": [
+        "specs/022-governed-recovery-orchestrator/tasks.md"
+      ],
+      "acceptance_refs": [
+        "http-generic-api/test-recovery-orchestrator.mjs",
+        "http-generic-api/test-recovery-orchestrator-routes.mjs",
+        "specs/022-governed-recovery-orchestrator/e2e-phases.json"
+      ]
+    },
+    "execution-log-evidence-map": {
+      "decision": "integrate",
+      "rationale": "Immutable plan identity, pre-dispatch intent, fenced state and independent readback evidence are bound in the source engine, with native persistent proof deferred.",
+      "owner": "platform-team",
+      "evidence_refs": [
+        "specs/022-governed-recovery-orchestrator/spec.md",
+        "specs/022-governed-recovery-orchestrator/plan.md",
+        "specs/022-governed-recovery-orchestrator/tasks.md",
+        "specs/022-governed-recovery-orchestrator/contracts.md",
+        "specs/022-governed-recovery-orchestrator/e2e-phases.json"
+      ],
+      "depends_on": [],
+      "integration_points": [
+        "http-generic-api/recoveryOrchestrator.js",
+        "http-generic-api/test-recovery-orchestrator.mjs"
+      ],
+      "requirement_refs": [
+        "FR-01",
+        "FR-02",
+        "FR-03",
+        "FR-04",
+        "FR-05",
+        "FR-06",
+        "FR-07",
+        "FR-08",
+        "FR-09",
+        "FR-10"
+      ],
+      "task_refs": [
+        "specs/022-governed-recovery-orchestrator/tasks.md"
+      ],
+      "acceptance_refs": [
+        "http-generic-api/test-recovery-orchestrator.mjs",
+        "http-generic-api/test-recovery-orchestrator-routes.mjs",
+        "specs/022-governed-recovery-orchestrator/e2e-phases.json"
+      ]
+    },
+    "migration-lifecycle-map": {
+      "decision": "deferred_with_risk",
+      "rationale": "P0 adds no schema migration or grant repair. The native durable Recovery store and migration validation require a subsequent governed deployment gate.",
+      "owner": "platform-team",
+      "evidence_refs": [
+        "specs/022-governed-recovery-orchestrator/spec.md",
+        "specs/022-governed-recovery-orchestrator/plan.md",
+        "specs/022-governed-recovery-orchestrator/tasks.md",
+        "specs/022-governed-recovery-orchestrator/contracts.md",
+        "specs/022-governed-recovery-orchestrator/e2e-phases.json"
+      ],
+      "depends_on": [],
+      "risk_ref": "specs/022-governed-recovery-orchestrator/tasks.md#blocked-pending-independent-native-evidence",
+      "target_gate": "P1/P2 native staging acceptance before any live provider mutation",
+      "approval_ref": "specs/022-governed-recovery-orchestrator/spec.md#acceptance"
+    },
+    "observability-release-map": {
+      "decision": "reuse",
+      "rationale": "Repository CI and E2E track exact source identity, while Production readiness and Staging runtime certification are deliberately independent.",
+      "owner": "platform-team",
+      "evidence_refs": [
+        "specs/022-governed-recovery-orchestrator/spec.md",
+        "specs/022-governed-recovery-orchestrator/plan.md",
+        "specs/022-governed-recovery-orchestrator/tasks.md",
+        "specs/022-governed-recovery-orchestrator/contracts.md",
+        "specs/022-governed-recovery-orchestrator/e2e-phases.json"
+      ],
+      "depends_on": [],
+      "integration_points": [
+        "specs/022-governed-recovery-orchestrator/e2e-phases.json",
+        ".changes/e2e/post8461-governed-recovery-acceptance.json"
+      ],
+      "requirement_refs": [
+        "FR-01",
+        "FR-02",
+        "FR-03",
+        "FR-04",
+        "FR-05",
+        "FR-06",
+        "FR-07",
+        "FR-08",
+        "FR-09",
+        "FR-10"
+      ],
+      "task_refs": [
+        "specs/022-governed-recovery-orchestrator/tasks.md"
+      ],
+      "acceptance_refs": [
+        "http-generic-api/test-recovery-orchestrator.mjs",
+        "http-generic-api/test-recovery-orchestrator-routes.mjs",
+        "specs/022-governed-recovery-orchestrator/e2e-phases.json"
+      ]
+    },
+    "platform-resource-graph-map": {
+      "decision": "reuse",
+      "rationale": "Existing server-owned resource resolution remains the authority; immutable tenant/resource/fingerprint bindings forbid request-supplied provider targets.",
+      "owner": "platform-team",
+      "evidence_refs": [
+        "specs/022-governed-recovery-orchestrator/spec.md",
+        "specs/022-governed-recovery-orchestrator/plan.md",
+        "specs/022-governed-recovery-orchestrator/tasks.md",
+        "specs/022-governed-recovery-orchestrator/contracts.md",
+        "specs/022-governed-recovery-orchestrator/e2e-phases.json"
+      ],
+      "depends_on": [],
+      "integration_points": [
+        "http-generic-api/recoveryOrchestrator.js",
+        "specs/022-governed-recovery-orchestrator/contracts.md"
+      ],
+      "requirement_refs": [
+        "FR-01",
+        "FR-02",
+        "FR-03",
+        "FR-04",
+        "FR-05",
+        "FR-06",
+        "FR-07",
+        "FR-08",
+        "FR-09",
+        "FR-10"
+      ],
+      "task_refs": [
+        "specs/022-governed-recovery-orchestrator/tasks.md"
+      ],
+      "acceptance_refs": [
+        "http-generic-api/test-recovery-orchestrator.mjs",
+        "http-generic-api/test-recovery-orchestrator-routes.mjs",
+        "specs/022-governed-recovery-orchestrator/e2e-phases.json"
+      ]
+    },
+    "platform-runtime-map": {
+      "decision": "integrate",
+      "rationale": "A strictly admin-authenticated read-only capability discovery route mounts into the existing runtime; mutation HTTP verbs remain absent.",
+      "owner": "platform-team",
+      "evidence_refs": [
+        "specs/022-governed-recovery-orchestrator/spec.md",
+        "specs/022-governed-recovery-orchestrator/plan.md",
+        "specs/022-governed-recovery-orchestrator/tasks.md",
+        "specs/022-governed-recovery-orchestrator/contracts.md",
+        "specs/022-governed-recovery-orchestrator/e2e-phases.json"
+      ],
+      "depends_on": [],
+      "integration_points": [
+        "http-generic-api/routes/recoveryOrchestratorRoutes.js",
+        "http-generic-api/routes/index.js",
+        "http-generic-api/test-recovery-orchestrator-routes.mjs"
+      ],
+      "requirement_refs": [
+        "FR-01",
+        "FR-02",
+        "FR-03",
+        "FR-04",
+        "FR-05",
+        "FR-06",
+        "FR-07",
+        "FR-08",
+        "FR-09",
+        "FR-10"
+      ],
+      "task_refs": [
+        "specs/022-governed-recovery-orchestrator/tasks.md"
+      ],
+      "acceptance_refs": [
+        "http-generic-api/test-recovery-orchestrator.mjs",
+        "http-generic-api/test-recovery-orchestrator-routes.mjs",
+        "specs/022-governed-recovery-orchestrator/e2e-phases.json"
+      ]
+    },
+    "policy-authority-map": {
+      "decision": "integrate",
+      "rationale": "Exact-plan approval, bounded environment, durable store contract and fencing checks deny execution without independently validated server-owned authority.",
+      "owner": "platform-team",
+      "evidence_refs": [
+        "specs/022-governed-recovery-orchestrator/spec.md",
+        "specs/022-governed-recovery-orchestrator/plan.md",
+        "specs/022-governed-recovery-orchestrator/tasks.md",
+        "specs/022-governed-recovery-orchestrator/contracts.md",
+        "specs/022-governed-recovery-orchestrator/e2e-phases.json"
+      ],
+      "depends_on": [],
+      "integration_points": [
+        "http-generic-api/recoveryOrchestrator.js",
+        "specs/022-governed-recovery-orchestrator/contracts.md"
+      ],
+      "requirement_refs": [
+        "FR-01",
+        "FR-02",
+        "FR-03",
+        "FR-04",
+        "FR-05",
+        "FR-06",
+        "FR-07",
+        "FR-08",
+        "FR-09",
+        "FR-10"
+      ],
+      "task_refs": [
+        "specs/022-governed-recovery-orchestrator/tasks.md"
+      ],
+      "acceptance_refs": [
+        "http-generic-api/test-recovery-orchestrator.mjs",
+        "http-generic-api/test-recovery-orchestrator-routes.mjs",
+        "specs/022-governed-recovery-orchestrator/e2e-phases.json"
+      ]
+    },
+    "repository-automation-map": {
+      "decision": "integrate",
+      "rationale": "The feature extends source-governed E2E journeys and test authority inventory, without granting the CI runner operational recovery powers.",
+      "owner": "platform-team",
+      "evidence_refs": [
+        "specs/022-governed-recovery-orchestrator/spec.md",
+        "specs/022-governed-recovery-orchestrator/plan.md",
+        "specs/022-governed-recovery-orchestrator/tasks.md",
+        "specs/022-governed-recovery-orchestrator/contracts.md",
+        "specs/022-governed-recovery-orchestrator/e2e-phases.json"
+      ],
+      "depends_on": [],
+      "integration_points": [
+        "specs/022-governed-recovery-orchestrator/e2e-phases.json",
+        ".github/governance/test-authority-registry.json"
+      ],
+      "requirement_refs": [
+        "FR-01",
+        "FR-02",
+        "FR-03",
+        "FR-04",
+        "FR-05",
+        "FR-06",
+        "FR-07",
+        "FR-08",
+        "FR-09",
+        "FR-10"
+      ],
+      "task_refs": [
+        "specs/022-governed-recovery-orchestrator/tasks.md"
+      ],
+      "acceptance_refs": [
+        "http-generic-api/test-recovery-orchestrator.mjs",
+        "http-generic-api/test-recovery-orchestrator-routes.mjs",
+        "specs/022-governed-recovery-orchestrator/e2e-phases.json"
+      ]
+    },
+    "repository-development-map": {
+      "decision": "reuse",
+      "rationale": "Feature Spec Kit, source tests and synthetic negative-path coverage are version controlled; source pass is not equal to operational acceptance.",
+      "owner": "platform-team",
+      "evidence_refs": [
+        "specs/022-governed-recovery-orchestrator/spec.md",
+        "specs/022-governed-recovery-orchestrator/plan.md",
+        "specs/022-governed-recovery-orchestrator/tasks.md",
+        "specs/022-governed-recovery-orchestrator/contracts.md",
+        "specs/022-governed-recovery-orchestrator/e2e-phases.json"
+      ],
+      "depends_on": [],
+      "integration_points": [
+        "specs/022-governed-recovery-orchestrator/spec.md",
+        "specs/022-governed-recovery-orchestrator/tasks.md",
+        "http-generic-api/test-recovery-orchestrator.mjs"
+      ],
+      "requirement_refs": [
+        "FR-01",
+        "FR-02",
+        "FR-03",
+        "FR-04",
+        "FR-05",
+        "FR-06",
+        "FR-07",
+        "FR-08",
+        "FR-09",
+        "FR-10"
+      ],
+      "task_refs": [
+        "specs/022-governed-recovery-orchestrator/tasks.md"
+      ],
+      "acceptance_refs": [
+        "http-generic-api/test-recovery-orchestrator.mjs",
+        "http-generic-api/test-recovery-orchestrator-routes.mjs",
+        "specs/022-governed-recovery-orchestrator/e2e-phases.json"
+      ]
+    },
+    "session-memory-map": {
+      "decision": "not_applicable",
+      "rationale": "No conversation memory, end-user session persistence, or model state is introduced; durable operation journals are isolated recovery records.",
+      "owner": "platform-team",
+      "evidence_refs": [
+        "specs/022-governed-recovery-orchestrator/spec.md",
+        "specs/022-governed-recovery-orchestrator/plan.md",
+        "specs/022-governed-recovery-orchestrator/tasks.md",
+        "specs/022-governed-recovery-orchestrator/contracts.md",
+        "specs/022-governed-recovery-orchestrator/e2e-phases.json"
+      ],
+      "depends_on": [],
+      "non_applicability_evidence": [
+        "specs/022-governed-recovery-orchestrator/spec.md",
+        "specs/022-governed-recovery-orchestrator/plan.md"
+      ]
+    },
+    "work-map-coverage-matrix": {
+      "decision": "reuse",
+      "rationale": "Feature 022 explicitly classifies every currently registered Work Map and schema domain rather than inventing a parallel taxonomy.",
+      "owner": "platform-team",
+      "evidence_refs": [
+        "specs/022-governed-recovery-orchestrator/spec.md",
+        "specs/022-governed-recovery-orchestrator/plan.md",
+        "specs/022-governed-recovery-orchestrator/tasks.md",
+        "specs/022-governed-recovery-orchestrator/contracts.md",
+        "specs/022-governed-recovery-orchestrator/e2e-phases.json"
+      ],
+      "depends_on": [],
+      "integration_points": [
+        "specs/022-governed-recovery-orchestrator/work-map-integration.json",
+        "docs/work-maps/work-map-coverage-matrix.md"
+      ],
+      "requirement_refs": [
+        "FR-01",
+        "FR-02",
+        "FR-03",
+        "FR-04",
+        "FR-05",
+        "FR-06",
+        "FR-07",
+        "FR-08",
+        "FR-09",
+        "FR-10"
+      ],
+      "task_refs": [
+        "specs/022-governed-recovery-orchestrator/tasks.md"
+      ],
+      "acceptance_refs": [
+        "http-generic-api/test-recovery-orchestrator.mjs",
+        "http-generic-api/test-recovery-orchestrator-routes.mjs",
+        "specs/022-governed-recovery-orchestrator/e2e-phases.json"
+      ]
+    },
+    "workflow-task-orchestration-map": {
+      "decision": "integrate",
+      "rationale": "Source orchestration coordinates discover, plan, approval, claim, intent, fenced dispatch, independent verification and UNKNOWN reconciliation.",
+      "owner": "platform-team",
+      "evidence_refs": [
+        "specs/022-governed-recovery-orchestrator/spec.md",
+        "specs/022-governed-recovery-orchestrator/plan.md",
+        "specs/022-governed-recovery-orchestrator/tasks.md",
+        "specs/022-governed-recovery-orchestrator/contracts.md",
+        "specs/022-governed-recovery-orchestrator/e2e-phases.json"
+      ],
+      "depends_on": [],
+      "integration_points": [
+        "http-generic-api/recoveryOrchestrator.js",
+        "specs/022-governed-recovery-orchestrator/plan.md"
+      ],
+      "requirement_refs": [
+        "FR-01",
+        "FR-02",
+        "FR-03",
+        "FR-04",
+        "FR-05",
+        "FR-06",
+        "FR-07",
+        "FR-08",
+        "FR-09",
+        "FR-10"
+      ],
+      "task_refs": [
+        "specs/022-governed-recovery-orchestrator/tasks.md"
+      ],
+      "acceptance_refs": [
+        "http-generic-api/test-recovery-orchestrator.mjs",
+        "http-generic-api/test-recovery-orchestrator-routes.mjs",
+        "specs/022-governed-recovery-orchestrator/e2e-phases.json"
+      ]
+    }
+  },
+  "domain_decisions": {
+    "activation-and-onboarding": {
+      "decision": "not_applicable",
+      "rationale": "Recovery capability discovery cannot grant activation or change onboarding state; activation ownership is preserved unchanged.",
+      "owner": "platform-team",
+      "evidence_refs": [
+        "specs/022-governed-recovery-orchestrator/spec.md",
+        "specs/022-governed-recovery-orchestrator/plan.md",
+        "specs/022-governed-recovery-orchestrator/tasks.md",
+        "specs/022-governed-recovery-orchestrator/contracts.md",
+        "specs/022-governed-recovery-orchestrator/e2e-phases.json"
+      ],
+      "depends_on": [],
+      "non_applicability_evidence": [
+        "specs/022-governed-recovery-orchestrator/spec.md",
+        "specs/022-governed-recovery-orchestrator/plan.md"
+      ]
+    },
+    "agents-and-intelligence": {
+      "decision": "not_applicable",
+      "rationale": "The orchestrator neither runs autonomous agents nor registers intelligent skills with write authority.",
+      "owner": "platform-team",
+      "evidence_refs": [
+        "specs/022-governed-recovery-orchestrator/spec.md",
+        "specs/022-governed-recovery-orchestrator/plan.md",
+        "specs/022-governed-recovery-orchestrator/tasks.md",
+        "specs/022-governed-recovery-orchestrator/contracts.md",
+        "specs/022-governed-recovery-orchestrator/e2e-phases.json"
+      ],
+      "depends_on": [],
+      "non_applicability_evidence": [
+        "specs/022-governed-recovery-orchestrator/spec.md",
+        "specs/022-governed-recovery-orchestrator/plan.md"
+      ]
+    },
+    "assets-and-packages": {
+      "decision": "not_applicable",
+      "rationale": "No artifact distribution lifecycle or shared asset-package schema is altered.",
+      "owner": "platform-team",
+      "evidence_refs": [
+        "specs/022-governed-recovery-orchestrator/spec.md",
+        "specs/022-governed-recovery-orchestrator/plan.md",
+        "specs/022-governed-recovery-orchestrator/tasks.md",
+        "specs/022-governed-recovery-orchestrator/contracts.md",
+        "specs/022-governed-recovery-orchestrator/e2e-phases.json"
+      ],
+      "depends_on": [],
+      "non_applicability_evidence": [
+        "specs/022-governed-recovery-orchestrator/spec.md",
+        "specs/022-governed-recovery-orchestrator/plan.md"
+      ]
+    },
+    "brand-and-business": {
+      "decision": "not_applicable",
+      "rationale": "The generic engine introduces no brand, client business, product or marketing data schema.",
+      "owner": "platform-team",
+      "evidence_refs": [
+        "specs/022-governed-recovery-orchestrator/spec.md",
+        "specs/022-governed-recovery-orchestrator/plan.md",
+        "specs/022-governed-recovery-orchestrator/tasks.md",
+        "specs/022-governed-recovery-orchestrator/contracts.md",
+        "specs/022-governed-recovery-orchestrator/e2e-phases.json"
+      ],
+      "depends_on": [],
+      "non_applicability_evidence": [
+        "specs/022-governed-recovery-orchestrator/spec.md",
+        "specs/022-governed-recovery-orchestrator/plan.md"
+      ]
+    },
+    "commercial-and-usage": {
+      "decision": "not_applicable",
+      "rationale": "There are no metering, revenue, billing, or usage-entitlement changes in this source delivery.",
+      "owner": "platform-team",
+      "evidence_refs": [
+        "specs/022-governed-recovery-orchestrator/spec.md",
+        "specs/022-governed-recovery-orchestrator/plan.md",
+        "specs/022-governed-recovery-orchestrator/tasks.md",
+        "specs/022-governed-recovery-orchestrator/contracts.md",
+        "specs/022-governed-recovery-orchestrator/e2e-phases.json"
+      ],
+      "depends_on": [],
+      "non_applicability_evidence": [
+        "specs/022-governed-recovery-orchestrator/spec.md",
+        "specs/022-governed-recovery-orchestrator/plan.md"
+      ]
+    },
+    "connectors-and-providers": {
+      "decision": "integrate",
+      "rationale": "Typed server-owned capability registry enumerates supported provider/resource operations without giving a caller write authority.",
+      "owner": "platform-team",
+      "evidence_refs": [
+        "specs/022-governed-recovery-orchestrator/spec.md",
+        "specs/022-governed-recovery-orchestrator/plan.md",
+        "specs/022-governed-recovery-orchestrator/tasks.md",
+        "specs/022-governed-recovery-orchestrator/contracts.md",
+        "specs/022-governed-recovery-orchestrator/e2e-phases.json"
+      ],
+      "depends_on": [],
+      "integration_points": [
+        "http-generic-api/recoveryOrchestrator.js",
+        "specs/022-governed-recovery-orchestrator/contracts.md"
+      ],
+      "requirement_refs": [
+        "FR-01",
+        "FR-02",
+        "FR-03",
+        "FR-04",
+        "FR-05",
+        "FR-06",
+        "FR-07",
+        "FR-08",
+        "FR-09",
+        "FR-10"
+      ],
+      "task_refs": [
+        "specs/022-governed-recovery-orchestrator/tasks.md"
+      ],
+      "acceptance_refs": [
+        "http-generic-api/test-recovery-orchestrator.mjs",
+        "http-generic-api/test-recovery-orchestrator-routes.mjs",
+        "specs/022-governed-recovery-orchestrator/e2e-phases.json"
+      ]
+    },
+    "delivery-and-support": {
+      "decision": "reuse",
+      "rationale": "UNKNOWN cases remain unreconciled until independent proof; existing service/support ownership is retained rather than adding a new ticketing system.",
+      "owner": "platform-team",
+      "evidence_refs": [
+        "specs/022-governed-recovery-orchestrator/spec.md",
+        "specs/022-governed-recovery-orchestrator/plan.md",
+        "specs/022-governed-recovery-orchestrator/tasks.md",
+        "specs/022-governed-recovery-orchestrator/contracts.md",
+        "specs/022-governed-recovery-orchestrator/e2e-phases.json"
+      ],
+      "depends_on": [],
+      "integration_points": [
+        "http-generic-api/recoveryOrchestrator.js",
+        "specs/022-governed-recovery-orchestrator/spec.md"
+      ],
+      "requirement_refs": [
+        "FR-01",
+        "FR-02",
+        "FR-03",
+        "FR-04",
+        "FR-05",
+        "FR-06",
+        "FR-07",
+        "FR-08",
+        "FR-09",
+        "FR-10"
+      ],
+      "task_refs": [
+        "specs/022-governed-recovery-orchestrator/tasks.md"
+      ],
+      "acceptance_refs": [
+        "http-generic-api/test-recovery-orchestrator.mjs",
+        "http-generic-api/test-recovery-orchestrator-routes.mjs",
+        "specs/022-governed-recovery-orchestrator/e2e-phases.json"
+      ]
+    },
+    "developer-and-api": {
+      "decision": "integrate",
+      "rationale": "The authenticated admin GET endpoint and its negative-route tests expose read-only diagnostics and explicitly no recovery mutation endpoint.",
+      "owner": "platform-team",
+      "evidence_refs": [
+        "specs/022-governed-recovery-orchestrator/spec.md",
+        "specs/022-governed-recovery-orchestrator/plan.md",
+        "specs/022-governed-recovery-orchestrator/tasks.md",
+        "specs/022-governed-recovery-orchestrator/contracts.md",
+        "specs/022-governed-recovery-orchestrator/e2e-phases.json"
+      ],
+      "depends_on": [],
+      "integration_points": [
+        "http-generic-api/routes/recoveryOrchestratorRoutes.js",
+        "http-generic-api/test-recovery-orchestrator-routes.mjs"
+      ],
+      "requirement_refs": [
+        "FR-01",
+        "FR-02",
+        "FR-03",
+        "FR-04",
+        "FR-05",
+        "FR-06",
+        "FR-07",
+        "FR-08",
+        "FR-09",
+        "FR-10"
+      ],
+      "task_refs": [
+        "specs/022-governed-recovery-orchestrator/tasks.md"
+      ],
+      "acceptance_refs": [
+        "http-generic-api/test-recovery-orchestrator.mjs",
+        "http-generic-api/test-recovery-orchestrator-routes.mjs",
+        "specs/022-governed-recovery-orchestrator/e2e-phases.json"
+      ]
+    },
+    "governance-and-authority": {
+      "decision": "integrate",
+      "rationale": "Source-bound approval, environment restrictions, durable intent and fenced evidence checks enforce fail-closed authority conditions.",
+      "owner": "platform-team",
+      "evidence_refs": [
+        "specs/022-governed-recovery-orchestrator/spec.md",
+        "specs/022-governed-recovery-orchestrator/plan.md",
+        "specs/022-governed-recovery-orchestrator/tasks.md",
+        "specs/022-governed-recovery-orchestrator/contracts.md",
+        "specs/022-governed-recovery-orchestrator/e2e-phases.json"
+      ],
+      "depends_on": [],
+      "integration_points": [
+        "http-generic-api/recoveryOrchestrator.js",
+        "specs/022-governed-recovery-orchestrator/contracts.md"
+      ],
+      "requirement_refs": [
+        "FR-01",
+        "FR-02",
+        "FR-03",
+        "FR-04",
+        "FR-05",
+        "FR-06",
+        "FR-07",
+        "FR-08",
+        "FR-09",
+        "FR-10"
+      ],
+      "task_refs": [
+        "specs/022-governed-recovery-orchestrator/tasks.md"
+      ],
+      "acceptance_refs": [
+        "http-generic-api/test-recovery-orchestrator.mjs",
+        "http-generic-api/test-recovery-orchestrator-routes.mjs",
+        "specs/022-governed-recovery-orchestrator/e2e-phases.json"
+      ]
+    },
+    "migration-and-lifecycle": {
+      "decision": "deferred_with_risk",
+      "rationale": "Native MariaDB storage migrations and rollback/compensation are P1/P2 and cannot be considered implemented by source-only mocks.",
+      "owner": "platform-team",
+      "evidence_refs": [
+        "specs/022-governed-recovery-orchestrator/spec.md",
+        "specs/022-governed-recovery-orchestrator/plan.md",
+        "specs/022-governed-recovery-orchestrator/tasks.md",
+        "specs/022-governed-recovery-orchestrator/contracts.md",
+        "specs/022-governed-recovery-orchestrator/e2e-phases.json"
+      ],
+      "depends_on": [],
+      "risk_ref": "specs/022-governed-recovery-orchestrator/tasks.md#blocked-pending-independent-native-evidence",
+      "target_gate": "P1/P2 native staging acceptance before any live provider mutation",
+      "approval_ref": "specs/022-governed-recovery-orchestrator/spec.md#acceptance"
+    },
+    "observability-and-release": {
+      "decision": "reuse",
+      "rationale": "Exact-head CI test evidence is tracked while native Staging readback and Production promotion stay separately gated.",
+      "owner": "platform-team",
+      "evidence_refs": [
+        "specs/022-governed-recovery-orchestrator/spec.md",
+        "specs/022-governed-recovery-orchestrator/plan.md",
+        "specs/022-governed-recovery-orchestrator/tasks.md",
+        "specs/022-governed-recovery-orchestrator/contracts.md",
+        "specs/022-governed-recovery-orchestrator/e2e-phases.json"
+      ],
+      "depends_on": [],
+      "integration_points": [
+        "specs/022-governed-recovery-orchestrator/e2e-phases.json",
+        "specs/022-governed-recovery-orchestrator/tasks.md"
+      ],
+      "requirement_refs": [
+        "FR-01",
+        "FR-02",
+        "FR-03",
+        "FR-04",
+        "FR-05",
+        "FR-06",
+        "FR-07",
+        "FR-08",
+        "FR-09",
+        "FR-10"
+      ],
+      "task_refs": [
+        "specs/022-governed-recovery-orchestrator/tasks.md"
+      ],
+      "acceptance_refs": [
+        "http-generic-api/test-recovery-orchestrator.mjs",
+        "http-generic-api/test-recovery-orchestrator-routes.mjs",
+        "specs/022-governed-recovery-orchestrator/e2e-phases.json"
+      ]
+    },
+    "platform-resources-and-graph": {
+      "decision": "reuse",
+      "rationale": "Tenant, resource fingerprint and source SHA remain bound to plans without adding unverified platform resource nodes.",
+      "owner": "platform-team",
+      "evidence_refs": [
+        "specs/022-governed-recovery-orchestrator/spec.md",
+        "specs/022-governed-recovery-orchestrator/plan.md",
+        "specs/022-governed-recovery-orchestrator/tasks.md",
+        "specs/022-governed-recovery-orchestrator/contracts.md",
+        "specs/022-governed-recovery-orchestrator/e2e-phases.json"
+      ],
+      "depends_on": [],
+      "integration_points": [
+        "http-generic-api/recoveryOrchestrator.js",
+        "specs/022-governed-recovery-orchestrator/spec.md"
+      ],
+      "requirement_refs": [
+        "FR-01",
+        "FR-02",
+        "FR-03",
+        "FR-04",
+        "FR-05",
+        "FR-06",
+        "FR-07",
+        "FR-08",
+        "FR-09",
+        "FR-10"
+      ],
+      "task_refs": [
+        "specs/022-governed-recovery-orchestrator/tasks.md"
+      ],
+      "acceptance_refs": [
+        "http-generic-api/test-recovery-orchestrator.mjs",
+        "http-generic-api/test-recovery-orchestrator-routes.mjs",
+        "specs/022-governed-recovery-orchestrator/e2e-phases.json"
+      ]
+    },
+    "repository-and-development": {
+      "decision": "integrate",
+      "rationale": "Feature 022 adds explicit Spec Kit artifacts, synthetic tests and governed test-source inventory to the repository.",
+      "owner": "platform-team",
+      "evidence_refs": [
+        "specs/022-governed-recovery-orchestrator/spec.md",
+        "specs/022-governed-recovery-orchestrator/plan.md",
+        "specs/022-governed-recovery-orchestrator/tasks.md",
+        "specs/022-governed-recovery-orchestrator/contracts.md",
+        "specs/022-governed-recovery-orchestrator/e2e-phases.json"
+      ],
+      "depends_on": [],
+      "integration_points": [
+        "specs/022-governed-recovery-orchestrator/e2e-phases.json",
+        "http-generic-api/test-recovery-orchestrator.mjs"
+      ],
+      "requirement_refs": [
+        "FR-01",
+        "FR-02",
+        "FR-03",
+        "FR-04",
+        "FR-05",
+        "FR-06",
+        "FR-07",
+        "FR-08",
+        "FR-09",
+        "FR-10"
+      ],
+      "task_refs": [
+        "specs/022-governed-recovery-orchestrator/tasks.md"
+      ],
+      "acceptance_refs": [
+        "http-generic-api/test-recovery-orchestrator.mjs",
+        "http-generic-api/test-recovery-orchestrator-routes.mjs",
+        "specs/022-governed-recovery-orchestrator/e2e-phases.json"
+      ]
+    },
+    "sessions-and-memory": {
+      "decision": "not_applicable",
+      "rationale": "No durable chat memory or interactive user session data is written by the Recovery Orchestrator.",
+      "owner": "platform-team",
+      "evidence_refs": [
+        "specs/022-governed-recovery-orchestrator/spec.md",
+        "specs/022-governed-recovery-orchestrator/plan.md",
+        "specs/022-governed-recovery-orchestrator/tasks.md",
+        "specs/022-governed-recovery-orchestrator/contracts.md",
+        "specs/022-governed-recovery-orchestrator/e2e-phases.json"
+      ],
+      "depends_on": [],
+      "non_applicability_evidence": [
+        "specs/022-governed-recovery-orchestrator/spec.md",
+        "specs/022-governed-recovery-orchestrator/plan.md"
+      ]
+    },
+    "tenancy-and-identity": {
+      "decision": "reuse",
+      "rationale": "The identity resolver must bind tenant and resource from trusted server context; client-provided identity cannot authorize an operation.",
+      "owner": "platform-team",
+      "evidence_refs": [
+        "specs/022-governed-recovery-orchestrator/spec.md",
+        "specs/022-governed-recovery-orchestrator/plan.md",
+        "specs/022-governed-recovery-orchestrator/tasks.md",
+        "specs/022-governed-recovery-orchestrator/contracts.md",
+        "specs/022-governed-recovery-orchestrator/e2e-phases.json"
+      ],
+      "depends_on": [],
+      "integration_points": [
+        "http-generic-api/recoveryOrchestrator.js",
+        "specs/022-governed-recovery-orchestrator/contracts.md"
+      ],
+      "requirement_refs": [
+        "FR-01",
+        "FR-02",
+        "FR-03",
+        "FR-04",
+        "FR-05",
+        "FR-06",
+        "FR-07",
+        "FR-08",
+        "FR-09",
+        "FR-10"
+      ],
+      "task_refs": [
+        "specs/022-governed-recovery-orchestrator/tasks.md"
+      ],
+      "acceptance_refs": [
+        "http-generic-api/test-recovery-orchestrator.mjs",
+        "http-generic-api/test-recovery-orchestrator-routes.mjs",
+        "specs/022-governed-recovery-orchestrator/e2e-phases.json"
+      ]
+    },
+    "workflow-and-tasks": {
+      "decision": "integrate",
+      "rationale": "Recovery execution is constrained to plan-to-evidence transitions; retry of ambiguous side effects is prohibited.",
+      "owner": "platform-team",
+      "evidence_refs": [
+        "specs/022-governed-recovery-orchestrator/spec.md",
+        "specs/022-governed-recovery-orchestrator/plan.md",
+        "specs/022-governed-recovery-orchestrator/tasks.md",
+        "specs/022-governed-recovery-orchestrator/contracts.md",
+        "specs/022-governed-recovery-orchestrator/e2e-phases.json"
+      ],
+      "depends_on": [],
+      "integration_points": [
+        "http-generic-api/recoveryOrchestrator.js",
+        "specs/022-governed-recovery-orchestrator/plan.md"
+      ],
+      "requirement_refs": [
+        "FR-01",
+        "FR-02",
+        "FR-03",
+        "FR-04",
+        "FR-05",
+        "FR-06",
+        "FR-07",
+        "FR-08",
+        "FR-09",
+        "FR-10"
+      ],
+      "task_refs": [
+        "specs/022-governed-recovery-orchestrator/tasks.md"
+      ],
+      "acceptance_refs": [
+        "http-generic-api/test-recovery-orchestrator.mjs",
+        "http-generic-api/test-recovery-orchestrator-routes.mjs",
+        "specs/022-governed-recovery-orchestrator/e2e-phases.json"
+      ]
+    }
+  },
+  "cross_map_dependencies": [
+    {
+      "from": "policy-authority-map",
+      "to": "connector-provider-map",
+      "reason": "No provider adapter may execute before exact-scope approval and server-managed authority verification."
+    },
+    {
+      "from": "platform-resource-graph-map",
+      "to": "policy-authority-map",
+      "reason": "Plan and approval must bind identical trusted tenant, resource fingerprint, environment and source."
+    },
+    {
+      "from": "workflow-task-orchestration-map",
+      "to": "execution-log-evidence-map",
+      "reason": "Claim and intent evidence must be durable before dispatch, and UNKNOWN must prevent blind retries."
+    },
+    {
+      "from": "data-model-domain-map",
+      "to": "migration-lifecycle-map",
+      "reason": "Future native store schemas require governed migration and independent durable proof before runtime activation."
+    },
+    {
+      "from": "execution-log-evidence-map",
+      "to": "observability-release-map",
+      "reason": "Source tests must not be mistaken for independent runtime success or Production readiness."
+    }
+  ],
+  "dimension_discovery": {
+    "registry_gap_clusters": {},
+    "new_dimension_candidates": [],
+    "unresolved": [],
+    "no_new_dimensions_rationale": "All 19 existing platform Work Maps and 16 schema domains cover this provider-neutral Recovery Orchestrator; proposed native persistence and providers extend existing data, policy, connector and workflow domains, not a new taxonomy."
+  },
+  "implementation_readiness": {
+    "status": "ready",
+    "blocking_dimensions": [],
+    "reviewed_by": "platform-team",
+    "evidence_refs": [
+      "specs/022-governed-recovery-orchestrator/spec.md",
+      "specs/022-governed-recovery-orchestrator/plan.md",
+      "specs/022-governed-recovery-orchestrator/tasks.md",
+      "specs/022-governed-recovery-orchestrator/contracts.md",
+      "specs/022-governed-recovery-orchestrator/e2e-phases.json",
+      "http-generic-api/test-recovery-orchestrator.mjs"
+    ]
+  },
+  "secrets_included": false
+}

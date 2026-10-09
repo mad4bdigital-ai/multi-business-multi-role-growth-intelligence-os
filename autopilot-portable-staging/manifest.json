@@ -22,7 +22,7 @@
     },
     {
       "path": "autopilot-portable-staging/Auto-Deploy-Staging.ps1",
-      "sha256": "e55862437a1f44e09f1b5b6dc7c37e2448c95a0dc8f80bbf82c46cd829477f8d"
+      "sha256": "27bb499f2347fca143ec7171f30ae0b0a9ff5813917d9ac771b4c4751e156bf1"
     },
     {
       "path": "autopilot-portable-staging/Clone-StagingDatabases.ps1",
@@ -30,7 +30,7 @@
     },
     {
       "path": "autopilot-portable-staging/Install-AutoDeployTask.ps1",
-      "sha256": "fd5d3ddf343914a8299dba95a858fd9dd2a98c1a4536a94d7286d1644c87ee29"
+      "sha256": "2e54b2ec80d8da09a88f96956fd37ec26e8eff882a316029ac5f8776ec9da1de"
     },
     {
       "path": "autopilot-portable-staging/One-Click-Staging.ps1",
@@ -46,7 +46,7 @@
     },
     {
       "path": "autopilot-portable-staging/Staging-Doctor.ps1",
-      "sha256": "c13f011b935a056ccdf1008054cbb593ca79ea01f83d288e6cbf42355266dc07"
+      "sha256": "5d8c145c71729319ea6bf47eaa71fdd5b3cb612d4e727fe49da9fd322f2c4a4f"
     },
     {
       "path": "autopilot-portable-staging/Staging-HealthMonitor.ps1",
@@ -150,7 +150,7 @@
     },
     {
       "path": "http-generic-api/frontend-surface-dispatch.generated.json",
-      "sha256": "5bd12ac90ea7fb50f0175d8cac15353c1def272d9f221a86f51f903efeda466f"
+      "sha256": "15a5cb687251ac5b1b5d22057de70db0ae1bbd611d0a495338647bc46bd6c77a"
     },
     {
       "path": "http-generic-api/governanceDb.js",
@@ -170,7 +170,7 @@
     },
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
-      "sha256": "9b6b2363ca872c715521316ebd783dad6730494f8c1f2789bfc9a03ba83ae8f0"
+      "sha256": "f5e69e886c14f51f136a605e3b76f80a15fcd9adbbe3b7afc9cce74a1c873188"
     },
     {
       "path": "http-generic-api/remoteMcpConnectorRuntime.js",
