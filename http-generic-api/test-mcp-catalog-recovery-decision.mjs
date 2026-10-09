@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { classifyMcpCatalogRecoveryReadback, collectMcpCatalogRecoveryDecision } from "./mcpCatalogRecoveryDecision.js";
-import { MCP_CATALOG_TABLES, MCP_CATALOG_LEVEL_MIGRATION_SHA256 } from "./mcpCatalogSchemaGuard.js";
+import { MCP_CATALOG_TABLES, MCP_CATALOG_LEVEL_MIGRATION_SHA256, readMcpCatalogRuntimeIdentity } from "./mcpCatalogSchemaGuard.js";
 
 const identity={ok:true,database_matches:true,principal_matches:true,identity_readback_performed:true};
 const base=()=>({ok:false,identity,tables:MCP_CATALOG_TABLES.map(table=>({
@@ -147,4 +147,18 @@ test("missing exact SQL account identity forbids migration recommendation",async
   });
   assert.equal(d.governed_migration_proposed,false);
   assert.equal(d.status,"diagnosis_blocked");
+});
+
+test("raw Runtime identity cannot report ok for missing or mismatched MariaDB account host",async()=>{
+  const conn=await observedPool(true).getConnection();
+  const correct=await readMcpCatalogRuntimeIdentity({pool:conn,env:liveEnv});
+  assert.equal(correct.ok,true);
+  assert.equal(correct.exact_sql_account_matches,true);
+  const mismatch=await readMcpCatalogRuntimeIdentity({pool:conn,env:{...liveEnv,MCP_RUNTIME_EXPECTED_SQL_ACCOUNT:"runtime_user@%"}});
+  assert.equal(mismatch.ok,false);
+  assert.equal(mismatch.code,"MCP_CATALOG_RUNTIME_SQL_ACCOUNT_MISMATCH");
+  assert.equal(mismatch.principal_matches,true,"matching DB_USER prefix must not confer exact identity");
+  const missing=await readMcpCatalogRuntimeIdentity({pool:conn,env:{DB_NAME:liveEnv.DB_NAME,DB_USER:liveEnv.DB_USER}});
+  assert.equal(missing.ok,false);
+  assert.equal(missing.code,"MCP_CATALOG_RUNTIME_SQL_ACCOUNT_CONFIG_MISSING");
 });
