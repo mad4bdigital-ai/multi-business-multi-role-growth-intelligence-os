@@ -53,8 +53,12 @@ test("database create needs exact provider entitlement, host, absence and separa
     providerAccountEntitlementProven:true,managedCredentialIntakeReady:true,
     exactProductionPlan:true,separateOwnerApproval:true
   });
-  assert.equal(complete.candidate_ready,true);
+  assert.equal(complete.reported_prerequisites_complete,true);
+  assert.equal(complete.account_specific_authority_verified,false);
+  assert.equal(complete.candidate_ready,false);
+  assert.equal(complete.plan_eligible,false);
   assert.equal(complete.execution_allowed,false);
+  assert(complete.blockers.includes("independent_provider_account_proof_and_certified_executor_missing"));
 });
 
 test("blocked Hostinger evaluation never represents a successful execution decision",()=>{
@@ -110,3 +114,17 @@ test("untrusted environment keys and opaque secret reference values fail closed"
     "duplicate_environment_key"
   ));
 });
+
+test("caller-asserted entitlement can never become independent provider account authority",()=>{
+  const untrusted=assessHostingerDatabaseCreate({
+    exactHostingAccount:true,exactWebsiteDomain:true,databaseAbsent:true,
+    providerAccountEntitlementProven:true,managedCredentialIntakeReady:true,
+    exactProductionPlan:true,separateOwnerApproval:true,
+  });
+  assert.equal(untrusted.reported_prerequisites_complete,true);
+  assert.equal(untrusted.account_specific_authority_verified,false);
+  assert.equal(untrusted.candidate_ready,false);
+  assert.equal(untrusted.execution_allowed,false);
+  assert(untrusted.blockers.includes("independent_provider_account_proof_and_certified_executor_missing"));
+});
+
