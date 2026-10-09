@@ -245,7 +245,7 @@ function Assert-CompletedImportLiveReadback(
   Assert-CountExactly (Invoke-DatabaseScalar $runtimeService $ComposeArgs "SELECT COUNT(*) FROM execution_policies WHERE policy_group = 'wordpress_staging_plugin_deploy_governance' AND policy_key = 'wordpress_staging_plugin_deploy_exact_artifact_guard' AND active = 'true'") 1 "completed-state canonical WordPress Staging deploy execution policy" | Out-Null
 
   $catalogRowCounts = Assert-CanonicalCatalogRows $runtimeService $ComposeArgs $CatalogReadbackContract
-  $semanticSnapshotReadback = [ordered]@{
+  $semanticSnapshotReadback = [ordered]@{}
   foreach ($table in @($SemanticSnapshotManifest.tables)) {
     $tableName = [string]$table
     Require ($tableName -match '^[A-Za-z0-9_]+$') "Completed-state semantic snapshot table name is unsafe: $tableName"
