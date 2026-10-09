@@ -8,7 +8,10 @@ const account="u123456789";
 const database="u123456789_recovery";
 const domain="app.example.com";
 const token="server-managed-test-credential-not-exposed";
-const inventory=(names=[database])=>new Response(JSON.stringify({data:names.map(name=>({name}))}),{
+const inventory=(names=[database])=>new Response(JSON.stringify({
+  data:names.map(name=>({name})),
+  meta:{current_page:1,per_page:15,total:names.length}
+}),{
   status:200,headers:{"content-type":"application/json"}
 });
 
@@ -94,9 +97,13 @@ test("provider HTTP 401/403 and redirects cannot be interpreted as capabilities"
 test("malformed, paginated, duplicate or unbounded inventory is never accepted",async()=>{
   for (const data of [
     {items:[{name:database}]},
-    {data:[{name:database}],links:{next:"next-page"}},
-    {data:[{name:database},{name:database}]},
-    {data:[{database_name:database}]}
+    {data:[{name:database}],links:{next:"next-page"},meta:{current_page:1,per_page:1,total:1}},
+    {data:[{name:database}],meta:{current_page:1,per_page:15,total:100}},
+    {data:[{name:database}],meta:{current_page:2,per_page:15,total:1}},
+    {data:[{name:database}],meta:{current_page:1,per_page:15,total:1},links:{next:"page2"}},
+    {data:[],meta:{current_page:1,per_page:15,total:10}},
+    {data:[{name:database},{name:database}],meta:{current_page:1,per_page:15,total:2}},
+    {data:[{database_name:database}],meta:{current_page:1,per_page:15,total:1}}
   ]) {
     const provider=createHostingerReadOnlyTransport({boundAccountUsername:account,
       getManagedToken:async()=>token,
