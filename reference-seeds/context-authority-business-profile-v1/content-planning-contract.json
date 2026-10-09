@@ -1,0 +1,186 @@
+{
+  "contract": "mad4b.reference.business-context.content-planning.v1",
+  "status": "TEMPLATE_ONLY",
+  "canonical_fields": [
+    "asset_key",
+    "campaign_ref",
+    "strategy_ref",
+    "content_pillar_ref",
+    "objective_ref",
+    "funnel_stage_ref",
+    "audience_ref",
+    "persona_ref",
+    "locale",
+    "channel_ref",
+    "format_ref",
+    "writer_brief_ref",
+    "designer_brief_ref",
+    "claim_refs",
+    "source_idea_ref",
+    "creative_version",
+    "schedule_local_date",
+    "schedule_local_time",
+    "schedule_time_zone",
+    "owner_ref",
+    "approval_status",
+    "production_status",
+    "consent_and_rights_status",
+    "publication_receipt_ref"
+  ],
+  "source_import": {
+    "recognized_shapes": [
+      "date_first_six_column_calendar",
+      "title_first_six_column_calendar",
+      "wide_multi_channel_calendar",
+      "multi_tab_planning_notebook",
+      "style_catalog_bilingual",
+      "persona_by_stage_matrix"
+    ],
+    "column_alias_map": {
+      "date": [
+        "Date",
+        "Day Count",
+        "schedule_date"
+      ],
+      "title": [
+        "Content Title",
+        "Content Blog Article",
+        "idea"
+      ],
+      "format": [
+        "Format",
+        "Content Format"
+      ],
+      "channel": [
+        "Channel",
+        "platform"
+      ],
+      "writer_brief": [
+        "Writer Brief"
+      ],
+      "designer_brief": [
+        "Designer Brief"
+      ],
+      "stage": [
+        "Funnel Stage",
+        "Marketing Stage",
+        "المرحلة"
+      ],
+      "persona": [
+        "Persona",
+        "المستهدف"
+      ],
+      "style": [
+        "Writing Style",
+        "الأسلوب"
+      ],
+      "hook": [
+        "hook"
+      ]
+    },
+    "import_mode": "CANDIDATE_ONLY",
+    "infer_header_by_source_and_tab": true,
+    "raw_text_as_instruction": false
+  },
+  "quality_flags": [
+    {
+      "code": "MISLEADING_PLAN_SIZE",
+      "reason": "Declared calendar horizon differs from actual dated rows",
+      "default_action": "REVIEW_REQUIRED",
+      "override_allowed": false
+    },
+    {
+      "code": "DUPLICATE_DAY",
+      "reason": "Repeated day id across mixed stages without unique keys",
+      "default_action": "REVIEW_REQUIRED",
+      "override_allowed": false
+    },
+    {
+      "code": "REPEATED_COPY",
+      "reason": "Near-identical hooks or captions reused across dates",
+      "default_action": "REVIEW_REQUIRED",
+      "override_allowed": false
+    },
+    {
+      "code": "PLACEHOLDER_TITLE",
+      "reason": "Generic numbered Idea title in publishable row",
+      "default_action": "REVIEW_REQUIRED",
+      "override_allowed": false
+    },
+    {
+      "code": "MISSING_SEGMENT_STAGE_CELL",
+      "reason": "Sparse persona-by-stage rows",
+      "default_action": "REVIEW_REQUIRED",
+      "override_allowed": false
+    },
+    {
+      "code": "MIXED_TABLE_IN_ONE_TAB",
+      "reason": "Tab contains planning prompts, data and table restarts",
+      "default_action": "REVIEW_REQUIRED",
+      "override_allowed": false
+    },
+    {
+      "code": "OUTDATED_DATE",
+      "reason": "Proposed historical date requires rescheduling approval",
+      "default_action": "REVIEW_REQUIRED",
+      "override_allowed": false
+    },
+    {
+      "code": "UNVERIFIED_NUMERIC_CLAIM",
+      "reason": "Uncorroborated metrics or guaranteed outcomes",
+      "default_action": "REVIEW_REQUIRED",
+      "override_allowed": false
+    },
+    {
+      "code": "UNVERIFIED_OFFER",
+      "reason": "Trial, price or deadline without active offer evidence",
+      "default_action": "REVIEW_REQUIRED",
+      "override_allowed": false
+    },
+    {
+      "code": "FORMAT_PLATFORM_MISMATCH",
+      "reason": "Duration, aspect ratio, text limit or template mismatch",
+      "default_action": "REVIEW_REQUIRED",
+      "override_allowed": false
+    },
+    {
+      "code": "CROSS_BRAND_CONTENT",
+      "reason": "Unscoped source references or inappropriate inherited persona",
+      "default_action": "REVIEW_REQUIRED",
+      "override_allowed": false
+    },
+    {
+      "code": "TRANSLATION_PARITY",
+      "reason": "Arabic/English claim and CTA difference",
+      "default_action": "REVIEW_REQUIRED",
+      "override_allowed": false
+    },
+    {
+      "code": "RESTRICTED_DATA",
+      "reason": "Private contact list or credentials in source",
+      "default_action": "REVIEW_REQUIRED",
+      "override_allowed": false
+    },
+    {
+      "code": "SPAM_RISK",
+      "reason": "Unconsented outbound, excessive cadence, duplicated community post",
+      "default_action": "REVIEW_REQUIRED",
+      "override_allowed": false
+    }
+  ],
+  "schedule_rules": {
+    "source_dates_do_not_auto_publish": true,
+    "frequency_is_a_testable_plan_not_platform_limit": true,
+    "cadence_requires_owner_and_capacity": true,
+    "timezone_mandatory": true,
+    "no_generated_date_from_day_label_without_anchor": true
+  },
+  "field_controls": {
+    "source_revision_and_import_sha": "MUST_PRESERVE",
+    "item_id": "DETERMINISTIC_PER_SOURCE_AND_ROW",
+    "duplicate_detection": "NORMALIZED_TITLE_PLUS_AUDIENCE_STAGE_FORMAT",
+    "source_language": "NO_IMPLICIT_TRANSLATION"
+  },
+  "seed_sample_values_included": false,
+  "publication_enabled": false
+}

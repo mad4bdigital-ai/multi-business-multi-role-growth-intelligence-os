@@ -1,7 +1,7 @@
 {
   "contract": "mad4b.reference.business-context.seed.v1",
   "seed_key": "reference.context_authority_business_profile",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "status": "DRAFT_NON_AUTHORIZING",
   "artifact_type": "portable_reference_seed",
   "scope": "general_any_business",
@@ -29,8 +29,18 @@
     "schemas/candidate-claim.schema.json",
     "integration.md",
     "tools/validate_seed.py",
-    "tools/test_seed.py"
+    "tools/test_seed.py",
+    "content-strategy-registry.json",
+    "editorial-style-registry.json",
+    "personalization-rules.json",
+    "content-blueprints.json",
+    "content-planning-contract.json",
+    "docs/source-pattern-audit-2026-10-10.md",
+    "tools/validate_content_fabric.py",
+    "tools/test_content_fabric.py"
   ],
   "acceptance_state": "NOT_RUN",
-  "installed_state": "NOT_INSTALLED"
+  "installed_state": "NOT_INSTALLED",
+  "content_fabric_status": "TEMPLATE_ONLY",
+  "content_fabric_acceptance": "NOT_RUN"
 }

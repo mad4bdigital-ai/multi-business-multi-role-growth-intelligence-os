@@ -53,3 +53,18 @@ Separate `marketing example`, `owner-approved narrative`, `product capability`, 
 Twelve OPEN acceptance scenarios cover non-leakage, schema growth, contradiction, field ownership, scope isolation, immutable restrictions, non-authorizing context, source drift, provider plug-ins, secret quarantine and owner review. `tools/validate_seed.py` and `tools/test_seed.py` validate **source structure only**. These do not prove online operational readiness.
 
 No live imports, Staging application, WordPress changes, policy activation, SQL seed insertions, or production actions are included. Future implementation may expose adapter translators to the platform registries, but this seed has no hard dependency on old Spec 014 or Spec 012 contracts.
+
+
+## Content strategy, editorial intelligence and personalization extension
+
+A deeper review of the owner's strategy/Sheets/template library produced a **sector-neutral** content fabric, not a clone of the source company's campaign calendars. All new files are draft configurations, not ready-to-send content.
+
+- \`content-strategy-registry.json\` separates funnel/journey stages, content pillars, channel roles, tactics and metric objectives.
+- \`editorial-style-registry.json\` normalizes stylistic families (including direct, analytical, storytelling, comparison, demonstration and moderated urgency) and defines non-negotiable evidence/copy restrictions.
+- \`personalization-rules.json\` makes 22 dimensions optional and composable by brand, business activity, persona, locale, role, channel, stage, format, visual/audio treatment and consent. Policy conflicts block instead of using fixed global precedence between Drive/WordPress.
+- \`content-blueprints.json\` defines 15 content formats, including writer/designer briefs, platform variants, message sequences, sales decks and evidence-bound case studies.
+- \`content-planning-contract.json\` defines import adapters for multiple CSV/Sheets structures, anti-placeholder/duplication checks, source-aware rescheduling and no-autopublish protections.
+- \`docs/source-pattern-audit-2026-10-10.md\` records verified shape/quality observations **without private Drive identifiers or copied business facts**.
+- \`tools/validate_content_fabric.py\` and \`tools/test_content_fabric.py\` provide additional offline-only structural and adversarial checks. The main seed validator delegates to them.
+
+This preserves the difference between *learned structure*, *candidate template*, *verified brand context*, and *runtime execution permission*. No source library file is a direct policy or permission grant.

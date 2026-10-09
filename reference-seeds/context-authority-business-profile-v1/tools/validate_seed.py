@@ -42,7 +42,7 @@ def validate(root=ROOT):
         if manifest.get(key) != val:
             faults.append("unsafe_manifest:" + key)
     paths = manifest.get("files", [])
-    if not isinstance(paths, list) or len(paths) != 12 or len(paths) != len(set(paths)):
+    if not isinstance(paths, list) or len(paths) != 20 or len(paths) != len(set(paths)):
         faults.append("invalid_manifest_file_list")
         paths = []
     for rel in paths:
@@ -123,6 +123,12 @@ def validate(root=ROOT):
         faults.append("candidate_schema_unsafe")
     if "secret" in schema.get("properties", {}).get("candidate", {}).get("properties", {}).get("sensitivity", {}).get("enum", []):
         faults.append("secret_candidate_value_schema")
+    # Content extensions are independent data contracts, still non-executable.
+    try:
+        from validate_content_fabric import validate as validate_content_fabric
+        faults.extend(validate_content_fabric(root))
+    except (ValueError, OSError, ImportError) as exc:
+        faults.append("content_validator_unavailable:" + type(exc).__name__)
     return sorted(set(faults))
 
 if __name__ == "__main__":
