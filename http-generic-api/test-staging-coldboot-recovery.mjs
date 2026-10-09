@@ -89,15 +89,22 @@ test("operator guide differentiates synthetic contracts from reboot certificate 
   assert.match(readme, /Staging-ColdBoot-Diagnostics\.ps1/);
   assert.match(readme, /native Windows reboot/i);
   assert.match(readme, /NO PRODUCTION PROMOTION/i);
+  assert.match(readme, /PSSecurityException/);
+  assert.match(readme, /-ExecutionPolicy Bypass -File \$Installer/);
+  assert.match(readme, /\$LASTEXITCODE -ne 0/);
+  assert.match(readme, /Get-ScheduledTask -TaskName "MAD4B Staging Autonomous Supervisor"/);
+  assert.match(readme, /Get-ExecutionPolicy -List/);
+  assert.match(readme, /MachinePolicy/);
+  assert.match(readme, /do not use `Set-ExecutionPolicy/);
 });
 
 
 const matrix = JSON.parse(read("http-generic-api/config/pr8471-windows-coldboot-scenarios.json"));
-test("eight additional cold-boot scenarios require independent native proof", () => {
+test("nine additional cold-boot scenarios require independent native proof", () => {
   assert.equal(matrix.contract, "mad4b.pr8471-windows-coldboot-scenarios.v1");
   assert.equal(matrix.environment, "staging");
   assert.equal(matrix.native_reboot_certificate, "missing");
-  assert.equal(matrix.scenarios.length, 8);
+  assert.equal(matrix.scenarios.length, 9);
   const ids = new Set();
   for (const row of matrix.scenarios) {
     assert.match(row.id, /^windows_boot\.[a-z][a-z0-9_]+$/);
