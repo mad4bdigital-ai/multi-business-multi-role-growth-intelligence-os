@@ -596,6 +596,7 @@
     ".github/governance/verifier-registry.json",
     ".github/governance/waiver-ledger.json",
     ".github/ops/generated-artifact-governance.mjs",
+    ".github/ops/github-finalizer-check-source.mjs",
     ".github/ops/github-followup-automerge-readiness.mjs",
     ".github/ops/github-main-review-policy-live-activation.mjs",
     ".github/ops/github-repository-policy-1050-readiness-diagnostic-wrapper.mjs",
