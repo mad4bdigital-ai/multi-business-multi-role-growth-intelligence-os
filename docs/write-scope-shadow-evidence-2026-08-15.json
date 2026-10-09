@@ -8,7 +8,7 @@
     "inventory_catalog_fingerprint": "7eaf87af3c9df2a3aa55a9f6adbd93d4d7bc4334c58084cb382d851af888e4a2",
     "catalog_fingerprint": "7eaf87af3c9df2a3aa55a9f6adbd93d4d7bc4334c58084cb382d851af888e4a2",
     "write_scope_count": 6,
-    "route_count": 683
+    "route_count": 684
   },
   "scope_selection": [
     "approvals.request",
@@ -382,7 +382,7 @@
           "http-generic-api/routes/deploymentInfoRoutes.js#POST:/deployment-info/runtime-bootstrap-role-dry-run:1",
           "http-generic-api/routes/governanceRoutes.js#POST:/hostinger/ssh-runtime-read:4",
           "http-generic-api/routes/hostingerStorageTenantRoutes.js#POST:/tenant/storage-operations/apply-plan:0",
-          "http-generic-api/routes/platformPluginRoutes.js#POST:/platform/remote-runtime/hosting/deploy-release:28",
+          "http-generic-api/routes/platformPluginRoutes.js#POST:/platform/remote-runtime/hosting/deploy-release:29",
           "http-generic-api/routes/runtimeBreakglassRoutes.js#POST:/deployment-info/runtime-breakglass-plan:4",
           "http-generic-api/routes/stagingRecoveryAdminRoutes.js#POST:/admin/recovery/staging/gateway/dark-deploy-dry-run:4",
           "http-generic-api/routes/wordpressStagingPluginDeployRoutes.js#POST:/platform/remote-runtime/wordpress/staging/deploy-plugin:0"
@@ -462,5 +462,5 @@
     "credential_payload_reads": false,
     "secrets_included": false
   },
-  "evidence_fingerprint": "4687e5e2f053ddf6e2160f372644721a6ef798587e1b258f02f0618dbbc579d1"
+  "evidence_fingerprint": "16294e20f2105e1afcf757c623f2fbc1e81b1bb20cf398c12f7324d309545b62"
 }

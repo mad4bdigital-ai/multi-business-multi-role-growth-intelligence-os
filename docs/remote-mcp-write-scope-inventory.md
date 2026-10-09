@@ -5,13 +5,13 @@ This artifact is generated from the Git index, the Remote MCP scope catalog, app
 
 | Metric | Value |
 |---|---:|
-| Tracked files scanned | 7981 |
-| Routes discovered | 1119 |
-| Write routes discovered | 683 |
+| Tracked files scanned | 7993 |
+| Routes discovered | 1120 |
+| Write routes discovered | 684 |
 | Classified write-surface candidates | 44 |
-| Classified write routes | 683 |
-| Intentionally unmapped write routes (blocked) | 639 |
-| Migrations with governance evidence | 452 |
+| Classified write routes | 684 |
+| Intentionally unmapped write routes (blocked) | 640 |
+| Migrations with governance evidence | 453 |
 | DB catalog fingerprint match | true |
 | Registry evidence entries | 118 |
 | Write scopes | 6 |
@@ -27,7 +27,7 @@ This artifact is generated from the Git index, the Remote MCP scope catalog, app
 - **high** `WRITE_SCOPE_UNBOUND` — `github.write`
 - **high** `WRITE_SCOPE_UNBOUND` — `cloudflare.write`
 - **high** `WRITE_SCOPE_UNBOUND` — `hostinger.deploy`
-- **high** `INTENTIONALLY_UNMAPPED_WRITE_ROUTES_BLOCKED` — count: 639 — sensitive: 639
+- **high** `INTENTIONALLY_UNMAPPED_WRITE_ROUTES_BLOCKED` — count: 640 — sensitive: 640
 - **medium** `WRITE_SCOPE_NO_ROUTE_CANDIDATE` — `assets.update`
 
 ## Classification contract
