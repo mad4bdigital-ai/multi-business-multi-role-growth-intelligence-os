@@ -46,3 +46,40 @@ node http-generic-api/test-admin-local-connector-target.mjs
 - `migration_apply_required: true` **does not imply** DDL approved or applied.
 - `inventory_readback_proven: true` **does not imply** Hostinger CREATE entitlement.
 - A passing GitHub CI job **does not imply** Production schema readiness, a live Windows device, or a GitHub branch Ruleset.
+
+
+## Adversarial objection register (source review, 9 October 2026)
+
+The following are **not** release certificates. Each issue is resolved only at the indicated evidence authority. A test reporting an internal successful mock does not constitute provider, device, DB, or server Ruleset readback.
+
+| Severity | Objection / concrete counterexample | Source treatment | Residual independent proof |
+| --- | --- | --- | --- |
+| Critical | Hostinger database GET returns only first 15 rows while `meta.total=100` and recovery DB is on page 2; absence is falsely inferred. | The bounded inventory now rejects any incomplete `meta.current_page/per_page/total` coverage, including missing metadata, 206, unknown continuation or unmatched total. It never creates a DB. | Live GET proof and complete paginated retrieval/independent account privilege certification. |
+| Critical | Caller asks to use API token belonging to hosting account A to inventory account B. | Transport binds immutable `boundAccountUsername`; exact account mismatch blocks before network. DB rows must have target account prefix. | Provider-managed credential/account binding, website-domain-to-account readback and CREATE entitlements. |
+| Critical | A caller supplies their own public key and valid signature and claims it belongs to the target device generation. | The verifier ignores caller-supplied public keys and demands active, nonrevoked, nonarchived exact-scope key returned by injected trusted server registry lookup. | Provision durable registered key registry, fresh Windows key attestation and post-enrollment negative tests. |
+| Critical | Key is revoked or replaced between ECDSA verification and challenge consumption. | Atomic `consumeNonce` contract now includes exact generation scope, issue/expiry timestamps and registered SPKI SHA-256 fingerprint. Wrong/revoked generation fails before consume. | Implement/verify serializable DB transaction checking nonce and active key fingerprint simultaneously; fault-injection and concurrent replay tests in live Staging. |
+| High | Cached `mcp_catalog_level` from a reused connection is presented as same-cycle schema readback immediately after column removal. | `readMcpCatalogSchemaReadinessSafe` bypasses the 30-second column cache and freshly probes both allowlisted tables on a leased Runtime connection. | Live Runtime `DATABASE()`, `CURRENT_USER()`, metadata/projection authority, migration/checksum and rollback readback. |
+| High | Metadata is hidden by SQL permissions, wrong DB or inaccessible table; the platform requests a migration. | Recovery classifier requires verified Runtime DB/user and both table projections, distinguishes `diagnosis_blocked` from `migration_proposal_only`. `migration_apply_allowed=false` in every state. | DBA privilege inventory; exact SHA migration plan, independently approved DDL executor and replay ledger. |
+| High | HTTP 200, valid ECDSA, successful `/policy`, or active SSH connector is used to declare physical device recovery or Hostinger DB grants. | Every such signal is separately labeled; hardware nonexportability and provider CREATE entitlement remain **false**. `RECOVERED` cannot be promoted from caller-supplied boolean. | Current hardware-backed generation, managed credential epoch, non-exportability attestation, provider-specific grants readback. |
+| High | Hostinger Node.js env `PUT` overwrites variables returned as masked by GET. | Existing env replacement guard refuses any PUT absent full unmasked managed snapshot and separately certified compare-and-set semantics. | Trusted secret vault, serialized per-site lease, before/after key comparison and host rollback proof. |
+| High | GitHub policy file claims `block_direct_push=true`, while live `main` returned `protected=false`. | The PR does not weaken the repository Constitution or edit protected branches. Source CI is not equivalent to server Ruleset enforcement. | Independent admin-authorized Ruleset apply/readback, exact required checks and bypass audit. |
+| High | A test appears green on an older SHA while a newer PR HEAD introduces an attack path. | Every merge judgment must pin the newest exact HEAD and native current-phase E2E, test-authority, policy objection and Derived State evidence. | Single-owner exact-head review and trusted attestor required prior to source merge. |
+| Medium | A hash of schema classifications or inventory is reused as authorization to mutate a different host, DB or deployment generation. | Diagnostic SHA and Hostinger preview SHA are **non-executable suggestions**, and every executable permission remains false. | A separate signed environment-bound expiring plan with one-time authorization and same-cycle post-operation readback. |
+| Medium | A stale Windows hostname such as a previous alias is silently promoted to active device. | Canonical user/tenant/device/config generation binding and explicit target selection remain required. | Real discovered current device identity and native Windows Service/Task acceptance. |
+| Medium | An API or browser response is so large that JSON extraction or the Tool Catalog chunk overflows. | Hostinger GET is byte bounded and schema validated. This source feature does not claim live Admin Tool Catalog chunking is repaired. | Runtime chunk/continuation tests, bounded pagination, request timeout and full successful catalog readback. |
+
+### Nonnegotiable release-state distinctions
+
+- **Source merged:** Git commit and required workflow result exist; says nothing about Hostinger/DB/Windows operations.
+- **Source design ready:** tests and manifest accept bounded preview/diagnosis; still no network/provider certificate.
+- **Provider read-only verified:** exact live account and source credential authority were independently read back; does **not** confer CREATE/ALTER/GRANT.
+- **Runtime recovery certified:** device/Hostinger/DB write executor has exact scope, credential vault, independent owner approval, durable execution and rollback receipts; none of these is implemented by this source PR.
+- **Production promotion certified:** only after release-candidate SHA, effective server Rulesets, staging canary, exact database grants, ledgers for migrations 225/1051 and independent Hostinger/Windows readback.
+
+### Acceptance checkpoints requiring external access
+
+- `Hostinger`: bind server vault token to actual username, inventory entire account without omission, then prove DB creation privilege through provider read-only capability/entitlement API or explicit governed provisioning workflow. Do not use SSH active flag as proof.
+- `MCP Runtime`: resolve actual DB principal and host connection; do not infer `mcp_catalog_level` migration from missing INFORMATION_SCHEMA results alone.
+- `Windows`: resolve the **currently active** machine and exact device generation; complete hardware issuer verification and a transactional nonce store; reject historical aliases.
+- `GitHub`: admin verifies effective Rulesets for `main` and `Production`, then applies typed minimal-diff policy in a separately authorized policy-controller operation.
+- `Staging / Production`: perform Native PowerShell, MariaDB replay, browser acceptance, governed release promotion and rollback only after prior evidence; no deployment from this PR.
