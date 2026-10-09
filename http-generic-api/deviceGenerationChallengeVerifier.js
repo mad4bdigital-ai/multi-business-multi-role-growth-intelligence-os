@@ -83,6 +83,7 @@ export async function verifyBoundDeviceGenerationChallenge({
     contract:"mad4b.device-generation-possession-receipt.v1",
     ...Object.fromEntries(fields.map(f=>[f,expected[f]])),
     challenge_id:challenge.id,registered_key_sha256:registeredKeySha256,
+    verified_at_ms:now,expires_at_ms:challenge.expires_at_ms,
     nonce_consume_callback_accepted:true,nonce_consumed:true,signature_verified:true,
     hardware_nonexportability_verified:false,
     execution_allowed:false,recovered:false,secrets_included:false
@@ -90,8 +91,12 @@ export async function verifyBoundDeviceGenerationChallenge({
   verifiedReceipts.add(result);
   return result;
 }
-export function isTrustedDeviceGenerationReceipt(receipt,scope={}) {
+export function isTrustedDeviceGenerationReceipt(receipt,scope={},now=Date.now()) {
   return Boolean(receipt&&verifiedReceipts.has(receipt)&&
+    Number.isSafeInteger(now)&&
+    Number.isSafeInteger(receipt.verified_at_ms)&&
+    Number.isSafeInteger(receipt.expires_at_ms)&&
+    now>=receipt.verified_at_ms&&now<receipt.expires_at_ms&&
     fields.every(field=>receipt[field]===scope[field])&&
     receipt.signature_verified===true&&receipt.nonce_consumed===true);
 }
