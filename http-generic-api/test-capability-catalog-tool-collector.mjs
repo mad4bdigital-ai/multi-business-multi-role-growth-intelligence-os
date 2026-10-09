@@ -29,7 +29,7 @@ test("rejects read permission and scope assertion forgery",async()=>{
   {kind:"unknown"},{requires_admin:true},{status:"inactive"}
  ]){
   const reader=createCatalogV2SourceCollector({getSubjectEffectiveTools:async({site})=>({
-   site,tools:[{...rows[0],...change}],complete:true,authoritative:true
+   site,tools:[{...rows.find(row=>row.name==="filesystem-list"),...change}],complete:true,authoritative:true
   })});
   await assert.rejects(()=>reader({site,principal:{tenant_id:"tenant-1"}}));
  }
@@ -39,7 +39,7 @@ test("rejects read permission and scope assertion forgery",async()=>{
  await assert.rejects(()=>wrong({site,principal:{tenant_id:"tenant-1"}}));
 });
 test("caps missing, partial and oversized inventories",async()=>{
- const tools=Array.from({length:33},(_,i)=>({...rows[0],name:"reader-"+i}));
+ const tools=Array.from({length:33},(_,i)=>({...rows.find(row=>row.name==="filesystem-list"),name:"reader-"+i}));
  const reader=createCatalogV2SourceCollector({getSubjectEffectiveTools:async({site})=>({
   site,tools,complete:true,authoritative:true
  })});
