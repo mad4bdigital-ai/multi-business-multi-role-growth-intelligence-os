@@ -250,8 +250,13 @@ export async function executeRecovery({plan_id,plan_hash}={},{
   }catch(error){
     if(dispatched){
       try {
-        await store.markUnknown({plan_id,plan_hash,fence_token:lock.fence_token,
+        // CAS against executing prevents downgrading an already-completed
+        // Recovery after a lost finalization acknowledgement.
+        const recorded=await store.markUnknown({plan_id,plan_hash,
+          fence_token:lock.fence_token,expected_status:"executing",
           status:"execution_outcome_unknown",retry_forbidden:true});
+        if(recorded?.durable!==true||recorded?.status!=="execution_outcome_unknown")
+          refuse("recovery_orchestrator_unknown_state_persistence_failed",503);
       }catch{refuse("recovery_orchestrator_unknown_state_persistence_failed",503);}
       return safeStatus("execution_outcome_unknown",plan);
     }

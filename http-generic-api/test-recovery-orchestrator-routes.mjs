@@ -14,7 +14,8 @@ function routeFrom(registry) {
   });
   const layer=router.stack.find(x=>x.route?.path===RECOVERY_ORCHESTRATOR_DISCOVERY_PATH);
   assert(layer);
-  assert.deepEqual(layer.route.methods,{get:true});
+  assert.equal(layer.route.methods.get,true);
+  assert.deepEqual(Object.keys(layer.route.methods),["get"]);
   return layer.route.stack.at(-1).handle;
 }
 function response(){
@@ -56,7 +57,8 @@ test("absent registry fails safely and the router exposes GET only",()=>{
   });
   assert.equal(routes.stack.length,1);
   assert.equal(routes.stack[0].route.path,RECOVERY_ORCHESTRATOR_DISCOVERY_PATH);
-  assert.deepEqual(routes.stack[0].route.methods,{get:true});
+  assert.equal(routes.stack[0].route.methods.get,true);
+  assert.deepEqual(Object.keys(routes.stack[0].route.methods),["get"]);
   const resp=response();routes.stack[0].route.stack.at(-1).handle({},resp);
   assert.deepEqual(resp.body.capabilities,[]);
 });
