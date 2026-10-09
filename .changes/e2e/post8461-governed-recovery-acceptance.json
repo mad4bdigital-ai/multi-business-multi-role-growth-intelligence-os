@@ -15,6 +15,7 @@
       "autopilot-portable-staging/Staging-AutonomousSupervisor.ps1",
       "autopilot-portable-staging/Staging-ColdBoot-Diagnostics.ps1",
       "autopilot-portable-staging/Staging-Doctor.ps1",
+      "autopilot-portable-staging/Staging-TaskPrincipalIdentity.ps1",
       "autopilot-portable-staging/test/Test-AutonomousSupervisor.ps1",
       "docs/runbooks/post-8461-governed-recovery-acceptance-20261009.md",
       "docs/runbooks/pr8471-production-promotion-preflight-from-hostinger-logs-20261009.md",
@@ -155,17 +156,19 @@
             "Keep remote Git watcher alive during bounded transport outages without reusing prior exact-head/eligibility receipts",
             "Re-check local Compose health after Docker readiness instead of trusting pre-reboot source certification",
             "Reconcile missing supervisor only through explicit additive approved task installer bound to principal/path/arguments",
-            "Verify silent Scheduled Task actions and nine reboot-specific synthetic failure scenarios",
+            "Verify silent Scheduled Task actions and ten reboot-specific synthetic failure scenarios",
             "Require separate native Windows reboot, device attestation, Staging acceptance and rollback evidence",
-            "Use a PowerShell 5.1 child process with per-process ExecutionPolicy for trusted maintenance scripts on restricted hosts, and verify nonzero exits and Task Scheduler readback"
+            "Use a PowerShell 5.1 child process with per-process ExecutionPolicy for trusted maintenance scripts on restricted hosts, and verify nonzero exits and Task Scheduler readback",
+            "Differentiate literal task owner name from canonical SID and reject foreign SID, wrong logon type, malformed actions or multiple task actions; expose read-only diagnostic first"
           ],
           "assertions": [
             "No Production deploy, credential changes, database DDL, DNS updates or provider mutations are authorized",
             "Stopped local Docker containers cannot inherit a healthy status from stale pre-reboot certification",
             "DNS or Git failure cannot select a stale SHA or authorize an unverified deployment",
             "Silent watcher arguments remain exact and reject injected/unrecognized switches",
-            "Nine source-only cold-boot scenarios never constitute live Windows or hardware recovery certification",
-            "Direct .ps1 execution blocked by Windows policy never counts as an installation attempt or a recovered supervisor; Group Policy restrictions are not bypassed"
+            "Ten source-only cold-boot scenarios never constitute live Windows or hardware recovery certification",
+            "Direct .ps1 execution blocked by Windows policy never counts as an installation attempt or a recovered supervisor; Group Policy restrictions are not bypassed",
+            "A blocked principal/actions installer never modifies the existing watcher; exact SID equality is necessary but not sufficient without logon type, action and checkout validation"
           ],
           "tests": [
             {
@@ -179,7 +182,8 @@
           "evidence_paths": [
             "autopilot-portable-staging/Staging-ColdBoot-Diagnostics.ps1",
             "http-generic-api/config/pr8471-windows-coldboot-scenarios.json",
-            "docs/runbooks/pr8471-windows-coldboot-recovery-20261009.md"
+            "docs/runbooks/pr8471-windows-coldboot-recovery-20261009.md",
+            "autopilot-portable-staging/Staging-TaskPrincipalIdentity.ps1"
           ]
         }
       ],

@@ -94,6 +94,16 @@
       "live_certified": false,
       "production_mutation_allowed": false,
       "secrets_included": false
+    },
+    {
+      "id": "windows_boot.watcher_principal_or_actions_drift",
+      "trigger": "Existing Auto Deploy task belongs to another Windows SID or contains zero/multiple Actions, causing the additive supervisor installer to block",
+      "expected_state": "blocked",
+      "required_evidence": "native SID-normalized principal identity, exactly one canonical approved scheduled action, interactive logon, read-only diagnosis, and independent root task readback",
+      "source_coverage": "negative_or_static",
+      "live_certified": false,
+      "production_mutation_allowed": false,
+      "secrets_included": false
     }
   ],
   "production_promotion_authorized": false

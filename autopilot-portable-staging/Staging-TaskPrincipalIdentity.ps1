@@ -4,10 +4,10 @@ function Resolve-StagingTaskPrincipalSid([string]$UserId) {
     if ([string]::IsNullOrWhiteSpace($UserId)) { return "" }
     try {
         if ($UserId -match '^S-\d-\d+(?:-\d+)+$') {
-            $sid = New-Object System.Security.Principal.SecurityIdentifier($UserId)
+            $sid = [System.Security.Principal.SecurityIdentifier]::new($UserId)
             return $sid.Value
         }
-        $account = New-Object System.Security.Principal.NTAccount($UserId)
+        $account = [System.Security.Principal.NTAccount]::new($UserId)
         return $account.Translate([System.Security.Principal.SecurityIdentifier]).Value
     } catch {
         return ""

@@ -8,15 +8,17 @@ $install = Join-Path $root "Install-AutoDeployTask.ps1"
 $uninstall = Join-Path $root "Uninstall-AutoDeployTask.ps1"
 $additiveInstall = Join-Path $root "Install-AutonomousSupervisorTask.ps1"
 $policyFile = Join-Path $root "autonomous-operations-policy.json"
+$identityHelper = Join-Path $root "Staging-TaskPrincipalIdentity.ps1"
 function Assert([bool]$Condition, [string]$Message) {
     if (-not $Condition) { throw "AUTONOMOUS_SUPERVISOR_TEST_FAILED: $Message" }
 }
-foreach ($source in @($supervisor, $install, $uninstall, $additiveInstall)) {
+foreach ($source in @($supervisor, $install, $uninstall, $additiveInstall, $identityHelper)) {
     $tokens = $null
     $errors = $null
     [void][System.Management.Automation.Language.Parser]::ParseFile($source, [ref]$tokens, [ref]$errors)
     Assert (@($errors).Count -eq 0) "PowerShell parser failed for $source : $($errors | Out-String)"
 }
+. $identityHelper
 $Policy = Get-Content -Raw -LiteralPath $policyFile | ConvertFrom-Json
 Assert ($Policy.contract -eq "mad4b.staging-autonomous-operations.v1") "wrong contract"
 Assert ($Policy.environment -eq "staging") "wrong environment"
@@ -52,8 +54,18 @@ try {
     $DryRun = $true
     $arguments = "-NoLogo -NoProfile -ExecutionPolicy Bypass -File `"$expectedScript`" -RepositoryPath `"$RepositoryPath`" -Watch -PollSeconds 300 -BuildMode Smart -TunnelMode windows_service"
     $action = [pscustomobject]@{ Execute = "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe"; Arguments = $arguments; WorkingDirectory = $PSScriptRoot }
-    $task = [pscustomobject]@{ Actions = @($action); Principal = [pscustomobject]@{ UserId = $expectedPrincipal }; State = "Running"; Settings = [pscustomobject]@{ Enabled = $true } }
+    $task = [pscustomobject]@{ Actions = @($action); Principal = [pscustomobject]@{ UserId = $expectedPrincipal; LogonType = "Interactive" }; State = "Running"; Settings = [pscustomobject]@{ Enabled = $true } }
     Assert (Test-WatcherTaskIdentity $task) "valid task rejected"
+    $nativeSid = [System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value
+    $task.Principal.UserId = $nativeSid
+    Assert (Test-WatcherTaskIdentity $task) "canonical same-user SID rejected"
+    $task.Principal.UserId = $expectedPrincipal
+    $task.Principal.LogonType = "Password"
+    Assert (-not (Test-WatcherTaskIdentity $task)) "noninteractive watcher accepted"
+    $task.Principal.LogonType = "Interactive"
+    $task.Actions = @($action, $action)
+    Assert (-not (Test-WatcherTaskIdentity $task)) "multiple watcher actions accepted"
+    $task.Actions = @($action)
     $action.Arguments = $arguments -replace '-NoProfile', '-NoProfile -WindowStyle Hidden'
     Assert (Test-WatcherTaskIdentity $task) "silent logon watcher rejected"
     $action.Arguments = $arguments -replace '-NoProfile', '-NoProfile -WindowStyle Visible'
