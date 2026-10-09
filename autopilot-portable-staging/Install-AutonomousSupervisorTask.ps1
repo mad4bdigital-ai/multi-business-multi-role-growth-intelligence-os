@@ -114,5 +114,5 @@ if (@($readback.Actions).Count -ne 1 -or [string]@($readback.Actions)[0].Argumen
     [IO.Path]::GetFullPath([string]@($readback.Actions)[0].Execute) -ine $trustedPowerShell -or
     [IO.Path]::GetFullPath([string]@($readback.Actions)[0].WorkingDirectory).TrimEnd('\') -ine $sourceRoot -or
     -not (Test-StagingTaskPrincipalIsCurrentUser ([string]$readback.Principal.UserId))) { Fail "Supervisor installation readback mismatch" }
-if ($Activate -and [string]$readback.State -ne "Running") { Start-ScheduledTask -TaskName $SupervisorTaskName -ErrorAction Stop }
+if ($Activate -and [string]$readback.State -ne "Running") { Start-ScheduledTask -TaskPath "\" -TaskName $SupervisorTaskName -ErrorAction Stop }
 Write-Host "STAGING_SUPERVISOR_READBACK_PASS: task=$SupervisorTaskName active=$([bool]$Activate) unchanged_watcher=True provider_mutation=False production_mutation=False"
