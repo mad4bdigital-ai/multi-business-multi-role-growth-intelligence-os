@@ -71,9 +71,8 @@ export function createHostingerReadOnlyTransport({
       const token=await getManagedToken();
       if(typeof token!=="string" || token.length<20 || token.length>2048)
         throw refuse("hostinger_managed_api_token_missing",503);
-      const baseUrl=`${ORIGIN}/api/hosting/v1/accounts/${encodeURIComponent(account)}/databases`;
       const readPage=async page=>{
-        const url=`${baseUrl}?page=${page}&per_page=${PAGE_SIZE}`;
+        const url=`${ORIGIN}/api/hosting/v1/accounts/${encodeURIComponent(account)}/databases?page=${page}&per_page=${PAGE_SIZE}`;
         let response;
         try {
           response=await fetchImpl(url,{
