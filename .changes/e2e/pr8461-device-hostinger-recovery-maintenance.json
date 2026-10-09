@@ -8,6 +8,8 @@
   "scope": {
     "include": [
       ".changes/e2e/pr8461-device-hostinger-recovery-maintenance.json",
+      ".github/governance/test-authority-registry.json",
+      ".github/tests/repository-governance-closure.test.mjs",
       "GPT_Admin_Assistant_Knowledge_Guide.md",
       "autopilot-portable-staging/Clone-StagingDatabases.Legacy.ps1",
       "autopilot-portable-staging/auto-deploy-policy.json",
@@ -70,6 +72,7 @@
       "http-generic-api/test-admin-local-connector-target.mjs",
       "http-generic-api/test-admin-self-recovery-contract.mjs",
       "http-generic-api/test-connect-routes.mjs",
+      "http-generic-api/test-environment-impact-closure.mjs",
       "http-generic-api/test-hostinger-recovery-capability-discovery.mjs",
       "http-generic-api/test-hostinger-recovery-provider-safety.mjs",
       "http-generic-api/test-hostinger-recovery-seed-replay.mjs",
