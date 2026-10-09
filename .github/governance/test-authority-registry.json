@@ -206,6 +206,7 @@
         "http-generic-api/test-custom-gpt-schemas.mjs",
         "http-generic-api/test-fixed-host-local-system-tool.mjs",
         "http-generic-api/test-frontend-surface-coverage-claims.mjs",
+        "http-generic-api/test-gpt-tools-route-syntax-regression.mjs",
         "http-generic-api/test-host-breakglass-capsule-executor.mjs",
         "http-generic-api/test-host-breakglass-catalog.mjs",
         "http-generic-api/test-host-breakglass-local-readback.mjs",
