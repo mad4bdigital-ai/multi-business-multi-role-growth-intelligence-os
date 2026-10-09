@@ -16,13 +16,13 @@ CREATE TABLE IF NOT EXISTS platform_capability_catalog_keys (
   revoked TINYINT(1) NOT NULL DEFAULT 0,
   PRIMARY KEY (kid),
   KEY idx_capcat_tenant_site_active (tenant_id,site_id,environment,purpose,status)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS platform_capability_catalog_consumed_nonces (
-  scope_sha256 CHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+  scope_sha256 CHAR(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
   expires_epoch BIGINT NOT NULL,
   PRIMARY KEY (scope_sha256),
   KEY idx_capcat_nonce_expiry (expires_epoch)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 -- CRITICAL: do not purge nonce rows until long after all signed receipts expire.
 -- Require separately certified pruning, replica-sharing and transaction isolation.
