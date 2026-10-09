@@ -103,7 +103,9 @@ export async function previewHostingerRecoveryDatabase({
     contract:"mad4b.hostinger-recovery-readonly-preview.v1",
     account_username:account,website_domain:domain,recovery_database_name:database,
     inventory_sha256:inventoryDigest,plan_sha256:planIdentity,
-    inventory_readback_proven:observed.provider_http_status===200,
+    provider_inventory_response_accepted:observed.provider_http_status===200,
+    // Independent provider account certification must come from a separate issuer.
+    inventory_readback_proven:false,
     target_database_exists:exists,
     suggested_operation:exists?"verify_existing_database_ownership":"request_governed_database_create_plan",
     provider_create_entitlement_proven:false,
