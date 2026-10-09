@@ -155,29 +155,30 @@ export async function readMcpCatalogLevelSchemaStatus({ pool = getPool(), table 
           AND column_name = ?`,
       [normalizedTable, MCP_CATALOG_LEVEL_COLUMN],
     );
-    // information_schema can hide a table/column from an underprivileged principal.
-    // A zero count alone is NOT authorization to ALTER the Runtime schema.
-    let available = Number(rows?.[0]?.column_count || 0) > 0;
-    let code = available ? null : "MCP_CATALOG_COLUMN_METADATA_UNVERIFIED";
+    // Metadata visibility alone cannot prove that the Runtime principal can SELECT.
+    // Always perform an allowlisted LIMIT 0 projection; zero metadata rows can be
+    // a false negative when information_schema privileges differ from table access.
+    const metadataPresent = Number(rows?.[0]?.column_count || 0) > 0;
+    let available = false;
+    let code = "MCP_CATALOG_COLUMN_METADATA_UNVERIFIED";
     let migrationRequired = false;
-    if (!available) {
-      try {
-        // Whitelisted table names only; this is a LIMIT 0 read, never a DDL operation.
-        await pool.query(`SELECT \`${MCP_CATALOG_LEVEL_COLUMN}\` FROM \`${normalizedTable}\` LIMIT 0`);
-        available = true;
-        code = null;
-      } catch (probeError) {
-        const probeCode = String(probeError?.code || probeError?.errno || "").slice(0, 128);
-        if (probeCode === "ER_BAD_FIELD_ERROR") {
-          code = "MCP_CATALOG_LEVEL_COLUMN_MISSING";
-          migrationRequired = true;
-        } else if (probeCode === "ER_NO_SUCH_TABLE") {
-          code = "MCP_CATALOG_TABLE_MISSING";
-        } else if (["ER_TABLEACCESS_DENIED_ERROR", "ER_COLUMNACCESS_DENIED_ERROR", "ER_DBACCESS_DENIED_ERROR", "ER_ACCESS_DENIED_ERROR"].includes(probeCode)) {
-          code = "MCP_CATALOG_SCHEMA_PRIVILEGE_DENIED";
-        } else {
-          code = "MCP_CATALOG_SCHEMA_PROBE_UNAVAILABLE";
-        }
+    try {
+      await pool.query(`SELECT \`${MCP_CATALOG_LEVEL_COLUMN}\` FROM \`${normalizedTable}\` LIMIT 0`);
+      available = true;
+      code = null;
+    } catch (probeError) {
+      const probeCode = String(probeError?.code || probeError?.errno || "").slice(0, 128);
+      if (probeCode === "ER_BAD_FIELD_ERROR") {
+        // Contradictory metadata is a race/identity/projection incident, NOT
+        // independent authority to apply a migration.
+        code = metadataPresent ? "MCP_CATALOG_SCHEMA_METADATA_CONFLICT" : "MCP_CATALOG_LEVEL_COLUMN_MISSING";
+        migrationRequired = !metadataPresent;
+      } else if (probeCode === "ER_NO_SUCH_TABLE") {
+        code = "MCP_CATALOG_TABLE_MISSING";
+      } else if (["ER_TABLEACCESS_DENIED_ERROR", "ER_COLUMNACCESS_DENIED_ERROR", "ER_DBACCESS_DENIED_ERROR", "ER_ACCESS_DENIED_ERROR"].includes(probeCode)) {
+        code = "MCP_CATALOG_SCHEMA_PRIVILEGE_DENIED";
+      } else {
+        code = "MCP_CATALOG_SCHEMA_PROBE_UNAVAILABLE";
       }
     }
     const status = {
