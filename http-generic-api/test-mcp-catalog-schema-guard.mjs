@@ -78,6 +78,52 @@ assert.equal(metadataConflict.code, "MCP_CATALOG_SCHEMA_METADATA_CONFLICT");
 assert.equal(metadataConflict.migration_apply_required, false,
   "Contradictory metadata must not authorize an ALTER on Production");
 
+const sessionCalls = [];
+let sessionReleases = 0;
+const leasedPool = {
+  // A pooled top-level query intentionally returns an untrusted identity;
+  // it MUST NOT be used once the guarded operation leases a connection.
+  async query() { throw new Error("cross-session query forbidden"); },
+  async getConnection() {
+    return {
+      async query(sql) {
+        sessionCalls.push(String(sql));
+        if (/SELECT DATABASE\(\)/u.test(String(sql))) return [[{
+          current_database: "catalog_runtime",
+          current_account: "runtime_user@localhost",
+        }]];
+        if (/information_schema\.columns/u.test(String(sql))) return [[{ column_count: 1 }]];
+        if (/LIMIT 0/u.test(String(sql))) return [[], []];
+        throw new Error("unexpected leased query");
+      },
+      release() { sessionReleases += 1; },
+    };
+  },
+};
+const sameSession = await readMcpCatalogSchemaReadinessSafe({
+  pool: leasedPool, env: { DB_NAME: "catalog_runtime", DB_USER: "runtime_user" },
+});
+assert.equal(sameSession.ok, true);
+assert.equal(sessionReleases, 1, "Every successful readiness lease must be released");
+assert.equal(sessionCalls.filter(sql => /SELECT DATABASE\(\)/u.test(sql)).length, 1);
+assert.equal(sessionCalls.filter(sql => /LIMIT 0/u.test(sql)).length, 2,
+  "Both Runtime tables must be verified with the same leased principal");
+let failingLeaseReleases = 0;
+const leaseDenied = await readMcpCatalogSchemaReadinessSafe({
+  pool: {
+    async getConnection() {
+      return {
+        async query() { throw Object.assign(new Error("denied"), { code: "ER_ACCESS_DENIED_ERROR" }); },
+        release() { failingLeaseReleases += 1; },
+      };
+    },
+  },
+  env: { DB_NAME: "catalog_runtime", DB_USER: "runtime_user" },
+});
+assert.equal(leaseDenied.ok, false);
+assert.equal(leaseDenied.migration_apply_required, false);
+assert.equal(failingLeaseReleases, 1, "Denied Runtime sessions must also be released");
+
 const missingPool = {
   async query(sql) {
     if (/information_schema\.columns/u.test(sql)) return [[{ column_count: 0 }]];
