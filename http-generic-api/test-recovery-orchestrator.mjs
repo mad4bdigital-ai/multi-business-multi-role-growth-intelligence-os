@@ -192,3 +192,21 @@ test("no in-memory Recovery Kernel maps can substitute missing durable store",as
   const h=harness(),p=await planned(h);
   await assert.rejects(execute(p,{...h,store:{}},{}),errorCode("recovery_orchestrator_durable_store_unavailable"));
 });
+
+test("adapter descriptor mutation or registered provider hot swap invalidates an older plan",async()=>{
+  const h=harness(),p=await planned(h),before=dispatched;
+  const replacement=createRecoveryCapabilityRegistry([{...provider(),provider_id:"wrong.provider"}]);
+  await assert.rejects(execute(p,h,{registry:replacement}),
+    errorCode("recovery_orchestrator_adapter_changed_since_plan"));
+  assert.equal(dispatched,before);
+});
+test("resource inspection drift before approval is denied without claiming or dispatch",async()=>{
+  const h=harness(),p=await planned(h),before=dispatched;
+  const drift=createRecoveryCapabilityRegistry([{...provider(),inspect:async()=>({
+    read_only:true,mutation_performed:false,secrets_included:false,
+    state_fingerprint:"d".repeat(64)})}]);
+  await assert.rejects(execute(p,h,{registry:drift}),
+    errorCode("recovery_orchestrator_resource_state_drift"));
+  assert.equal(h.store.claims,0);
+  assert.equal(dispatched,before);
+});

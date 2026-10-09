@@ -80,7 +80,7 @@ function descriptor(item) {
     operations:Object.freeze(operations),
     credential_intake:"server_managed_only",default_execution_enabled:false,
     production_execution_enabled:false,secrets_included:false});
-  return {publicDescriptor,inspect:item.inspect,execute:item.execute||null};
+  return Object.freeze({publicDescriptor,inspect:item.inspect,execute:item.execute||null});
 }
 export function createRecoveryCapabilityRegistry(adapters=[]) {
   if(!Array.isArray(adapters)||adapters.length>64)refuse("recovery_orchestrator_registry_invalid",400);
@@ -135,7 +135,9 @@ export async function planRecovery({capability_id,operation}={},{
   const base={
     contract:"mad4b.recovery-orchestrator-plan.v1",
     capability_id,operation,risk:declared.risk,provider_id:entry.publicDescriptor.provider_id,
-    resource_kind:entry.publicDescriptor.resource_kind,binding:{...scope},
+    resource_kind:entry.publicDescriptor.resource_kind,
+    capability_descriptor_sha256:sha256(entry.publicDescriptor),
+    binding:{...scope},
     observed_state_fingerprint:observed.state_fingerprint,
     created_at_ms:now,expires_at_ms:now+PLAN_TTL_MS,
     execution_allowed:false,production_execution_allowed:false,
@@ -212,6 +214,18 @@ export async function executeRecovery({plan_id,plan_hash}={},{
     refuse("recovery_orchestrator_execution_capability_unavailable",403);
   if(!entry.publicDescriptor.environments.includes("staging"))
     refuse("recovery_orchestrator_capability_environment_mismatch",403);
+  if(plan.capability_descriptor_sha256!==sha256(entry.publicDescriptor)||
+     plan.risk!==op.risk||
+     plan.provider_id!==entry.publicDescriptor.provider_id||
+     plan.resource_kind!==entry.publicDescriptor.resource_kind)
+    refuse("recovery_orchestrator_adapter_changed_since_plan",409);
+  // Re-inspect the exact resource before any authority is consumed or external
+  // change attempted: a cached plan is not a stale-resource mutation ticket.
+  const fresh=await entry.inspect({binding:current,operation:plan.operation});
+  if(!object(fresh)||fresh.read_only!==true||fresh.mutation_performed!==false||
+     fresh.secrets_included!==false||
+     fresh.state_fingerprint!==plan.observed_state_fingerprint)
+    refuse("recovery_orchestrator_resource_state_drift",409);
   const proof=await approvalVerifier.verify({plan:copy(plan),scope:current});
   assertProof(proof,plan);
   const lock=await lease.acquire({plan_id,plan_hash,scope:current});
