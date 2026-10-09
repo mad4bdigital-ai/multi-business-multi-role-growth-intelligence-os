@@ -137,14 +137,14 @@ export function buildMcpCatalogSchemaMigrationRequiredError({ table = null, orig
   });
 }
 
-export async function readMcpCatalogLevelSchemaStatus({ pool = getPool(), table } = {}) {
+export async function readMcpCatalogLevelSchemaStatus({ pool = getPool(), table, freshReadback = false } = {}) {
   const normalizedTable = String(table || "").trim();
   if (!MCP_CATALOG_TABLES.includes(normalizedTable)) {
     throw schemaError("mcp_catalog_table_invalid", "The requested MCP catalog table is not governed.", { table: normalizedTable });
   }
   const cache = cacheFor(pool);
   const cached = cache.get(normalizedTable);
-  if (cached && cached.expires_at > Date.now()) return cached.status;
+  if (!freshReadback && cached && cached.expires_at > Date.now()) return cached.status;
 
   try {
     const [rows] = await pool.query(
@@ -219,7 +219,7 @@ export async function assertMcpCatalogLevelColumn({ pool = getPool(), table } = 
   return status;
 }
 
-export async function readMcpCatalogSchemaReadiness({ pool = null } = {}) {
+export async function readMcpCatalogSchemaReadiness({ pool = null, freshReadback = false } = {}) {
   if (!pool) {
     return {
       ...MCP_CATALOG_RUNTIME_SCHEMA_CONTRACT,
@@ -241,7 +241,7 @@ export async function readMcpCatalogSchemaReadiness({ pool = null } = {}) {
   const tables = [];
   for (const table of MCP_CATALOG_TABLES) {
     try {
-      tables.push(await readMcpCatalogLevelSchemaStatus({ pool, table }));
+      tables.push(await readMcpCatalogLevelSchemaStatus({ pool, table, freshReadback }));
     } catch (error) {
       tables.push({
         ok: false,
@@ -341,8 +341,11 @@ export async function readMcpCatalogSchemaReadinessSafe({ pool, env = process.en
       // Stop before inspecting table metadata if the session's DB/user identity
       // is missing or conflicts with the explicitly configured Runtime role.
       // Schema from any other database cannot guide a Runtime migration.
+      // Governance/recovery evidence must be freshly queried: a 30-second
+      // cached column status on a reused mysql2 connection is not a
+      // same-cycle schema readback, even if the connection identity matches.
       const readiness = identity.ok === true
-        ? await readMcpCatalogSchemaReadiness({ pool: session })
+        ? await readMcpCatalogSchemaReadiness({ pool: session, freshReadback: true })
         : {
           ...MCP_CATALOG_RUNTIME_SCHEMA_CONTRACT,
           ok: false,
