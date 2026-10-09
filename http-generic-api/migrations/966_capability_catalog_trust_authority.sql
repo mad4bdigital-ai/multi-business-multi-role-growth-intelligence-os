@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS platform_capability_catalog_keys (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS platform_capability_catalog_consumed_nonces (
-  scope_sha256 CHAR(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
+  scope_sha256 VARBINARY(64) NOT NULL,
   expires_epoch BIGINT NOT NULL,
   PRIMARY KEY (scope_sha256),
   KEY idx_capcat_nonce_expiry (expires_epoch)
