@@ -78,6 +78,14 @@ if ($healthObserved) {
         $healthFresh = ($age -ge 0 -and $age -le 180)
     }
 }
+$acceptanceFresh = $false
+if ($null -ne $acceptance -and $acceptance.accepted -eq $true) {
+    $acceptanceStamp = [DateTimeOffset]::MinValue
+    if ([DateTimeOffset]::TryParse([string]$acceptance.checked_at, [ref]$acceptanceStamp)) {
+        $acceptanceAge = ($now - $acceptanceStamp.ToUniversalTime()).TotalSeconds
+        $acceptanceFresh = ($acceptanceAge -ge 0 -and $acceptanceAge -le 180)
+    }
+}
 $missingTasks = @($tasks | Where-Object { $_.state -eq "missing" } | ForEach-Object { $_.name })
 $stoppedWatchers = @($tasks | Where-Object { $_.continuous -and -not $_.running } | ForEach-Object { $_.name })
 $failedTasks = @($tasks | Where-Object { $_.last_run_failed } | ForEach-Object { $_.name })
@@ -93,7 +101,7 @@ if ($stoppedWatchers.Count -gt 0) { $blockers += "continuous_task_not_running" }
 if (-not $dns.github_host_resolved) { $blockers += "git_dns_unresolved" }
 if (-not $dns.auth_host_resolved) { $blockers += "auth_dns_unresolved" }
 if (-not $healthFresh) { $blockers += "live_staging_health_unproven" }
-if ($null -eq $acceptance -or $acceptance.accepted -ne $true) { $blockers += "supervisor_acceptance_unproven" }
+if (-not $acceptanceFresh) { $blockers += "supervisor_acceptance_unproven_or_stale" }
 $report = [ordered]@{
     contract = "mad4b.staging-coldboot-diagnostics.v1"
     environment = "staging"
@@ -110,6 +118,7 @@ $report = [ordered]@{
     last_git_transport_status = if ($null -ne $transport) { [string]$transport.status } else { "unobserved" }
     staging_health_fresh = $healthFresh
     supervisor_acceptance = if ($null -ne $acceptance) { [string]$acceptance.status } else { "missing" }
+    supervisor_acceptance_fresh = $acceptanceFresh
     blockers = $blockers
     read_only = $true
     production_mutation_allowed = $false
