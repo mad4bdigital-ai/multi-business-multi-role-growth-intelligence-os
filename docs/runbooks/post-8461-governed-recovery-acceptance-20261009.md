@@ -83,3 +83,31 @@ The following are **not** release certificates. Each issue is resolved only at t
 - `Windows`: resolve the **currently active** machine and exact device generation; complete hardware issuer verification and a transactional nonce store; reject historical aliases.
 - `GitHub`: admin verifies effective Rulesets for `main` and `Production`, then applies typed minimal-diff policy in a separately authorized policy-controller operation.
 - `Staging / Production`: perform Native PowerShell, MariaDB replay, browser acceptance, governed release promotion and rollback only after prior evidence; no deployment from this PR.
+
+## Operational scenario expansion — 42 cases in six independent acceptance lanes
+
+Canonical source: `http-generic-api/config/post8461-operational-scenario-matrix.json`. It is validated in `http-generic-api/test-post8461-operational-scenario-matrix.mjs` and registered in the PR's E2E + Test Authority. All records are **source-level negative contracts**, not proof of live operations.
+
+| Lane | Cases and operational coverage | Safe terminal outcome | External acceptance still required |
+| --- | --- | --- | --- |
+| Hostinger | 15: inactive provider; expired/incorrect account token; 401/403; 429; redirect; HTTP 206; more than one page; concurrent inventory mutation; over-capacity; mixed-account rows; existing/missing DB; masked env PUT; no write executor | Read-only inventory or `blocked`/`retry_later`; never CREATE | Account authorization, managed token vault, exact website ownership, DB CREATE/grant plan, secrets, issuer, rollback |
+| MCP | 8: DB mismatch; principal mismatch; metadata permission denied; missing column; full readback; stale cache; half migration; oversized Tool Catalog | `ready_verified` or migration *proposal* only after protected SQL collector | Native Runtime session, migrations, bounded catalog chunk continuation, independent ledger |
+| Windows Device | 9: old hostname; device offline; protected command 401; wrong tenant; attacker key; revoked generation; nonce replay; receipt expiry; no hardware proof | No `RECOVERED` without TPM/non-exportability and independent command | Native Windows key + active device enrollment + durable nonce transaction + Task/Service + Browser |
+| DB migrations | 3: 17-table schema absent; Migration 225 partial; Migration 1051 ledger mismatch | Hold DDL and production authority | Exact DB role, privilege matrix, MariaDB replay/fault-injection, signed readback |
+| GitHub Rulesets | 3: main unprotected; policy API 403; SHA changed after owner approval | Hold auto-merge and Production policy | Admin-owned server-side Ruleset apply and exact effective protection/readback |
+| Release | 4: Staging rollback unverified; Production SHA drift; browser-data canary mismatch; Production rollback receipt missing | No Production promotion | Explicit approval, exact release SHA, parity, canary, readback and rollback |
+
+### Hostinger pagination and concurrency
+
+Official Hostinger `GET /api/hosting/v1/accounts/{username}/databases` supports `page` and `per_page` with maximum `per_page=100`. The read-only planner now uses deterministic page numbers, a hard five-page/500-database cap, and a second full scan when more than one page exists. It rejects count drift, invalid page metadata, duplicate names, cross-account rows, 206, redirects, 401/403, 429, transport failures and size overflow. A two-pass equality check does **not** confer transaction-level consistency: if a write executor is added later, it MUST reacquire provider state under a separate governed lock before any create.
+
+Never auto-repeat 429 requests within a shared account rate-limit budget, and never follow server-advertised continuation URLs with a bearer token.
+
+### Scenario ownership and evidence collection
+
+- Evidence classes: `source_unit`, `staging_native`, `provider_account`, `runtime_db`, `device_attestation`, `github_server_policy`, `production_change`. Do not convert any of these into another.
+- When an external provider is unavailable, return `blocked` or `retry_later` with a bounded reason. No `success`, `ready` or `recovered` without a same-cycle readback.
+- A completed read-only inventory establishes a bounded observation only; `inventory_readback_proven=false`, `website_identity_verified=false`, and `execution_allowed=false` remain explicit until independently attested.
+- Real operational certification must attach exact scope (account/site/tenant/device), signed identity and nonexportable key where appropriate, evidence source, issued/expiry times, runtime commit SHA, mutation and inverse receipts, and same-cycle readback.
+- Retest the negative paths after credential rotation, host restart, schema drift, service reconnection, Release Cut changes or provider permission changes.
+
