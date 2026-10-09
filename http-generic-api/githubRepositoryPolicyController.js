@@ -427,7 +427,7 @@ export async function readGithubRepositoryPolicy(args = {}, deps = {}) {
     dismiss_stale_reviews_proven: dismissStale,
     required_review_thread_resolution_proven: conversationResolution,
     require_last_push_approval_observed: lastPush,
-    required_status_checks_proven: missingChecks.length === 0,
+    required_status_checks_proven: missingChecks.length === 0 && (producerBound || anySourceObserved),
     required_status_check_producer_bound: producerBound,
     any_source_mode_opted_in: anySourceOptIn,
     any_source_mode_observed: anySourceObserved,
