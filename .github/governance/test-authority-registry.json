@@ -44,9 +44,10 @@
     {
       "id": "admin_tool_descriptor_binding_contract",
       "test_paths": [
-        "http-generic-api/test-admin-tool-descriptor-binding.mjs",
+        "http-generic-api/openapi.yaml",
         "http-generic-api/routes/gptToolsRoutes.js",
-        "http-generic-api/openapi.yaml"
+        "http-generic-api/test-admin-tool-descriptor-binding.mjs",
+        "http-generic-api/test-platform-tool-dispatch-binding-integrity.mjs"
       ]
     },
     {
