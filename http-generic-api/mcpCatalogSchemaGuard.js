@@ -338,7 +338,25 @@ export async function readMcpCatalogSchemaReadinessSafe({ pool, env = process.en
     const session = leased || targetPool;
     try {
       const identity = await readMcpCatalogRuntimeIdentity({ pool: session, env });
-      const readiness = await readMcpCatalogSchemaReadiness({ pool: session });
+      // Stop before inspecting table metadata if the session's DB/user identity
+      // is missing or conflicts with the explicitly configured Runtime role.
+      // Schema from any other database cannot guide a Runtime migration.
+      const readiness = identity.ok === true
+        ? await readMcpCatalogSchemaReadiness({ pool: session })
+        : {
+          ...MCP_CATALOG_RUNTIME_SCHEMA_CONTRACT,
+          ok: false,
+          tables: MCP_CATALOG_TABLES.map(table => ({
+            table,
+            column: MCP_CATALOG_LEVEL_COLUMN,
+            available: false,
+            code: "MCP_CATALOG_RUNTIME_IDENTITY_UNVERIFIED",
+            migration_apply_required: false,
+            secrets_included: false,
+          })),
+          migration_apply_required: false,
+          secrets_included: false,
+        };
       return {
         ...readiness,
         ...MCP_CATALOG_RUNTIME_SCHEMA_CONTRACT,
