@@ -49,12 +49,16 @@ async function boundedBody(response) {
 
 // Only the server-side credential vault may supply getManagedToken. Never
 // accept tokens, arbitrary URLs, or HTTP methods from end-user requests.
-export function createHostingerReadOnlyTransport({getManagedToken,fetchImpl=fetch}={}) {
+export function createHostingerReadOnlyTransport({
+  boundAccountUsername,getManagedToken,fetchImpl=fetch
+}={}) {
   if(typeof getManagedToken!=="function" || typeof fetchImpl!=="function")
     throw refuse("hostinger_managed_provider_binding_missing",503);
+  const boundAccount=exact(boundAccountUsername,ACCOUNT,"hostinger_bound_account_required");
   return Object.freeze({
     async databaseInventory(accountUsername) {
       const account=exact(accountUsername,ACCOUNT,"hostinger_account_identifier_invalid");
+      if(account!==boundAccount)throw refuse("hostinger_managed_credential_account_mismatch",403);
       const token=await getManagedToken();
       if(typeof token!=="string" || token.length<20 || token.length>2048)
         throw refuse("hostinger_managed_api_token_missing",503);
