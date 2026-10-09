@@ -1,7 +1,7 @@
 // Server-only cryptographic proof of possession of a registered device generation.
 // Signature verification is NOT hardware/TPM attestation and does not certify
 // that a key is non-exportable. No caller boolean may promote RECOVERED.
-import {createPublicKey,verify} from "node:crypto";
+import {createHash,createPublicKey,verify} from "node:crypto";
 
 const verifiedReceipts=new WeakSet();
 const IDENT=/^[a-zA-Z0-9][a-zA-Z0-9_.:-]{1,127}$/;
@@ -69,13 +69,21 @@ export async function verifyBoundDeviceGenerationChallenge({
   // The storage implementation must atomically compare-and-consume the
   // challenge ID/nonce under the exact registered scope, with durable replay
   // resistance across processes. This is injected by the governed DB service.
+  // A conforming durable nonce store MUST atomically compare every signed
+  // challenge field AND the currently active registration key fingerprint.
+  // Otherwise a rekey/revoke between lookup and consume is a TOCTOU bypass.
+  const registeredKeySha256=createHash("sha256")
+    .update(publicKey.export({type:"spki",format:"der"})).digest("hex");
   if(await consumeNonce({challenge_id:challenge.id,nonce:challenge.nonce,
-    expected_scope:{...expected},expires_at_ms:challenge.expires_at_ms})!==true)
+    expected_scope:{...expected},issued_at_ms:challenge.issued_at_ms,
+    expires_at_ms:challenge.expires_at_ms,
+    registered_key_sha256:registeredKeySha256})!==true)
     throw deny("device_generation_challenge_replayed_or_uncommitted");
   const result=Object.freeze({
     contract:"mad4b.device-generation-possession-receipt.v1",
     ...Object.fromEntries(fields.map(f=>[f,expected[f]])),
-    challenge_id:challenge.id,nonce_consumed:true,signature_verified:true,
+    challenge_id:challenge.id,registered_key_sha256:registeredKeySha256,
+    nonce_consume_callback_accepted:true,nonce_consumed:true,signature_verified:true,
     hardware_nonexportability_verified:false,
     execution_allowed:false,recovered:false,secrets_included:false
   });
