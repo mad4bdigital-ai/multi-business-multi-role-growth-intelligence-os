@@ -208,10 +208,9 @@ function finalize(manifest) {
 // Regression: design classification does not become a false operational or Production certificate.
 {
   const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-  const featurePath = "specs/009-local-connector-reachability-recovery";
-  const manifest = JSON.parse(fs.readFileSync(path.join(root, featurePath, "work-map-integration.json"), "utf8"));
-  const spec = fs.readFileSync(path.join(root, featurePath, "spec.md"), "utf8");
-  const tasks = fs.readFileSync(path.join(root, featurePath, "tasks.md"), "utf8");
+  const manifest = JSON.parse(fs.readFileSync(path.join(root, "specs/009-local-connector-reachability-recovery", "work-map-integration.json"), "utf8"));
+  const spec = fs.readFileSync(path.join(root, "specs/009-local-connector-reachability-recovery", "spec.md"), "utf8");
+  const tasks = fs.readFileSync(path.join(root, "specs/009-local-connector-reachability-recovery", "tasks.md"), "utf8");
   const knownAcceptance = new Set([...spec.matchAll(/^### (US[0-9]+: .+)$/gm)]
     .map(([, heading]) => heading.toLowerCase().replace(/:/g, "").replace(/[^a-z0-9 -]/g, "").trim().replace(/ +/g, "-")));
   assert.equal(manifest.review_state, "ready_for_implementation");
@@ -247,7 +246,7 @@ function finalize(manifest) {
           assert(tasks.includes(`${task} `), `Unknown delivery task: ${dimension}/${task}`);
         }
         for (const acceptance of decision.acceptance_refs) {
-          assert(acceptance.startsWith(`${featurePath}/spec.md#`));
+          assert(acceptance.startsWith("specs/009-local-connector-reachability-recovery/spec.md#"));
           assert(knownAcceptance.has(acceptance.split("#")[1]), `Unknown acceptance story: ${acceptance}`);
         }
       }
