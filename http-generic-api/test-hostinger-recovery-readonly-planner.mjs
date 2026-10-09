@@ -14,7 +14,7 @@ const inventory=(names=[database])=>new Response(JSON.stringify({data:names.map(
 
 test("managed Hostinger inventory only performs exact GET and returns no credential",async()=>{
   const calls=[];
-  const provider=createHostingerReadOnlyTransport({
+  const provider=createHostingerReadOnlyTransport({boundAccountUsername:account,
     getManagedToken:async()=>token,
     fetchImpl:async(url,opts)=>{calls.push({url,opts});return inventory();}
   });
@@ -37,8 +37,19 @@ test("managed Hostinger inventory only performs exact GET and returns no credent
   assert(report.blockers.includes("database_already_exists_owner_and_schema_readback_required"));
 });
 
-test("missing database proposes an explicit independent approval, never enables create",async()=>{
+test("managed API credential cannot be applied to another Hostinger account",async()=>{
+  let fetched=false;
   const provider=createHostingerReadOnlyTransport({
+    boundAccountUsername:account,getManagedToken:async()=>token,
+    fetchImpl:async()=>{fetched=true;return inventory();}
+  });
+  await assert.rejects(provider.databaseInventory("u987654321"),
+    e=>e.code==="hostinger_managed_credential_account_mismatch");
+  assert.equal(fetched,false);
+});
+
+test("missing database proposes an explicit independent approval, never enables create",async()=>{
+  const provider=createHostingerReadOnlyTransport({boundAccountUsername:account,
     getManagedToken:async()=>token,fetchImpl:async()=>inventory(["u123456789_existing"])
   });
   const report=await previewHostingerRecoveryDatabase({
@@ -70,7 +81,7 @@ test("wrong account, domain, database prefix, or untrusted provider fails before
 
 test("provider HTTP 401/403 and redirects cannot be interpreted as capabilities",async()=>{
   for (const status of [401,403,302,503]) {
-    const provider=createHostingerReadOnlyTransport({
+    const provider=createHostingerReadOnlyTransport({boundAccountUsername:account,
       getManagedToken:async()=>token,
       fetchImpl:async()=>new Response("",{status,headers:status===302?{location:"https://invalid.test"}:{}})
     });
@@ -87,13 +98,13 @@ test("malformed, paginated, duplicate or unbounded inventory is never accepted",
     {data:[{name:database},{name:database}]},
     {data:[{database_name:database}]}
   ]) {
-    const provider=createHostingerReadOnlyTransport({
+    const provider=createHostingerReadOnlyTransport({boundAccountUsername:account,
       getManagedToken:async()=>token,
       fetchImpl:async()=>new Response(JSON.stringify(data),{status:200})
     });
     await assert.rejects(provider.databaseInventory(account),e=>Boolean(e.code));
   }
-  const provider=createHostingerReadOnlyTransport({
+  const provider=createHostingerReadOnlyTransport({boundAccountUsername:account,
     getManagedToken:async()=>token,
     fetchImpl:async()=>new Response("x".repeat(300000),{status:200})
   });
