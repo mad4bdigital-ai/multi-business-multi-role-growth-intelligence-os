@@ -263,3 +263,34 @@ An additional acceptance boundary was implemented after the objection ledger:
 **Verification gap:** The source wiring is committed, and source-level checks can inspect it. An actual fresh ephemeral MariaDB 11.4 rebuild, second replay, completed-state reopen and negative fault injection must still run and yield exact receipts. Do not interpret unexecuted PowerShell as a runtime certificate.
 
 This gate is **provider-target-independent**: it validates canonical catalog row semantics, not the existence of a particular registered Hostinger account.
+
+
+## 15. Exact CI artifact-driven closure — follow-up (2026-10-09)
+
+**Provenance:** Downloaded canonical workflow evidence from the completed PR #8461 candidate `b58650c10a0d98038892fe174abf48762dc34a6f`. Its 36 workflows concluded: 22 success, 13 failure, 1 skipped. These conclusions apply to that SHA **only**; later commits require separate readback.
+
+### Root causes and committed source remediations
+
+1. **Unit and integration: two failing installer assertions.** `test-connect-routes.mjs` expected obsolete SQL, while runtime now constrains exact tenant + device, active lifecycle, nonrevoked and nonarchived records, and uses `LIMIT 2` to deny ambiguous matches. Updated the test to assert stronger current route semantics rather than weakening the runtime gate.
+2. **Custom GPT / Staging Admin schema: Tenant Core candidate unmapped.** New `discoverHostingerRecoveryAllowlist` is tagged `platform-plugins` but strictly `admin_backend`, with both GPT exclusion flags. Added one explicit reviewed `tenant_core.candidate_policy.exclusion_records` entry (Owner: remote-runtime); did not add a Tenant Core source marker or expose the Admin endpoint. Added a test that enforces the isolation.
+3. **E2E Phase Governance: two owned Spec contracts were not changed.** Canonical `e2e-phase-evaluation.json` findings were `e2e_phase_contract_not_changed_with_feature` for `specs/009-local-connector-reachability-recovery/e2e-phases.json` and `specs/014-governed-hostinger-storage-orchestration/e2e-phases.json`. Both current MVP journeys now reference the bounded PR8461 objection evidence without claiming new implementation/Production authority.
+4. **Repository semantic fixed point: two unclassified root documents.** Classified only `GPT_Admin_Assistant_Knowledge_Guide.md` and `runtime_confirmation_procedure.md` as documentation evidence in `repository-governance-constitution.json`. No broad wildcard or unclassified-path waiver.
+5. **Environment Impact Closure: three unclassified paths.** Added the same two exact root docs to `deployment-branch-policy.json` repository-governance class and `http-generic-api/scripts/governed-migration-runner-legacy.mjs` to shared-runtime (retaining cross-environment certification requirement). Added explicit regression assertions.
+6. **Test Authority Closure: seven unregistered new regression tests.** Assigned three Local Connector tests to `local_connector_environment_and_transport_isolation` and four Hostinger/MCP tests to `hostinger_runtime_bootstrap_contract` within the existing test-authority registry; the native manifest remains separate.
+7. **Remote MCP OAuth Path Guard: stale denied-mutation registry source SHA.** CI `ci:path-guard` computed `818cac5681cd2ea230a5c0b2f3cdf28c2db022ce74db5190c221db0e9560fdd9` from four generated source OpenAPI subsets, but tracked registry still used `7a9f158589e3774740f7a4912e37578dbc7c5dca6780514305f3307369bb5ccd`. Re-pinned the registry fingerprint to the independently observed CI source SHA **without** changing the 36 denied operation definitions or `write_activation_allowed=false`. The full native semantic equality guard must still pass; a checksum alone is insufficient.
+
+### Adversarial objections and safety treatment
+
+- **Can changing a GPT candidate list accidentally expose Admin capabilities?** No: the route is explicitly excluded and tests require admin-backend security alternatives, no Tenant source marker, and one reviewed exclusion record.
+- **Can stale test strings be fixed by reducing tenant isolation?** No: tests assert stricter query predicates, lifecycle/revocation fences, unique readbacks, and token-specific identity.
+- **Can unknown repository files be broadly suppressed from governance?** No: exact paths were classified with typed effects; Legacy Migration Runner remains shared-runtime and therefore subject to live-readiness requirements.
+- **Can a generated fingerprint be rubber-stamped as a passed policy?** No: its recomputed source value was taken from actual CI output; other deep-equality/coverage predicates remain enforced. Await exact-head verification.
+- **Can old results certify the new HEAD?** No: every CI artifact is source-identity-bound, and fresh head checks cannot be treated as success until they complete.
+
+### Still blocked
+
+- Derived State Closure: four blocking artifacts (`frontend_openapi_projection`, `remote_mcp_write_scope_inventory`, `portable_staging_manifest`, `work_maps`) and two observability artifacts (`repository_inventory`, `repository_evaluation`) remain stale until their registered generators/writers produce exact-head readback.
+- Exact-head native tests, disposable MariaDB replay, Windows/PowerShell, Staging route, installer token redemption, and browser fault injection require independent certificates.
+- Live Hostinger provider entitlements, independent Recovery Control Store, correct Production Runtime DB identity/schema/grants, and per-device generation attestation are not established.
+- The connected Remote Desktop Commander device was found offline; no local/remote native test execution was represented as performed.
+- Production mutation, secret exposure, DDL/grants, arbitrary SSH, environment PUT, deploy, and merging to main remain forbidden.
