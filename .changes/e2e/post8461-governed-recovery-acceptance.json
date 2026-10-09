@@ -14,6 +14,7 @@
       "http-generic-api/deviceGenerationChallengeVerifier.js",
       "http-generic-api/hostingerRecoveryReadOnlyPlanner.js",
       "http-generic-api/mcpCatalogRecoveryDecision.js",
+      "http-generic-api/mcpCatalogSchemaGuard.js",
       "http-generic-api/test-admin-local-connector-target.mjs",
       "http-generic-api/test-device-generation-challenge-verifier.mjs",
       "http-generic-api/test-hostinger-recovery-readonly-planner.mjs",
