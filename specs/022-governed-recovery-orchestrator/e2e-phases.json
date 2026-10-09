@@ -1,0 +1,117 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "022-governed-recovery-orchestrator",
+  "title": "Dynamic Governed Recovery Orchestrator (server-managed source foundation)",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      "http-generic-api/recoveryOrchestrator.js",
+      "http-generic-api/routes/index.js",
+      "http-generic-api/routes/recoveryOrchestratorRoutes.js",
+      "http-generic-api/test-recovery-orchestrator-routes.mjs",
+      "http-generic-api/test-recovery-orchestrator.mjs",
+      "specs/022-governed-recovery-orchestrator/contracts.md",
+      "specs/022-governed-recovery-orchestrator/e2e-phases.json",
+      "specs/022-governed-recovery-orchestrator/plan.md",
+      "specs/022-governed-recovery-orchestrator/spec.md",
+      "specs/022-governed-recovery-orchestrator/tasks.md"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "environment_impact": {
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Prove a source-only provider-neutral Recovery Orchestrator with immutable plans, pre-dispatch intent, fenced Staging-only execution, unknown-outcome reconciliation and admin-only read-only capability discovery; no mutation authority is activated in this PR.",
+      "e2e_journeys": [
+        {
+          "id": "governed-dynamic-recovery-durable-intent-and-unknown-outcome",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Approved Staging Recovery operator",
+          "entrypoint": "Server-owned Recovery Orchestrator API invoked with an exact persisted plan and injected simulated adapters",
+          "terminal_outcome": "A verified Staging mock operation reaches recovered only after atomic claim, pre-dispatch durable intent, lease fencing and independent readback. Lost provider ACK remains UNKNOWN and must reconcile without re-execution.",
+          "steps": [
+            "Discover a registered server-owned adapter and its typed operation; reject caller-selected credentials or URLs.",
+            "Create a read-only inspected content-addressed plan binding tenant, resource, exact source SHA and environment.",
+            "Re-inspect exact resource and reject descriptor/state drift, stale plan, or missing approval.",
+            "Atomically claim once, persist the intent before dispatch and confirm lease fence.",
+            "Invoke synthetic Staging executor and require independent postcondition readback and durable finalization.",
+            "Simulate lost ACK, blocked retry, irreversible recovered state and independently verified UNKNOWN reconciliation."
+          ],
+          "assertions": [
+            "No Production mutation or live provider dispatch is possible.",
+            "No external side effect before durable intent, unique claim and fencing.",
+            "An ambiguous or lost finalization ACK never automatically repeats the provider operation.",
+            "Only a separate trusted verifier can promote to RECOVERED.",
+            "The test uses synthetic in-memory adapters and explicitly does not certify the actual database or provider."
+          ],
+          "tests": [
+            {
+              "id": "recovery-orchestrator-v1-state-machine",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-recovery-orchestrator.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "specs/022-governed-recovery-orchestrator/spec.md",
+            "specs/022-governed-recovery-orchestrator/plan.md",
+            "specs/022-governed-recovery-orchestrator/tasks.md",
+            "specs/022-governed-recovery-orchestrator/contracts.md",
+            "http-generic-api/recoveryOrchestrator.js",
+            "http-generic-api/test-recovery-orchestrator.mjs"
+          ]
+        },
+        {
+          "id": "admin-readonly-orchestrator-capability-discovery",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Authenticated platform administrator",
+          "entrypoint": "GET /admin/recovery/orchestrator/capabilities",
+          "terminal_outcome": "Only a server-provided descriptor catalog is visible behind backend API key and admin principal, with no write endpoints or implicit executors.",
+          "steps": [
+            "Mount the new router through the platform's central router registry.",
+            "Enforce Backend API key and Admin Principal using existing guards.",
+            "Read server-owned registered adapter metadata; absent registry returns empty inventory.",
+            "Verify no mutation endpoint or Production authority appears in output."
+          ],
+          "assertions": [
+            "No user-provided credential, host, SQL, script, or private-key field is accepted.",
+            "The GET route never executes a provider method.",
+            "The route is registered in the central application.",
+            "The route has no POST, PUT, PATCH or DELETE variant."
+          ],
+          "tests": [
+            {
+              "id": "recovery-orchestrator-v1-readonly-router",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-recovery-orchestrator-routes.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/routes/index.js",
+            "http-generic-api/routes/recoveryOrchestratorRoutes.js",
+            "http-generic-api/test-recovery-orchestrator-routes.mjs"
+          ]
+        }
+      ]
+    }
+  ]
+}

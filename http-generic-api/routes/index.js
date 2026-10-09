@@ -72,6 +72,7 @@ import { buildDeploymentInfoRoutes } from "./deploymentInfoRoutes.js";
 import { buildRuntimeBreakglassRoutes } from "./runtimeBreakglassRoutes.js";
 import { buildAdminHostBreakglassRoutes } from "./adminHostBreakglassRoutes.js";
 import { buildRecoveryKernelRoutes } from "./recoveryKernelRoutes.js";
+import { buildRecoveryOrchestratorRoutes } from "./recoveryOrchestratorRoutes.js";
 import { buildProductionRecoveryBootstrapRoutes } from "./productionRecoveryBootstrapRoutes.js";
 import { buildStagingRecoveryAdminRoutes } from "./stagingRecoveryAdminRoutes.js";
 import { buildDevDbRestoreRoutes } from "./devDbRestoreRoutes.js";
@@ -177,6 +178,8 @@ export function registerRoutes(app, deps) {
   app.use(buildRuntimeBreakglassRoutes({ ...deps, requireBackendApiKey: deps.requireBackendApiKey, env: deps?.env || process.env }));
   app.use(buildAdminHostBreakglassRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildRecoveryKernelRoutes({ ...deps, requireAdminPrincipal }));
+  // Read-only capability discovery only. No orchestrator mutation routes registered.
+  app.use(buildRecoveryOrchestratorRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildProductionRecoveryBootstrapRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildStagingRecoveryAdminRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildBackupArtifactRoutes(deps));
