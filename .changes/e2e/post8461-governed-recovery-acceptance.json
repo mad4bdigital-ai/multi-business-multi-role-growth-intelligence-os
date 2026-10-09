@@ -24,7 +24,17 @@
       "http-generic-api/test-hostinger-recovery-readonly-planner.mjs",
       "http-generic-api/test-mcp-catalog-recovery-decision.mjs",
       "http-generic-api/test-post8461-operational-scenario-matrix.mjs",
-      "http-generic-api/test-production-promotion-log-preflight.mjs"
+      "http-generic-api/test-production-promotion-log-preflight.mjs",
+      "autopilot-portable-staging/Auto-Deploy-Staging.ps1",
+      "autopilot-portable-staging/Install-AutoDeployTask.ps1",
+      "autopilot-portable-staging/Install-AutonomousSupervisorTask.ps1",
+      "autopilot-portable-staging/Staging-AutonomousSupervisor.ps1",
+      "autopilot-portable-staging/Staging-ColdBoot-Diagnostics.ps1",
+      "autopilot-portable-staging/Staging-Doctor.ps1",
+      "autopilot-portable-staging/test/Test-AutonomousSupervisor.ps1",
+      "docs/runbooks/pr8471-windows-coldboot-recovery-20261009.md",
+      "http-generic-api/config/pr8471-windows-coldboot-scenarios.json",
+      "http-generic-api/test-staging-coldboot-recovery.mjs"
     ]
   },
   "merge_contract": {
@@ -123,6 +133,43 @@
             "http-generic-api/productionPromotionLogPreflight.js",
             "docs/runbooks/pr8471-production-promotion-preflight-from-hostinger-logs-20261009.md"
           ]
+        },
+        {
+          "id": "windows-coldboot-safe-local-recovery",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "windows_operator",
+          "entrypoint": "Windows interactive user logon with delayed DNS, GitHub, Docker Desktop and incomplete Scheduled Tasks",
+          "terminal_outcome": "All source safety guards fail closed; no native Windows or Production certification is claimed",
+          "steps": [
+            "Inspect exact Windows Task Scheduler, Docker Engine and DNS evidence without mutating Staging or Production",
+            "Keep remote Git watcher alive during bounded transport outages without reusing prior exact-head/eligibility receipts",
+            "Re-check local Compose health after Docker readiness instead of trusting pre-reboot source certification",
+            "Reconcile missing supervisor only through explicit additive approved task installer bound to principal/path/arguments",
+            "Verify silent Scheduled Task actions and eight reboot-specific synthetic failure scenarios",
+            "Require separate native Windows reboot, device attestation, Staging acceptance and rollback evidence"
+          ],
+          "assertions": [
+            "No Production deploy, credential changes, database DDL, DNS updates or provider mutations are authorized",
+            "Stopped local Docker containers cannot inherit a healthy status from stale pre-reboot certification",
+            "DNS or Git failure cannot select a stale SHA or authorize an unverified deployment",
+            "Silent watcher arguments remain exact and reject injected/unrecognized switches",
+            "Eight source-only cold-boot scenarios never constitute live Windows or hardware recovery certification"
+          ],
+          "tests": [
+            {
+              "id": "windows-coldboot-source-regressions",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-staging-coldboot-recovery.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "autopilot-portable-staging/Staging-ColdBoot-Diagnostics.ps1",
+            "http-generic-api/config/pr8471-windows-coldboot-scenarios.json",
+            "docs/runbooks/pr8471-windows-coldboot-recovery-20261009.md"
+          ]
         }
       ],
       "tests": [
@@ -166,6 +213,13 @@
           "runner": "node",
           "working_directory": ".",
           "path": "http-generic-api/test-production-promotion-log-preflight.mjs",
+          "args": []
+        },
+        {
+          "id": "windows-coldboot-source-regressions",
+          "runner": "node",
+          "working_directory": ".",
+          "path": "http-generic-api/test-staging-coldboot-recovery.mjs",
           "args": []
         }
       ]
