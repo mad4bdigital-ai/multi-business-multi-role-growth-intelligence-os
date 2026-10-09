@@ -57,6 +57,8 @@ test("Docker Engine readiness precedes trusting prior certification on a reboot"
   assert(engine >= 0 && check > engine && prior > check);
   assert.match(autoDeploy, /elseif \(\$sameDeployedCommit -and \$localRuntimeHealthy -and -not \$ValidateOnly/);
   assert.match(autoDeploy, /elseif \(\$eligibility.state -eq "eligible"\)/);
+  assert.match(autoDeploy, /\$liveImageId = \(& docker inspect --format "\{\{\.Image\}\}"/);
+  assert.match(autoDeploy, /\$liveImageId -ne \$imageDigest\.ToLowerInvariant\(\)/);
   assert.doesNotMatch(autoDeploy, /if \(\$alreadyCertified\) \{\s*\$phaseState\.service_health = "healthy"/);
 });
 
