@@ -121,6 +121,8 @@ def validate(root=ROOT):
         faults.append("acceptance_false_pass")
     if schema.get("properties",{}).get("runtime_authority",{}).get("const") is not False or schema.get("additionalProperties") is not False:
         faults.append("candidate_schema_unsafe")
+    if "secret" in schema.get("properties", {}).get("candidate", {}).get("properties", {}).get("sensitivity", {}).get("enum", []):
+        faults.append("secret_candidate_value_schema")
     return sorted(set(faults))
 
 if __name__ == "__main__":
