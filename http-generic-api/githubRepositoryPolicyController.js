@@ -111,6 +111,15 @@ function branchPolicy(branch = "main") {
   if (!value) throw policyError(400, "github_repository_policy_branch_unregistered", "Target branch is not registered in the repository governance Constitution.", { requested_branch: name, registered_branches: Object.keys(source.branches || {}).sort(), secrets_included: false });
   if (value.ref !== `refs/heads/${name}`) throw policyError(500, "github_repository_policy_branch_contract_invalid", "Constitution branch ref does not match its registry key.");
   if (value.require_pull_request !== true || value.block_direct_push !== true || value.block_force_push !== true) throw policyError(500, "github_repository_policy_branch_contract_weakened", "Constitution branch policy is below the server-enforcement floor.");
+  const sourceMode = String(value.required_check_source_mode || "app_bound");
+  if (!["app_bound", "any_source_with_independent_finalizer_readback"].includes(sourceMode) || (name !== "main" && sourceMode !== "app_bound")) {
+    throw policyError(500, "github_repository_policy_status_source_mode_invalid", "Unrestricted source mode is explicitly limited to main.");
+  }
+  if (sourceMode !== "app_bound" && (
+    value.required_check_producer !== "trusted_github_app_attestor"
+    || value.any_source_governed_merge_requires !== "same_cycle_trusted_attestor_status_creator_and_exact_candidate"
+    || value.native_auto_merge_forbidden !== true
+  )) throw policyError(500, "github_repository_policy_any_source_attestor_contract_invalid", "Any source must retain a real trusted attestor and independent exact-candidate readback.");
   return {
     constitution_contract: source.contract,
     constitution_schema_version: source.schema_version,
@@ -129,6 +138,8 @@ function branchPolicy(branch = "main") {
     strict_required_status_checks: value.strict_required_status_checks !== false,
     required_checks: uniqueStrings(value.required_checks || []),
     required_check_producer: value.required_check_producer || null,
+    required_check_source_mode: sourceMode,
+    any_source_residual_risk: sourceMode === "app_bound" ? null : value.any_source_residual_risk,
     required_check_evidence: value.required_check_evidence || null,
     required_check_activation: value.required_check_activation || null,
     generic_pull_request_merge_forbidden: value.generic_pull_request_merge_forbidden === true,
@@ -334,7 +345,7 @@ function desiredRuleset(checks, policy, appId, singleOwnerMode) {
     type: "required_status_checks",
     parameters: {
       do_not_enforce_on_create: false,
-      required_status_checks: checks.map((context) => ({ context, integration_id: appId })),
+      required_status_checks: checks.map((context) => policy.required_check_source_mode === "any_source_with_independent_finalizer_readback" ? { context } : { context, integration_id: appId }),
       strict_required_status_checks_policy: policy.strict_required_status_checks,
     },
   });
@@ -384,7 +395,11 @@ export async function readGithubRepositoryPolicy(args = {}, deps = {}) {
   const observedChecks = uniqueStrings([...activeTarget.flatMap((entry) => entry.required_status_checks), ...classicChecks]).sort();
   const missingChecks = checks.filter((entry) => !observedChecks.includes(entry));
   const producerBound = checks.length === 0 || activeManaged.some((entry) => entry.missing_required_checks.length === 0 && entry.required_check_producer_mismatches.length === 0);
-  const singleOwnerObserved = eligibleHumans.length === 1 && reviewCount === 0 && producerBound && activeManaged.some((entry) => entry.pull_request.present);
+  const anySourceOptIn = policy.branch === "main" && policy.required_check_source_mode === "any_source_with_independent_finalizer_readback";
+  const anySourceObserved = anySourceOptIn && checks.length > 0 && activeManaged.length === 1
+    && activeManaged[0].missing_required_checks.length === 0
+    && checks.every((context) => activeManaged[0].required_status_check_bindings.some((entry) => entry.context === context && entry.integration_id === null));
+  const singleOwnerObserved = eligibleHumans.length === 1 && reviewCount === 0 && (producerBound || anySourceObserved) && activeManaged.some((entry) => entry.pull_request.present);
   const branchReadable = branch.ok && SHA_RE.test(String(branch.payload?.commit?.sha || "")) && typeof branch.payload?.protected === "boolean";
   const policyReadable = branchReadable && activeRules.ok && Array.isArray(activeRules.payload) && indexReadable && detailsReadable && (classic.status === 404 || classic.status === 200);
   const pullRequestRequired = activeTarget.some((entry) => entry.pull_request.present) || activeList.some((entry) => entry?.type === "pull_request");
@@ -412,8 +427,10 @@ export async function readGithubRepositoryPolicy(args = {}, deps = {}) {
     dismiss_stale_reviews_proven: dismissStale,
     required_review_thread_resolution_proven: conversationResolution,
     require_last_push_approval_observed: lastPush,
-    required_status_checks_proven: missingChecks.length === 0 && producerBound,
+    required_status_checks_proven: missingChecks.length === 0,
     required_status_check_producer_bound: producerBound,
+    any_source_mode_opted_in: anySourceOptIn,
+    any_source_mode_observed: anySourceObserved,
     missing_required_status_checks: missingChecks,
     direct_push_block_proven: policyReadable && branch.payload.protected === true && pullRequestRequired && bypassActors.length === 0,
     force_push_block_proven: nonFastForward,
@@ -423,7 +440,11 @@ export async function readGithubRepositoryPolicy(args = {}, deps = {}) {
     auto_merge_disabled: autoMergeDisabled,
     generic_pull_request_merge_forbidden_proven: trustedPromotionGate,
   };
-  proof.server_policy_gate_complete = Object.entries(proof).filter(([key]) => !["required_approving_review_count", "missing_required_status_checks"].includes(key)).every(([, value]) => value === true);
+  // GitHub's "Any source" cannot independently enforce the publisher identity.
+  // Never upgrade a structurally valid unrestricted ruleset to server-policy COMPLETE.
+  proof.server_policy_gate_complete = !anySourceOptIn && Object.entries(proof)
+    .filter(([key]) => !["required_approving_review_count", "missing_required_status_checks", "any_source_mode_opted_in", "any_source_mode_observed"].includes(key))
+    .every(([, value]) => value === true);
   const findingMap = {
     policy_state_readable: "policy_state_unreadable",
     collaborator_ownership_complete: "collaborator_ownership_incomplete",
@@ -468,6 +489,9 @@ export async function readGithubRepositoryPolicy(args = {}, deps = {}) {
     single_owner_mode_eligible: collaboratorReadable && eligibleHumans.length === 1,
     review_policy_mode: singleOwnerObserved ? "single_owner_attestation" : reviewCount >= 1 ? "independent_approval" : "incomplete",
     finalizer_identity: { app_id: appId, installation_id: installationId, resolved: appId !== null },
+    required_check_source_mode: policy.required_check_source_mode,
+    required_check_source_unrestricted: anySourceObserved,
+    governed_exact_candidate_attestation_still_required: anySourceOptIn,
     required_checks: checks,
     observed_required_checks: observedChecks,
     proof,
@@ -506,6 +530,9 @@ export function buildGithubRepositoryPolicyPlan(args = {}, readback = null) {
   const existing = managed.length === 1 && repoManaged.length === 1 ? repoManaged[0] : null;
   const blockers = [];
   if (!appId && checks.length) blockers.push("trusted_required_check_producer_unresolved");
+  if (policy.required_check_source_mode === "any_source_with_independent_finalizer_readback") {
+    blockers.push("any_source_requires_independent_candidate_attestation_and_manual_activation");
+  }
   if (policy.generic_pull_request_merge_forbidden && !(policy.required_check_producer === "trusted_github_app_attestor" && policy.same_sha_closure_required && checks.length === 1 && checks[0] === policy.promotion_path)) blockers.push("promotion_gate_contract_incomplete");
   if (managed.length > 1 || (managed.length === 1 && repoManaged.length !== 1)) blockers.push("managed_ruleset_ambiguous_or_inherited");
   const currentSha = readback?.branch_sha || readback?.main_sha || compact(args.expected_commit_sha || args.expected_main_sha, 40).toLowerCase() || null;
@@ -521,7 +548,9 @@ export function buildGithubRepositoryPolicyPlan(args = {}, readback = null) {
     desired_ruleset_fingerprint: githubRepositoryPolicyFingerprint(desired),
     policy_fingerprint: fingerprint,
     required_checks: checks,
-    required_check_producer_integration_id: appId,
+    required_check_producer_integration_id: policy.required_check_source_mode === "app_bound" ? appId : null,
+    trusted_attestor_app_id: appId,
+    required_check_source_mode: policy.required_check_source_mode,
     confirmation: githubRepositoryPolicyConfirmationForBranch(policy.branch),
     review_policy_mode: singleOwnerMode ? "single_owner_attestation" : "independent_approval",
     single_owner_mode: singleOwnerMode,
