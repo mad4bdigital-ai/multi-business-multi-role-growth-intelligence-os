@@ -133,6 +133,6 @@ test("inactive, revoked or scope-mismatched registered key fails before challeng
 });
 test("noncanonical signature encoding cannot pass even if decoded bytes might be valid",async()=>{
   await assert.rejects(verifyBoundDeviceGenerationChallenge(args({
-    signature_der_base64:signed().replace(/=+$/,"")
+    signature_der_base64:signed()+"="
   })),e=>e.code==="device_generation_signature_invalid");
 });
