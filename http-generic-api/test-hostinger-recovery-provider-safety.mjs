@@ -69,3 +69,44 @@ test("blocked Hostinger evaluation never represents a successful execution decis
   assert.equal(invalid.candidate_ready,false);
   assert.equal(invalid.execution_allowed,false);
 });
+
+test("string-typed approvals are not equivalent to independently verified boolean true",()=>{
+  const envInput=nominal();
+  envInput.providerEntitlementProven="true";
+  envInput.exactWebsiteBound="true";
+  const env=assessHostingerNodeEnvReplacement(envInput);
+  assert.equal(env.execution_allowed,false);
+  assert(env.blockers.includes("hostinger_provider_entitlement_unverified"));
+  assert(env.blockers.includes("hostinger_website_identity_not_bound"));
+  const database=assessHostingerDatabaseCreate({
+    exactHostingAccount:"true",exactWebsiteDomain:"true",databaseAbsent:"true",
+    providerAccountEntitlementProven:"true",managedCredentialIntakeReady:"true",
+    exactProductionPlan:"true",separateOwnerApproval:"true",
+  });
+  assert.equal(database.execution_allowed,false);
+  assert.equal(database.candidate_ready,false);
+  assert.equal(database.blockers.length,7);
+});
+
+test("untrusted environment keys and opaque secret reference values fail closed",()=>{
+  const wrongSecret=nominal();
+  wrongSecret.desiredBindings[0].secret_reference={path:"vault/prod"};
+  assert(assessHostingerNodeEnvReplacement(wrongSecret).blockers.includes(
+    "managed_secret_reference_only"
+  ));
+  const emptyValue=nominal();
+  emptyValue.desiredBindings[0].value="";
+  assert(assessHostingerNodeEnvReplacement(emptyValue).blockers.includes(
+    "managed_secret_reference_only"
+  ));
+  const oversized=nominal();
+  oversized.approvedRecoveryKeys=Array(1001).fill("DB_HOST");
+  const denied=assessHostingerNodeEnvReplacement(oversized);
+  assert.equal(denied.evaluation_completed,false);
+  assert(denied.blockers.includes("invalid_or_unbounded_environment_inventory"));
+  const duplicateApproved=nominal();
+  duplicateApproved.approvedRecoveryKeys.push("RECOVERY_CONTROL_DB_HOST");
+  assert(assessHostingerNodeEnvReplacement(duplicateApproved).blockers.includes(
+    "duplicate_environment_key"
+  ));
+});
