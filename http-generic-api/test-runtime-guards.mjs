@@ -96,4 +96,15 @@ function callMiddleware(headers = {}, env = { BACKEND_API_KEY: "secret" }) {
   assert.equal(result.responseBody.error.code, "invalid_backend_api_key");
 }
 
+
+{
+  const result = callMiddleware({ Authorization: "Bearer attacker" }, {});
+  assert.equal(result.nextCalled, false,
+    "missing server API-key configuration may not bypass protected middleware");
+  assert.equal(result.responseStatus, 503);
+  assert.equal(result.responseBody.error.code, "backend_auth_configuration_missing");
+  assert.equal(result.responseBody.secrets_included, false);
+  assert.equal(result.req.auth, undefined);
+}
+
 console.log("runtime guard tests passed");

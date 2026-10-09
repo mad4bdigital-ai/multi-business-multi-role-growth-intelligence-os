@@ -21,7 +21,7 @@ export function classifyMcpCatalogRecoveryReadback(readiness) {
     identity.database_matches===true && identity.principal_matches===true &&
     identity.identity_readback_performed===true;
   const readback=collectorProven && readiness?.database_connection_performed===true &&
-    readiness.sql_readback_performed===true && exactTables;
+    readiness.sql_readback_performed===true && readiness.same_session_proven===true && exactTables;
   const allPresent=exactTables&&tables.every(t=>t?.available===true);
   const provenMissing=exactTables&&tables.some(t=>t?.migration_apply_required===true)&&
     tables.every(t=>t?.available===true||t?.migration_apply_required===true);

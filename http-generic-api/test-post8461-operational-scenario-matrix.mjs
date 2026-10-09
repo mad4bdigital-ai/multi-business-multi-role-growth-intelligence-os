@@ -7,6 +7,7 @@ import {previewHostingerRecoveryDatabase} from "./hostingerRecoveryReadOnlyPlann
 import {classifyMcpCatalogRecoveryReadback} from "./mcpCatalogRecoveryDecision.js";
 import {classifyAdminRecoveryReadback} from "./adminLocalConnectorTarget.js";
 import {assessHostingerDatabaseCreate,assessHostingerNodeEnvReplacement} from "./hostingerRecoveryProviderContract.js";
+import {enforceExecutionAuthorityManifestGuard} from "./executionAuthorityManifestGuard.js";
 
 const root=dirname(fileURLToPath(import.meta.url));
 
@@ -135,4 +136,39 @@ test("full matrix explicitly keeps operational certification separate from sourc
       assert(x.live_evidence && x.execution_authorized===false,
         "source-only success misclassified as production permission: "+x.id);
   }
+});
+
+test("manifest policy and trusted mandatory floor cannot be disabled by HTTP request",()=>{
+  const falseRequest={execution_authority_manifest_enforce:false,execution_authority_require_plugin_connection:false};
+  const policies=[];
+  const mandatoryPolicy=(rows,group,key,fallback)=>{
+    if(key==="Enforce Manifest Before Dispatch" || key==="Require Plugin Connection Before Dispatch")return "TRUE";
+    return fallback;
+  };
+  assert.throws(()=>enforceExecutionAuthorityManifestGuard({
+    requestPayload:falseRequest,policies,manifest:null
+  },{policyValue:mandatoryPolicy}),err=>err.code==="execution_authority_manifest_not_requested");
+  const noPolicy=(rows,group,key,fallback)=>fallback;
+  assert.throws(()=>enforceExecutionAuthorityManifestGuard({
+    requestPayload:falseRequest,policies,manifest:null
+  },{policyValue:noPolicy,mandatoryManifestEnforcement:true}),
+    err=>err.code==="execution_authority_manifest_not_requested");
+  const passive=enforceExecutionAuthorityManifestGuard({
+    requestPayload:falseRequest,policies,manifest:null
+  },{policyValue:noPolicy});
+  assert.equal(passive.enforced,false,"unconfigured optional read-only policy is not silently upgraded");
+});
+
+test("request may tighten but cannot weaken plugin-connection authority policy",()=>{
+  const request={execution_authority_manifest_enforce:true,execution_authority_require_plugin_connection:false};
+  const policyValue=(rows,group,key,fallback)=>
+    key==="Require Plugin Connection Before Dispatch"?"TRUE":fallback;
+  const manifest={
+    requested:true,attempted:true,resolution_status:"ready",
+    action_allowed:true,endpoint_count:1,first_manifest_complete:true,
+    surface_authority:{},manifests:[{plugin_key:"plugin-test",active_connection_count:0}],
+  };
+  assert.throws(()=>enforceExecutionAuthorityManifestGuard({
+    requestPayload:request,policies:[],manifest,
+  },{policyValue}),err=>err.code==="execution_authority_plugin_connection_missing");
 });

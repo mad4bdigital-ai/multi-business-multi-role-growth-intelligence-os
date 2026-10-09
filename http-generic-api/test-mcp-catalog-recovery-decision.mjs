@@ -10,7 +10,7 @@ const base=()=>({ok:false,identity,tables:MCP_CATALOG_TABLES.map(table=>({
 
 const liveEnv={DB_NAME:"catalog_runtime",DB_USER:"runtime_user"};
 function observedPool(available) {
-  return {async query(sql) {
+  const connection={async query(sql) {
     if(sql.includes("SELECT DATABASE()"))return [[{
       current_database:"catalog_runtime",current_account:"runtime_user@localhost"
     }]];
@@ -21,7 +21,8 @@ function observedPool(available) {
       const err=new Error("missing column");err.code="ER_BAD_FIELD_ERROR";throw err;
     }
     throw Error("unexpected query");
-  }};
+  },release(){}};
+  return {getConnection:async()=>connection};
 }
 
 test("proven missing catalog column produces bounded plan only, not SQL executor",async()=>{
@@ -109,4 +110,21 @@ test("same reused DB connection cannot replay cached available column after migr
   assert.equal(drift.migration_apply_allowed,false);
   assert.equal(projectionQueries,4,"freshly probe both tables rather than return 30s cached status");
   assert.equal(releases,2);
+});
+
+test("pool facade without an acquired lease cannot mint a same-session Recovery certificate",async()=>{
+  const conn=await observedPool(true).getConnection();
+  const withoutLease={query:conn.query};
+  const decision=await collectMcpCatalogRecoveryDecision({pool:withoutLease,env:liveEnv});
+  assert.equal(decision.schema_ready,false);
+  assert.equal(decision.status,"diagnosis_blocked");
+  assert.equal(decision.same_session_readback_proven,false);
+  assert.equal(decision.migration_apply_allowed,false);
+});
+
+test("metadata suggesting a missing column without a lease never proposes a migration",async()=>{
+  const conn=await observedPool(false).getConnection();
+  const decision=await collectMcpCatalogRecoveryDecision({pool:{query:conn.query},env:liveEnv});
+  assert.equal(decision.governed_migration_proposed,false);
+  assert.equal(decision.migration_apply_allowed,false);
 });

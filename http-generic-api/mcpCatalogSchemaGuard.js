@@ -335,7 +335,12 @@ export async function readMcpCatalogSchemaReadinessSafe({ pool, env = process.en
     // between DATABASE()/CURRENT_USER() and its metadata/SELECT probes.
     const leased = typeof targetPool?.getConnection === "function"
       ? await targetPool.getConnection() : null;
-    const session = leased || targetPool;
+    // A pool.query facade can rotate connections between identity and schema reads.
+    // Legacy diagnostics may still use it; governed Recovery may NOT claim
+    // an exact-session certificate without a leased connection.
+    const sameSessionProven = Boolean(leased && typeof leased.query === "function" &&
+      typeof leased.release === "function");
+    const session = sameSessionProven ? leased : targetPool;
     try {
       const identity = await readMcpCatalogRuntimeIdentity({ pool: session, env });
       // Stop before inspecting table metadata if the session's DB/user identity
@@ -367,10 +372,11 @@ export async function readMcpCatalogSchemaReadinessSafe({ pool, env = process.en
         identity,
         migration_apply_required: identity.ok === true && readiness.migration_apply_required === true,
         ...readOnlyEvidence({ databaseConnectionPerformed: true, sqlReadbackPerformed: true }),
+        same_session_proven: sameSessionProven,
         secrets_included: false,
       };
     } finally {
-      if (leased) leased.release();
+      if (leased && typeof leased.release === "function") leased.release();
     }
   } catch (error) {
     return unavailableSchemaReadiness(error);
