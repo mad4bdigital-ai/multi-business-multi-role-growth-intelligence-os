@@ -4,6 +4,7 @@ param(
     [string]$Mode = "Status",
     [string]$RepositoryPath = "",
     [switch]$RepairTasks,
+    [switch]$RepairMissingSupervisor,
     [switch]$OpenLogFolder,
     [int]$Tail = 80
 )
@@ -58,8 +59,17 @@ function Test-CommandCheck([System.Collections.Generic.List[object]]$Checks, [st
 
 function Get-TaskCheck([System.Collections.Generic.List[object]]$Checks, [string]$Name) {
     $task = Get-ScheduledTask -TaskName $Name -ErrorAction SilentlyContinue
-    $detail = if ($task) { [string]$task.State } else { "missing" }
-    Add-Check $Checks "scheduled-task:$Name" ($null -ne $task) $detail $true
+    $continuous = $Name -in @("MAD4B Staging Auto Deploy", "MAD4B Staging Health Monitor", "MAD4B Staging Autonomous Supervisor")
+    $info = if ($null -ne $task) { Get-ScheduledTaskInfo -TaskName $Name -ErrorAction SilentlyContinue } else { $null }
+    $running = ($null -ne $task -and [string]$task.State -eq "Running")
+    $lastResult = if ($null -ne $info) { [int64]$info.LastTaskResult } else { $null }
+    # A registered task is not necessarily a running watcher; Ready/LastResult=1
+    # after reboot is a failure, not evidence that the supervisor is healthy.
+    $ok = $null -ne $task -and [string]$task.State -ne "Disabled" -and (
+        $running -or (-not $continuous -and $lastResult -eq 0)
+    )
+    $detail = if ($null -eq $task) { "missing" } else { "state=$($task.State); last_result=$lastResult; continuous=$continuous" }
+    Add-Check $Checks "scheduled-task:$Name" $ok $detail $true
 }
 
 function Invoke-Status {
@@ -110,6 +120,8 @@ function Invoke-Status {
     Add-Check $checks "logs:health-snapshot" (Test-Path (Join-Path $logRoot "health-snapshot.json")) "health-snapshot.json" $false
     Get-TaskCheck $checks ([string]$Policy.tasks.auto_deploy)
     Get-TaskCheck $checks ([string]$Policy.tasks.health_monitor)
+    Get-TaskCheck $checks "MAD4B Staging Docker Bootstrap"
+    Get-TaskCheck $checks "MAD4B Staging Autonomous Supervisor"
     $healthScript = Join-Path $PSScriptRoot "Staging-HealthMonitor.ps1"
     if (Test-Path $healthScript) {
         & powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File $healthScript -RepositoryPath $RepositoryPath -Once
@@ -129,11 +141,19 @@ function Invoke-Repair {
     Write-StagingOperationBoundary -Component $LogComponent -Stage "repair" -Outcome "start" -Message "safe maintenance repair started"
     New-Item -ItemType Directory -Force -Path $logRoot | Out-Null
     Rotate-StagingOperationsLog
+    if ($RepairTasks -and $RepairMissingSupervisor) { Fail "Choose one repair mode; broad task replacement and additive supervisor must not combine" }
     if ($RepairTasks) {
         $installer = Join-Path $PSScriptRoot "Install-AutoDeployTask.ps1"
         if (-not (Test-Path $installer)) { Fail "task installer is missing" }
         & powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File $installer -RepositoryPath $RepositoryPath
         if ($LASTEXITCODE -ne 0) { Fail "scheduled task repair failed" }
+    }
+    if ($RepairMissingSupervisor) {
+        $installer = Join-Path $PSScriptRoot "Install-AutonomousSupervisorTask.ps1"
+        if (-not (Test-Path -LiteralPath $installer -PathType Leaf)) { Fail "additive supervisor installer missing" }
+        & powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File $installer -RepositoryPath $RepositoryPath -Activate
+        if ($LASTEXITCODE -ne 0) { Fail "governed additive supervisor repair failed" }
+        Write-StagingLog -Level info -Component $LogComponent -Stage "repair" -Message "additive existing-checkout supervisor repair read back" -Data @{ task = "MAD4B Staging Autonomous Supervisor"; production_mutation = $false }
     }
     $healthScript = Join-Path $PSScriptRoot "Staging-HealthMonitor.ps1"
     & powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File $healthScript -RepositoryPath $RepositoryPath -Once
