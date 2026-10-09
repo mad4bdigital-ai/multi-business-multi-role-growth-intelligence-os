@@ -18,29 +18,29 @@ function exact(value, pattern, code) {
   if (typeof value !== "string" || !pattern.test(value)) throw refuse(code,400);
   return value;
 }
-function records(value) {
-  // Do not assume pagination, aliases, or undocumented object shapes are complete.
-  const rows = Array.isArray(value) ? value
-    : (value && typeof value === "object" && Array.isArray(value.data) ? value.data : null);
-  if (!rows || rows.length > 1000) throw refuse("hostinger_inventory_shape_unverified",502);
-  // Hostinger's documented list response is paginated via meta.total,
-  // meta.per_page and meta.current_page even when links.next is absent.
-  // A partial first page MUST NOT be used to decide a database is absent.
-  if (!value || Array.isArray(value) || typeof value !== "object" ||
-      !value.meta || typeof value.meta !== "object")
+// Hostinger documents page/per_page pagination; no next-link URL is trusted.
+const PAGE_SIZE=100, MAX_PAGES=5, MAX_DATABASES=500;
+function parsePage(value,page) {
+  const rows=Array.isArray(value?.data)?value.data:null;
+  const meta=value?.meta;
+  if(!rows||!meta||typeof meta!=="object")
     throw refuse("hostinger_inventory_pagination_metadata_missing",502);
-  const {current_page:page,per_page:pageSize,total}=value.meta;
-  if (!Number.isSafeInteger(page) || page!==1 ||
-      !Number.isSafeInteger(pageSize) || pageSize<1 || pageSize>1000 ||
-      !Number.isSafeInteger(total) || total<0 ||
-      rows.length!==total || rows.length>pageSize ||
-      value.links?.next || value.next_page_url || value.meta?.next_page)
+  const {current_page,per_page,total}=meta;
+  if(!Number.isSafeInteger(current_page)||current_page!==page||
+     !Number.isSafeInteger(per_page)||per_page!==PAGE_SIZE||
+     !Number.isSafeInteger(total)||total<0||total>MAX_DATABASES||
+     Math.ceil(total/PAGE_SIZE)>MAX_PAGES||
+     rows.length!==Math.max(0,Math.min(PAGE_SIZE,total-(page-1)*PAGE_SIZE)))
     throw refuse("hostinger_inventory_pagination_unverified",502);
-  return rows.map(row=>{
-    if (!row || typeof row !== "object" || typeof row.name !== "string" ||
-        !DATABASE.test(row.name)) throw refuse("hostinger_inventory_record_invalid",502);
+  if(value.links?.next||value.next_page_url||meta.next_page)
+    throw refuse("hostinger_inventory_untrusted_continuation",502);
+  const names=rows.map(row=>{
+    if(!row||typeof row!=="object"||typeof row.name!=="string"||
+       !DATABASE.test(row.name))
+      throw refuse("hostinger_inventory_record_invalid",502);
     return row.name;
   });
+  return {total,names};
 }
 async function boundedBody(response) {
   const size=Number(response.headers?.get?.("content-length")||0);
@@ -71,24 +71,55 @@ export function createHostingerReadOnlyTransport({
       const token=await getManagedToken();
       if(typeof token!=="string" || token.length<20 || token.length>2048)
         throw refuse("hostinger_managed_api_token_missing",503);
-      const url=`${ORIGIN}/api/hosting/v1/accounts/${encodeURIComponent(account)}/databases`;
-      let response;
-      try {
-        response=await fetchImpl(url,{
-          method:"GET",redirect:"manual",cache:"no-store",
-          headers:{Authorization:`Bearer ${token}`,Accept:"application/json"},
-          signal:AbortSignal.timeout(8000),
-        });
-      }catch{throw refuse("hostinger_provider_inventory_transport_unavailable",503);}
-      if(response.status===401||response.status===403)
-        throw refuse("hostinger_provider_inventory_permission_denied",403);
-      // Only a complete HTTP 200 inventory is authoritative for a preview.
-      // A 206 Partial Content response must never become a false absent DB.
-      if(response.status!==200)throw refuse("hostinger_provider_inventory_failed",503);
-      const list=records(await boundedBody(response));
-      if(new Set(list).size!==list.length)
-        throw refuse("hostinger_inventory_duplicate_names",502);
-      return Object.freeze({database_names:list,provider_http_status:response.status});
+      const baseUrl=`${ORIGIN}/api/hosting/v1/accounts/${encodeURIComponent(account)}/databases`;
+      const readPage=async page=>{
+        const url=`${baseUrl}?page=${page}&per_page=${PAGE_SIZE}`;
+        let response;
+        try {
+          response=await fetchImpl(url,{
+            method:"GET",redirect:"manual",cache:"no-store",
+            headers:{Authorization:`Bearer ${token}`,Accept:"application/json","Content-Type":"application/json"},
+            signal:AbortSignal.timeout(8000),
+          });
+        }catch {throw refuse("hostinger_provider_inventory_transport_unavailable",503);}
+        if(response.status===401||response.status===403)
+          throw refuse("hostinger_provider_inventory_permission_denied",403);
+        if(response.status===429)throw refuse("hostinger_provider_inventory_rate_limited",429);
+        if(response.status!==200)throw refuse("hostinger_provider_inventory_failed",503);
+        return parsePage(await boundedBody(response),page);
+      };
+      const readSnapshot=async()=>{
+        const first=await readPage(1);
+        const pages=Math.max(1,Math.ceil(first.total/PAGE_SIZE));
+        const all=[...first.names];
+        for(let page=2;page<=pages;page++){
+          const next=await readPage(page);
+          if(next.total!==first.total)
+            throw refuse("hostinger_inventory_concurrent_page_drift",409);
+          all.push(...next.names);
+        }
+        if(all.length!==first.total||new Set(all).size!==all.length||
+           all.some(n=>!n.startsWith(`${account}_`)))
+          throw refuse("hostinger_inventory_incomplete_or_cross_account",502);
+        return Object.freeze({names:all,total:first.total,pages});
+      };
+      const snapshot=await readSnapshot();
+      if(snapshot.pages>1){
+        // Pagination is not a transactional snapshot. Re-read all pages and
+        // fail closed if concurrent additions/removals changed the scan.
+        // This cannot guarantee a DB did not race immediately afterwards:
+        // a separate write executor must revalidate under a governed lease.
+        const second=await readSnapshot();
+        const digest=names=>createHash("sha256").update(
+          JSON.stringify([...names].sort())).digest("hex");
+        if(snapshot.total!==second.total||digest(snapshot.names)!==digest(second.names))
+          throw refuse("hostinger_inventory_concurrent_page_drift",409);
+      }
+      return Object.freeze({
+        database_names:snapshot.names,provider_http_status:200,
+        page_count:snapshot.pages,inventory_snapshot_stable:snapshot.pages>1,
+        complete_paginated_scan:true
+      });
     }
   });
 }
