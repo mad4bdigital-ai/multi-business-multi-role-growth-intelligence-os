@@ -1,0 +1,172 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.mad4b.com/reference/business-context-fabric/claim.v1.schema.json",
+  "title": "Candidate business context claim",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "claim_key",
+    "dimension_key",
+    "field_key",
+    "scope",
+    "candidate",
+    "provenance",
+    "review",
+    "runtime_authority"
+  ],
+  "properties": {
+    "claim_key": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 180
+    },
+    "dimension_key": {
+      "type": "string",
+      "minLength": 1
+    },
+    "field_key": {
+      "type": "string",
+      "minLength": 1
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tenant_ref",
+        "brand_ref"
+      ],
+      "properties": {
+        "tenant_ref": {
+          "type": "string",
+          "minLength": 1
+        },
+        "brand_ref": {
+          "type": "string",
+          "minLength": 1
+        },
+        "channel_ref": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "locale": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "resource_ref": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "candidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state",
+        "value"
+      ],
+      "properties": {
+        "state": {
+          "enum": [
+            "MISSING",
+            "CANDIDATE",
+            "SOURCE_OBSERVED",
+            "CONTESTED",
+            "NEEDS_EVIDENCE",
+            "APPROVED",
+            "STALE",
+            "REJECTED",
+            "RETIRED"
+          ]
+        },
+        "value": {
+          "type": [
+            "null",
+            "string",
+            "number",
+            "boolean",
+            "object",
+            "array"
+          ]
+        },
+        "sensitivity": {
+          "enum": [
+            "public",
+            "internal",
+            "restricted",
+            "secret"
+          ]
+        }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_alias",
+        "source_revision",
+        "observed_at",
+        "owner_ref"
+      ],
+      "properties": {
+        "source_alias": {
+          "type": "string"
+        },
+        "source_revision": {
+          "type": "string"
+        },
+        "observed_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "owner_ref": {
+          "type": "string"
+        },
+        "lineage_refs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state",
+        "reviewer_ref"
+      ],
+      "properties": {
+        "state": {
+          "enum": [
+            "PENDING",
+            "REJECTED",
+            "APPROVED"
+          ]
+        },
+        "reviewer_ref": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "reason_code": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "runtime_authority": {
+      "const": false
+    }
+  }
+}
