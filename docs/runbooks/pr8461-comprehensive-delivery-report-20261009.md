@@ -336,3 +336,48 @@ This gate is **provider-target-independent**: it validates canonical catalog row
 - External acceptance remains open: disposable MariaDB replay/rollback, native Node/PowerShell after exact commit, Staging route/browser observations, independent Hostinger provider entitlement and Control Store, Production Runtime DB identity and permissions, and device-generation attestation.
 
 **End state of this review:** bounded code changes uploaded; no Production operation or merge occurred. Full operational closure is **not** achieved and is not being represented as complete.
+
+
+## 17. Session-bound schema and provider-input trust — 2026-10-09
+
+### A. New independent adversarial objections
+
+| Objection | Verified source fix | State and residual evidence |
+| --- | --- | --- |
+| A metadata-visible MCP column can be unreadable by Runtime | `readMcpCatalogLevelSchemaStatus` performs a read-only whitelisted LIMIT-0 projection even when metadata is positive; denied privilege and contradictory metadata suppress migration advice | Source regression passed; live Production Runtime readback not certified |
+| Runtime DB identity is checked with one pooled session, schema with another | `readMcpCatalogSchemaReadinessSafe` leases one mysql2 connection and reuses it for identity and both table probes, releasing in `finally` | Isolated successful/denied leased-session tests passed; native integration still pending |
+| Wrong Runtime database is probed despite an explicit identity mismatch | A mismatching or unknown Runtime DB/principal now causes immediate fail-closed readiness; zero metadata or table SELECT queries issued | Source-isolated test observed exactly one DATABASE()/CURRENT_USER() query, zero metadata queries, one lease release |
+| Tenant GPT Data Plane uses positive schema metadata from the wrong DB | `buildTenantGptOperationalReadiness` now uses `readMcpCatalogSchemaReadinessSafe({pool,env})` whenever a pool is supplied. With no caller-supplied pool, it remains not ready without acquiring a hidden new DB pool | New correct/wrong DB session fixtures, no Production activation |
+| GPT tool catalog readiness endpoint reports raw schema availability without verifying identity | `readGptToolsCatalogSchemaReadiness` now reads the identity-bound guarded view with `DB_NAME`, `DB_USER` | Route-source test enforces call; production endpoint readback pending |
+| `Hostinger` approval flags supplied as string `"true"` are treated as truthy Boolean | All entitlement/host/plan/lease/same-cycle Node env predicates and all seven DB-create predicates now require literal Boolean `true` | Negative tests added; provider mutation still categorically disabled |
+| Hidden credential value `""` or object reference is accepted as a managed secret reference | Environment bindings require typed string `name` and `secret_reference`; presence of a `value` field is denied even if empty; masked refs remain blocked | No provider API calls; complete full-replace still denied without provider CAS |
+| Unlimited or duplicate approved env keys could expand a proposal | Approved key inventory is capped at 1000, duplicate and invalid keys are blocked | Pure contract only; no execution authority |
+| Old test expects alias-enabled Local Connector repair | Platform tool binding test now rejects `db_alias` auto resolution and asserts `alias_resolution_applied: false` | Live generation attestation still missing |
+| CI Syntax Check reports JS SyntaxError in new MCP preflight regex | Removed invalid Unicode backtick escape in `test-mcp-catalog-schema-preflight.mjs` | Native exact-head Syntax Check still required |
+| Tests don't belong to a registered invariant authority | Registered `test-platform-tool-dispatch-binding-integrity.mjs` with Admin Tool Descriptor authority and `test-gpt-tools-route-syntax-regression.mjs` with Hostinger Runtime Bootstrap contract; original connector and tenant tests already have owners | Exact-head fixed point must still validate |
+
+### B. Tests and evidence boundary
+
+Isolated direct-source evaluations passed:
+
+- **6 Hostinger typed safety checks** for CAS denial, malformed secret refs, string-typed approvals, DB-create candidate without executor, oversized allowlist.
+- **2 leased database session cases**, confirming five identity/metadata/SELECT reads on one successful session and release of a denied session.
+- **1 wrong-DB fail-closed check**, confirming one identity query, zero table queries, no migration suggestion and a released lease.
+- Updated native regression files `test-mcp-catalog-schema-guard.mjs`, `test-mcp-catalog-schema-preflight.mjs`, `test-tenant-gpt-operational-readiness.mjs`, `test-gpt-tools-route-syntax-regression.mjs`, `test-hostinger-recovery-provider-safety.mjs`, and `test-platform-tool-dispatch-binding-integrity.mjs`.
+
+These are **source-simulated tests only**. There was no real MariaDB client or Production/Hostinger API call in this cycle.
+
+### C. Closure ledger: release-blocking vs observed
+
+The last *fully completed* exact PR candidate checked before these hardening commits had multiple passing workflows but still failed Generated Artifacts, Custom GPT/Staging Admin schema parity, Remote MCP inventory, Work Maps and other dependent gates. New commits retriggered the workflows, so old conclusions cannot be projected forward.
+
+The semantic generated state includes:
+- `frontend_openapi_projection`: regenerate through the registered frontend authority, including 14 GPT OpenAPI surfaces and registration manifests.
+- `remote_mcp_write_scope_inventory`: refresh via the registered semantic generator; neither JSON nor Markdown semantic projection may be hand-corrected.
+- `portable_staging_manifest`: derived from exact tracked file checksums, after its upstream scope inventory.
+- `work_maps`: delegated sole governed Work Map writer, never an unrelated GitHub write.
+- `repository_inventory` and `repository_evaluation`: observability outputs; do not mislabel them as source authority.
+
+Operational release still requires a clean disposable native MariaDB rebuild/second replay/fault injection, native PowerShell syntax and completed import readbacks, live Staging route/browser tests, Hostinger provider account entitlement and independent Control Store, Production Runtime principal/schema/grants, signed generation attestation for the current device, and all exact-head policy tests.
+
+**No repository main merge, Production environment update, provider request, database/grant mutation, token or password exposure, or schema migration was performed by this follow-up.**
