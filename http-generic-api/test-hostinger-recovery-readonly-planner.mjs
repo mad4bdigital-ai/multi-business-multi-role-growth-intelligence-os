@@ -10,7 +10,7 @@ const domain="app.example.com";
 const token="server-managed-test-credential-not-exposed";
 const inventory=(names=[database])=>new Response(JSON.stringify({
   data:names.map(name=>({name})),
-  meta:{current_page:1,per_page:15,total:names.length}
+  meta:{current_page:1,per_page:100,total:names.length}
 }),{
   status:200,headers:{"content-type":"application/json"}
 });
@@ -26,7 +26,7 @@ test("managed Hostinger inventory only performs exact GET and returns no credent
   });
   assert.equal(calls.length,1);
   assert.equal(calls[0].url,
-    "https://developers.hostinger.com/api/hosting/v1/accounts/u123456789/databases");
+    "https://developers.hostinger.com/api/hosting/v1/accounts/u123456789/databases?page=1&per_page=100");
   assert.equal(calls[0].opts.method,"GET");
   assert.equal(calls[0].opts.redirect,"manual");
   assert.equal(calls[0].opts.headers.Authorization,`Bearer ${token}`);
@@ -83,14 +83,14 @@ test("wrong account, domain, database prefix, or untrusted provider fails before
 });
 
 test("provider HTTP 401/403 and redirects cannot be interpreted as capabilities",async()=>{
-  for (const status of [401,403,206,302,503]) {
+  for (const status of [401,403,206,302,429,503]) {
     const provider=createHostingerReadOnlyTransport({boundAccountUsername:account,
       getManagedToken:async()=>token,
       fetchImpl:async()=>new Response("",{status,headers:status===302?{location:"https://invalid.test"}:{}})
     });
     await assert.rejects(provider.databaseInventory(account),e=>
       e.code===([401,403].includes(status)
-        ?"hostinger_provider_inventory_permission_denied":"hostinger_provider_inventory_failed"));
+        ?"hostinger_provider_inventory_permission_denied":status===429?"hostinger_provider_inventory_rate_limited":"hostinger_provider_inventory_failed"));
   }
 });
 
@@ -146,4 +146,81 @@ test("no secret, token or arbitrary endpoint may be returned by preview",async()
   assert.equal(result.owner_approval_proven,false);
   assert.equal(result.plan_allowed,false);
   assert.equal(result.execution_allowed,false);
+});
+
+
+test("complete multi-page inventory is double-read; page-two recovery DB is detected",async()=>{
+  const entries=Array.from({length:140},(_,i)=>
+    i===125?database:`${account}_db_${String(i).padStart(3,"0")}`);
+  const seen=[];
+  const provider=createHostingerReadOnlyTransport({boundAccountUsername:account,
+    getManagedToken:async()=>token,
+    fetchImpl:async(url,opts)=>{
+      assert.equal(opts.method,"GET");
+      const parsed=new URL(url);const page=Number(parsed.searchParams.get("page"));seen.push(page);
+      assert.equal(parsed.searchParams.get("per_page"),"100");
+      const segment=entries.slice((page-1)*100,page*100);
+      return new Response(JSON.stringify({data:segment.map(name=>({name})),
+        meta:{current_page:page,per_page:100,total:entries.length}}),{status:200});
+    }
+  });
+  const report=await previewHostingerRecoveryDatabase({
+    accountUsername:account,websiteDomain:domain,recoveryDatabaseName:database,provider
+  });
+  assert.deepEqual(seen,[1,2,1,2]);
+  assert.equal(report.target_database_exists,true);
+  assert.equal(report.execution_allowed,false);
+  assert.equal(report.inventory_readback_proven,false);
+});
+
+test("concurrent pagination changes fail closed without a false absent claim",async()=>{
+  const original=Array.from({length:120},(_,i)=>`${account}_stable_${i}`);
+  let scan=0;
+  const provider=createHostingerReadOnlyTransport({
+    boundAccountUsername:account,getManagedToken:async()=>token,
+    fetchImpl:async url=>{
+      const page=Number(new URL(url).searchParams.get("page"));
+      if(page===1)scan++;
+      const rows=scan===2?original.map((v,i)=>i===80?`${account}_replaced`:v):original;
+      return new Response(JSON.stringify({data:rows.slice((page-1)*100,page*100).map(name=>({name})),
+        meta:{current_page:page,per_page:100,total:rows.length}}),{status:200});
+    }
+  });
+  await assert.rejects(provider.databaseInventory(account),
+    e=>e.code==="hostinger_inventory_concurrent_page_drift");
+});
+
+test("inconsistent totals, empty page and duplicate page cannot certify inventory",async()=>{
+  const names=Array.from({length:110},(_,i)=>`${account}_n_${i}`);
+  for(const mode of ["wrong-total","empty-second","duplicate-page"]){
+    const provider=createHostingerReadOnlyTransport({
+      boundAccountUsername:account,getManagedToken:async()=>token,
+      fetchImpl:async url=>{
+        const page=Number(new URL(url).searchParams.get("page"));
+        const rows=page===1?names.slice(0,100):
+          mode==="empty-second"?[]:
+          mode==="duplicate-page"?names.slice(0,10):names.slice(100);
+        return new Response(JSON.stringify({data:rows.map(name=>({name})),
+          meta:{current_page:page,per_page:100,total:page===2&&mode==="wrong-total"?111:names.length}}),{status:200});
+      }
+    });
+    await assert.rejects(provider.databaseInventory(account),e=>Boolean(e.code));
+  }
+});
+
+test("API inventory over 500 rows fails before fetching a second page",async()=>{
+  let count=0;
+  const provider=createHostingerReadOnlyTransport({
+    boundAccountUsername:account,getManagedToken:async()=>token,
+    fetchImpl:async()=>{
+      count++;
+      return new Response(JSON.stringify({
+        data:Array.from({length:100},(_,i)=>({name:`${account}_db_${i}`})),
+        meta:{current_page:1,per_page:100,total:501}
+      }),{status:200});
+    }
+  });
+  await assert.rejects(provider.databaseInventory(account),
+    e=>e.code==="hostinger_inventory_pagination_unverified");
+  assert.equal(count,1);
 });
