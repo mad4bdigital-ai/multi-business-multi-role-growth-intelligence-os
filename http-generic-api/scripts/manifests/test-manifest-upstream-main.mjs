@@ -377,6 +377,7 @@ export const testCommands = [
   "node test-openapi-autofill-missing-routes.mjs",
   "node test-repo-maintenance-sync.mjs",
   "node test-derived-state-converged-automerge-source-event.mjs",
+  "node test-github-finalizer-any-source-guard.mjs",
   "node test-repo-maintenance-coordination.mjs",
   "node test-surface-contract-discovery.mjs",
   "node test-surface-contract-auto-remediation.mjs",
