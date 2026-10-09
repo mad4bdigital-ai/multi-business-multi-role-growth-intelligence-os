@@ -376,6 +376,27 @@ export async function appendRow(sheetName, rowObject) {
   return result.insertId;
 }
 
+// SQL INSERT and a successful transport response are not independent row evidence.
+// Lost acknowledgements must not cause a blind non-idempotent retry.
+export async function appendRowWithReadback(sheetName,rowObject,{append=appendRow,queryPool=null}={}) {
+  const table=resolveTable(sheetName);
+  try {
+    const insertId=Number(await append(sheetName,rowObject));
+    if(!Number.isSafeInteger(insertId)||insertId<=0)throw Error("insert_id_unverified");
+    const pool=queryPool||getPool();
+    const [rows]=await pool.query(`SELECT id FROM \`${table}\` WHERE id = ? LIMIT 2`,[insertId]);
+    if(!Array.isArray(rows)||rows.length!==1||Number(rows[0]?.id)!==insertId)
+      throw Error("row_presence_unverified");
+    return {insertId,row_presence_readback_verified:true,
+      independent_authority_attested:false,secrets_included:false};
+  } catch {
+    const err=new Error("sql_sink_write_outcome_unverified");
+    err.code="sql_sink_write_outcome_unverified";err.status=503;
+    err.non_idempotent_retry_forbidden=true;err.execution_outcome_uncertain=true;
+    throw err;
+  }
+}
+
 export async function updateRow(sheetName, rowObject, id) {
   const table = resolveTable(sheetName);
   const { sqlCols, vals } = sheetRowToSqlPairs(table, rowObject);
