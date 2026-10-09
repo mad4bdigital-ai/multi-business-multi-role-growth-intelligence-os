@@ -404,6 +404,8 @@ export async function writeExecutionLogUnifiedRow(row, deps = {}) {
     expectedHeaderSignature,
     row2Read: true,
     formulaManagedColumnsProtected: true,
+    row_presence_readback_verified: true,
+    independent_authority_attested: false,
     preflight: mutationResult.preflight,
     safeColumns: plan.safeColumns,
     unsafeColumns: plan.unsafeColumns
@@ -504,6 +506,8 @@ export async function writeJsonAssetRegistryRow(row, deps = {}) {
     headerSignature,
     expectedHeaderSignature,
     row2Read: true,
+    row_presence_readback_verified: true,
+    independent_authority_attested: false,
     preflight: mutationResult.preflight,
     safeColumns: plan.safeColumns,
     unsafeColumns: plan.unsafeColumns
