@@ -87,9 +87,15 @@ export function assessHostingerDatabaseCreate({
   if(managedCredentialIntakeReady !== true)blockers.push("managed_secret_intake_required");
   if(exactProductionPlan !== true)blockers.push("exact_production_plan_required");
   if(separateOwnerApproval !== true)blockers.push("independent_database_create_approval_required");
+  // These booleans are caller-supplied *claims*, not independently signed
+  // provider-account proof. A syntactically complete plan is never an executable
+  // or provider-certified database-creation candidate in the discovery adapter.
+  const reportedPrerequisitesComplete = blockers.length === 0;
+  blockers.push("independent_provider_account_proof_and_certified_executor_missing");
   return {contract:"mad4b.hostinger-database-create-safety.v1",
     provider_operation:HOSTINGER_RECOVERY_PROVIDER_API.database_create,
-    discovery_only:true, account_specific_authority_verified:providerAccountEntitlementProven===true,
-    candidate_ready:!blockers.length,
+    discovery_only:true, account_specific_authority_verified:false,
+    reported_prerequisites_complete:reportedPrerequisitesComplete,
+    candidate_ready:false, plan_eligible:false,
     execution_allowed:false, blockers, secrets_included:false};
 }
