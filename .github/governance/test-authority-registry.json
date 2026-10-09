@@ -748,7 +748,8 @@
         "http-generic-api/scripts/platform-work-map-schema-intelligence.mjs",
         "http-generic-api/scripts/work-map-schema-classification-contract.mjs",
         "http-generic-api/test-work-map-schema-classification-contract.mjs",
-        "http-generic-api/test-work-map-schema-classification.mjs"
+        "http-generic-api/test-work-map-schema-classification.mjs",
+        "http-generic-api/test-spec-kit-work-map-governance-gate.mjs"
       ]
     },
     {
@@ -859,7 +860,8 @@
       "invariant_id": "work_map_schema_classification_contract",
       "protected_by_tests": [
         "http-generic-api/test-work-map-schema-classification-contract.mjs",
-        "http-generic-api/test-work-map-schema-classification.mjs"
+        "http-generic-api/test-work-map-schema-classification.mjs",
+        "http-generic-api/test-spec-kit-work-map-governance-gate.mjs"
       ],
       "protected_by_verifiers": [
         "work_map_currentness"
