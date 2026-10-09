@@ -48,7 +48,9 @@ export function createMysqlCatalogKeyReader({execute,keyHandleReader}={}) {
       [site.tenant_id,site.site_id,site.environment,purpose]
     );
     if(!Array.isArray(rows)||rows.length!==1)invalid("KEY_ROTATION_AMBIGUOUS_OR_UNAVAILABLE");
-    const k=rows[0];
+    const k=rows.find(row=>row && row.kid && row.key_ref && row.public_key_pem &&
+      row.issuer && row.status==="active" && row.revoked===0);
+    if(!k)invalid("KEY_METADATA_INCOMPLETE");
     const signer=await keyHandleReader({
       trusted_key_ref:k.key_ref, purpose, site, kid:k.kid
     });
