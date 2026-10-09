@@ -33,7 +33,11 @@ function makeStore(){
     async claimStep({plan_id}){this.claims++;if(steps.has(plan_id))return {claimed:false,durable:true};
       steps.set(plan_id,{status:"executing"});return {claimed:true,durable:true};},
     async appendIntent(v){this.intents.push(v);return {durable:true,
-      plan_hash:v.plan_hash,evidence_sha256:evidence};},
+      plan_hash:v.plan_hash,intent_hash:v.intent_hash,evidence_sha256:evidence};},
+    async getIntent({plan_id,plan_hash,fence_token}){
+      const found=this.intents.find(v=>v.plan_id===plan_id&&v.plan_hash===plan_hash&&v.fence_token===fence_token);
+      return found?{...found,durable:true,commit_state:"committed",evidence_sha256:evidence}:null;
+    },
     async markUnknown({plan_id,status,retry_forbidden,expected_status}){
       if(steps.get(plan_id)?.status!==expected_status)return {durable:false,status:"stale"};
       steps.set(plan_id,{status,retry_forbidden});
@@ -245,4 +249,25 @@ test("production reconciliation cannot become a backdoor to a recovered verdict"
     reconcileRecovery({plan_id:p.plan_id,plan_hash:p.plan_hash},{
       ...h,binding:{...scope,environment:"production"},evidenceVerifier:authorities().evidenceVerifier,
     }),errorCode("recovery_orchestrator_production_reconciliation_forbidden"));
+});
+
+test("plan persisted ACK without durable readback is insufficient",async()=>{
+  const h=harness(),before=dispatched;
+  await assert.rejects(planned({...h,store:{...h.store,getPlan:async()=>null}}),
+    errorCode("recovery_orchestrator_plan_missing"));
+  assert.equal(dispatched,before);
+});
+test("claimed intent ACK without durable independent readback blocks dispatch",async()=>{
+  const h=harness(),p=await planned(h),before=dispatched;
+  h.store.getIntent=async()=>null;
+  await assert.rejects(execute(p,h),errorCode("recovery_orchestrator_intent_readback_unverified"));
+  assert.equal(dispatched,before);
+});
+test("wrong fence or intent digest never validates a committed pre-dispatch intention",async()=>{
+  const h=harness(),p=await planned(h),before=dispatched;
+  h.store.getIntent=async()=>({durable:true,commit_state:"committed",
+    plan_hash:p.plan_hash,intent_hash:"d".repeat(64),
+    evidence_sha256:evidence,fence_token:"fence:one"});
+  await assert.rejects(execute(p,h),errorCode("recovery_orchestrator_intent_readback_unverified"));
+  assert.equal(dispatched,before);
 });

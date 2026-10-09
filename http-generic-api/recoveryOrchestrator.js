@@ -130,6 +130,7 @@ export async function planRecovery({capability_id,operation}={},{
   only({capability_id,operation},["capability_id","operation"]);
   if(!registry||typeof registry.lookup!=="function")refuse("recovery_orchestrator_registry_missing",503);
   validateStore(store,"putPlan");
+  validateStore(store,"getPlan");
   if(!Number.isSafeInteger(now))refuse("recovery_orchestrator_clock_invalid",503);
   const scope=trustedScope(binding);
   const entry=registry.lookup(requireText(capability_id,KEY,"recovery_orchestrator_capability_unknown"));
@@ -161,6 +162,9 @@ export async function planRecovery({capability_id,operation}={},{
   const stored=await store.putPlan(copy(plan));
   if(stored?.durable!==true||stored?.plan_hash!==plan_hash)
     refuse("recovery_orchestrator_plan_persistence_unverified",503);
+  const confirmed=assertPlan(await store.getPlan(plan.plan_id));
+  if(confirmed.plan_hash!==plan_hash)
+    refuse("recovery_orchestrator_plan_readback_mismatch",503);
   return plan;
 }
 function assertPlan(plan) {
@@ -205,7 +209,7 @@ export async function executeRecovery({plan_id,plan_hash}={},{
   only({plan_id,plan_hash},["plan_id","plan_hash"]);
   if(mode!=="staging")refuse("recovery_orchestrator_execution_disabled",403);
   if(!registry||typeof registry.lookup!=="function")refuse("recovery_orchestrator_registry_missing",503);
-  for(const method of ["getPlan","claimStep","appendIntent","markUnknown","finishStep"])
+  for(const method of ["getPlan","claimStep","appendIntent","getIntent","markUnknown","finishStep"])
     validateStore(store,method);
   if(typeof approvalVerifier?.verify!=="function"||
      typeof lease?.acquire!=="function"||typeof lease?.assertFence!=="function"||
@@ -249,15 +253,25 @@ export async function executeRecovery({plan_id,plan_hash}={},{
     const claimed=await store.claimStep({plan_id,plan_hash,fence_token:lock.fence_token});
     if(claimed?.claimed!==true||claimed?.durable!==true)
       refuse("recovery_orchestrator_atomic_claim_denied",409);
-    const intent=await store.appendIntent({
+    const immutableIntent={
       contract:"mad4b.recovery-intent.v1",plan_id,plan_hash,
       fence_token:lock.fence_token,source_sha:current.source_sha,
       environment:current.environment,tenant_id:current.tenant_id,
       resource_id:current.resource_id,
-    });
+    };
+    const intentHash=sha256(immutableIntent);
+    const intent=await store.appendIntent({...immutableIntent,intent_hash:intentHash});
     if(intent?.durable!==true||intent?.plan_hash!==plan_hash||
+       intent?.intent_hash!==intentHash||
        !HASH.test(String(intent?.evidence_sha256||"")))
       refuse("recovery_orchestrator_intent_not_durable",503);
+    const storedIntent=await store.getIntent({plan_id,plan_hash,fence_token:lock.fence_token});
+    if(storedIntent?.durable!==true||storedIntent?.commit_state!=="committed"||
+       storedIntent?.plan_hash!==plan_hash||
+       storedIntent?.intent_hash!==intentHash||
+       storedIntent?.evidence_sha256!==intent.evidence_sha256||
+       storedIntent?.fence_token!==lock.fence_token)
+      refuse("recovery_orchestrator_intent_readback_unverified",503);
     const fence=await lease.assertFence({plan_id,fence_token:lock.fence_token});
     if(fence?.valid!==true)refuse("recovery_orchestrator_fence_lost",409);
     // No user-supplied endpoint, SQL, command, token, or provider credential.

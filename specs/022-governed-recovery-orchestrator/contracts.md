@@ -20,3 +20,6 @@ After dispatch, absent/ambiguous ACK or readback => EXECUTION_OUTCOME_UNKNOWN. R
 
 ## Adapter safety
 Only server injection; strict dynamic method/protocol discovery. No stored credentials in plan; no raw SQL/host shell/URL keys. No automatically activated mutating plugins. v1 accepts local_windows and production in registry metadata for diagnostic inventory, but executeRecovery expressly refuses all non-Staging mutations.
+
+## Pre-dispatch independent persistence readback
+The durable store must expose `getIntent` with a verified persisted record; the engine requires the exact plan hash, intent hash, evidence digest, fence token and `commit_state=committed` after `appendIntent` and before provider dispatch. Similarly, creating a plan requires a successful `getPlan` integrity check, not just a successful put acknowledgement. A process-local mock or flags copied from the caller cannot certify this boundary.
