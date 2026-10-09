@@ -9,22 +9,6 @@
     "include": [
       ".changes/e2e/post8461-governed-recovery-acceptance.json",
       ".github/governance/test-authority-registry.json",
-      "docs/runbooks/post-8461-governed-recovery-acceptance-20261009.md",
-      "docs/runbooks/pr8471-production-promotion-preflight-from-hostinger-logs-20261009.md",
-      "http-generic-api/adminLocalConnectorTarget.js",
-      "http-generic-api/config/post8461-operational-scenario-matrix.json",
-      "http-generic-api/deviceGenerationChallengeVerifier.js",
-      "http-generic-api/hostingerRecoveryReadOnlyPlanner.js",
-      "http-generic-api/mcpCatalogRecoveryDecision.js",
-      "http-generic-api/mcpCatalogSchemaGuard.js",
-      "http-generic-api/productionPromotionLogPreflight.js",
-      "http-generic-api/scripts/production-promotion-log-preflight.mjs",
-      "http-generic-api/test-admin-local-connector-target.mjs",
-      "http-generic-api/test-device-generation-challenge-verifier.mjs",
-      "http-generic-api/test-hostinger-recovery-readonly-planner.mjs",
-      "http-generic-api/test-mcp-catalog-recovery-decision.mjs",
-      "http-generic-api/test-post8461-operational-scenario-matrix.mjs",
-      "http-generic-api/test-production-promotion-log-preflight.mjs",
       "autopilot-portable-staging/Auto-Deploy-Staging.ps1",
       "autopilot-portable-staging/Install-AutoDeployTask.ps1",
       "autopilot-portable-staging/Install-AutonomousSupervisorTask.ps1",
@@ -32,9 +16,34 @@
       "autopilot-portable-staging/Staging-ColdBoot-Diagnostics.ps1",
       "autopilot-portable-staging/Staging-Doctor.ps1",
       "autopilot-portable-staging/test/Test-AutonomousSupervisor.ps1",
+      "docs/runbooks/post-8461-governed-recovery-acceptance-20261009.md",
+      "docs/runbooks/pr8471-production-promotion-preflight-from-hostinger-logs-20261009.md",
       "docs/runbooks/pr8471-windows-coldboot-recovery-20261009.md",
+      "http-generic-api/adminLocalConnectorTarget.js",
+      "http-generic-api/config/post8461-operational-scenario-matrix.json",
       "http-generic-api/config/pr8471-windows-coldboot-scenarios.json",
-      "http-generic-api/test-staging-coldboot-recovery.mjs"
+      "http-generic-api/deviceGenerationChallengeVerifier.js",
+      "http-generic-api/hostingerRecoveryReadOnlyPlanner.js",
+      "http-generic-api/mcpCatalogRecoveryDecision.js",
+      "http-generic-api/mcpCatalogSchemaGuard.js",
+      "http-generic-api/productionPromotionLogPreflight.js",
+      "http-generic-api/recoveryOrchestrator.js",
+      "http-generic-api/routes/index.js",
+      "http-generic-api/routes/recoveryOrchestratorRoutes.js",
+      "http-generic-api/scripts/production-promotion-log-preflight.mjs",
+      "http-generic-api/test-admin-local-connector-target.mjs",
+      "http-generic-api/test-device-generation-challenge-verifier.mjs",
+      "http-generic-api/test-hostinger-recovery-readonly-planner.mjs",
+      "http-generic-api/test-mcp-catalog-recovery-decision.mjs",
+      "http-generic-api/test-post8461-operational-scenario-matrix.mjs",
+      "http-generic-api/test-production-promotion-log-preflight.mjs",
+      "http-generic-api/test-recovery-orchestrator-routes.mjs",
+      "http-generic-api/test-recovery-orchestrator.mjs",
+      "http-generic-api/test-staging-coldboot-recovery.mjs",
+      "specs/022-governed-recovery-orchestrator/contracts.md",
+      "specs/022-governed-recovery-orchestrator/plan.md",
+      "specs/022-governed-recovery-orchestrator/spec.md",
+      "specs/022-governed-recovery-orchestrator/tasks.md"
     ]
   },
   "merge_contract": {
@@ -54,7 +63,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Source-only Hostinger inventory, MCP/runtime schema decision, device generation possession safety, 60 operational cases, and Production log-based NO-GO diagnostic; no provider/Production mutation.",
+      "objective": "Source-only Hostinger inventory, MCP/runtime schema decision, device generation possession safety, 60 operational cases, and Production log-based NO-GO diagnostic; no provider/Production mutation. Add provider-neutral governed Recovery Orchestrator core and admin-only capability discovery, with no mutating HTTP route or live provider authority.",
       "blockers": [],
       "e2e_journeys": [
         {
@@ -222,6 +231,20 @@
           "runner": "node",
           "working_directory": ".",
           "path": "http-generic-api/test-staging-coldboot-recovery.mjs",
+          "args": []
+        },
+        {
+          "id": "recovery-orchestrator-state-machine",
+          "runner": "node",
+          "working_directory": ".",
+          "path": "http-generic-api/test-recovery-orchestrator.mjs",
+          "args": []
+        },
+        {
+          "id": "recovery-orchestrator-authenticated-discovery",
+          "runner": "node",
+          "working_directory": ".",
+          "path": "http-generic-api/test-recovery-orchestrator-routes.mjs",
           "args": []
         }
       ]

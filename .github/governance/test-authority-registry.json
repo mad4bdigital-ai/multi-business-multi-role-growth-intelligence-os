@@ -65,9 +65,10 @@
       "id": "centralized_user_jwt_authentication",
       "test_paths": [
         "http-generic-api/scripts/user-jwt-auth-governance.mjs",
-        "http-generic-api/userJwtAuth.js",
+        "http-generic-api/test-activation-awareness-user-jwt-boundary.mjs",
+        "http-generic-api/test-runtime-guards.mjs",
         "http-generic-api/test-user-jwt-auth.mjs",
-        "http-generic-api/test-activation-awareness-user-jwt-boundary.mjs"
+        "http-generic-api/userJwtAuth.js"
       ]
     },
     {
@@ -462,6 +463,8 @@
         "http-generic-api/test-recovery-action-bridge-system-layer.mjs",
         "http-generic-api/test-recovery-activation-readiness.mjs",
         "http-generic-api/test-recovery-composition.mjs",
+        "http-generic-api/test-recovery-orchestrator-routes.mjs",
+        "http-generic-api/test-recovery-orchestrator.mjs",
         "http-generic-api/test-recovery-system-tool-overlay.mjs",
         "http-generic-api/test-recovery-system-tool-store-authority-separation.mjs",
         "http-generic-api/test-runtime-environment-resolver.mjs",
@@ -956,6 +959,8 @@
         "http-generic-api/test-production-recovery-host-local-baseline-rebuild.mjs",
         "http-generic-api/test-recovery-activation-readiness.mjs",
         "http-generic-api/test-recovery-composition.mjs",
+        "http-generic-api/test-recovery-orchestrator-routes.mjs",
+        "http-generic-api/test-recovery-orchestrator.mjs",
         "http-generic-api/test-recovery-system-tool-store-authority-separation.mjs",
         "http-generic-api/test-server-managed-recovery-binding.mjs",
         "http-generic-api/test-staging-recovery-admin-surface.mjs",
