@@ -65,6 +65,62 @@ This creates only the absent Supervisor task. If an unexpected conflicting task 
 
 The broader `Install-AutoDeployTask.ps1` updates the other task actions to hidden execution, but it is **not** automatically invoked on users' machines. Before any reinstall, preserve and review the existing `-TunnelMode`, `-EnableActivationGateway`, user principal, paths and deployment options. Do not treat this PR as approval to silently change runtime topology.
 
+## Additional operator blocker — watcher principal/actions mismatch
+
+A second Windows user report after applying the process-local execution policy override was:
+
+- \`STAGING_AUTONOMOUS_INSTALL_BLOCKED: Unexpected watcher principal/actions\`
+- Child \`powershell.exe\` exited with code 1; the Supervisor task remains unregistered.
+
+The original installer combined *two* unrelated safety checks into one error: textual \`DOMAIN\USERNAME\` equality and exactly one existing watcher Scheduled Task Action. The error alone **does not identify the failing predicate**. Do not re-register the Auto Deploy task or change its user, run level or action without independent inspection.
+
+For a read-only diagnostic that works with the **currently installed** Windows scripts (no Git checkout update needed), run from an elevated Windows PowerShell:
+
+\`\`\`powershell
+$Task = Get-ScheduledTask -TaskPath "\" -TaskName "MAD4B Staging Auto Deploy" -ErrorAction Stop
+$CurrentSid = [System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value
+$TaskSid = ""
+try {
+    if ([string]$Task.Principal.UserId -match '^S-\d-\d+(?:-\d+)+
+
+Source regressions: `node http-generic-api/test-staging-coldboot-recovery.mjs` from the repository root; additionally run existing `test-windows-staging-bootstrap-supervisor.mjs` and `autopilot-portable-staging/test/Test-AutonomousSupervisor.ps1` (native Windows PowerShell 5.1).
+
+**A native Windows reboot is still required to certify behavior.** With separate approved Staging access, capture independent evidence for:
+
+1. Cold logon with Docker closed, delayed Docker Engine, delayed WSL2, and missing network; no console leaks and no automatic Production or database writes.
+2. Intermittent DNS failure for `auth.mad4b.com` and `github.com`; watcher remains alive, does not reuse stale SHA, and retries without requiring a fresh operator login.
+3. GitHub authentication or eligibility denial after DNS recovers; no deploy, no cached approval, and bounded retry.
+4. Docker Engine healthy but Compose stopped after reboot; previous source certificate must not mark services healthy. Restore only an exact eligible local Staging build, read back container health, certify anew.
+5. Missing Supervisor; additive install succeeds with exact watcher identity, but fails closed for unexpected task command, user principal or path.
+6. Reboot with disconnected removable drive and with the intended Windows user not logged on; report blocked rather than claiming service-independent operation.
+7. Repeat restart, overlapping task triggers, and transient task failure; verify named mutexes, `IgnoreNew`, log continuity, rollback and task result readback.
+8. Recovered DNS/network and stable Compose; require two clean watcher poll/sleep cycles, fresh `health-snapshot.json`, exact SHAs and supervisor acceptance. Native hardware/device-generation and Production status remain separate.
+
+Windows Docker Desktop under an `Interactive` user task **requires user logon**. Boot-before-login or headless 24/7 operation requires a separately approved system-service/WSL architecture, not a hidden Scheduled Task.
+
+**Release decision:** This source hardening does not supersede PR #8471's independent policy objections, exact-head owner approval or the NO-GO Production decision.
+) {
+        $TaskSid = [System.Security.Principal.SecurityIdentifier]::new([string]$Task.Principal.UserId).Value
+    } else {
+        $Account = [System.Security.Principal.NTAccount]::new([string]$Task.Principal.UserId)
+        $TaskSid = $Account.Translate([System.Security.Principal.SecurityIdentifier]).Value
+    }
+} catch { $TaskSid = "" }
+[pscustomobject]@{
+    PrincipalSIDResolved = -not [string]::IsNullOrWhiteSpace($TaskSid)
+    SameWindowsSID = ($TaskSid -ne "" -and $TaskSid -eq $CurrentSid)
+    LogonType = [string]$Task.Principal.LogonType
+    ActionCount = @($Task.Actions).Count
+    TaskState = [string]$Task.State
+} | Format-List
+\`\`\`
+
+This command does not print usernames, credentials or task arguments. If \`SameWindowsSID=False\`, the existing task may actually belong to a different user or a group/service identity; stop before authorization. If \`ActionCount != 1\`, do not arbitrarily delete extra actions. If both predicates pass and the local installer still fails, compare trusted script revision and checkout/task identity.
+
+After obtaining **the reviewed updated source on a separate authorized checkout**, the enhanced additive installer supports \`-DiagnoseOnly\`. This mode returns structured booleans for principal SID equality, logon type, exact executable, working directory and approved arguments without registering any tasks. Never confuse \`eligible_for_explicit_install\` with operational readiness.
+
+The shared SID helper accepts the same real Windows user's name/SID aliases but rejects unknown SIDs, foreign owners, multi-action tasks, noninteractive logon and command/path drift. Supervisor readback applies the same identity boundary. These improvements require source installation plus native Windows testing; they have **not** been executed on the operator machine.
+
 ## Acceptance and failure injection
 
 Source regressions: `node http-generic-api/test-staging-coldboot-recovery.mjs` from the repository root; additionally run existing `test-windows-staging-bootstrap-supervisor.mjs` and `autopilot-portable-staging/test/Test-AutonomousSupervisor.ps1` (native Windows PowerShell 5.1).
