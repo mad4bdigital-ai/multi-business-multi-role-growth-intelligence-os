@@ -446,6 +446,7 @@
         "http-generic-api/test-platform-routes.mjs",
         "http-generic-api/test-post8461-operational-scenario-matrix.mjs",
         "http-generic-api/test-production-activation-readiness.mjs",
+        "http-generic-api/test-production-promotion-log-preflight.mjs",
         "http-generic-api/test-production-recovery-authority-foundation.mjs",
         "http-generic-api/test-production-recovery-authority-preflight.mjs",
         "http-generic-api/test-production-recovery-baseline-authority-binding.mjs",
@@ -946,6 +947,7 @@
       "invariant_id": "recovery_composition_wiring",
       "protected_by_tests": [
         "http-generic-api/test-post8461-operational-scenario-matrix.mjs",
+        "http-generic-api/test-production-promotion-log-preflight.mjs",
         "http-generic-api/test-production-recovery-authority-foundation.mjs",
         "http-generic-api/test-production-recovery-baseline-authority-binding.mjs",
         "http-generic-api/test-production-recovery-baseline-rebuild-governed-workflow.mjs",
