@@ -8,8 +8,27 @@ const base=()=>({ok:false,identity,tables:MCP_CATALOG_TABLES.map(table=>({
   table,available:false,migration_apply_required:true,code:"mcp_catalog_schema_migration_required"
 })),database_connection_performed:true,sql_readback_performed:true,migration_apply_required:true});
 
-test("proven missing catalog column produces bounded plan only, not SQL executor",()=>{
-  const decision=classifyMcpCatalogRecoveryReadback(base());
+const liveEnv={DB_NAME:"catalog_runtime",DB_USER:"runtime_user"};
+function observedPool(available) {
+  return {async query(sql) {
+    if(sql.includes("SELECT DATABASE()"))return [[{
+      current_database:"catalog_runtime",current_account:"runtime_user@localhost"
+    }]];
+    if(sql.includes("information_schema.columns"))
+      return [[{column_count:available?1:0}]];
+    if(sql.includes("LIMIT 0")){
+      if(available)return [[],[]];
+      const err=new Error("missing column");err.code="ER_BAD_FIELD_ERROR";throw err;
+    }
+    throw Error("unexpected query");
+  }};
+}
+
+test("proven missing catalog column produces bounded plan only, not SQL executor",async()=>{
+  const forged=classifyMcpCatalogRecoveryReadback(base());
+  assert.equal(forged.status,"diagnosis_blocked");
+  const decision=await collectMcpCatalogRecoveryDecision({pool:observedPool(false),env:liveEnv});
+  assert.equal(decision.readback_collector_verified,true);
   assert.equal(decision.status,"migration_proposal_only");
   assert.equal(decision.governed_migration_proposed,true);
   assert.equal(decision.migration.sha256,MCP_CATALOG_LEVEL_MIGRATION_SHA256);
@@ -19,10 +38,12 @@ test("proven missing catalog column produces bounded plan only, not SQL executor
   assert.match(decision.source_evidence_sha256,/^[0-9a-f]{64}$/);
 });
 
-test("both columns present on correct runtime principal becomes read-only ready",()=>{
+test("both columns present on correct runtime principal becomes read-only ready",async()=>{
   const data=base();data.ok=true;data.migration_apply_required=false;
   data.tables=data.tables.map(t=>({...t,available:true,migration_apply_required:false,code:null}));
-  const result=classifyMcpCatalogRecoveryReadback(data);
+  assert.equal(classifyMcpCatalogRecoveryReadback(data).schema_ready,false,
+    "Even fake all-true evidence cannot certify a Runtime database");
+  const result=await collectMcpCatalogRecoveryDecision({pool:observedPool(true),env:liveEnv});
   assert.equal(result.schema_ready,true);
   assert.equal(result.status,"ready_verified");
   assert.equal(result.governed_migration_proposed,false);
