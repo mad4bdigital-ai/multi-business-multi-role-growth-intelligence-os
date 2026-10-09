@@ -172,7 +172,11 @@ assert.match(routeSource, /Do not reinstall a reachable connector solely because
 assert.doesNotMatch(routeSource, /backendKey\s*=\s*backendKey \|\| process\.env\.BACKEND_API_KEY/, "no server-wide backend key fallback may be attached to a device");
 assert.match(routeSource, /resolveAdminConnectorTarget/, "self-repair must resolve an exact canonical scoped target");
 assert.doesNotMatch(routeSource, /process\.env\.(?:CONNECTOR_SECRET|CONNECTOR_LOCAL_API_KEY)/, "self-repair route must not introduce direct connector secret environment authority");
-assert.match(routeSource, /admin_cli\.local_connector_self_repair\.not_required/);
+assert.match(routeSource, /admin_cli\.local_connector_self_repair\.verified_no_repair/);
+assert.match(routeSource, /admin_cli\.local_connector_self_repair\.verification_pending/);
+assert.match(routeSource, /repair_required: !recoveryReadback\.operational_verified/);
+assert.match(routeSource, /verification_pending: !recoveryReadback\.recovered/);
+assert.match(routeSource, /Complete independent device-generation attestation to close recovery acceptance/);
 assert.match(routeSource, /installer_generated: false/);
 assert.match(routeSource, /retry_evidence: publicHealthProbe\.retry_evidence/);
 
