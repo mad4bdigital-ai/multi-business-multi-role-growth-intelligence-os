@@ -27,31 +27,37 @@ export function assessHostingerNodeEnvReplacement({
   const reasons = [];
   if (!Array.isArray(observedKeys) || !Array.isArray(desiredBindings) ||
       !Array.isArray(approvedRecoveryKeys) || observedKeys.length > 1000 ||
-      desiredBindings.length > 1000) {
+      desiredBindings.length > 1000 || approvedRecoveryKeys.length > 1000) {
     return {ok:false, evaluation_completed:false, candidate_ready:false,
       plan_eligible:false, execution_allowed:false,
       blockers:["invalid_or_unbounded_environment_inventory"], secrets_included:false};
   }
   const existing = observedKeys.map(key);
   const desired = desiredBindings.map(row => key(row?.name));
-  const approved = new Set(approvedRecoveryKeys.map(key));
+  const approvedValues = approvedRecoveryKeys.map(key);
+  const approved = new Set(approvedValues);
   if (existing.some(v => !KEY_PATTERN.test(v)) || desired.some(v => !KEY_PATTERN.test(v)))
     reasons.push("invalid_environment_key");
-  if (new Set(existing).size !== existing.length || new Set(desired).size !== desired.length)
+  if (new Set(existing).size !== existing.length || new Set(desired).size !== desired.length ||
+      approved.size !== approvedValues.length)
     reasons.push("duplicate_environment_key");
-  if (desiredBindings.some(row => !row || !key(row.secret_reference) ||
-      key(row.value) || MASK_PATTERN.test(key(row.secret_reference))))
+  if (approvedValues.some(name => !KEY_PATTERN.test(name)))
+    reasons.push("invalid_approved_recovery_key");
+  if (desiredBindings.some(row => !row || typeof row !== "object" ||
+      typeof row.name !== "string" || typeof row.secret_reference !== "string" ||
+      !key(row.secret_reference) || Object.hasOwn(row, "value") ||
+      MASK_PATTERN.test(key(row.secret_reference))))
     reasons.push("managed_secret_reference_only");
   const desiredSet = new Set(desired);
   if (existing.some(name => !desiredSet.has(name))) reasons.push("would_delete_existing_environment_variable");
   const changed = desired.filter(name => !existing.includes(name));
   if (changed.some(name => !approved.has(name))) reasons.push("unapproved_environment_key");
-  if (!exactWebsiteBound) reasons.push("hostinger_website_identity_not_bound");
-  if (!providerEntitlementProven) reasons.push("hostinger_provider_entitlement_unverified");
-  if (!exclusiveHostMutationLease) reasons.push("atomic_host_mutation_lease_missing");
-  if (!secretVaultComplete) reasons.push("complete_authoritative_environment_values_missing");
-  if (!exactProductionPlan) reasons.push("exact_production_plan_missing");
-  if (!sameCycleKeyInventory) reasons.push("same_cycle_key_inventory_missing");
+  if (exactWebsiteBound !== true) reasons.push("hostinger_website_identity_not_bound");
+  if (providerEntitlementProven !== true) reasons.push("hostinger_provider_entitlement_unverified");
+  if (exclusiveHostMutationLease !== true) reasons.push("atomic_host_mutation_lease_missing");
+  if (secretVaultComplete !== true) reasons.push("complete_authoritative_environment_values_missing");
+  if (exactProductionPlan !== true) reasons.push("exact_production_plan_missing");
+  if (sameCycleKeyInventory !== true) reasons.push("same_cycle_key_inventory_missing");
   // A complete inventory and vault mapping are necessary but not sufficient.
   // Hostinger's public API does not advertise a conditional ETag replace.
   if (!reasons.length) reasons.push("provider_revision_compare_and_set_not_certified");
