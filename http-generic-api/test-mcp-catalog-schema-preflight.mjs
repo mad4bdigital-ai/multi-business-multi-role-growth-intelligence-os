@@ -26,7 +26,7 @@ function fakePool(columnCounts = {}, identity = { current_database: "catalog_run
         return [[{ column_count: Number(columnCounts[table] || 0) }]];
       }
       if (/LIMIT 0/u.test(sql)) {
-        const table = /FROM \`([a-z_]+)\` LIMIT 0/u.exec(sql)?.[1] || "";
+        const table = /FROM `([a-z_]+)` LIMIT 0/u.exec(sql)?.[1] || "";
         if (Number(columnCounts[table] || 0) > 0) return [[], []];
         const error = new Error("Column not present");
         error.code = "ER_BAD_FIELD_ERROR";
