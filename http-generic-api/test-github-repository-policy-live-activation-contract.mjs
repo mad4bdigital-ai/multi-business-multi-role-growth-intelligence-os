@@ -23,17 +23,17 @@ const productionCredentialWorkflows = [
 ];
 for (const workflowName of productionCredentialWorkflows) {
   const source = read(`../.github/workflows/${workflowName}.yml`);
-  const start = source.indexOf("\\njobs:\\n");
+  const start = source.indexOf("\njobs:\n");
   assert(start >= 0, `${workflowName}: jobs must be present`);
   const jobText = source.slice(start + 6);
-  const jobStarts = [...jobText.matchAll(/^  ([a-zA-Z0-9_-]+):\\s*$/gm)];
+  const jobStarts = [...jobText.matchAll(/^  ([a-zA-Z0-9_-]+):\s*$/gm)];
   assert(jobStarts.length > 0, `${workflowName}: jobs must be parseable`);
   let authenticatedJobs = 0;
   for (let i = 0; i < jobStarts.length; i++) {
     const entry = jobText.slice(jobStarts[i].index, i + 1 < jobStarts.length ? jobStarts[i+1].index : jobText.length);
     if (!entry.includes("BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}")) continue;
     authenticatedJobs++;
-    assert.match(entry, /^    environment:\\n      name: Production\\n      deployment: false$/m,
+    assert.match(entry, /^    environment:\n      name: Production\n      deployment: false$/m,
       `${workflowName}/${jobStarts[i][1]}: Production-host backend credential must be resolved from Environment Production`);
   }
   assert(authenticatedJobs > 0, `${workflowName}: no authenticated Production jobs found; update the audit inventory deliberately`);
