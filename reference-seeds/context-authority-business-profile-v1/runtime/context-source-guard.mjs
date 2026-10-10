@@ -72,6 +72,19 @@ export function guardContext({scope,persona,policy,claims=[],channel,style}){
   if(style!==undefined&&typeof style!=='string')fail('STYLE_INVALID');
   return true;
 }
+/** Editorial content may be long, but must not silently contain personal or credential values. */
+export function guardEditorial({row,headers}) {
+  if(!Array.isArray(row)||!Array.isArray(headers)||row.length>LIMITS.columns||headers.length>LIMITS.columns)return 'INVALID_EDITORIAL_MATRIX';
+  if(headers.some(h=>HAZARD_HEADERS.test(String(h??''))))return 'SENSITIVE_EDITORIAL_COLUMN';
+  for(const c of row){
+    if(c!==null&&typeof c==='object')return 'UNSAFE_EDITORIAL_VALUE';
+    const s=String(c??'');
+    if(BufferByteLength(s)>200_000)return 'EDITORIAL_CELL_TOO_LARGE';
+    if(PRIVATE.test(s)||EMAIL.test(s))return 'SENSITIVE_EDITORIAL_CONTENT';
+    if(FORMULA.test(s)||/^\s*javascript\s*:/i.test(s))return 'EDITORIAL_FORMULA';
+  }
+  return null;
+}
 /** Prevalidate host-attested evidence *before* invoking externally supplied verifier callbacks. */
 export function guardReceipt({receipt,expected,trust,verifier,replayStore,now}){
   const deny=reason=>({status:'DENIED',reason,operational_acceptance:false,publication_authorized:false,release_authorized:false});
