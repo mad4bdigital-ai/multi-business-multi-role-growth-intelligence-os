@@ -256,6 +256,20 @@
         "http-generic-api/test-staging-empty-role-db-bootstrap.mjs",
         "http-generic-api/test-staging-schema-bundle-builder.mjs"
       ]
+    },
+    {
+      "id": "reference_seed_offline_node_contracts",
+      "patterns": [
+        "reference-seeds/context-authority-business-profile-v1/runtime/**/*.mjs",
+        "reference-seeds/context-authority-business-profile-v1/runtime/*.mjs"
+      ]
+    },
+    {
+      "id": "reference_seed_offline_python_validators",
+      "patterns": [
+        "reference-seeds/context-authority-business-profile-v1/tools/**/*.py",
+        "reference-seeds/context-authority-business-profile-v1/tools/*.py"
+      ]
     }
   ],
   "surface_classes": [
@@ -361,6 +375,12 @@
         ".gitignore",
         ".gitattributes",
         ".dockerignore"
+      ]
+    },
+    {
+      "id": "inert_context_authority_reference_seed",
+      "patterns": [
+        "reference-seeds/context-authority-business-profile-v1/**"
       ]
     }
   ],

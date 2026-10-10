@@ -12,7 +12,9 @@
     "scripts/test-*.mjs",
     "scripts/test-*.js",
     "tests/**/*.mjs",
-    "tests/**/*.js"
+    "tests/**/*.js",
+    "reference-seeds/context-authority-business-profile-v1/runtime/*.test.mjs",
+    "reference-seeds/context-authority-business-profile-v1/tools/test_*.py"
   ],
   "invariant_authorities": [
     {
@@ -759,6 +761,18 @@
       "test_paths": [
         "http-generic-api/test-workspace-brand-core-asset-materialization.mjs"
       ]
+    },
+    {
+      "id": "portable_context_seed_negative_acceptance",
+      "test_paths": [
+        "reference-seeds/context-authority-business-profile-v1/runtime/context-source-guard.test.mjs",
+        "reference-seeds/context-authority-business-profile-v1/runtime/portable-content-runtime.test.mjs",
+        "reference-seeds/context-authority-business-profile-v1/runtime/resolve-deployment-context.test.mjs",
+        "reference-seeds/context-authority-business-profile-v1/runtime/deployment-dependency-evaluator.test.mjs",
+        "reference-seeds/context-authority-business-profile-v1/tools/test_seed.py",
+        "reference-seeds/context-authority-business-profile-v1/tools/test_content_fabric.py",
+        "reference-seeds/context-authority-business-profile-v1/tools/test_audit_source_media.py"
+      ]
     }
   ],
   "discovery": {
@@ -785,7 +799,9 @@
       "**/*.test.mjs",
       "**/*.test.js",
       "**/*.test.ts",
-      "**/*.test.tsx"
+      "**/*.test.tsx",
+      "reference-seeds/context-authority-business-profile-v1/runtime/*.test.mjs",
+      "reference-seeds/context-authority-business-profile-v1/tools/test_*.py"
     ]
   },
   "registered_test_patterns": [
@@ -804,7 +820,8 @@
     "**/*.test.mjs",
     "**/*.test.js",
     "**/*.test.ts",
-    "**/*.test.tsx"
+    "**/*.test.tsx",
+    "reference-seeds/context-authority-business-profile-v1/tools/test_*.py"
   ],
   "governed_exclusions": [],
   "invariants": [
@@ -1015,6 +1032,21 @@
         "http-generic-api/test-system-tools-tenant-continuation-e2e.mjs"
       ],
       "protected_by_verifiers": []
+    },
+    {
+      "invariant_id": "portable_context_seed_negative_acceptance",
+      "protected_by_tests": [
+        "reference-seeds/context-authority-business-profile-v1/runtime/context-source-guard.test.mjs",
+        "reference-seeds/context-authority-business-profile-v1/runtime/portable-content-runtime.test.mjs",
+        "reference-seeds/context-authority-business-profile-v1/runtime/resolve-deployment-context.test.mjs",
+        "reference-seeds/context-authority-business-profile-v1/runtime/deployment-dependency-evaluator.test.mjs",
+        "reference-seeds/context-authority-business-profile-v1/tools/test_seed.py",
+        "reference-seeds/context-authority-business-profile-v1/tools/test_content_fabric.py",
+        "reference-seeds/context-authority-business-profile-v1/tools/test_audit_source_media.py"
+      ],
+      "protected_by_verifiers": [
+        "fixed_point:test_authority"
+      ]
     }
   ],
   "deleted_test_mode": "block_without_replacement",
