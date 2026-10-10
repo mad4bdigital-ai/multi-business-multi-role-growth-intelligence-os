@@ -4,6 +4,31 @@ import { readFileSync } from "node:fs";
 const workflow = readFileSync("../.github/workflows/derived-state-converged-automerge.yml", "utf8");
 const readiness = readFileSync("../.github/ops/github-followup-automerge-readiness.mjs", "utf8");
 
+const credentialBoundWorkflows = [
+  "derived-state-converged-automerge",
+  "governed-migration-dependency-gate",
+  "response-chunk-ownership-governed-rollout",
+  "spec014-wave1-runtime-readiness",
+  "sprint69-1006-governed-rollout",
+  "sprint69-1043-apply",
+  "sprint69-1043-readback-certify",
+  "sprint69-1043-runtime-readiness"
+];
+for (const workflowName of credentialBoundWorkflows) {
+  const source = readFileSync(`../.github/workflows/${workflowName}.yml`, "utf8");
+  assert(source.includes("\njobs:\n"), `${workflowName}: jobs must be a newline-delimited YAML mapping`);
+  assert(!source.includes("jobs:  "), `${workflowName}: jobs must not collapse into first job`);
+  const jobText = source.slice(source.indexOf("\njobs:\n") + 6);
+  const jobStarts = [...jobText.matchAll(/^  ([a-zA-Z0-9_-]+):\s*$/gm)];
+  for (let i = 0; i < jobStarts.length; i++) {
+    const job = jobText.slice(jobStarts[i].index, i + 1 < jobStarts.length ? jobStarts[i + 1].index : jobText.length);
+    if (!job.includes("BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}")) continue;
+    assert.match(job, /^    environment:\n      name: Production\n      deployment: false$/m,
+      `${workflowName}/${jobStarts[i][1]}: Production Backend key requires Production Environment`);
+  }
+}
+
+
 const attestJob = workflow.split("\n  attest:\n")[1]?.split("\n  merge:\n")[0] || "";
 assert.ok(attestJob.includes("    environment:\n      name: Production\n      deployment: false\n"), "attestation must bind Production Environment without creating a deployment");
 assert.ok(attestJob.includes("BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}"), "attestation must resolve Production Environment BACKEND_API_KEY secret");
