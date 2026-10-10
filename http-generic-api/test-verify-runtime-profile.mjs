@@ -1,8 +1,12 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const workflow = readFileSync('../.github/workflows/verify-runtime.yml', 'utf8');
-const script = readFileSync('verify-runtime.mjs', 'utf8');
+// Resolve fixtures from this module, not the caller's working directory.
+const fixtureDir = dirname(fileURLToPath(import.meta.url));
+const workflow = readFileSync(resolve(fixtureDir, '../.github/workflows/verify-runtime.yml'), 'utf8');
+const script = readFileSync(resolve(fixtureDir, 'verify-runtime.mjs'), 'utf8');
 
 const stagingJob = workflow.split('\n  verify-staging:\n')[1]?.split('\n  verify-production:\n')[0] || '';
 const productionJob = workflow.split('\n  verify-production:\n')[1] || '';
