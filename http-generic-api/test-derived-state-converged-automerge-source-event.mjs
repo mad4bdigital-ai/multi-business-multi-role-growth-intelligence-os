@@ -39,7 +39,7 @@ assert.ok(attestJob.indexOf("    environment:") < attestJob.indexOf("    runs-on
 
 assert.match(
   workflow,
-  /github\\.event\\.workflow_run\\.name == 'Derived State Closure' && \\(github\\.event\\.workflow_run\\.event == 'pull_request' \\|\\| github\\.event\\.workflow_run\\.event == 'pull_request_review'\\)/,
+  /github\.event\.workflow_run\.name == 'Derived State Closure' && \(github\.event\.workflow_run\.event == 'pull_request' \|\| github\.event\.workflow_run\.event == 'pull_request_review'\)/,
   "main finalization must accept only PR or owner-review Derived State Closure evidence",
 );
 assert.match(
@@ -48,7 +48,7 @@ assert.match(
   "Production finalization must accept only governed workflow-dispatch evidence",
 );
 assert.match(workflow, /source_event="\$\(jq -r '\.event' "\$run"\)"/, "source event must be read back from the trusted run API");
-assert.match(workflow, /\\[\\[ "\\$source_event" == "pull_request" \\|\\| "\\$source_event" == "pull_request_review" \\]\\]/, "main source must require PR or reviewed PR event");
+assert.match(workflow, /\[\[ "\$source_event" == "pull_request" \|\| "\$source_event" == "pull_request_review" \]\]/, "main source must require PR or reviewed PR event");
 assert.match(workflow, /test "\$source_event" = "workflow_dispatch"/, "Production evidence must fail closed when its source event is not a workflow dispatch");
 assert.match(workflow, /GH_TOKEN: \$\{\{ secrets\.REPO_AUTOSYNC_TOKEN \}\}/, "finalizer merge must use the dedicated token");
 assert.doesNotMatch(
