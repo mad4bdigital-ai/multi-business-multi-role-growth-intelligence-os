@@ -11,7 +11,8 @@ concurrency:
   group: spec017-protected-managed-execution-canary-${{ github.event.comment.id || github.run_id }}
   cancel-in-progress: false
 
-jobs:  canary:
+jobs:
+  canary:
     name: Exercise protected tenant/admin managed execution lifecycle
     if: >-
       github.event.issue.pull_request != null &&

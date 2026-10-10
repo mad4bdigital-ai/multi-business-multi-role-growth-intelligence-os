@@ -11,7 +11,8 @@ concurrency:
   group: tenant-request-identity-collation-readonly-diagnostic
   cancel-in-progress: false
 
-jobs:  diagnostic:
+jobs:
+  diagnostic:
     if: >-
       github.event.issue.number == 4449 &&
       !github.event.issue.pull_request &&

@@ -7,7 +7,8 @@ on:
 permissions:
   contents: read
 
-jobs:  runtime-readiness:
+jobs:
+  runtime-readiness:
     name: Verify tenant-request identity collation migration readiness
     if: >-
       github.event.issue.number == 4449 &&

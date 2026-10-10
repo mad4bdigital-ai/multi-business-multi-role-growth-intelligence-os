@@ -7,7 +7,8 @@ on:
 permissions:
   contents: read
 
-jobs:  readiness:
+jobs:
+  readiness:
     name: Authorize and dry-run Migration 1052
     if: >-
       github.event.issue.number == 4451 &&

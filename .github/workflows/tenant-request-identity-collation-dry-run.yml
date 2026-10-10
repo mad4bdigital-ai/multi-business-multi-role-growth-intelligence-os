@@ -11,7 +11,8 @@ concurrency:
   group: tenant-request-identity-collation-dry-run
   cancel-in-progress: false
 
-jobs:  dry-run:
+jobs:
+  dry-run:
     if: >-
       github.event.issue.number == 4449 &&
       !github.event.issue.pull_request &&
