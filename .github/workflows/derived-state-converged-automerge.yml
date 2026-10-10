@@ -32,7 +32,7 @@ jobs:
     if: >-
       (github.event_name == 'workflow_run' &&
        github.event.workflow_run.conclusion == 'success' &&
-       ((github.event.workflow_run.name == 'Derived State Closure' && github.event.workflow_run.event == 'pull_request') ||
+       ((github.event.workflow_run.name == 'Derived State Closure' && (github.event.workflow_run.event == 'pull_request' || github.event.workflow_run.event == 'pull_request_review')) ||
         (github.event.workflow_run.name == 'Governed Production Promotion Request Launcher' && github.event.workflow_run.event == 'workflow_dispatch'))) ||
       (github.event_name == 'workflow_dispatch' && inputs.confirmation == 'FINALIZE_GOVERNANCE_ATTESTATION')
     environment:
@@ -74,7 +74,7 @@ jobs:
           source_event="$(jq -r '.event' "$run")"
           case "$source_path" in
             .github/workflows/derived-state-closure.yml)
-              test "$source_event" = "pull_request"
+              [[ "$source_event" == "pull_request" || "$source_event" == "pull_request_review" ]]
               branch="main"
               prefix="derived-state-closure-"
               ;;

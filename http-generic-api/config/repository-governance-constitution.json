@@ -57,6 +57,7 @@
       "attestation_source_workflow": ".github/workflows/derived-state-closure.yml",
       "attestation_source_events": [
         "pull_request",
+        "pull_request_review",
         "workflow_dispatch"
       ],
       "attestation_artifact_prefix": "derived-state-closure-",
