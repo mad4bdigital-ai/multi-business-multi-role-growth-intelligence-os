@@ -7,14 +7,16 @@ on:
 permissions:
   contents: read
 
-jobs:
-  readiness:
+jobs:  readiness:
     name: Authorize and dry-run GitHub issue-comment parity migration
     if: >-
       github.event.issue.number == 4451 &&
       !github.event.issue.pull_request &&
       github.event.comment.body == 'AUTHORIZE_GOVERNED_MIGRATION_20260810_GITHUB_ISSUE_COMMENT_EXACT_RESPONSE_PARITY' &&
       contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
+    environment:
+      name: Production
+      deployment: false
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 35
     concurrency:

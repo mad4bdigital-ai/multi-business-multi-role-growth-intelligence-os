@@ -7,14 +7,16 @@ on:
 permissions:
   contents: read
 
-jobs:
-  readiness:
+jobs:  readiness:
     name: Authorize and dry-run Migration 1052
     if: >-
       github.event.issue.number == 4451 &&
       !github.event.issue.pull_request &&
       github.event.comment.body == 'AUTHORIZE_GOVERNED_MIGRATION_1052_TENANT_PLATFORM_PLUGIN_MANAGED_REPAIR_AUTHORITY' &&
       contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
+    environment:
+      name: Production
+      deployment: false
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 35
     concurrency:

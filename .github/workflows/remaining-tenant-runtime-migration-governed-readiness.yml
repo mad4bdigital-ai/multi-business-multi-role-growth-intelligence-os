@@ -7,14 +7,16 @@ on:
 permissions:
   contents: read
 
-jobs:
-  readiness:
+jobs:  readiness:
     name: Authorize and dry-run remaining tenant runtime migration
     if: >-
       github.event.issue.number == 6871 &&
       !github.event.issue.pull_request &&
       github.event.comment.body == 'AUTHORIZE_GOVERNED_MIGRATION_20260810_REMAINING_TENANT_RUNTIME_LIFECYCLE_GAP_CLOSURE' &&
       contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
+    environment:
+      name: Production
+      deployment: false
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 35
     concurrency:

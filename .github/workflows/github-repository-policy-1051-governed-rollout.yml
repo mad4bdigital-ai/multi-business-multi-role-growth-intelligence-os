@@ -7,14 +7,16 @@ on:
 permissions:
   contents: read
 
-jobs:
-  readiness:
+jobs:  readiness:
     name: Authorize and dry-run Migration 1051
     if: >-
       github.event.issue.number == 6625 &&
       !github.event.issue.pull_request &&
       github.event.comment.body == 'AUTHORIZE_GOVERNED_MIGRATION_1051_GITHUB_REPOSITORY_POLICY_LIVE_APPLY_AUTHORITY' &&
       contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
+    environment:
+      name: Production
+      deployment: false
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 35
     concurrency:
@@ -61,6 +63,9 @@ jobs:
       !github.event.issue.pull_request &&
       github.event.comment.body == 'RECONCILE_1051_GITHUB_REPOSITORY_POLICY_RECORD_ONLY_LEDGER' &&
       contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
+    environment:
+      name: Production
+      deployment: false
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 45
     concurrency:
@@ -111,6 +116,9 @@ jobs:
       !github.event.issue.pull_request &&
       github.event.comment.body == 'APPLY_1051_GITHUB_REPOSITORY_POLICY_AFTER_RECORD_ONLY_RECONCILIATION' &&
       contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
+    environment:
+      name: Production
+      deployment: false
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 45
     concurrency:
@@ -161,6 +169,9 @@ jobs:
       !github.event.issue.pull_request &&
       github.event.comment.body == 'APPLY_1051_GITHUB_REPOSITORY_POLICY_LIVE_APPLY_AUTHORITY' &&
       contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
+    environment:
+      name: Production
+      deployment: false
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 40
     concurrency:
