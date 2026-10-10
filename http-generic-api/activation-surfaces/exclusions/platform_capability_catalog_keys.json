@@ -1,0 +1,7 @@
+{
+  "surface_key": "platform_capability_catalog_keys",
+  "source_table": "platform_capability_catalog_keys",
+  "reason": "Excluded because Internal catalog signing-key enrollment metadata. Not a tenant-visible Activation table or an authorization grant. Readback requires independently authenticated site-bound key-purpose scope, public-key-only redaction, revocation proof and audited KMS integration; never expose key_ref or signing material. Any future public surface requires separately governed audited API and independent acceptance.",
+  "owner": "platform-governance",
+  "review_after": "2026-12-31"
+}

@@ -1483,7 +1483,11 @@ test("generator plan-only mode inventories the exact migration chain", () => {
     /KEY `idx_lm_desktop_command_claim_token`\s*\(\s*`claim_token`\s*,\s*`status`\s*\)/iu,
     "desktop command ownership must retain the claim-token lookup index",
   );
-  const expectedIndexProjectedTables = 588 + 2; // Local Manager desktop commands + control-template registry; device-link sessions already existed in the projected chain.
+  // Extend the certified census only for the two explicit catalog trust tables.
+  const catalogTrustSql=fs.readFileSync(path.join(migrationsDir,"966_capability_catalog_trust_authority.sql"),"utf8");
+  assert.match(catalogTrustSql,/CREATE TABLE IF NOT EXISTS platform_capability_catalog_keys\s*\(/u);
+  assert.match(catalogTrustSql,/CREATE TABLE IF NOT EXISTS platform_capability_catalog_consumed_nonces\s*\(/u);
+  const expectedIndexProjectedTables = 588 + 2 + 2; // Local Manager two + Catalog Trust two.
   assert.equal(plan.ordered_index_key_width_chain.tables_projected, expectedIndexProjectedTables);
   const localManagerIndexSql = [
     desktopCommandMigrationSql,
@@ -1576,7 +1580,7 @@ test("generator plan-only mode inventories the exact migration chain", () => {
     true,
     "Local Manager control-template registry migration must be part of the ordered schema plan",
   );
-  assert.equal(plan.ordered_foreign_key_compatibility_chain.tables_projected, 591);
+  assert.equal(plan.ordered_foreign_key_compatibility_chain.tables_projected, 591 + 2); // Two explicitly asserted additive catalog tables.
   assert.equal(plan.ordered_foreign_key_compatibility_chain.foreign_keys_checked, 138);
   assert.equal(plan.ordered_foreign_key_compatibility_chain.type_comparisons, 140);
   assert.equal(plan.ordered_foreign_key_compatibility_chain.type_mismatches, 0);

@@ -773,6 +773,14 @@
         "reference-seeds/context-authority-business-profile-v1/tools/test_content_fabric.py",
         "reference-seeds/context-authority-business-profile-v1/tools/test_audit_source_media.py"
       ]
+    },
+    {
+      "id": "central_capability_catalog_trust_authority",
+      "test_paths": [
+        "http-generic-api/test-capability-catalog-authority.mjs",
+        "http-generic-api/test-capability-catalog-persistence.mjs",
+        "http-generic-api/test-capability-catalog-tool-collector.mjs"
+      ]
     }
   ],
   "discovery": {
@@ -1043,6 +1051,17 @@
         "reference-seeds/context-authority-business-profile-v1/tools/test_seed.py",
         "reference-seeds/context-authority-business-profile-v1/tools/test_content_fabric.py",
         "reference-seeds/context-authority-business-profile-v1/tools/test_audit_source_media.py"
+      ],
+      "protected_by_verifiers": [
+        "fixed_point:test_authority"
+      ]
+    },
+    {
+      "invariant_id": "central_capability_catalog_trust_authority",
+      "protected_by_tests": [
+        "http-generic-api/test-capability-catalog-authority.mjs",
+        "http-generic-api/test-capability-catalog-persistence.mjs",
+        "http-generic-api/test-capability-catalog-tool-collector.mjs"
       ],
       "protected_by_verifiers": [
         "fixed_point:test_authority"
