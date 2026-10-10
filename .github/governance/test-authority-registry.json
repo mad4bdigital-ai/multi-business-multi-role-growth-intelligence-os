@@ -82,7 +82,14 @@
         "http-generic-api/test-credential-resolution-authority.mjs",
         "http-generic-api/test-credential-resolution-plan.mjs",
         "http-generic-api/test-credential-resolver.mjs",
+        "http-generic-api/test-spec014-wave1-runtime-readiness-contract.mjs",
+        "http-generic-api/test-spec017-fixture-context-readback.mjs",
+        "http-generic-api/test-spec017-protected-managed-execution-canary.mjs",
+        "http-generic-api/test-sprint69-1043-apply-contract.mjs",
+        "http-generic-api/test-sprint69-1043-runtime-readiness-contract.mjs",
         "http-generic-api/test-tenant-gpt-oauth-secret-ref.mjs",
+        "http-generic-api/test-tenant-request-identity-collation-dry-run-contract.mjs",
+        "http-generic-api/test-tenant-request-identity-collation-readonly-diagnostic-contract.mjs",
         "http-generic-api/test-verify-runtime-profile.mjs"
       ]
     },
