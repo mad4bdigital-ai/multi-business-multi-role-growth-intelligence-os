@@ -53,6 +53,12 @@
       ]
     },
     {
+      "id": "backend_api_key_and_jwt_fail_closed",
+      "test_paths": [
+        "http-generic-api/test-runtime-guards.mjs"
+      ]
+    },
+    {
       "id": "branch_generic_policy_target",
       "test_paths": [
         ".github/ops/github-main-review-policy-live-activation.mjs",
@@ -62,6 +68,14 @@
         "http-generic-api/test-github-repository-policy-1051-metadata-state.mjs",
         "http-generic-api/test-github-repository-policy-live-activation-contract.mjs",
         "http-generic-api/test-github-repository-policy-controller.mjs"
+      ]
+    },
+    {
+      "id": "central_capability_catalog_trust_authority",
+      "test_paths": [
+        "http-generic-api/test-capability-catalog-authority.mjs",
+        "http-generic-api/test-capability-catalog-persistence.mjs",
+        "http-generic-api/test-capability-catalog-tool-collector.mjs"
       ]
     },
     {
@@ -86,10 +100,9 @@
       ]
     },
     {
-      "id": "staging_environment_secret_generation",
+      "id": "custom_gpt_guard_main_only_issue_write_scope",
       "test_paths": [
-        "http-generic-api/test-staging-environment-secret-governance.mjs",
-        "http-generic-api/scripts/staging-dual-mode-one-click-contract.mjs"
+        "http-generic-api/test-custom-gpt-contract-guard-paths.mjs"
       ]
     },
     {
@@ -327,14 +340,6 @@
       ]
     },
     {
-      "id": "repository_configuration_drift_governance",
-      "test_paths": [
-        "http-generic-api/scripts/maintenance-tools/configuration-candidate-discovery.mjs",
-        "http-generic-api/scripts/maintenance-tools/configuration-drift-guard.mjs",
-        "http-generic-api/scripts/test-configuration-drift-guard.mjs"
-      ]
-    },
-    {
       "id": "platform_configuration_entry_governance",
       "test_paths": [
         "http-generic-api/scripts/maintenance-tools/platform-configuration-entry-guard.mjs",
@@ -351,6 +356,18 @@
         "http-generic-api/test-repository-reconciliation-automation.mjs",
         "http-generic-api/test-repository-reconciliation-orchestrator-export.mjs",
         "http-generic-api/test-repository-tenant-intelligence-recipe-store.mjs"
+      ]
+    },
+    {
+      "id": "portable_context_seed_negative_acceptance",
+      "test_paths": [
+        "reference-seeds/context-authority-business-profile-v1/runtime/context-source-guard.test.mjs",
+        "reference-seeds/context-authority-business-profile-v1/runtime/portable-content-runtime.test.mjs",
+        "reference-seeds/context-authority-business-profile-v1/runtime/resolve-deployment-context.test.mjs",
+        "reference-seeds/context-authority-business-profile-v1/runtime/deployment-dependency-evaluator.test.mjs",
+        "reference-seeds/context-authority-business-profile-v1/tools/test_seed.py",
+        "reference-seeds/context-authority-business-profile-v1/tools/test_content_fabric.py",
+        "reference-seeds/context-authority-business-profile-v1/tools/test_audit_source_media.py"
       ]
     },
     {
@@ -385,17 +402,6 @@
       "test_paths": [
         "http-generic-api/test-tenant-gpt-oauth-token-exchange-routes.mjs",
         "http-generic-api/test-trusted-ingress-contract.mjs"
-      ]
-    },
-    {
-      "id": "tenant_gpt_oauth_server_owned_correlation",
-      "test_paths": [
-        "http-generic-api/test-spec012-t030-oauth-correlation-foundation.mjs",
-        "http-generic-api/test-tenant-gpt-oauth-recovery-evidence-sink.mjs",
-        "http-generic-api/test-tenant-gpt-oauth-authorization-code-store.mjs",
-        "http-generic-api/test-tenant-gpt-oauth-operation-correlation.mjs",
-        "http-generic-api/test-tenant-gpt-oauth-token-binding-guard.mjs",
-        "http-generic-api/test-tenant-gpt-oauth-token-binding-hardening.mjs"
       ]
     },
     {
@@ -540,6 +546,14 @@
       "id": "remote_mcp_oauth_path_format_guard",
       "test_paths": [
         "http-generic-api/test-remote-mcp-oauth-path-format-guard.mjs"
+      ]
+    },
+    {
+      "id": "repository_configuration_drift_governance",
+      "test_paths": [
+        "http-generic-api/scripts/maintenance-tools/configuration-candidate-discovery.mjs",
+        "http-generic-api/scripts/maintenance-tools/configuration-drift-guard.mjs",
+        "http-generic-api/scripts/test-configuration-drift-guard.mjs"
       ]
     },
     {
@@ -688,6 +702,13 @@
       ]
     },
     {
+      "id": "staging_environment_secret_generation",
+      "test_paths": [
+        "http-generic-api/test-staging-environment-secret-governance.mjs",
+        "http-generic-api/scripts/staging-dual-mode-one-click-contract.mjs"
+      ]
+    },
+    {
       "id": "staging_schema_bundle_bootstrap",
       "test_paths": [
         "http-generic-api/config/staging-runtime-registry-reconciliation.json",
@@ -705,6 +726,17 @@
         "http-generic-api/test-staging-rebuild-empty-authority.mjs",
         "http-generic-api/test-staging-runtime-registry-reconciliation-surface.mjs",
         "http-generic-api/test-staging-schema-bundle-builder.mjs"
+      ]
+    },
+    {
+      "id": "tenant_gpt_oauth_server_owned_correlation",
+      "test_paths": [
+        "http-generic-api/test-spec012-t030-oauth-correlation-foundation.mjs",
+        "http-generic-api/test-tenant-gpt-oauth-recovery-evidence-sink.mjs",
+        "http-generic-api/test-tenant-gpt-oauth-authorization-code-store.mjs",
+        "http-generic-api/test-tenant-gpt-oauth-operation-correlation.mjs",
+        "http-generic-api/test-tenant-gpt-oauth-token-binding-guard.mjs",
+        "http-generic-api/test-tenant-gpt-oauth-token-binding-hardening.mjs"
       ]
     },
     {
@@ -773,32 +805,6 @@
       "test_paths": [
         "http-generic-api/test-workspace-brand-core-asset-materialization.mjs"
       ]
-    },
-    {
-      "id": "portable_context_seed_negative_acceptance",
-      "test_paths": [
-        "reference-seeds/context-authority-business-profile-v1/runtime/context-source-guard.test.mjs",
-        "reference-seeds/context-authority-business-profile-v1/runtime/portable-content-runtime.test.mjs",
-        "reference-seeds/context-authority-business-profile-v1/runtime/resolve-deployment-context.test.mjs",
-        "reference-seeds/context-authority-business-profile-v1/runtime/deployment-dependency-evaluator.test.mjs",
-        "reference-seeds/context-authority-business-profile-v1/tools/test_seed.py",
-        "reference-seeds/context-authority-business-profile-v1/tools/test_content_fabric.py",
-        "reference-seeds/context-authority-business-profile-v1/tools/test_audit_source_media.py"
-      ]
-    },
-    {
-      "id": "central_capability_catalog_trust_authority",
-      "test_paths": [
-        "http-generic-api/test-capability-catalog-authority.mjs",
-        "http-generic-api/test-capability-catalog-persistence.mjs",
-        "http-generic-api/test-capability-catalog-tool-collector.mjs"
-      ]
-    },
-    {
-      "id": "backend_api_key_and_jwt_fail_closed",
-      "test_paths": [
-        "http-generic-api/test-runtime-guards.mjs"
-      ]
     }
   ],
   "discovery": {
@@ -852,82 +858,24 @@
   "governed_exclusions": [],
   "invariants": [
     {
-      "invariant_id": "repository_server_policy_activation",
+      "invariant_id": "central_capability_catalog_trust_authority",
       "protected_by_tests": [
-        "http-generic-api/scripts/test-github-review-policy-target.mjs",
-        "http-generic-api/test-github-repository-policy-controller.mjs",
-        "http-generic-api/test-github-repository-policy-live-activation-contract.mjs"
-      ],
-      "protected_by_verifiers": [
-        "fixed_point:server_policy_lifecycle"
-      ]
-    },
-    {
-      "invariant_id": "repository_semantic_governance",
-      "protected_by_tests": [
-        ".github/tests/repository-governance-closure.test.mjs",
-        ".github/tests/repository-governance-fixed-point.test.mjs",
-        ".github/tests/repository-governance-objection-gate.test.mjs"
-      ],
-      "protected_by_verifiers": [
-        "fixed_point:semantic_impact"
-      ]
-    },
-    {
-      "invariant_id": "repository_derived_state",
-      "protected_by_tests": [
-        ".github/tests/derived-state-closure.test.mjs"
-      ],
-      "protected_by_verifiers": [
-        "portable_staging_manifest_currentness",
-        "work_map_currentness"
-      ]
-    },
-    {
-      "invariant_id": "tracked_executable_validation",
-      "protected_by_tests": [
-        ".github/tests/repository-governance-fixed-point.test.mjs"
-      ],
-      "protected_by_verifiers": [
-        "fixed_point:executable_universe"
-      ]
-    },
-    {
-      "invariant_id": "test_authority_closure",
-      "protected_by_tests": [
-        ".github/tests/repository-governance-fixed-point.test.mjs"
+        "http-generic-api/test-capability-catalog-authority.mjs",
+        "http-generic-api/test-capability-catalog-persistence.mjs",
+        "http-generic-api/test-capability-catalog-tool-collector.mjs"
       ],
       "protected_by_verifiers": [
         "fixed_point:test_authority"
       ]
     },
     {
-      "invariant_id": "work_map_schema_classification_contract",
+      "invariant_id": "custom_gpt_guard_main_only_issue_write_scope",
       "protected_by_tests": [
-        "http-generic-api/test-work-map-schema-classification-contract.mjs",
-        "http-generic-api/test-work-map-schema-classification.mjs",
-        "http-generic-api/test-spec-kit-work-map-governance-gate.mjs"
+        "http-generic-api/test-custom-gpt-contract-guard-paths.mjs"
       ],
       "protected_by_verifiers": [
-        "work_map_currentness"
+        "fixed_point:test_authority"
       ]
-    },
-    {
-      "invariant_id": "repository_evaluation_loop",
-      "protected_by_tests": [
-        "scripts/test-repository-evaluation.mjs"
-      ],
-      "protected_by_verifiers": [
-        "repository_evaluation_currentness"
-      ]
-    },
-    {
-      "invariant_id": "runtime_remediation_batch_contract",
-      "protected_by_tests": [
-        "http-generic-api/test-runtime-recovery-governed-operations.mjs",
-        "http-generic-api/test-runtime-remediation-batch-plan.mjs"
-      ],
-      "protected_by_verifiers": []
     },
     {
       "invariant_id": "governed_migration_ledger_readback_parity",
@@ -937,24 +885,6 @@
       "protected_by_verifiers": [
         "migration_execution_safety"
       ]
-    },
-    {
-      "invariant_id": "platform_configuration_entry_governance",
-      "protected_by_tests": [
-        "http-generic-api/scripts/test-platform-configuration-entry-guard.mjs"
-      ],
-      "protected_by_verifiers": [
-        "platform_configuration_entry_currentness"
-      ]
-    },
-    {
-      "invariant_id": "runtime_recovery_schema_less_fallback",
-      "protected_by_tests": [
-        ".github/ops/test-production-runtime-recovery-policy.mjs",
-        ".github/ops/test-production-runtime-recovery.mjs",
-        "http-generic-api/test-runtime-recovery-snapshot-routes.mjs"
-      ],
-      "protected_by_verifiers": []
     },
     {
       "invariant_id": "hostinger_runtime_bootstrap_contract",
@@ -972,16 +902,38 @@
       "protected_by_verifiers": []
     },
     {
-      "invariant_id": "recovery_survival_plane_trust_and_unsupported_contracts",
+      "invariant_id": "migration_execution_safety",
       "protected_by_tests": [
-        "http-generic-api/test-recovery-exception-framework.mjs",
-        "http-generic-api/test-recovery-execution-ticket.mjs",
-        "http-generic-api/test-recovery-kernel-routes.mjs",
-        "http-generic-api/test-recovery-kernel.mjs",
-        "http-generic-api/test-recovery-trust-model.mjs",
-        "http-generic-api/test-unsupported-recovery-broker.mjs"
+        "http-generic-api/test-execution-policies-stable-semantic-identity.mjs",
+        "http-generic-api/test-migration-execution-safety.mjs"
       ],
-      "protected_by_verifiers": []
+      "protected_by_verifiers": [
+        "migration_execution_safety"
+      ]
+    },
+    {
+      "invariant_id": "platform_configuration_entry_governance",
+      "protected_by_tests": [
+        "http-generic-api/scripts/test-platform-configuration-entry-guard.mjs"
+      ],
+      "protected_by_verifiers": [
+        "platform_configuration_entry_currentness"
+      ]
+    },
+    {
+      "invariant_id": "portable_context_seed_negative_acceptance",
+      "protected_by_tests": [
+        "reference-seeds/context-authority-business-profile-v1/runtime/context-source-guard.test.mjs",
+        "reference-seeds/context-authority-business-profile-v1/runtime/portable-content-runtime.test.mjs",
+        "reference-seeds/context-authority-business-profile-v1/runtime/resolve-deployment-context.test.mjs",
+        "reference-seeds/context-authority-business-profile-v1/runtime/deployment-dependency-evaluator.test.mjs",
+        "reference-seeds/context-authority-business-profile-v1/tools/test_seed.py",
+        "reference-seeds/context-authority-business-profile-v1/tools/test_content_fabric.py",
+        "reference-seeds/context-authority-business-profile-v1/tools/test_audit_source_media.py"
+      ],
+      "protected_by_verifiers": [
+        "fixed_point:test_authority"
+      ]
     },
     {
       "invariant_id": "recovery_composition_wiring",
@@ -1011,16 +963,6 @@
         "production_live_fail_closed",
         "production_recovery_composition_factory",
         "staging_recovery_admin_surface"
-      ]
-    },
-    {
-      "invariant_id": "migration_execution_safety",
-      "protected_by_tests": [
-        "http-generic-api/test-execution-policies-stable-semantic-identity.mjs",
-        "http-generic-api/test-migration-execution-safety.mjs"
-      ],
-      "protected_by_verifiers": [
-        "migration_execution_safety"
       ]
     },
     {
@@ -1060,6 +1002,76 @@
       ]
     },
     {
+      "invariant_id": "recovery_survival_plane_trust_and_unsupported_contracts",
+      "protected_by_tests": [
+        "http-generic-api/test-recovery-exception-framework.mjs",
+        "http-generic-api/test-recovery-execution-ticket.mjs",
+        "http-generic-api/test-recovery-kernel-routes.mjs",
+        "http-generic-api/test-recovery-kernel.mjs",
+        "http-generic-api/test-recovery-trust-model.mjs",
+        "http-generic-api/test-unsupported-recovery-broker.mjs"
+      ],
+      "protected_by_verifiers": []
+    },
+    {
+      "invariant_id": "repository_derived_state",
+      "protected_by_tests": [
+        ".github/tests/derived-state-closure.test.mjs"
+      ],
+      "protected_by_verifiers": [
+        "portable_staging_manifest_currentness",
+        "work_map_currentness"
+      ]
+    },
+    {
+      "invariant_id": "repository_evaluation_loop",
+      "protected_by_tests": [
+        "scripts/test-repository-evaluation.mjs"
+      ],
+      "protected_by_verifiers": [
+        "repository_evaluation_currentness"
+      ]
+    },
+    {
+      "invariant_id": "repository_semantic_governance",
+      "protected_by_tests": [
+        ".github/tests/repository-governance-closure.test.mjs",
+        ".github/tests/repository-governance-fixed-point.test.mjs",
+        ".github/tests/repository-governance-objection-gate.test.mjs"
+      ],
+      "protected_by_verifiers": [
+        "fixed_point:semantic_impact"
+      ]
+    },
+    {
+      "invariant_id": "repository_server_policy_activation",
+      "protected_by_tests": [
+        "http-generic-api/scripts/test-github-review-policy-target.mjs",
+        "http-generic-api/test-github-repository-policy-controller.mjs",
+        "http-generic-api/test-github-repository-policy-live-activation-contract.mjs"
+      ],
+      "protected_by_verifiers": [
+        "fixed_point:server_policy_lifecycle"
+      ]
+    },
+    {
+      "invariant_id": "runtime_recovery_schema_less_fallback",
+      "protected_by_tests": [
+        ".github/ops/test-production-runtime-recovery-policy.mjs",
+        ".github/ops/test-production-runtime-recovery.mjs",
+        "http-generic-api/test-runtime-recovery-snapshot-routes.mjs"
+      ],
+      "protected_by_verifiers": []
+    },
+    {
+      "invariant_id": "runtime_remediation_batch_contract",
+      "protected_by_tests": [
+        "http-generic-api/test-runtime-recovery-governed-operations.mjs",
+        "http-generic-api/test-runtime-remediation-batch-plan.mjs"
+      ],
+      "protected_by_verifiers": []
+    },
+    {
       "invariant_id": "tenant_system_tools_continuation_chunk_authority",
       "protected_by_tests": [
         "http-generic-api/test-system-tools-tenant-continuation-e2e.mjs"
@@ -1067,29 +1079,32 @@
       "protected_by_verifiers": []
     },
     {
-      "invariant_id": "portable_context_seed_negative_acceptance",
+      "invariant_id": "test_authority_closure",
       "protected_by_tests": [
-        "reference-seeds/context-authority-business-profile-v1/runtime/context-source-guard.test.mjs",
-        "reference-seeds/context-authority-business-profile-v1/runtime/portable-content-runtime.test.mjs",
-        "reference-seeds/context-authority-business-profile-v1/runtime/resolve-deployment-context.test.mjs",
-        "reference-seeds/context-authority-business-profile-v1/runtime/deployment-dependency-evaluator.test.mjs",
-        "reference-seeds/context-authority-business-profile-v1/tools/test_seed.py",
-        "reference-seeds/context-authority-business-profile-v1/tools/test_content_fabric.py",
-        "reference-seeds/context-authority-business-profile-v1/tools/test_audit_source_media.py"
+        ".github/tests/repository-governance-fixed-point.test.mjs"
       ],
       "protected_by_verifiers": [
         "fixed_point:test_authority"
       ]
     },
     {
-      "invariant_id": "central_capability_catalog_trust_authority",
+      "invariant_id": "tracked_executable_validation",
       "protected_by_tests": [
-        "http-generic-api/test-capability-catalog-authority.mjs",
-        "http-generic-api/test-capability-catalog-persistence.mjs",
-        "http-generic-api/test-capability-catalog-tool-collector.mjs"
+        ".github/tests/repository-governance-fixed-point.test.mjs"
       ],
       "protected_by_verifiers": [
-        "fixed_point:test_authority"
+        "fixed_point:executable_universe"
+      ]
+    },
+    {
+      "invariant_id": "work_map_schema_classification_contract",
+      "protected_by_tests": [
+        "http-generic-api/test-work-map-schema-classification-contract.mjs",
+        "http-generic-api/test-work-map-schema-classification.mjs",
+        "http-generic-api/test-spec-kit-work-map-governance-gate.mjs"
+      ],
+      "protected_by_verifiers": [
+        "work_map_currentness"
       ]
     }
   ],
