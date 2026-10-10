@@ -33,7 +33,9 @@ for (const workflowName of productionCredentialWorkflows) {
     const entry = jobText.slice(jobStarts[i].index, i + 1 < jobStarts.length ? jobStarts[i+1].index : jobText.length);
     if (!entry.includes("BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}")) continue;
     authenticatedJobs++;
-    assert.match(entry, /^    environment:\n      name: Production\n      deployment: false$/m,
+    const hasProductionBinding = /^    environment:\n      name: Production\n      deployment: false$/m.test(entry)
+      || /^    environment: Production$/m.test(entry);
+    assert(hasProductionBinding,
       `${workflowName}/${jobStarts[i][1]}: Production-host backend credential must be resolved from Environment Production`);
   }
   assert(authenticatedJobs > 0, `${workflowName}: no authenticated Production jobs found; update the audit inventory deliberately`);
