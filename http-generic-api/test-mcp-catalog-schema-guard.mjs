@@ -26,7 +26,7 @@ assert.equal(ready.migration, MCP_CATALOG_LEVEL_MIGRATION);
 assert.equal(ready.tables.length, 2);
 const safeReady = await readMcpCatalogSchemaReadinessSafe({
   pool: presentPool,
-  env: { DB_NAME: "catalog_runtime", DB_USER: "runtime_user" },
+  env: { DB_NAME: "catalog_runtime", DB_USER: "runtime_user", MCP_RUNTIME_EXPECTED_SQL_ACCOUNT: "runtime_user@localhost" },
 });
 assert.equal(safeReady.ok, true);
 assert.equal(safeReady.identity.ok, true);
@@ -101,7 +101,7 @@ const leasedPool = {
   },
 };
 const sameSession = await readMcpCatalogSchemaReadinessSafe({
-  pool: leasedPool, env: { DB_NAME: "catalog_runtime", DB_USER: "runtime_user" },
+  pool: leasedPool, env: { DB_NAME: "catalog_runtime", DB_USER: "runtime_user", MCP_RUNTIME_EXPECTED_SQL_ACCOUNT: "runtime_user@localhost" },
 });
 assert.equal(sameSession.ok, true);
 assert.equal(sessionReleases, 1, "Every successful readiness lease must be released");
@@ -118,7 +118,7 @@ const leaseDenied = await readMcpCatalogSchemaReadinessSafe({
       };
     },
   },
-  env: { DB_NAME: "catalog_runtime", DB_USER: "runtime_user" },
+  env: { DB_NAME: "catalog_runtime", DB_USER: "runtime_user", MCP_RUNTIME_EXPECTED_SQL_ACCOUNT: "runtime_user@localhost" },
 });
 assert.equal(leaseDenied.ok, false);
 assert.equal(leaseDenied.migration_apply_required, false);
@@ -127,7 +127,7 @@ assert.equal(failingLeaseReleases, 1, "Denied Runtime sessions must also be rele
 let mismatchedSessionQueries = 0;
 let mismatchedSessionReleases = 0;
 const mismatchedSession = await readMcpCatalogSchemaReadinessSafe({
-  env: { DB_NAME: "catalog_runtime", DB_USER: "runtime_user" },
+  env: { DB_NAME: "catalog_runtime", DB_USER: "runtime_user", MCP_RUNTIME_EXPECTED_SQL_ACCOUNT: "runtime_user@localhost" },
   pool: {
     async getConnection() {
       return {
@@ -239,7 +239,7 @@ assert.equal(mixedEvidence.migration_apply_required, false,
   "Migration must not be recommended when one of the two tables is inaccessible");
 const safeDegraded = await readMcpCatalogSchemaReadinessSafe({
   pool: errorPool,
-  env: { DB_NAME: "catalog_runtime", DB_USER: "runtime_user" },
+  env: { DB_NAME: "catalog_runtime", DB_USER: "runtime_user", MCP_RUNTIME_EXPECTED_SQL_ACCOUNT: "runtime_user@localhost" },
 });
 assert.equal(safeDegraded.ok, false);
 assert.equal(safeDegraded.read_only_probe, true);

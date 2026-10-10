@@ -8,6 +8,7 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 . (Join-Path $PSScriptRoot "Staging-Operations-Log.ps1")
+. (Join-Path $PSScriptRoot "Staging-TaskPrincipalIdentity.ps1")
 $LogComponent = "autonomous-supervisor"
 $script:SupervisorMutex = $null
 if ([string]::IsNullOrWhiteSpace($RepositoryPath)) { $RepositoryPath = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path }
@@ -60,12 +61,13 @@ function Test-WatcherTaskIdentity([object]$Task) {
     $sourceRoot = [IO.Path]::GetFullPath([string]$scriptRoot).TrimEnd('\')
     $targetRoot = [IO.Path]::GetFullPath([string]$RepositoryPath).TrimEnd('\')
     if ($working -ine $sourceRoot -and $working -ine $targetRoot) { return $false }
-    if ([string]$Task.Principal.UserId -ine $expectedPrincipal) { return $false }
+    if (-not (Test-StagingTaskPrincipalIsCurrentUser ([string]$Task.Principal.UserId))) { return $false }
+    if ([string]$Task.Principal.LogonType -ne "Interactive") { return $false }
     # Permit only the exact expected script and working checkout, never an arbitrary -Command.
     $scriptRegex = [regex]::Escape($expectedScript)
     $repoRegex = [regex]::Escape($RepositoryPath)
     # Exact approved action, no appended switches, injected command or new target.
-    $approved = '^-NoLogo\s+-NoProfile\s+-ExecutionPolicy\s+Bypass\s+-File\s+"' + $scriptRegex +
+    $approved = '^-NoLogo\s+-NoProfile(?:\s+-WindowStyle\s+Hidden)?\s+-ExecutionPolicy\s+Bypass\s+-File\s+"' + $scriptRegex +
         '"\s+-RepositoryPath\s+"' + $repoRegex +
         '"\s+-Watch\s+-PollSeconds\s+\d+\s+-BuildMode\s+(?:Smart|ForceBuild|SkipBuild)' +
         '\s+-TunnelMode\s+(?:disabled|windows_service|docker_sidecar)(?:\s+-EnableActivationGateway)?$'
@@ -236,7 +238,7 @@ function Recover-Watcher([DateTimeOffset]$Now, [object]$Task, [object]$Decision)
             last_attempt_at = $Now.ToString("o")
             secrets_included = $false
         }) 8
-        Start-ScheduledTask -TaskName ([string]$Policy.watcher_task_name) -ErrorAction Stop
+        Start-ScheduledTask -TaskPath "\" -TaskName ([string]$Policy.watcher_task_name) -ErrorAction Stop
         Write-StagingLog -Level warning -Component $LogComponent -Stage "recovery" -Message "started existing validated Staging watcher task" -Data @{ action = "start_existing_task"; attempts_24h = $attempts.Count }
         $result = "start_requested"
     }
@@ -244,8 +246,8 @@ function Recover-Watcher([DateTimeOffset]$Now, [object]$Task, [object]$Decision)
 }
 function Invoke-SupervisorCycle {
     $now = [DateTimeOffset]::UtcNow
-    $task = Get-ScheduledTask -TaskName ([string]$Policy.watcher_task_name) -ErrorAction SilentlyContinue
-    $taskInfo = if ($null -ne $task) { Get-ScheduledTaskInfo -TaskName ([string]$Policy.watcher_task_name) -ErrorAction SilentlyContinue } else { $null }
+    $task = Get-ScheduledTask -TaskPath "\" -TaskName ([string]$Policy.watcher_task_name) -ErrorAction SilentlyContinue
+    $taskInfo = if ($null -ne $task) { Get-ScheduledTaskInfo -TaskPath "\" -TaskName ([string]$Policy.watcher_task_name) -ErrorAction SilentlyContinue } else { $null }
     $decision = Get-Acceptance $now $task $taskInfo
     $recovery = Recover-Watcher $now $task $decision
     $decision["recovery_action"] = $recovery

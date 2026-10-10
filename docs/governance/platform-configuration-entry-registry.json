@@ -832,6 +832,24 @@
       "binding_ref": "http-generic-api/.env.example"
     },
     {
+      "config_key": "plan.ttl.ms",
+      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
+      "owner": "recovery-governance",
+      "risk_class": "critical",
+      "scope_types": [
+        "platform",
+        "tenant",
+        "staging"
+      ],
+      "binding_ref": "http-generic-api/recoveryOrchestrator.js",
+      "resolver_ref": "http-generic-api/recoveryOrchestrator.js",
+      "readback_ref": "http-generic-api/test-recovery-orchestrator.mjs",
+      "shadow_evidence_ref": "specs/022-governed-recovery-orchestrator/contracts.md",
+      "classification": "runtime_setting",
+      "status": "shadow",
+      "secrets_included": false
+    },
+    {
       "config_key": "production.base.url",
       "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
       "owner": "platform-governance",

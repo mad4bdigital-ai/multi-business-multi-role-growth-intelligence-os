@@ -68,9 +68,10 @@
       "id": "centralized_user_jwt_authentication",
       "test_paths": [
         "http-generic-api/scripts/user-jwt-auth-governance.mjs",
-        "http-generic-api/userJwtAuth.js",
+        "http-generic-api/test-activation-awareness-user-jwt-boundary.mjs",
+        "http-generic-api/test-runtime-guards.mjs",
         "http-generic-api/test-user-jwt-auth.mjs",
-        "http-generic-api/test-activation-awareness-user-jwt-boundary.mjs"
+        "http-generic-api/userJwtAuth.js"
       ]
     },
     {
@@ -138,7 +139,8 @@
       "id": "governed_execution_x0_evidence_baseline",
       "test_paths": [
         "http-generic-api/test-governed-execution-baseline-benchmark.mjs",
-        "http-generic-api/test-governed-execution-baseline-telemetry.mjs"
+        "http-generic-api/test-governed-execution-baseline-telemetry.mjs",
+        "http-generic-api/test-sink-orchestration-json-asset-lookup-failure.mjs"
       ]
     },
     {
@@ -220,7 +222,9 @@
         "http-generic-api/test-hostinger-production-runtime-readback-r7.mjs",
         "http-generic-api/test-hostinger-recovery-capability-discovery.mjs",
         "http-generic-api/test-hostinger-recovery-provider-safety.mjs",
+        "http-generic-api/test-hostinger-recovery-readonly-planner.mjs",
         "http-generic-api/test-hostinger-recovery-seed-replay.mjs",
+        "http-generic-api/test-mcp-catalog-recovery-decision.mjs",
         "http-generic-api/test-mcp-catalog-schema-guard.mjs",
         "http-generic-api/test-mcp-catalog-schema-preflight.mjs",
         "http-generic-api/test-openapi-detail-closure-batch.mjs",
@@ -270,6 +274,7 @@
         "http-generic-api/test-connector-local-api-key-registry.mjs",
         "http-generic-api/test-control-plane-convergence-regressions.mjs",
         "http-generic-api/test-db-driven-connector-capability-policy.mjs",
+        "http-generic-api/test-device-generation-challenge-verifier.mjs",
         "http-generic-api/test-installer-credential-epoch.mjs",
         "http-generic-api/test-local-connector-capability-installer-grants.mjs",
         "http-generic-api/test-local-connector-composite-health.mjs",
@@ -445,7 +450,9 @@
         "http-generic-api/test-platform-recovery-convergence-read-adapters.mjs",
         "http-generic-api/test-platform-recovery-convergence.mjs",
         "http-generic-api/test-platform-routes.mjs",
+        "http-generic-api/test-post8461-operational-scenario-matrix.mjs",
         "http-generic-api/test-production-activation-readiness.mjs",
+        "http-generic-api/test-production-promotion-log-preflight.mjs",
         "http-generic-api/test-production-recovery-authority-foundation.mjs",
         "http-generic-api/test-production-recovery-authority-preflight.mjs",
         "http-generic-api/test-production-recovery-baseline-authority-binding.mjs",
@@ -461,6 +468,8 @@
         "http-generic-api/test-recovery-action-bridge-system-layer.mjs",
         "http-generic-api/test-recovery-activation-readiness.mjs",
         "http-generic-api/test-recovery-composition.mjs",
+        "http-generic-api/test-recovery-orchestrator-routes.mjs",
+        "http-generic-api/test-recovery-orchestrator.mjs",
         "http-generic-api/test-recovery-system-tool-overlay.mjs",
         "http-generic-api/test-recovery-system-tool-store-authority-separation.mjs",
         "http-generic-api/test-runtime-environment-resolver.mjs",
@@ -636,7 +645,8 @@
         "http-generic-api/test-staging-one-click-autopilot-core.mjs",
         "http-generic-api/test-staging-post-build-image-discovery.mjs",
         "http-generic-api/test-staging-schema-governance-powershell-revision-contract.mjs",
-        "http-generic-api/test-staging-smart-gateway-convergence-contract.mjs"
+        "http-generic-api/test-staging-smart-gateway-convergence-contract.mjs",
+        "http-generic-api/test-staging-coldboot-recovery.mjs"
       ]
     },
     {
@@ -780,6 +790,12 @@
         "http-generic-api/test-capability-catalog-authority.mjs",
         "http-generic-api/test-capability-catalog-persistence.mjs",
         "http-generic-api/test-capability-catalog-tool-collector.mjs"
+      ]
+    },
+    {
+      "id": "backend_api_key_and_jwt_fail_closed",
+      "test_paths": [
+        "http-generic-api/test-runtime-guards.mjs"
       ]
     }
   ],
@@ -943,6 +959,8 @@
       "protected_by_tests": [
         "http-generic-api/test-fixed-host-local-system-tool.mjs",
         "http-generic-api/test-host-breakglass-local-request.mjs",
+        "http-generic-api/test-hostinger-recovery-readonly-planner.mjs",
+        "http-generic-api/test-mcp-catalog-recovery-decision.mjs",
         "http-generic-api/test-openapi-split-governance.mjs",
         "http-generic-api/test-recovery-kernel.mjs",
         "http-generic-api/test-role-selection-proof-contract.mjs",
@@ -966,6 +984,8 @@
     {
       "invariant_id": "recovery_composition_wiring",
       "protected_by_tests": [
+        "http-generic-api/test-post8461-operational-scenario-matrix.mjs",
+        "http-generic-api/test-production-promotion-log-preflight.mjs",
         "http-generic-api/test-production-recovery-authority-foundation.mjs",
         "http-generic-api/test-production-recovery-baseline-authority-binding.mjs",
         "http-generic-api/test-production-recovery-baseline-rebuild-governed-workflow.mjs",
@@ -973,6 +993,8 @@
         "http-generic-api/test-production-recovery-host-local-baseline-rebuild.mjs",
         "http-generic-api/test-recovery-activation-readiness.mjs",
         "http-generic-api/test-recovery-composition.mjs",
+        "http-generic-api/test-recovery-orchestrator-routes.mjs",
+        "http-generic-api/test-recovery-orchestrator.mjs",
         "http-generic-api/test-recovery-system-tool-store-authority-separation.mjs",
         "http-generic-api/test-server-managed-recovery-binding.mjs",
         "http-generic-api/test-staging-recovery-admin-surface.mjs",
@@ -1026,7 +1048,8 @@
         "http-generic-api/test-recovery-execution-ticket.mjs",
         "http-generic-api/test-recovery-kernel-routes.mjs",
         "http-generic-api/test-recovery-kernel.mjs",
-        "http-generic-api/test-runtime-bootstrap-contract.mjs"
+        "http-generic-api/test-runtime-bootstrap-contract.mjs",
+        "http-generic-api/test-sink-orchestration-json-asset-lookup-failure.mjs"
       ],
       "protected_by_verifiers": [
         "exact_durable_run_reference",

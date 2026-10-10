@@ -163,7 +163,7 @@ test("recovered requires fresh heartbeat and authenticated same-device, same-con
   assert.equal(credentialOnly.operational_verified,true);
   assert.equal(credentialOnly.recovered,false);
   assert.equal(credentialOnly.status,"generation_attestation_required");
-  // This may only become true when a separately trusted authority supplies proof.
+  // Caller-controlled booleans are not hardware or current-generation proof.
   assert.equal(classifyAdminRecoveryReadback({...params,observedDeviceId:"current-pc",
-    observedConfigId:"config-a",deviceGenerationAttested:true}).recovered,true);
+    observedConfigId:"config-a",deviceGenerationAttested:true}).recovered,false);
 });

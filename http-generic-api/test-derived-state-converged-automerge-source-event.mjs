@@ -79,4 +79,17 @@ assert.match(readiness, /allowedCheckSource\(managedBinding,/, "managed ruleset 
 assert.match(readiness, /safe_to_merge_now: true/, "verifier may authorize only an immediate exact-head finalizer merge");
 assert.doesNotMatch(readiness, /allow_auto_merge !== true/, "retired native auto-merge prerequisite must not return");
 
+
+const livePolicyWorkflow = readFileSync("../.github/workflows/policy-objection-ci.yml", "utf8");
+const liveClosureWorkflow = readFileSync("../.github/workflows/derived-state-closure.yml", "utf8");
+assert.match(livePolicyWorkflow, /Resolve live PR candidate bound to event head and base/, "Policy Objection must resolve the live candidate");
+assert.match(livePolicyWorkflow, /pull-requests: read/, "PR metadata access must be explicit");
+assert.match(livePolicyWorkflow, /\.head\.sha.*EVENT_HEAD_SHA/, "producer rejects stale HEAD");
+assert.match(livePolicyWorkflow, /\.base\.sha.*EVENT_BASE_SHA/, "producer rejects stale base");
+assert.match(livePolicyWorkflow, /ref: .*steps\.candidate\.outputs\.sha/, "producer checks out its validated live candidate");
+assert.doesNotMatch(livePolicyWorkflow, /ref: .*github\.sha/, "producer must not trust stale event merge SHA");
+assert.match(liveClosureWorkflow, /derived-state-closure-event-pr\.json/, "source detector must read current PR metadata");
+assert.match(liveClosureWorkflow, /candidate_sha=.*merge_commit_sha/, "source detector must bind the current exact merge candidate");
+assert.match(liveClosureWorkflow, /group: derived-state-closure-.*github\.event_name/, "PR source and review runs must not cancel one another");
+
 console.log("derived state converged finalizer source event tests passed");

@@ -1,3 +1,4 @@
+import { isTrustedDeviceGenerationReceipt } from "./deviceGenerationChallengeVerifier.js";
 // Admin-only canonical target resolution. This module is read-only and never moves credentials.
 export const PLATFORM_ADMIN_USER_ID = "00000000-0000-4000-a000-000000000002";
 export const PLATFORM_TENANT_ID = "00000000-0000-4000-a000-000000000001";
@@ -101,7 +102,8 @@ export function validateAdminRecoveryEndpoint(tunnelUrl, cfTunnelId = null, conf
 export function classifyAdminRecoveryReadback({deviceState, publicStatus, authenticatedStatus,
   observedDeviceId = null, expectedDeviceId = null,
   observedConfigId = null, expectedConfigId = null,
-  deviceGenerationAttested = false} = {}) {
+  deviceGenerationAttested = false, deviceGenerationReceipt = null,
+  expectedGenerationScope = null} = {}) {
   const heartbeatFresh = deviceState === "ACTIVE";
   const routeReachable = publicStatus === "pass";
   const authHealthy = authenticatedStatus === "pass";
@@ -111,10 +113,14 @@ export function classifyAdminRecoveryReadback({deviceState, publicStatus, authen
     str(expectedConfigId) === str(observedConfigId));
   const operationalVerified = heartbeatFresh && routeReachable && authHealthy
     && attestedIdentity && attestedConfig;
-  // An authenticated /policy response proves possession of the connector
-  // credential, not possession of the original non-exportable device key.
-  // Only a separate trusted device-generation verifier may set this flag.
-  const generationVerified = deviceGenerationAttested === true;
+  // Caller booleans and /policy credentials cannot certify a device key.
+  // Only an in-process, nonce-consumed, scope-bound cryptographic receipt may
+  // prove possession. Hardware non-exportability additionally requires separate
+  // platform attestation; our possession verifier never claims it.
+  const possessionVerified = expectedGenerationScope !== null &&
+    isTrustedDeviceGenerationReceipt(deviceGenerationReceipt, expectedGenerationScope);
+  const generationVerified = possessionVerified &&
+    deviceGenerationReceipt.hardware_nonexportability_verified === true;
   const recovered = operationalVerified && generationVerified;
   return {
     status: recovered ? "recovered" : (!heartbeatFresh ? "heartbeat_stale" :
@@ -124,6 +130,7 @@ export function classifyAdminRecoveryReadback({deviceState, publicStatus, authen
     heartbeat_fresh: heartbeatFresh, route_reachable: routeReachable,
     operational_verified: operationalVerified,
     device_generation_attested: generationVerified,
+    device_generation_possession_verified: possessionVerified,
     authenticated_probe_passed: authHealthy, device_identity_attested: attestedIdentity,
     config_identity_attested: attestedConfig,
     secrets_included: false,

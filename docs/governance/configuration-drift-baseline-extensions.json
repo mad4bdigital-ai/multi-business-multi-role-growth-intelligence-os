@@ -1258,6 +1258,17 @@
       "grants_production_activation": false
     },
     {
+      "fingerprint": "http-generic-api/recoveryOrchestrator.js|PLAN_TTL_MS|literal_declaration|plan.ttl.ms",
+      "owner": "recovery-governance",
+      "reason": "Fixed, five-minute, code-owned bound for staging-only recovery plan expiry; not request-controlled or dynamically writable. Catalog entry is SHADOW metadata only, and no Runtime, database, Hostinger or Production grant is provided.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
       "fingerprint": "http-generic-api/routes/authRoutes.js|LOCAL_MANAGER_USER_JWT_SCOPE|literal_declaration|local.manager.user.jwt.scope",
       "owner": "identity-platform",
       "reason": "Local Manager user JWT scope is a fixed non-secret authorization policy constant shared by login issuance and route verification; changing it requires reviewed auth-contract changes and does not itself grant runtime mutation.",
@@ -2259,6 +2270,17 @@
       "grants_production_activation": false
     },
     {
+      "fingerprint": "http-generic-api/sinkOrchestration.js|workflowLogRetryExhausted|literal_declaration|workflowlogretryexhausted",
+      "owner": "execution-governance",
+      "reason": "This transient in-memory boolean records whether the workflow log retries were exhausted; it is operational result state, not a runtime configuration input or secret and does not change retry policy or allow mutation.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
       "fingerprint": "http-generic-api/stagingActivationGatewayApplyAdapter.js|DEFAULT_STAGING_CLOUDFLARE_API_TOKEN_FILE|literal_declaration|staging.cloudflare.api.token.file",
       "owner": "gateway-governance",
       "reason": "Canonical server-held Staging Cloudflare credential file locator. It identifies only the in-container secret-file path, contains no provider credential value, and does not grant provider, database, DNS, custom-domain, protected-ref, or Production mutation authority.",
@@ -2559,6 +2581,17 @@
       "fingerprint": "http-generic-api/test-recovery-action-bridge-system-layer.mjs|APPROVAL_TOOL_NAME|literal_declaration|approval.tool.name",
       "owner": "recovery-governance",
       "reason": "The private Recovery system-tool integration test binds a non-secret approval-challenge tool name so the server-issued authority boundary remains regression-tested; this test fixture grants no runtime, database, provider, protected-ref, credential, or Production mutation authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/test-recovery-orchestrator.mjs|scope|literal_declaration|scope",
+      "owner": "recovery-governance",
+      "reason": "This immutable synthetic test-only tenant and resource fixture validates rejection of cross-scope recovery; it is not a runtime configuration value and cannot grant authority.",
       "lifecycle": "permanent",
       "configuration_class": "ci_governance_input",
       "sensitivity": "non_secret_reference",

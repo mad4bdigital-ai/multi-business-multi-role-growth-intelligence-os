@@ -77,6 +77,7 @@ export async function readMcpCatalogRuntimeIdentity({ pool, env = process.env } 
   }
   const expectedDatabase = String(env?.DB_NAME || "").trim();
   const expectedPrincipal = String(env?.DB_USER || "").trim();
+  const expectedSqlAccount = String(env?.MCP_RUNTIME_EXPECTED_SQL_ACCOUNT || "").trim();
   try {
     const [rows] = await pool.query(
       "SELECT DATABASE() AS current_database, CURRENT_USER() AS current_account",
@@ -86,9 +87,12 @@ export async function readMcpCatalogRuntimeIdentity({ pool, env = process.env } 
     const databaseMatches = expectedDatabase ? currentDatabase === expectedDatabase : null;
     const observedPrincipal = currentAccount.split("@", 1)[0].replace(/[`'"]+/gu, "").trim();
     const principalMatches = expectedPrincipal ? observedPrincipal === expectedPrincipal : null;
-    const ready = Boolean(expectedDatabase && expectedPrincipal && currentDatabase && currentAccount)
+    // The account HOST portion changes MariaDB grants despite identical DB_USER.
+    const accountMatches = Boolean(expectedSqlAccount && currentAccount === expectedSqlAccount);
+    const ready = Boolean(expectedDatabase && expectedPrincipal && expectedSqlAccount && currentDatabase && currentAccount)
       && databaseMatches === true
-      && principalMatches === true;
+      && principalMatches === true
+      && accountMatches === true;
     return {
       ok: ready,
       code: ready
@@ -97,7 +101,9 @@ export async function readMcpCatalogRuntimeIdentity({ pool, env = process.env } 
           ? "MCP_CATALOG_RUNTIME_IDENTITY_CONFIG_MISSING"
           : (databaseMatches === false
             ? "MCP_CATALOG_RUNTIME_DATABASE_MISMATCH"
-            : (principalMatches === false ? "MCP_CATALOG_RUNTIME_PRINCIPAL_MISMATCH" : "MCP_CATALOG_RUNTIME_IDENTITY_UNAVAILABLE"))),
+            : (principalMatches === false ? "MCP_CATALOG_RUNTIME_PRINCIPAL_MISMATCH"
+              : (!expectedSqlAccount ? "MCP_CATALOG_RUNTIME_SQL_ACCOUNT_CONFIG_MISSING"
+                : (!accountMatches ? "MCP_CATALOG_RUNTIME_SQL_ACCOUNT_MISMATCH" : "MCP_CATALOG_RUNTIME_IDENTITY_UNAVAILABLE"))))),
       database_role: MCP_CATALOG_RUNTIME_SCHEMA_CONTRACT.database_role,
       database_name_env: MCP_CATALOG_RUNTIME_SCHEMA_CONTRACT.database_name_env,
       principal_env: MCP_CATALOG_RUNTIME_SCHEMA_CONTRACT.principal_env,
@@ -107,6 +113,8 @@ export async function readMcpCatalogRuntimeIdentity({ pool, env = process.env } 
       observed_principal_present: Boolean(currentAccount),
       database_matches: databaseMatches,
       principal_matches: principalMatches,
+      exact_sql_account_configured: Boolean(expectedSqlAccount),
+      exact_sql_account_matches: accountMatches,
       identity_readback_performed: true,
       secrets_included: false,
     };
@@ -123,6 +131,8 @@ export async function readMcpCatalogRuntimeIdentity({ pool, env = process.env } 
       observed_principal_present: false,
       database_matches: expectedDatabase ? false : null,
       principal_matches: expectedPrincipal ? false : null,
+      exact_sql_account_configured: Boolean(expectedSqlAccount),
+      exact_sql_account_matches: false,
       identity_readback_performed: true,
       secrets_included: false,
     };
@@ -137,14 +147,14 @@ export function buildMcpCatalogSchemaMigrationRequiredError({ table = null, orig
   });
 }
 
-export async function readMcpCatalogLevelSchemaStatus({ pool = getPool(), table } = {}) {
+export async function readMcpCatalogLevelSchemaStatus({ pool = getPool(), table, freshReadback = false } = {}) {
   const normalizedTable = String(table || "").trim();
   if (!MCP_CATALOG_TABLES.includes(normalizedTable)) {
     throw schemaError("mcp_catalog_table_invalid", "The requested MCP catalog table is not governed.", { table: normalizedTable });
   }
   const cache = cacheFor(pool);
   const cached = cache.get(normalizedTable);
-  if (cached && cached.expires_at > Date.now()) return cached.status;
+  if (!freshReadback && cached && cached.expires_at > Date.now()) return cached.status;
 
   try {
     const [rows] = await pool.query(
@@ -219,7 +229,7 @@ export async function assertMcpCatalogLevelColumn({ pool = getPool(), table } = 
   return status;
 }
 
-export async function readMcpCatalogSchemaReadiness({ pool = null } = {}) {
+export async function readMcpCatalogSchemaReadiness({ pool = null, freshReadback = false } = {}) {
   if (!pool) {
     return {
       ...MCP_CATALOG_RUNTIME_SCHEMA_CONTRACT,
@@ -241,7 +251,7 @@ export async function readMcpCatalogSchemaReadiness({ pool = null } = {}) {
   const tables = [];
   for (const table of MCP_CATALOG_TABLES) {
     try {
-      tables.push(await readMcpCatalogLevelSchemaStatus({ pool, table }));
+      tables.push(await readMcpCatalogLevelSchemaStatus({ pool, table, freshReadback }));
     } catch (error) {
       tables.push({
         ok: false,
@@ -335,14 +345,22 @@ export async function readMcpCatalogSchemaReadinessSafe({ pool, env = process.en
     // between DATABASE()/CURRENT_USER() and its metadata/SELECT probes.
     const leased = typeof targetPool?.getConnection === "function"
       ? await targetPool.getConnection() : null;
-    const session = leased || targetPool;
+    // A pool.query facade can rotate connections between identity and schema reads.
+    // Legacy diagnostics may still use it; governed Recovery may NOT claim
+    // an exact-session certificate without a leased connection.
+    const sameSessionProven = Boolean(leased && typeof leased.query === "function" &&
+      typeof leased.release === "function");
+    const session = sameSessionProven ? leased : targetPool;
     try {
       const identity = await readMcpCatalogRuntimeIdentity({ pool: session, env });
       // Stop before inspecting table metadata if the session's DB/user identity
       // is missing or conflicts with the explicitly configured Runtime role.
       // Schema from any other database cannot guide a Runtime migration.
+      // Governance/recovery evidence must be freshly queried: a 30-second
+      // cached column status on a reused mysql2 connection is not a
+      // same-cycle schema readback, even if the connection identity matches.
       const readiness = identity.ok === true
-        ? await readMcpCatalogSchemaReadiness({ pool: session })
+        ? await readMcpCatalogSchemaReadiness({ pool: session, freshReadback: true })
         : {
           ...MCP_CATALOG_RUNTIME_SCHEMA_CONTRACT,
           ok: false,
@@ -364,10 +382,11 @@ export async function readMcpCatalogSchemaReadinessSafe({ pool, env = process.en
         identity,
         migration_apply_required: identity.ok === true && readiness.migration_apply_required === true,
         ...readOnlyEvidence({ databaseConnectionPerformed: true, sqlReadbackPerformed: true }),
+        same_session_proven: sameSessionProven,
         secrets_included: false,
       };
     } finally {
-      if (leased) leased.release();
+      if (leased && typeof leased.release === "function") leased.release();
     }
   } catch (error) {
     return unavailableSchemaReadiness(error);

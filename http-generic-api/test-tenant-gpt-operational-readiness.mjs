@@ -6,6 +6,7 @@ const env = {
   REMOTE_MCP_ENVIRONMENT: "staging",
   DB_NAME: "tenant_gpt_runtime",
   DB_USER: "tenant_runtime_reader",
+  MCP_RUNTIME_EXPECTED_SQL_ACCOUNT: "tenant_runtime_reader@localhost",
   JWT_SECRET: "jwt_secret_for_operational_readiness_32_chars",
   TENANT_GPT_SSO_SIGNING_SECRET: "sso_secret_for_operational_readiness_32_chars",
   TENANT_GPT_SSO_TRUST_BOUNDARY_ATTESTED: "true",
