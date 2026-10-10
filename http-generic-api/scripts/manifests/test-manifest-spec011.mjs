@@ -1,4 +1,7 @@
 export const testCommands = [
+  "node test-capability-catalog-authority.mjs",
+  "node test-capability-catalog-persistence.mjs",
+  "node test-capability-catalog-tool-collector.mjs",
   "node test-production-recovery-closure.mjs",
   "node test-platform-recovery-convergence.mjs",
   "node test-platform-recovery-convergence-read-adapters.mjs",

@@ -1481,7 +1481,12 @@ test("generator plan-only mode inventories the exact migration chain", () => {
     /KEY `idx_lm_desktop_command_claim_token`\s*\(\s*`claim_token`\s*,\s*`status`\s*\)/iu,
     "desktop command ownership must retain the claim-token lookup index",
   );
-  const expectedIndexProjectedTables = 588 + 2; // Local Manager desktop commands + control-template registry; device-link sessions already existed in the projected chain.
+  // The catalog trust proposal adds exactly two independently named, inert
+  // staging-only tables; keep explicit coverage instead of weakening census checks.
+  const capcatMigrationSql=fs.readFileSync(path.join(migrationsDir,"966_capability_catalog_trust_authority.sql"),"utf8");
+  assert.match(capcatMigrationSql,/CREATE TABLE IF NOT EXISTS platform_capability_catalog_keys\\s*\\(/u);
+  assert.match(capcatMigrationSql,/CREATE TABLE IF NOT EXISTS platform_capability_catalog_consumed_nonces\\s*\\(/u);
+  const expectedIndexProjectedTables = 588 + 2 + 2; // Local Manager two + Capability Catalog two.
   assert.equal(plan.ordered_index_key_width_chain.tables_projected, expectedIndexProjectedTables);
   const localManagerIndexSql = [
     desktopCommandMigrationSql,

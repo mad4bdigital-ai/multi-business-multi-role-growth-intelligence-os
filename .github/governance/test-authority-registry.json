@@ -747,6 +747,14 @@
       "test_paths": [
         "http-generic-api/test-workspace-brand-core-asset-materialization.mjs"
       ]
+    },
+    {
+      "id": "central_capability_catalog_trust_authority",
+      "test_paths": [
+        "http-generic-api/test-capability-catalog-authority.mjs",
+        "http-generic-api/test-capability-catalog-persistence.mjs",
+        "http-generic-api/test-capability-catalog-tool-collector.mjs"
+      ]
     }
   ],
   "discovery": {
@@ -1002,6 +1010,17 @@
         "http-generic-api/test-system-tools-tenant-continuation-e2e.mjs"
       ],
       "protected_by_verifiers": []
+    },
+    {
+      "invariant_id": "central_capability_catalog_trust_authority",
+      "protected_by_tests": [
+        "http-generic-api/test-capability-catalog-authority.mjs",
+        "http-generic-api/test-capability-catalog-persistence.mjs",
+        "http-generic-api/test-capability-catalog-tool-collector.mjs"
+      ],
+      "protected_by_verifiers": [
+        "fixed_point:test_authority"
+      ]
     }
   ],
   "deleted_test_mode": "block_without_replacement",
