@@ -7,14 +7,16 @@ on:
 permissions:
   contents: read
 
-jobs:
-  apply:
+jobs:  apply:
     name: Apply and certify Migration 1043 exactly once
     if: >-
       github.event.issue.number == 4449 &&
       !github.event.issue.pull_request &&
       github.event.comment.body == 'APPLY_1043_SPRINT69_TENANT_MANAGED_EXECUTION_LIFECYCLE' &&
       contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
+    environment:
+      name: Production
+      deployment: false
     runs-on: ubuntu-latest
     timeout-minutes: 40
     concurrency:

@@ -7,14 +7,16 @@ on:
 permissions:
   contents: read
 
-jobs:
-  runtime-readiness:
+jobs:  runtime-readiness:
     name: Verify Production parity and authorize Wave 1 dry-run only
     if: >-
       github.event.issue.number == 6215 &&
       !github.event.issue.pull_request &&
       github.event.comment.body == 'AUTHORIZE_GOVERNED_MIGRATION_20260802_01_SPEC014_HOSTINGER_STORAGE_FOUNDATION' &&
       contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
+    environment:
+      name: Production
+      deployment: false
     runs-on: ubuntu-24.04
     timeout-minutes: 35
     concurrency:

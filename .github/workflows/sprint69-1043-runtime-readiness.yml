@@ -7,14 +7,16 @@ on:
 permissions:
   contents: read
 
-jobs:
-  runtime-readiness:
+jobs:  runtime-readiness:
     name: Verify Production parity and authorize Migration 1043 dry-run only
     if: >-
       github.event.issue.number == 4449 &&
       !github.event.issue.pull_request &&
       github.event.comment.body == 'AUTHORIZE_GOVERNED_MIGRATION_1043_SPRINT69_TENANT_MANAGED_EXECUTION_LIFECYCLE' &&
       contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
+    environment:
+      name: Production
+      deployment: false
     runs-on: ubuntu-latest
     timeout-minutes: 35
     concurrency:

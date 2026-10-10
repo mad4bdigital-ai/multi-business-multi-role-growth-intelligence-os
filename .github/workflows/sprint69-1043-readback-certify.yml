@@ -7,14 +7,16 @@ on:
 permissions:
   contents: read
 
-jobs:
-  certify-readback:
+jobs:  certify-readback:
     name: Certify Migration 1043 ledger and readiness without Apply
     if: >-
       github.event.issue.number == 4449 &&
       !github.event.issue.pull_request &&
       github.event.comment.body == 'CERTIFY_1043_SPRINT69_TENANT_MANAGED_EXECUTION_LIFECYCLE_READBACK' &&
       contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
+    environment:
+      name: Production
+      deployment: false
     runs-on: ubuntu-latest
     timeout-minutes: 35
     concurrency:

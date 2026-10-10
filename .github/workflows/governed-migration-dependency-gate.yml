@@ -40,9 +40,11 @@ concurrency:
   group: governed-migration-dependency-gate-${{ inputs.migration }}-${{ github.ref }}
   cancel-in-progress: true
 
-jobs:
-  dependency-readback:
+jobs:  dependency-readback:
     name: Verify exact governed migration dependencies
+    environment:
+      name: Production
+      deployment: false
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
