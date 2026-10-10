@@ -24,3 +24,6 @@ test('future or stale receipt blocked',()=>assert.equal(guardReceipt({...args,no
 test('cross-brand evidence refused',()=>assert.equal(guardReceipt({...args,receipt:{...receipt,brand_ref:'another'}}).reason,'PROVENANCE_MISMATCH'));
 test('missing tenant binding refused',()=>{const {tenant_ref,...unsafe}=expected;assert.equal(guardReceipt({...args,expected:unsafe}).reason,'PROVENANCE_MISMATCH')});
 test('claim site mismatch and duplicate IDs refused',()=>{assert.throws(()=>guardContext({...demo,scope:{...source,site_uuid:'s1'},claims:[{id:'c',site_uuid:'s2'}]}),/CLAIM_SITE_SCOPE_MISMATCH/);assert.throws(()=>guardContext({...demo,claims:[{id:'c'},{id:'c'}]}),/DUPLICATE_CLAIM_ID/)});
+
+test('caller-stricter row/column/cell caps are enforced',()=>{assert.throws(()=>strictParseCsv('A,B',{maxColumns:1}),/COLUMN_LIMIT/);assert.throws(()=>strictParseCsv('Title\nx\ny',{maxRows:1}),/ROW_LIMIT/);assert.throws(()=>strictParseCsv('A\n12345',{maxCellLength:4}),/CELL_LIMIT/);assert.throws(()=>strictParseCsv('Title',{maxBytes:-1}),/INVALID_LIMIT/)});
+test('email marketing headings are not automatically private email columns',()=>assert.equal(guardMatrix([['Content Title','Email Campaign'],['Article','Newsletter']]),true));
