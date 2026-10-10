@@ -107,13 +107,13 @@ jobs:
           RUNTIME_BASE_URL: ${{ inputs.runtime_base_url }}
           BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
         run: |
-          curl -sS \
+          http_status="$(curl -sS --max-time 15 --proto '=https' \
+            -o inspect.json -w '%{http_code}' \
             -H "Authorization: Bearer ${BACKEND_API_KEY}" \
             -H "Content-Type: application/json" \
-            "${RUNTIME_BASE_URL}/governance/execution-log-latest-inspect" | tee inspect.json
-          echo
-          echo "---- inspect.json ----"
-          cat inspect.json
+            "${RUNTIME_BASE_URL}/governance/execution-log-latest-inspect")"
+          echo "Execution-log inspection HTTP status: ${http_status}"
+          # Keep response payload off GitHub Actions logs: it may contain private runtime data.
 
       - name: Run patch-vs-runtime verification
         working-directory: http-generic-api
@@ -189,13 +189,13 @@ jobs:
           RUNTIME_BASE_URL: ${{ inputs.runtime_base_url }}
           BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
         run: |
-          curl -sS \
+          http_status="$(curl -sS --max-time 15 --proto '=https' \
+            -o inspect.json -w '%{http_code}' \
             -H "Authorization: Bearer ${BACKEND_API_KEY}" \
             -H "Content-Type: application/json" \
-            "${RUNTIME_BASE_URL}/governance/execution-log-latest-inspect" | tee inspect.json
-          echo
-          echo "---- inspect.json ----"
-          cat inspect.json
+            "${RUNTIME_BASE_URL}/governance/execution-log-latest-inspect")"
+          echo "Execution-log inspection HTTP status: ${http_status}"
+          # Keep response payload off GitHub Actions logs: it may contain private runtime data.
 
       - name: Run patch-vs-runtime verification
         working-directory: http-generic-api
