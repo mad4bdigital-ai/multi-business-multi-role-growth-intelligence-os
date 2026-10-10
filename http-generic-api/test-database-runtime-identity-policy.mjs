@@ -156,7 +156,7 @@ const TARGET_SCHEMA = "synthetic_protocol_schema";
       "Production credential job must fail closed if independent reviewer gate did not succeed");
     assert(production.includes("    environment:\n      name: Production\n      deployment: false".replaceAll("\n", "\n")),
       "Production credential job must bind the Production Environment without deployment");
-    assert(production.includes("BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}"),
+    assert(production.includes("BACKEND_API_KEY: ${{ secrets.HOSTINGER_PRODUCTION_BACKEND_API_KEY }}"),
       "Production credential must be read only in the protected Production job");
   }
 

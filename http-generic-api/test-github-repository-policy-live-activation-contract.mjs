@@ -31,7 +31,7 @@ for (const workflowName of productionCredentialWorkflows) {
   let authenticatedJobs = 0;
   for (let i = 0; i < jobStarts.length; i++) {
     const entry = jobText.slice(jobStarts[i].index, i + 1 < jobStarts.length ? jobStarts[i+1].index : jobText.length);
-    if (!entry.includes("BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}")) continue;
+    if (!entry.includes("BACKEND_API_KEY: ${{ secrets.HOSTINGER_PRODUCTION_BACKEND_API_KEY }}")) continue;
     authenticatedJobs++;
     const hasProductionBinding = /^    environment:\n      name: Production\n      deployment: false$/m.test(entry)
       || /^    environment: Production$/m.test(entry);
