@@ -7,7 +7,8 @@ on:
 permissions:
   contents: read
 
-jobs:  readiness:
+jobs:
+  readiness:
     name: Authorize and dry-run response chunk ownership
     if: >-
       github.event.issue.number == 4191 &&

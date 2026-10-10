@@ -11,7 +11,8 @@ on:
 permissions:
   contents: read
 
-jobs:  readiness:
+jobs:
+  readiness:
     name: Authorize and dry-run Migration 1006
     if: >-
       (

@@ -7,7 +7,8 @@ on:
 permissions:
   contents: read
 
-jobs:  apply:
+jobs:
+  apply:
     name: Apply and certify Migration 1043 exactly once
     if: >-
       github.event.issue.number == 4449 &&

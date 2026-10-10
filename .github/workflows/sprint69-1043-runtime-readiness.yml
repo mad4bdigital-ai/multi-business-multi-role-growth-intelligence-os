@@ -7,7 +7,8 @@ on:
 permissions:
   contents: read
 
-jobs:  runtime-readiness:
+jobs:
+  runtime-readiness:
     name: Verify Production parity and authorize Migration 1043 dry-run only
     if: >-
       github.event.issue.number == 4449 &&

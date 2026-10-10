@@ -7,7 +7,8 @@ on:
 permissions:
   contents: read
 
-jobs:  certify-readback:
+jobs:
+  certify-readback:
     name: Certify Migration 1043 ledger and readiness without Apply
     if: >-
       github.event.issue.number == 4449 &&
