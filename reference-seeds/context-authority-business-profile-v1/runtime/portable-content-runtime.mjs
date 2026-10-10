@@ -112,8 +112,14 @@ export function verifyHostReceipt({receipt,expected,trust,verifier,replayStore,n
   if(!Number.isFinite(t)||!Number.isFinite(n)||t>n+30000||n-t>300000)return deny("STALE_OR_FUTURE_EVIDENCE");
   const required=expected.required_checks||[];
   if(!Array.isArray(receipt.checks)||!required.every(x=>receipt.checks.some(c=>c.id===x&&c.pass===true)))return deny("REQUIRED_CHECK_NOT_PASSED");
-  if(verifier.verifyDetached(receipt,trust)!==true)return deny("INVALID_SIGNATURE");
-  if(replayStore.consumeOnce(receipt.verifier_id+"|"+receipt.nonce,receipt.observed_at)!==true)return deny("REPLAY_DETECTED");
+  let valid=false;
+  try {valid=verifier.verifyDetached(receipt,trust)===true;}
+  catch {return deny("EVIDENCE_VERIFIER_UNAVAILABLE");}
+  if(!valid)return deny("INVALID_SIGNATURE");
+  let consumed=false;
+  try {consumed=replayStore.consumeOnce(receipt.verifier_id+"|"+receipt.nonce,receipt.observed_at)===true;}
+  catch {return deny("REPLAY_STORE_UNAVAILABLE");}
+  if(!consumed)return deny("REPLAY_DETECTED");
   return {status:"ATTESTED_FOR_REVIEW_ONLY",checks:required.length,requires_human_approval:true,operational_acceptance:false,publication_authorized:false,release_authorized:false};
 }
 

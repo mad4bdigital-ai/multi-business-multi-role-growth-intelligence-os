@@ -37,3 +37,16 @@ negative("acceptance false pass","workflow.json",lambda x:x["acceptance"][0].upd
 negative("secret value schema", "schemas/candidate-claim.schema.json", lambda x:x["properties"]["candidate"]["properties"]["sensitivity"]["enum"].append("secret"), "secret_candidate_value_schema")
 from test_content_fabric import *  # keep all content extension negative tests in the offline suite
 print("BUSINESS_CONTEXT_SEED_ADVERSARIAL_TESTS: PASS_STATIC_ONLY")
+
+from unittest.mock import patch
+from types import SimpleNamespace
+import run_offline_acceptance as offline_acceptance
+with patch.object(offline_acceptance.subprocess,"run",
+                  return_value=SimpleNamespace(returncode=0,stdout="a"*40+"\n")) as run_mock:
+    rejected = offline_acceptance.run(ROOT,"b"*40,target_host="wordpress_plugin")
+    assert run_mock.call_count == 1, "test subprocess executed before exact HEAD match"
+    assert rejected["exact_head_match"] is False
+    assert rejected["native_static_unit_gate"] == "BLOCKED"
+    assert rejected["counts"]["passed"] == 0
+    assert all(t["status"]=="NOT_RUN_HEAD_MISMATCH" for t in rejected["suites"])
+print("PASS denied: offline runner does not execute tests on mismatched HEAD")

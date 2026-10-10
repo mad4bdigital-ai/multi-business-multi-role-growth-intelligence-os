@@ -3,6 +3,9 @@ const LIMITS = Object.freeze({bytes:2_000_000,rows:5000,columns:64,cell:4096});
 const PRIVATE = /(?:-----BEGIN [A-Z ]*PRIVATE KEY-----|\b(?:api[_\s-]?key|client[_\s-]?secret|password|bearer|authorization|access[_\s-]?token|refresh[_\s-]?token)\s*(?:[:=]|\s+)\s*['"]?[A-Za-z0-9_./+\-=]{5,})/i;
 const EMAIL = /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i;
 const FORMULA = /^[\s\u0000-\u001f]*[=+\-@]/;
+// Numeric negatives and discounts are inert data; expressions remain quarantined.
+const SAFE_NEGATIVE_NUMBER = /^\s*-\d+(?:\.\d+)?%?\s*$/;
+const isFormula = value => FORMULA.test(value) && !SAFE_NEGATIVE_NUMBER.test(value);
 const HAZARD_HEADERS = /(?:password|secret|token|api[ _-]?key|access[ _-]?key|passport|national[ _-]?id|birth[ _-]?date|dob|authorization)|^(?:email|e-mail|email address|contact email|customer email|phone|phone number|customer phone)$/i;
 function fail(code) { throw new Error(code); }
 const name = s => String(s ?? '').normalize('NFKC').trim().toLocaleLowerCase('en').replace(/[\s_\-]+/g,' ');
@@ -47,7 +50,7 @@ export function guardMatrix(matrix,{requiredHeaders=['content title','blog title
       const x=String(cell??'');
       if(BufferByteLength(x)>LIMITS.cell)fail('CELL_LIMIT');
       if(PRIVATE.test(x)||EMAIL.test(x))fail('SENSITIVE_SOURCE_REQUIRES_PRIVATE_QUARANTINE');
-      if(FORMULA.test(x)||/^\s*javascript\s*:/i.test(x))fail('SPREADSHEET_FORMULA_REQUIRES_QUARANTINE');
+      if(isFormula(x)||/^\s*javascript\s*:/i.test(x))fail('SPREADSHEET_FORMULA_REQUIRES_QUARANTINE');
     }
   }
   return true;
@@ -81,7 +84,7 @@ export function guardEditorial({row,headers}) {
     const s=String(c??'');
     if(BufferByteLength(s)>200_000)return 'EDITORIAL_CELL_TOO_LARGE';
     if(PRIVATE.test(s)||EMAIL.test(s))return 'SENSITIVE_EDITORIAL_CONTENT';
-    if(FORMULA.test(s)||/^\s*javascript\s*:/i.test(s))return 'EDITORIAL_FORMULA';
+    if(isFormula(s)||/^\s*javascript\s*:/i.test(s))return 'EDITORIAL_FORMULA';
   }
   return null;
 }

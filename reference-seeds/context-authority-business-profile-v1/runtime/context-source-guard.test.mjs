@@ -30,3 +30,9 @@ test('email marketing headings are not automatically private email columns',()=>
 
 test('private editorial contact is quarantined without revealing content',()=>assert.equal(guardEditorial({headers:['Blog Title','Blog Content'],row:['Headline','Contact abc@example.com']}),'SENSITIVE_EDITORIAL_CONTENT'));
 test('clean long editorial content not mistaken for short CSV cell',()=>assert.equal(guardEditorial({headers:['Blog Title','Blog Content'],row:['Article','A'.repeat(12000)]}),null));
+
+test('numeric negative discounts remain data while expressions are quarantined',()=>{
+ assert.equal(guardMatrix([['Content Title'],['-20%'],['-12.5']]),true);
+ for(const s of ['-1+2','-SUM(A1)','+20%','=HYPERLINK(A1)','@SUM(A1)'])
+   assert.throws(()=>guardMatrix([['Content Title'],[s]]),/SPREADSHEET_FORMULA_REQUIRES_QUARANTINE/);
+});

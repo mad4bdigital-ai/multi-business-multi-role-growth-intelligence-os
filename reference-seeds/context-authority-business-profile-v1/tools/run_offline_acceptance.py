@@ -38,6 +38,21 @@ def run(root: Path, expected_head: str | None, timeout: int = 60,
     except (OSError, subprocess.TimeoutExpired):
         pass
     pinned = bool(expected_head and git_head and expected_head == git_head)
+    # Reject identity drift before launching *any* test or cross-repository hook.
+    if not pinned:
+        suites = [{"suite": title, "status": "NOT_RUN_HEAD_MISMATCH",
+                   "exit_code": None, "duration_ms": 0} for title, _, _ in SUITES]
+        if target_host == "wordpress_plugin":
+            suites.append({"suite":"wordpress_cross_repo_dependencies",
+                           "status":"NOT_RUN_HEAD_MISMATCH",
+                           "exit_code":None,"duration_ms":0})
+        return {"contract":"mad4b.reference.context-native-acceptance.v1",
+                "target_host":target_host,"expected_head":expected_head,
+                "observed_head":git_head,"exact_head_match":False,
+                "native_static_unit_gate":"BLOCKED",
+                "operational_acceptance":False,"publication_authorized":False,
+                "production_authorized":False,
+                "counts":{"passed":0,"total":len(suites)},"suites":suites}
     for title, kind, name in SUITES:
         file = root / name if kind != "unittest" else root / "tools" / name
         record = {"suite": title, "status": "NOT_RUN", "exit_code": None, "duration_ms": 0}
