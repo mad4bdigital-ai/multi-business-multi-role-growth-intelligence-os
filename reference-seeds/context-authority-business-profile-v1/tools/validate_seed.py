@@ -42,7 +42,7 @@ def validate(root=ROOT):
         if manifest.get(key) != val:
             faults.append("unsafe_manifest:" + key)
     paths = manifest.get("files", [])
-    if not isinstance(paths, list) or len(paths) != 32 or len(paths) != len(set(paths)):
+    if not isinstance(paths, list) or len(paths) != 33 or len(paths) != len(set(paths)):
         faults.append("invalid_manifest_file_list")
         paths = []
     for rel in paths:
