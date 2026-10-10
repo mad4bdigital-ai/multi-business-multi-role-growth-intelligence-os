@@ -146,8 +146,29 @@ jobs:
             --arg digest "$evidence_digest" --arg run "$SOURCE_RUN_ID" --arg confirm "$confirm" \
             '{mode:$mode,owner:$owner,repo:$repo,default_branch:$branch,pr_number:($pr|tonumber),source_head_sha:$source,base_sha:$base,candidate_sha:$candidate,executed_sha:$executed,evidence_sha256:$digest,source_run_id:($run|tonumber),confirm:$confirm}' > "$payload"
           response="$RUNNER_TEMP/attestation-response.json"
-          http="$(curl -sS -o "$response" -w '%{http_code}' -X POST "$RUNTIME_BASE_URL/admin/repository-automation/policy-controller" -H "Authorization: Bearer $BACKEND_API_KEY" -H 'Accept: application/json' -H 'Content-Type: application/json' --data-binary "@$payload")"
-          test "$http" = "200"
+          # Report only an HTTP status and a bounded machine error.code; never emit the body, headers, or credential.
+          if ! http="$(curl -sS -o "$response" -w '%{http_code}' -X POST "$RUNTIME_BASE_URL/admin/repository-automation/policy-controller" -H "Authorization: Bearer $BACKEND_API_KEY" -H 'Accept: application/json' -H 'Content-Type: application/json' --data-binary "@$payload")"; then
+            echo "::error title=Trusted attestation request::error_code=attestation_transport_failed" >&2
+            exit 1
+          fi
+          if [[ ! "$http" =~ ^[0-9]{3}$ ]]; then
+            echo "::error title=Trusted attestation request::error_code=attestation_http_status_invalid" >&2
+            exit 1
+          fi
+          if [[ "$http" != "200" ]]; then
+            error_code="$(jq -r 'if (.error.code | type) == "string" then .error.code else "unavailable" end' "$response" 2>/dev/null || true)"
+            if [[ ! "$error_code" =~ ^[a-z][a-z0-9_]{2,127}$ ]]; then error_code="unavailable"; fi
+            printf '::error title=Trusted attestation rejected::http_status=%s error_code=%s\n' "$http" "$error_code" >&2
+            exit 1
+          fi
+          if ! jq -e --arg branch "$branch" --arg candidate "$candidate_sha" --arg digest "$evidence_digest" '
+            .mode == "attest" and .branch == $branch and .candidate_sha == $candidate
+            and .source_provenance.artifact_digest_sha256 == $digest
+            and .same_cycle_readback_proven == true
+          ' "$response" >/dev/null 2>&1; then
+            echo "::error title=Trusted attestation response::error_code=attestation_response_contract_mismatch" >&2
+            exit 1
+          fi
           test "$(jq -r '.mode' "$response")" = "attest"
           test "$(jq -r '.branch' "$response")" = "$branch"
           test "$(jq -r '.candidate_sha' "$response")" = "$candidate_sha"
@@ -156,6 +177,10 @@ jobs:
           attestor_app_id="$(jq -r '.app_id // empty' "$response")"
           status_creator_id="$(jq -r '.status_creator_id // empty' "$response")"
           attestor_status_id="$(jq -r '.status_id // empty' "$response")"
+          if [[ ! "$attestor_app_id" =~ ^[1-9][0-9]*$ || ! "$status_creator_id" =~ ^[1-9][0-9]*$ || ! "$attestor_status_id" =~ ^[1-9][0-9]*$ ]]; then
+            echo "::error title=Trusted attestation response::error_code=attestation_identity_readback_missing" >&2
+            exit 1
+          fi
           [[ "$attestor_app_id" =~ ^[1-9][0-9]*$ ]]
           [[ "$status_creator_id" =~ ^[1-9][0-9]*$ ]]
           [[ "$attestor_status_id" =~ ^[1-9][0-9]*$ ]]
