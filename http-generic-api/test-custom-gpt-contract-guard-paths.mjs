@@ -32,4 +32,20 @@ for (const eventName of ["pull_request", "push"]) {
   }
 }
 
-console.log("custom GPT Contract Guard path coverage tests passed");
+// Retain automatic incident handling only for main-branch push events.
+// Pull requests must never gain Issue write privileges or Production mutation.
+const guardJob = workflow.jobs?.guard;
+const incidentJob = workflow.jobs?.alert;
+assert.ok(guardJob && incidentJob, "contract guard and incident lifecycle jobs must both exist");
+assert.equal(guardJob.permissions?.issues, undefined, "pull-request guard must not hold Issue write permission");
+assert.equal(incidentJob.permissions?.issues, "write", "main-only alert must retain Issue lifecycle operations");
+assert.equal(incidentJob.if, "${{ always() && github.event_name == 'push' && github.ref == 'refs/heads/main' }}",
+  "incident writer must have an exact main-only push condition");
+assert.match(workflowSource, /guard_incident_expected_head_sha_mismatch/);
+assert.match(workflowSource, /const expected_head_sha = context\.sha/);
+assert.match(workflowSource, /github\.rest\.repos\.getBranch/);
+assert.match(workflowSource, /currentHead\.commit\.sha !== expected_head_sha/);
+assert.match(workflowSource, /await github\.rest\.issues\.(?:create|update|createComment)/);
+assert.equal((workflowSource.match(/await verifyFreshHead\(\);/g) || []).length >= 5, true,
+  "every GitHub Issue write must recheck exact current HEAD");
+console.log("custom GPT Contract Guard path coverage and push-only incident governance passed");

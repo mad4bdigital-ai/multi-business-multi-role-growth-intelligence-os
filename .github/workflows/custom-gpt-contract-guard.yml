@@ -154,7 +154,10 @@ jobs:
   alert:
     name: OpenAPI guard alert lifecycle
     needs: guard
-    if: ${{ always() && github.ref_name == github.event.repository.default_branch }}
+    if: ${{ always() && github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    environment:
+      name: Production
+      deployment: false
     runs-on: ubuntu-latest
     permissions:
       actions: read
@@ -270,6 +273,16 @@ jobs:
           script: |
             const owner = context.repo.owner;
             const repo = context.repo.repo;
+            const expected_head_sha = context.sha;
+            async function verifyFreshHead() {
+              const { data: currentHead } = await github.rest.repos.getBranch({ owner, repo, branch: "main" });
+              if (context.eventName !== "push"
+                  || context.ref !== "refs/heads/main"
+                  || currentHead.commit.sha !== expected_head_sha) {
+                throw new Error("guard_incident_expected_head_sha_mismatch");
+              }
+            }
+            await verifyFreshHead();
             const marker = "<!-- openapi-response-object-guard-alert -->";
             const title = "[OpenAPI Guard] Custom GPT Contract Guard failing";
             const guardResult = process.env.GUARD_RESULT || "unknown";
@@ -296,12 +309,14 @@ jobs:
 
             if (guardResult === "success") {
               for (const issue of matches) {
+                await verifyFreshHead();
                 await github.rest.issues.createComment({
                   owner,
                   repo,
                   issue_number: issue.number,
                   body: `Recovered after a successful default-branch guard run: ${runUrl}`,
                 });
+                await verifyFreshHead();
                 await github.rest.issues.update({
                   owner,
                   repo,
@@ -332,7 +347,9 @@ jobs:
 
             if (matches.length > 0) {
               const issue = matches[0];
+              await verifyFreshHead();
               await github.rest.issues.update({ owner, repo, issue_number: issue.number, body });
+              await verifyFreshHead();
               await github.rest.issues.createComment({
                 owner,
                 repo,

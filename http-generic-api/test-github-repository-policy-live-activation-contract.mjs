@@ -6,6 +6,74 @@ import { repositoryPolicyEnvelopeSourceContract } from "./scripts/github-reposit
 
 const read = (path) => fs.readFileSync(new URL(path, import.meta.url), "utf8");
 
+// Global fail-closed inventory: no new Production job may inherit the Windows Staging repository key.
+const stagingKeyJobs = new Map([
+  ["staging-post-deploy-verification.yml", new Set(["verify-staging", "acquire-external-evidence", "verify-and-countersign"])],
+  ["verify-runtime.yml", new Set(["verify-staging"])],
+]);
+let stagingKeyJobCount = 0, productionKeyJobCount = 0;
+for (const workflowFilename of fs.readdirSync(new URL("../.github/workflows/", import.meta.url))) {
+  if (!workflowFilename.endsWith(".yml")) continue;
+  const raw = read(`../.github/workflows/${workflowFilename}`);
+  const start = raw.indexOf("\njobs:\n");
+  if (start < 0) continue;
+  const tail = raw.slice(start + "\njobs:\n".length);
+  const jobs = [...tail.matchAll(/^  ([a-zA-Z0-9_-]+):\s*$/gm)];
+  for (let i = 0; i < jobs.length; i++) {
+    const name = jobs[i][1];
+    const block = tail.slice(jobs[i].index, i + 1 < jobs.length ? jobs[i + 1].index : tail.length);
+    if (!block.includes("BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}")) continue;
+    const isProductionEnvironment = /^    environment: Production$/m.test(block)
+      || /^    environment:\n      name: Production(?:\n|$)/m.test(block);
+    if (stagingKeyJobs.get(workflowFilename)?.has(name)) {
+      assert(!isProductionEnvironment, `${workflowFilename}/${name}: Staging must not consume Production key`);
+      stagingKeyJobCount++;
+    } else {
+      assert(isProductionEnvironment, `${workflowFilename}/${name}: Production key must be explicitly scoped to GitHub Environment Production`);
+      productionKeyJobCount++;
+    }
+  }
+}
+assert.equal(stagingKeyJobCount, 4, "exact Windows Staging backend credential job inventory must be preserved");
+assert(productionKeyJobCount >= 30, "Production backend credential audit unexpectedly lost coverage");
+
+
+const productionCredentialWorkflows = [
+  "tenant-platform-plugin-1052-governed-readiness",
+  "github-issue-comment-parity-governed-readiness",
+  "github-repository-policy-1050-governed-rollout",
+  "github-repository-policy-1051-governed-rollout",
+  "transport-response-schema-1048-governed-rollout",
+  "remaining-tenant-runtime-migration-governed-readiness",
+  "tenant-request-identity-collation-dry-run",
+  "tenant-request-identity-collation-runtime-readiness",
+  "tenant-request-identity-collation-readonly-diagnostic",
+  "spec017-fixture-context-readback",
+  "spec017-protected-managed-execution-canary",
+  "custom-gpt-contract-guard",
+  "github-repository-policy-1049-governed-rollout"
+];
+for (const workflowName of productionCredentialWorkflows) {
+  const source = read(`../.github/workflows/${workflowName}.yml`);
+  const start = source.indexOf("\njobs:\n");
+  assert(start >= 0, `${workflowName}: jobs must be present`);
+  const jobText = source.slice(start + 6);
+  const jobStarts = [...jobText.matchAll(/^  ([a-zA-Z0-9_-]+):\s*$/gm)];
+  assert(jobStarts.length > 0, `${workflowName}: jobs must be parseable`);
+  let authenticatedJobs = 0;
+  for (let i = 0; i < jobStarts.length; i++) {
+    const entry = jobText.slice(jobStarts[i].index, i + 1 < jobStarts.length ? jobStarts[i+1].index : jobText.length);
+    if (!entry.includes("BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}")) continue;
+    authenticatedJobs++;
+    const hasProductionBinding = /^    environment:\n      name: Production\n      deployment: false$/m.test(entry)
+      || /^    environment: Production$/m.test(entry);
+    assert(hasProductionBinding,
+      `${workflowName}/${jobStarts[i][1]}: Production-host backend credential must be resolved from Environment Production`);
+  }
+  assert(authenticatedJobs > 0, `${workflowName}: no authenticated Production jobs found; update the audit inventory deliberately`);
+}
+
+
 const migrationWorkflow = read("../.github/workflows/github-repository-policy-1051-governed-rollout.yml");
 const metadataState = read("../.github/ops/github-repository-policy-1051-metadata-state.mjs");
 const liveWorkflow = read("../.github/workflows/github-main-review-policy-live-activation.yml");
