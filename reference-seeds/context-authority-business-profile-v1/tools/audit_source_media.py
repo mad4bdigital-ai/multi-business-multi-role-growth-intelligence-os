@@ -15,6 +15,14 @@ except ImportError as exc:
 EXTENSIONS={".pdf":"pdf",".docx":"docx",".jpeg":"image",".jpg":"image",".png":"image",".webp":"image"}
 DRAFT_RE=re.compile(r"(?:temp[-_ ]placeholder|will be changed later|coming soon|lorem ipsum|under construction)",re.I)
 
+TEXT_SIGNALS = {
+    "UNFINISHED_FEATURE_CLAIM": re.compile(r"\b(?:TBD|to be done|not available|coming soon)\b", re.I),
+    "NUMERIC_CLAIM_REQUIRES_EVIDENCE": re.compile(r"\b\d+(?:\.\d+)?\s*%"),
+    "CREDENTIAL_CONFIGURATION_FIELD": re.compile(r"(?:production|sandbox|client|private).{0,30}(?:secret key|api key|access token)", re.I),
+}
+def review_text_signals(text:str)->list[str]:
+    return [key for key,pattern in TEXT_SIGNALS.items() if pattern.search(text)]
+
 def pdf_status(path:Path,max_pages:int)->dict:
     details=[]
     try:
@@ -23,7 +31,9 @@ def pdf_status(path:Path,max_pages:int)->dict:
                 return dict(type="pdf",status="QUARANTINED",reason="ENCRYPTED_OR_PAGE_LIMIT")
             for n,page in enumerate(doc,1):
                 try:
-                    has_text=bool(page.get_text("text").strip())
+                    page_text=page.get_text("text")
+                    has_text=bool(page_text.strip())
+                    labels=review_text_signals(page_text)
                     # Reject malicious/oversized page dimensions before raster allocation.
                     estimated_pixels=max(1,int(page.rect.width*.32))*max(1,int(page.rect.height*.32))
                     if estimated_pixels>16_000_000:
@@ -32,7 +42,7 @@ def pdf_status(path:Path,max_pages:int)->dict:
                     pix=page.get_pixmap(matrix=fitz.Matrix(.32,.32),alpha=False,colorspace=fitz.csRGB)
                     im=Image.frombytes("RGB",(pix.width,pix.height),pix.samples)
                     visible=ImageChops.difference(im,Image.new("RGB",im.size,"white")).getbbox() is not None
-                    details.append(dict(page=n,rendered=True,has_text_layer=has_text,has_visible_ink=visible))
+                    details.append(dict(page=n,rendered=True,has_text_layer=has_text,has_visible_ink=visible,text_flags=labels))
                 except Exception:
                     details.append(dict(page=n,rendered=False,has_text_layer=False,has_visible_ink=False))
     except Exception:
@@ -63,6 +73,7 @@ def docx_status(path:Path)->dict:
         text+="\n"+"\n".join(" ".join(c.text for c in row.cells) for table in doc.tables for row in table.rows)
         flags=[]
         if DRAFT_RE.search(text):flags.append("PLACEHOLDER_COPY")
+        flags.extend(x for x in review_text_signals(text) if x not in flags)
         if len(text.strip())<500:flags.append("SHORT_REFERENCE")
         if doc.inline_shapes and len(text.strip())<100:flags.append("VISUAL_ONLY_OR_IMAGE_DOMINANT")
         return dict(type="docx",status="REVIEW_REQUIRED",paragraphs=len(doc.paragraphs),
