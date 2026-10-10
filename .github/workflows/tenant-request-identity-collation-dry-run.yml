@@ -18,6 +18,9 @@ jobs:
       !github.event.issue.pull_request &&
       contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association) &&
       github.event.comment.body == 'AUTHORIZE_GOVERNED_MIGRATION_20260808_TENANT_REQUEST_IDENTITY_COLLATION_ALIGNMENT'
+    environment:
+      name: Production
+      deployment: false
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     env:
