@@ -42,7 +42,7 @@ def validate(root=ROOT):
         if manifest.get(key) != val:
             faults.append("unsafe_manifest:" + key)
     paths = manifest.get("files", [])
-    if not isinstance(paths, list) or len(paths) != 33 or len(paths) != len(set(paths)):
+    if not isinstance(paths, list) or len(paths) != 37 or len(paths) != len(set(paths)):
         faults.append("invalid_manifest_file_list")
         paths = []
     for rel in paths:
@@ -146,6 +146,19 @@ def validate(root=ROOT):
             faults.append("media_approval_without_independent_review")
     except (OSError, json.JSONDecodeError):
         faults.append("media_receipt_schema_missing")
+    try:
+        modes = read(root, "deployment-mode-contract.json")
+        names = set(modes.get("modes", {}).keys())
+        required = {"shared_multi_tenant", "dedicated_isolated", "dedicated_autonomous", "wordpress_dedicated"}
+        if names != required:
+            faults.append("deployment_mode_variant_missing")
+        defaults = modes.get("default_selection", {})
+        if defaults.get("platform") != "shared_multi_tenant" or defaults.get("wordpress_plugin") != "wordpress_dedicated":
+            faults.append("deployment_default_selection_mismatch")
+        if modes.get("execution_authorized") is not False or modes.get("publication_authorized") is not False:
+            faults.append("deployment_modes_implicitly_authorized")
+    except (OSError, json.JSONDecodeError):
+        faults.append("deployment_mode_contract_missing")
     return sorted(set(faults))
 
 if __name__ == "__main__":

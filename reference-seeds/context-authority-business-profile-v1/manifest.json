@@ -1,7 +1,7 @@
 {
   "contract": "mad4b.reference.business-context.seed.v1",
   "seed_key": "reference.context_authority_business_profile",
-  "version": "0.5.3",
+  "version": "0.6.0",
   "status": "DRAFT_NON_AUTHORIZING",
   "artifact_type": "portable_reference_seed",
   "scope": "general_any_business",
@@ -50,7 +50,11 @@
     "runtime/context-source-guard.mjs",
     "runtime/context-source-guard.test.mjs",
     "tools/run_offline_acceptance.py",
-    "docs/advanced-source-acceptance-v05.md"
+    "docs/advanced-source-acceptance-v05.md",
+    "deployment-mode-contract.json",
+    "runtime/resolve-deployment-context.mjs",
+    "runtime/resolve-deployment-context.test.mjs",
+    "docs/deployment-modes-architecture.md"
   ],
   "acceptance_state": "NOT_RUN",
   "installed_state": "NOT_INSTALLED",
@@ -63,5 +67,8 @@
   "media_visual_owner_approval": "NOT_RUN",
   "source_guard_status": "STRICT_OFFLINE_ADMISSION",
   "native_source_guard_tests": "22_PASS_EXACT_BLOBS_LOCAL",
-  "native_integrated_acceptance": "NOT_RUN_ON_PINNED_HEAD"
+  "native_integrated_acceptance": "NOT_RUN_ON_PINNED_HEAD",
+  "deployment_modes": "FOUR_FIRST_CLASS_VARIANTS",
+  "wordpress_dedicated_mode": "ADAPTER_IMPLEMENTED_ON_WORDPRESS_PR258_PENDING_NATIVE_STAGING_ACCEPTANCE",
+  "native_deployment_modes_acceptance": "NOT_RUN_ON_PINNED_HEAD"
 }
