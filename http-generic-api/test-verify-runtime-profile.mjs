@@ -13,8 +13,8 @@ assert(stagingJob.includes("needs: validate-target") && stagingJob.includes("tar
 assert(!stagingJob.includes('    environment:'), 'Windows staging must retain existing Repository Secret with no environment override');
 assert(productionJob.includes("needs: validate-target") && productionJob.includes("target == 'production'"), 'Production only after validated exact hostname');
 assert(productionJob.includes('    environment:\\n      name: Production\\n      deployment: false'.replaceAll('\\n','\n')), 'Production must be bound to Environment Production without a deployment');
-assert.equal((stagingJob.match(/BACKEND_API_KEY: \\$\\{\\{ secrets\\.BACKEND_API_KEY \\}\\}/g)||[]).length, 2, 'Staging must keep existing Repository key references');
-assert.equal((productionJob.match(/BACKEND_API_KEY: \\$\\{\\{ secrets\\.BACKEND_API_KEY \\}\\}/g)||[]).length, 2, 'Production key must be resolved inside Production job');
+assert.equal(stagingJob.split('BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}').length - 1), 2, 'Staging must keep existing Repository key references');
+assert.equal(productionJob.split('BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}').length - 1), 2, 'Production key must be resolved inside Production job');
 
 assert(workflow.includes('runtime_profile:'), 'Verify Runtime workflow must expose runtime_profile input');
 assert(workflow.includes('default: "api_only"'), 'Verify Runtime workflow must default to api_only profile');
