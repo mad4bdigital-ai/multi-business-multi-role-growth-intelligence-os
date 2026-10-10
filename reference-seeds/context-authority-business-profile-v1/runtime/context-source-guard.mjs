@@ -9,7 +9,8 @@ const name = s => String(s ?? '').normalize('NFKC').trim().toLocaleLowerCase('en
 function boundedText(input){ if(typeof input!=='string')fail('TEXT_REQUIRED'); if(BufferByteLength(input)>LIMITS.bytes) fail('INPUT_BYTES_LIMIT'); return input.replace(/^\uFEFF/,''); }
 function BufferByteLength(input){return new TextEncoder().encode(input).length;}
 /** RFC4180-style CSV with strict quote placement, BOM, CRLF and deterministic limits. */
-export function strictParseCsv(text) {
+export function strictParseCsv(text,options={}) {
+  if(options.maxBytes!==undefined && BufferByteLength(text)>Math.min(LIMITS.bytes,options.maxBytes))fail('INPUT_SIZE_LIMIT');
   text=boundedText(text); const rows=[];let cells=[],v='',quoted=false,closed=false,started=false;
   const emitCell=()=>{if(v.length>LIMITS.cell)fail('CELL_LIMIT');cells.push(v);if(cells.length>LIMITS.columns)fail('COLUMN_LIMIT');v='';started=false;closed=false;};
   const emitRow=()=>{emitCell();if(cells.some(x=>x!==''))rows.push(cells);cells=[];if(rows.length>LIMITS.rows+1)fail('ROW_LIMIT');};
