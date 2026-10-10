@@ -35,6 +35,10 @@ assert.ok(attestJob.includes("BACKEND_API_KEY: ${{ secrets.HOSTINGER_PRODUCTION_
 assert.ok(attestJob.includes("error_code=production_environment_backend_api_key_missing"), "a missing Production API key must fail before calling the runtime");
 assert.match(attestJob, /governance\/execution-log-latest-inspect/, "attestor must perform safe read-only acceptance probe before invoking policy-controller");
 assert.match(attestJob, /production_backend_auth_rejected/, "attestor must distinguish rejected runtime keys without logging values");
+assert.match(attestJob, /deployment-info\/runtime-binding/, "finalizer must prefer protected dependency-light auth probe");
+assert.match(attestJob, /x-api-key: \$key/, "finalizer auth probe must use service-key header");
+assert.match(attestJob, /negative_control=403/, "trusted finalizer must verify negative auth control");
+assert.match(attestJob, /runtime_dependency=degraded/, "degraded execution-log route must not be conflated with rejected credentials");
 assert.ok(attestJob.indexOf("    environment:") < attestJob.indexOf("    runs-on:"), "Production Environment must bind the attestation job before runner steps");
 
 assert.match(

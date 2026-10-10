@@ -27,6 +27,14 @@ assert(!authProbeJob.includes("POST /") && !authProbeJob.includes("-X POST") && 
 assert(workflow.includes("auth_probe_production_only"), 'probe must reject Staging before reading secrets');
 assert(productionJob.includes("inputs.runtime_profile != 'auth_probe_only'"), 'full Production verifier must be skipped in safe probe mode');
 
+assert(authProbeJob.includes("x-api-key: $key"), 'probe must use deterministic backend-service x-api-key path');
+assert(authProbeJob.includes("invalid-probe-$(openssl rand -hex 24)"), 'probe must generate an unpredictable invalid-key control');
+assert(authProbeJob.includes("binding_control") && authProbeJob.includes("binding_status"), 'probe must compare invalid and configured credentials');
+assert(authProbeJob.includes("deployment-info/runtime-binding"), 'probe must prefer dependency-light protected runtime binding');
+assert(authProbeJob.includes("inspect_control") && authProbeJob.includes("inspect_status"), 'legacy fallback must compare authenticated and invalid requests to the same endpoint');
+assert(authProbeJob.includes("runtime_dependency=degraded"), 'HTTP 500 fallback must not be treated as healthy runtime');
+assert(authProbeJob.includes("invalid_key") && authProbeJob.includes("negative_control=403"), 'negative credential must be rejected before accepting candidate');
+
 assert(workflow.includes('runtime_profile:'), 'Verify Runtime workflow must expose runtime_profile input');
 assert(workflow.includes('default: "api_only"'), 'Verify Runtime workflow must default to api_only profile');
 assert(workflow.includes('EXPECT_QUEUE_AVAILABLE: ${{ inputs.expect_queue_available }}'), 'workflow must pass queue expectation to script');
