@@ -209,6 +209,7 @@
         "http-generic-api/test-admin-control.mjs",
         "http-generic-api/test-admin-host-breakglass-routes.mjs",
         "http-generic-api/test-custom-gpt-schemas.mjs",
+        "http-generic-api/test-database-runtime-identity-policy.mjs",
         "http-generic-api/test-fixed-host-local-system-tool.mjs",
         "http-generic-api/test-frontend-surface-coverage-claims.mjs",
         "http-generic-api/test-gpt-tools-route-syntax-regression.mjs",

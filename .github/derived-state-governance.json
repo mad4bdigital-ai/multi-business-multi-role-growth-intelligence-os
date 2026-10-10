@@ -331,6 +331,8 @@
       ".github/workflows/ci.yml",
       ".github/workflows/derived-state-closure.yml",
       ".github/workflows/derived-state-converged-automerge.yml",
+    ".github/workflows/ueacp-live-source-capture.yml",
+    ".github/workflows/ueacp-governed-operational-evidence-cycle.yml",
       ".github/workflows/derived-state-main-convergence-publisher.yml",
       ".github/workflows/derived-state-repair-dispatch.yml",
       ".github/workflows/docs-agent-main-followup.yml",
