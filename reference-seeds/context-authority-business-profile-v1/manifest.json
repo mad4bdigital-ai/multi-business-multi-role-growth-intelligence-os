@@ -1,7 +1,7 @@
 {
   "contract": "mad4b.reference.business-context.seed.v1",
   "seed_key": "reference.context_authority_business_profile",
-  "version": "0.4.1",
+  "version": "0.5.0",
   "status": "DRAFT_NON_AUTHORIZING",
   "artifact_type": "portable_reference_seed",
   "scope": "general_any_business",
@@ -46,7 +46,9 @@
     "tools/audit_source_media.py",
     "tools/test_audit_source_media.py",
     "schemas/source-review-receipt.schema.json",
-    "docs/operational-claim-semantics.md"
+    "docs/operational-claim-semantics.md",
+    "runtime/context-source-guard.mjs",
+    "runtime/context-source-guard.test.mjs"
   ],
   "acceptance_state": "NOT_RUN",
   "installed_state": "NOT_INSTALLED",
@@ -56,5 +58,7 @@
   "native_runtime_acceptance": "NOT_RUN",
   "media_audit_state": "STRUCTURAL_REVIEW_ONLY",
   "media_semantic_acceptance": "NOT_RUN",
-  "media_visual_owner_approval": "NOT_RUN"
+  "media_visual_owner_approval": "NOT_RUN",
+  "source_guard_status": "STRICT_OFFLINE_ADMISSION",
+  "native_source_guard_tests": "15_PASS_LOCAL_ONLY"
 }

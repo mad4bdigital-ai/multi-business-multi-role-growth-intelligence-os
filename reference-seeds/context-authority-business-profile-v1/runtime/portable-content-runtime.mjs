@@ -1,3 +1,4 @@
+import {strictParseCsv,guardMatrix,guardContext,guardReceipt} from './context-source-guard.mjs';
 /** Portable offline candidate-ingest + contextual projection + host-attestation boundary.
  * No OAuth, I/O, persistence, external publishing or signature implementation.
  * Receipts require host-injected trusted verification and atomic nonce store.
@@ -11,34 +12,10 @@ export function norm(s){
   return String(s??"").normalize("NFKC").toLocaleLowerCase("en").normalize("NFD").replace(/[\u064B-\u065F\u0670]/g,"").replace(/[أإآ]/g,"ا").replace(/ى/g,"ي").replace(/ة/g,"ه").replace(/[^\p{L}\p{N}]+/gu," ").trim();
 }
 
-export function parseCsv(input,{maxBytes=2000000,maxRows=5000,maxColumns=64,maxCellLength=4096}={}){
-  if(typeof input!=="string")throw new Error("INPUT_TEXT_REQUIRED");
-  if(input.length>maxBytes)throw new Error("INPUT_SIZE_LIMIT");
-  const rows=[];let row=[],cell="",quote=false,afterQuote=false;
-  input=input.replace(/^\uFEFF/,"");
-  for(let i=0;i<input.length;i++){
-    const c=input[i];
-    if(quote){if(c==='"'&&input[i+1]==='"'){cell+='"';i++;}else if(c==='"'){quote=false;afterQuote=true;}else cell+=c;}
-    else if(c==='"'&&cell===""&&!afterQuote){quote=true;}
-    else if(c===','||c==='\n'||c==='\r'){
-      row.push(cell);cell="";afterQuote=false;
-      if(row.length>maxColumns)throw new Error("COLUMN_LIMIT");
-      if(c!==','){
-        if(c==='\r'&&input[i+1]==='\n')i++;
-        if(row.some(x=>x!==""))rows.push(row);
-        row=[];if(rows.length>maxRows+1)throw new Error("ROW_LIMIT");
-      }
-    } else {
-      if(afterQuote&&c!==" "&&c!=="\t")throw new Error("CSV_INVALID_QUOTING");
-      cell+=c;
-    }
-    if(cell.length>maxCellLength)throw new Error("CELL_LIMIT");
-  }
-  if(quote)throw new Error("CSV_UNCLOSED_QUOTE");
-  if(cell!==""||row.length){row.push(cell);if(row.some(x=>x!==""))rows.push(row);}
-  if(rows.length>maxRows+1)throw new Error("ROW_LIMIT");
-  return rows;
+export function parseCsv(input,options={}){
+  return strictParseCsv(input,options);
 }
+
 
 export function asColumns(row){
   const names={title:["content title","content blog article","blog title","title","idea","content idea","عنوان المحتوي"],date:["date","publish date","schedule date","day","التاريخ"],stage:["funnel stage","marketing stage","المرحله"],channel:["channel","platform","القناه"],format:["format","content format","نوع المحتوي"],writer_brief:["writer brief","copy brief"],designer_brief:["designer brief","creative brief"],hook:["hook","الخطاف"],persona:["persona","المستهدف","audience"],status:["status","حاله المنشور"]};
@@ -72,6 +49,7 @@ export function reviewFlags(item,{asOf}={}){
 }
 
 export function importMatrix({matrix,scope,source,asOf,declaredDays}){
+  guardMatrix(matrix);
   const s=requireScoped(scope);
   if(!source||!source.source_key||!source.revision||!Array.isArray(matrix)||!matrix.length)throw new Error("SOURCE_REVISION_AND_ROWS_REQUIRED");
   if(matrix.length>5001)throw new Error("ROW_LIMIT");
@@ -103,6 +81,7 @@ export function importCsv({text,scope,source,asOf,declaredDays}){
 }
 
 export function compileContext({scope,persona,policy,claims=[],channel,format,style}){
+  guardContext({scope,persona,policy,claims,channel,style});
   const s=requireScoped(scope);
   if(!persona||persona.tenant_ref!==s.tenant_ref||persona.brand_ref!==s.brand_ref)throw new Error("PERSONA_SCOPE_MISMATCH");
   if(!policy||policy.tenant_ref!==s.tenant_ref||policy.brand_ref!==s.brand_ref)throw new Error("POLICY_SCOPE_MISMATCH");
@@ -120,6 +99,8 @@ export function compileContext({scope,persona,policy,claims=[],channel,format,st
 }
 
 export function verifyHostReceipt({receipt,expected,trust,verifier,replayStore,now}){
+  const preflight=guardReceipt({receipt,expected,trust,verifier,replayStore,now});
+  if(preflight)return preflight;
   const deny=reason=>({status:"DENIED",reason,operational_acceptance:false,publication_authorized:false,release_authorized:false});
   if(!receipt||!expected||!trust||!verifier||!replayStore)return deny("TRUST_SERVICES_MISSING");
   if(typeof verifier.verifyDetached!=="function"||typeof replayStore.consumeOnce!=="function")return deny("INDEPENDENT_VERIFIER_OR_REPLAY_STORE_REQUIRED");
@@ -137,6 +118,7 @@ export function verifyHostReceipt({receipt,expected,trust,verifier,replayStore,n
 }
 
 export function importPersonaMatrix({matrix,scope,source,persona_key}){
+ guardMatrix(matrix,{requiredHeaders:[]});
  const bound=requireScoped(scope);
  if(!persona_key||typeof persona_key!=="string"||!source?.source_key||!source.revision||!Array.isArray(matrix)||!matrix.length)throw new Error("PERSONA_SOURCE_AND_REVISION_REQUIRED");
  const fields=[
