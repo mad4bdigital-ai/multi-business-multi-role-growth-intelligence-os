@@ -38,3 +38,25 @@ test("blank CSV records do not shift physical source-line provenance",()=>{
  assert.deepEqual(quoted.records.map(x=>x.source_line),[2,5]);
  assert.equal(quoted.records.length,2);
 });
+
+test("signed local receipt is development evidence only and cannot certify staging",()=>{
+ const expected={
+  tenant_ref:"t",brand_ref:"b",exact_head:"commit",artifact_sha256:"artifact",
+  site_uuid:"site",environment:"local",source_generation:"g",
+  policy_digest:"policy",required_checks:["identity"]
+ };
+ const receipt={...expected,verifier_id:"host-1",signature:"opaque",nonce:"dev-once",
+  observed_at:"2026-10-10T12:00:00Z",checks:[{id:"identity",pass:true}]};
+ const opts={
+  expected,receipt,trust:{approved_verifiers:["host-1"]},
+  verifier:{verifyDetached:()=>true},replayStore:{consumeOnce:()=>true},
+  now:"2026-10-10T12:01:00Z"
+ };
+ const local=verifyHostReceipt(opts);
+ assert.equal(local.status,"LOCAL_DEVELOPMENT_EVIDENCE_ONLY");
+ assert.equal(local.evidence_environment,"local");
+ assert.equal(local.operational_acceptance,false);
+ assert.equal(local.publication_authorized,false);
+ assert.equal(local.release_authorized,false);
+ assert.equal(verifyHostReceipt({...opts,expected:{...expected,environment:"staging"}}).reason,"PROVENANCE_MISMATCH");
+});
