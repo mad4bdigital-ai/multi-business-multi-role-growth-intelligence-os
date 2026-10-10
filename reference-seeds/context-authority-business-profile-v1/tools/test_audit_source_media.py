@@ -5,7 +5,7 @@ from pathlib import Path
 from PIL import Image
 from docx import Document
 import fitz
-from audit_source_media import audit
+from audit_source_media import audit, review_text_signals
 
 class AuditTests(unittest.TestCase):
     def setUp(self):
@@ -56,6 +56,17 @@ class AuditTests(unittest.TestCase):
         self.assertEqual(large_result["render_failures"],1)
         self.assertEqual(large_result["page_checks"][0]["reason"],"PAGE_PIXEL_BUDGET")
         self.assertFalse(result["approval_granted"])
+
+    def test_text_signals_are_flags_not_disclosed_source(self):
+        cases = [
+            ("Feature TBD", "UNFINISHED_FEATURE_CLAIM"),
+            ("Saves 70% effort", "NUMERIC_CLAIM_REQUIRES_EVIDENCE"),
+            ("Production Secret Key", "CREDENTIAL_CONFIGURATION_FIELD"),
+        ]
+        for raw, flag in cases:
+            labels=review_text_signals(raw)
+            self.assertIn(flag, labels)
+            self.assertNotIn(raw, str(labels))
 
     def test_symlink_rejected(self):
         outside=self.root.parent/"audit-outside-fixture.txt"
