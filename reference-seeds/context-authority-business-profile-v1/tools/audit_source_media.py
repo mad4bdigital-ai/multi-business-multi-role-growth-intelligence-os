@@ -24,6 +24,11 @@ def pdf_status(path:Path,max_pages:int)->dict:
             for n,page in enumerate(doc,1):
                 try:
                     has_text=bool(page.get_text("text").strip())
+                    # Reject malicious/oversized page dimensions before raster allocation.
+                    estimated_pixels=max(1,int(page.rect.width*.32))*max(1,int(page.rect.height*.32))
+                    if estimated_pixels>16_000_000:
+                        details.append(dict(page=n,rendered=False,has_text_layer=has_text,has_visible_ink=False,reason="PAGE_PIXEL_BUDGET"))
+                        continue
                     pix=page.get_pixmap(matrix=fitz.Matrix(.32,.32),alpha=False,colorspace=fitz.csRGB)
                     im=Image.frombytes("RGB",(pix.width,pix.height),pix.samples)
                     visible=ImageChops.difference(im,Image.new("RGB",im.size,"white")).getbbox() is not None
@@ -41,6 +46,9 @@ def pdf_status(path:Path,max_pages:int)->dict:
 def image_status(path:Path)->dict:
     try:
         with Image.open(path) as im:
+            w,h=im.size
+            if w*h>30_000_000:
+                return dict(type="image",status="QUARANTINED",reason="IMAGE_PIXEL_BUDGET",decode_pass=False)
             im.load()
             w,h=im.size
             return dict(type="image",status="REVIEW_REQUIRED",decode_pass=True,
