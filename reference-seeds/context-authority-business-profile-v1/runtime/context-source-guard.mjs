@@ -28,7 +28,7 @@ export function strictParseCsv(text,options={}) {
   };
   for(let i=0;i<text.length;i++){
     const ch=text[i];
-    if(ch==='\\r'||(ch==='\\n'&&text[i-1]!=='\\r'))physicalLine++;
+    if(ch==='\r'||(ch==='\n'&&text[i-1]!=='\r'))physicalLine++;
     if(quoted){ if(ch==='"'){if(text[i+1]==='"'){v+='"';i++;}else{quoted=false;closed=true;}}else v+=ch; }
     else if(ch===',' || ch==='\n' || ch==='\r'){
       if(ch===',')emitCell(); else {emitRow();if(ch==='\r'&&text[i+1]==='\n')i++;}

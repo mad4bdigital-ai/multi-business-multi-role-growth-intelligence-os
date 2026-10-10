@@ -29,7 +29,7 @@ test("external verifier and replay-ledger failures are structured denials",()=>{
 });
 
 test("blank CSV records do not shift physical source-line provenance",()=>{
- const text="Content Title,Writer Brief\\nFirst,one\\n\\nSecond,two";
+ const text="Content Title,Writer Brief\nFirst,one\n\nSecond,two";
  const r=importCsv({text,scope,source});
  assert.equal(r.records.length,2);
  assert.deepEqual(r.records.map(x=>x.source_line),[2,4]);
