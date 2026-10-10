@@ -23,6 +23,8 @@ assert(workflow.includes('EXPECT_WORKER_ENABLED: ${{ inputs.expect_worker_enable
 assert(workflow.includes('RUNTIME_PROFILE: ${{ inputs.runtime_profile }}'), 'workflow must pass runtime profile to script');
 assert(workflow.includes('default: "false"'), 'execution log row verification should default false for API-only runtime');
 
+assert.equal((script.match(/redirect: "manual"/g) || []).length, 2, 'both authenticated verifier GET and POST must forbid redirect-following');
+assert(script.includes('...fetchOptions,\n        redirect: "manual"'), 'GET caller-supplied fetch options must not override redirect rejection');
 assert(script.includes('const RUNTIME_PROFILE = String(process.env.RUNTIME_PROFILE || "api_only")'), 'script must default runtime profile to api_only');
 assert(script.includes('function parseRuntimeBool'), 'script must use explicit bool parser');
 assert(script.includes('defaultForQueue(RUNTIME_PROFILE)'), 'queue expectation must derive from runtime profile');
