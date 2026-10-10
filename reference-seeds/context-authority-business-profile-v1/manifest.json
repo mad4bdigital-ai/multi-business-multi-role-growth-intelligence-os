@@ -1,7 +1,7 @@
 {
   "contract": "mad4b.reference.business-context.seed.v1",
   "seed_key": "reference.context_authority_business_profile",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "status": "DRAFT_NON_AUTHORIZING",
   "artifact_type": "portable_reference_seed",
   "scope": "general_any_business",
@@ -45,7 +45,8 @@
     "docs/source-media-audit-round3.md",
     "tools/audit_source_media.py",
     "tools/test_audit_source_media.py",
-    "schemas/source-review-receipt.schema.json"
+    "schemas/source-review-receipt.schema.json",
+    "docs/operational-claim-semantics.md"
   ],
   "acceptance_state": "NOT_RUN",
   "installed_state": "NOT_INSTALLED",
