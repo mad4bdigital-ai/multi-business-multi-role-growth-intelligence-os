@@ -144,17 +144,17 @@ const TARGET_SCHEMA = "synthetic_protocol_schema";
     "utf8",
   );
   for (const [source, jobName] of [[liveWorkflow, "capture"], [evidenceWorkflow, "live-read-only-cycle"]]) {
-    const authorization = source.split("\\n  authorize-ueacp:\\n")[1]?.split(`\\n  ${jobName}:\\n`)[0] || "";
-    const production = source.split(`\\n  ${jobName}:\\n`)[1] || "";
+    const authorization = source.split("\n  authorize-ueacp:\n")[1]?.split(`\n  ${jobName}:\n`)[0] || "";
+    const production = source.split(`\n  ${jobName}:\n`)[1] || "";
     assert.match(authorization, /^    environment: ueacp-live-evidence$/mu,
       "independent UEACP reviewer authority must be preserved");
-    assert.doesNotMatch(authorization, /BACKEND_API_KEY:\\s*\\$\\{\\{/u,
+    assert.doesNotMatch(authorization, /BACKEND_API_KEY:\s*\$\{\{/u,
       "UEACP reviewer job must never access or transport Production credentials");
     assert(production.includes("needs: [contract, authorize-ueacp]"),
       "Production credential job must wait for approved UEACP evidence");
     assert(production.includes("needs.authorize-ueacp.result == 'success'"),
       "Production credential job must fail closed if independent reviewer gate did not succeed");
-    assert(production.includes("    environment:\\n      name: Production\\n      deployment: false".replaceAll("\\n", "\n")),
+    assert(production.includes("    environment:\n      name: Production\n      deployment: false".replaceAll("\n", "\n")),
       "Production credential job must bind the Production Environment without deployment");
     assert(production.includes("BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}"),
       "Production credential must be read only in the protected Production job");
