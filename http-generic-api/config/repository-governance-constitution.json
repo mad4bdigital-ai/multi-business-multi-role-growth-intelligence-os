@@ -59,7 +59,11 @@
         "pull_request",
         "workflow_dispatch"
       ],
-      "attestation_artifact_prefix": "derived-state-closure-"
+      "attestation_artifact_prefix": "derived-state-closure-",
+      "required_check_source_mode": "any_source_with_independent_finalizer_readback",
+      "any_source_residual_risk": "github_does_not_enforce_status_publisher_identity",
+      "any_source_governed_merge_requires": "same_cycle_trusted_attestor_status_creator_and_exact_candidate",
+      "native_auto_merge_forbidden": true
     },
     "Production": {
       "role": "governed_release",
@@ -612,6 +616,7 @@
     ".github/governance/verifier-registry.json",
     ".github/governance/waiver-ledger.json",
     ".github/ops/generated-artifact-governance.mjs",
+    ".github/ops/github-finalizer-check-source.mjs",
     ".github/ops/github-followup-automerge-readiness.mjs",
     ".github/ops/github-main-review-policy-live-activation.mjs",
     ".github/ops/github-repository-policy-1050-readiness-diagnostic-wrapper.mjs",

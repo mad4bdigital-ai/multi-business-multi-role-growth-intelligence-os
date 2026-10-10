@@ -2798,6 +2798,17 @@
       "grants_production_activation": false
     },
     {
+      "fingerprint": ".github/ops/github-followup-automerge-readiness.mjs|expectedAttestorStatusId|environment_reference|expected.attestor.status.id",
+      "owner": "repository-governance",
+      "reason": "Non-secret exact same-cycle GitHub Commit Status identity carried from the trusted backend attestor to the finalizer; rejects an older or foreign status for the same context. Cannot grant repository bypass, token access, database mutation or Production activation.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
       "fingerprint": "reference-seeds/context-authority-business-profile-v1/runtime/portable-content-runtime.test.mjs|scope|literal_declaration|scope",
       "owner": "context-authority-reference-seed",
       "reason": "Non-secret synthetic, offline-only reference-seed fixture/default. No real site, execution grant, live source binding or production activation is introduced.",
