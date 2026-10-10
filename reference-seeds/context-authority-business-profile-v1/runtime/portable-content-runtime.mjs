@@ -124,6 +124,13 @@ export function verifyHostReceipt({receipt,expected,trust,verifier,replayStore,n
   try {consumed=replayStore.consumeOnce(receipt.verifier_id+"|"+receipt.nonce,receipt.observed_at)===true;}
   catch {return deny("REPLAY_STORE_UNAVAILABLE");}
   if(!consumed)return deny("REPLAY_DETECTED");
+  // A genuine signed LOCAL receipt is useful as developer evidence, never as
+  // a Staging/Production Host attestation or publication/release grant.
+  if(receipt.environment==="local")return {
+    status:"LOCAL_DEVELOPMENT_EVIDENCE_ONLY",evidence_environment:"local",
+    checks:required.length,requires_human_approval:true,
+    operational_acceptance:false,publication_authorized:false,release_authorized:false
+  };
   return {status:"ATTESTED_FOR_REVIEW_ONLY",checks:required.length,requires_human_approval:true,operational_acceptance:false,publication_authorized:false,release_authorized:false};
 }
 
