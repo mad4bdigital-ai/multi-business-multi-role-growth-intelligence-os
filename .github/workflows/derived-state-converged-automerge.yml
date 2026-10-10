@@ -46,6 +46,7 @@ jobs:
       manual_count: ${{ steps.final.outputs.manual_count }}
       attestor_app_id: ${{ steps.final.outputs.attestor_app_id }}
       status_creator_id: ${{ steps.final.outputs.status_creator_id }}
+      attestor_status_id: ${{ steps.final.outputs.attestor_status_id }}
     env:
       GH_TOKEN: ${{ github.token }}
       BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
@@ -154,8 +155,10 @@ jobs:
           test "$(jq -r '.same_cycle_readback_proven' "$response")" = "true"
           attestor_app_id="$(jq -r '.app_id // empty' "$response")"
           status_creator_id="$(jq -r '.status_creator_id // empty' "$response")"
+          attestor_status_id="$(jq -r '.status_id // empty' "$response")"
           [[ "$attestor_app_id" =~ ^[1-9][0-9]*$ ]]
           [[ "$status_creator_id" =~ ^[1-9][0-9]*$ ]]
+          [[ "$attestor_status_id" =~ ^[1-9][0-9]*$ ]]
           {
             echo "branch=$branch"
             echo "pr_number=$pr_number"
@@ -165,6 +168,7 @@ jobs:
             echo "manual_count=$manual_count"
             echo "attestor_app_id=$attestor_app_id"
             echo "status_creator_id=$status_creator_id"
+            echo "attestor_status_id=$attestor_status_id"
           } >> "$GITHUB_OUTPUT"
 
   merge:
@@ -191,6 +195,7 @@ jobs:
           CANDIDATE_SHA: ${{ needs.attest.outputs.candidate_sha }}
           ATTESTOR_APP_ID: ${{ needs.attest.outputs.attestor_app_id }}
           STATUS_CREATOR_ID: ${{ needs.attest.outputs.status_creator_id }}
+          ATTESTOR_STATUS_ID: ${{ needs.attest.outputs.attestor_status_id }}
         shell: bash
         run: |
           set -euo pipefail
@@ -201,6 +206,7 @@ jobs:
           for value in "$PR_HEAD_SHA" "$BASE_SHA" "$CANDIDATE_SHA"; do [[ "$value" =~ ^[0-9a-f]{40}$ ]]; done
           [[ "$ATTESTOR_APP_ID" =~ ^[1-9][0-9]*$ ]]
           [[ "$STATUS_CREATOR_ID" =~ ^[1-9][0-9]*$ ]]
+          [[ "$ATTESTOR_STATUS_ID" =~ ^[1-9][0-9]*$ ]]
 
           TARGET_BRANCH=main \
           REQUIRED_CHECK_CONTEXT="Derived State Closure" \
@@ -209,6 +215,7 @@ jobs:
           EXPECTED_CANDIDATE_SHA="$CANDIDATE_SHA" \
           EXPECTED_ATTESTOR_APP_ID="$ATTESTOR_APP_ID" \
           EXPECTED_STATUS_CREATOR_ID="$STATUS_CREATOR_ID" \
+          EXPECTED_ATTESTOR_STATUS_ID="$ATTESTOR_STATUS_ID" \
           PR_NUMBER="$PR_NUMBER" \
           node .github/ops/github-followup-automerge-readiness.mjs
 
