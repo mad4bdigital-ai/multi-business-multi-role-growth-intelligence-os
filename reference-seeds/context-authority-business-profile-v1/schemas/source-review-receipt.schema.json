@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Candidate source review receipt (not an execution grant)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "asset_ref",
+    "scope",
+    "source_revision",
+    "structural_status",
+    "visual_status",
+    "semantic_status",
+    "owner_review",
+    "execution_authority"
+  ],
+  "properties": {
+    "asset_ref": {
+      "type": "string",
+      "minLength": 1
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tenant_ref",
+        "brand_ref"
+      ],
+      "properties": {
+        "tenant_ref": {
+          "type": "string",
+          "minLength": 1
+        },
+        "brand_ref": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "source_revision": {
+      "type": "string",
+      "minLength": 1
+    },
+    "structural_status": {
+      "enum": [
+        "NOT_RUN",
+        "PASS",
+        "FAIL",
+        "QUARANTINED"
+      ]
+    },
+    "visual_status": {
+      "enum": [
+        "NOT_RUN",
+        "NEEDS_REVIEW",
+        "PASS",
+        "FAIL"
+      ]
+    },
+    "semantic_status": {
+      "enum": [
+        "NOT_RUN",
+        "NEEDS_REVIEW",
+        "PASS",
+        "FAIL",
+        "CONTESTED"
+      ]
+    },
+    "owner_review": {
+      "enum": [
+        "NOT_RUN",
+        "NEEDS_REVIEW",
+        "APPROVED",
+        "REJECTED"
+      ]
+    },
+    "execution_authority": {
+      "const": false
+    }
+  }
+}

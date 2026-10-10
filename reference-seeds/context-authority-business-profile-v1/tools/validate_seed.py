@@ -42,7 +42,7 @@ def validate(root=ROOT):
         if manifest.get(key) != val:
             faults.append("unsafe_manifest:" + key)
     paths = manifest.get("files", [])
-    if not isinstance(paths, list) or len(paths) != 24 or len(paths) != len(set(paths)):
+    if not isinstance(paths, list) or len(paths) != 28 or len(paths) != len(set(paths)):
         faults.append("invalid_manifest_file_list")
         paths = []
     for rel in paths:
@@ -129,6 +129,13 @@ def validate(root=ROOT):
         faults.extend(validate_content_fabric(root))
     except (ValueError, OSError, ImportError) as exc:
         faults.append("content_validator_unavailable:" + type(exc).__name__)
+    try:
+        review_schema = read(root, "schemas/source-review-receipt.schema.json")
+        if (review_schema.get("additionalProperties") is not False or
+            review_schema.get("properties", {}).get("execution_authority", {}).get("const") is not False):
+            faults.append("media_receipt_must_not_authorize")
+    except (OSError, json.JSONDecodeError):
+        faults.append("media_receipt_schema_missing")
     return sorted(set(faults))
 
 if __name__ == "__main__":
