@@ -213,15 +213,33 @@ assert.equal(RECORD_CONFIRM, "RECORD_1051_GITHUB_REPOSITORY_POLICY_LIVE_APPLY_AU
 assert.equal(RECONCILE_CONFIRM, "RECONCILE_1051_GITHUB_REPOSITORY_POLICY_RECORD_ONLY_LEDGER");
 assert.equal(RECONCILED_APPLY_CONFIRM, "APPLY_1051_GITHUB_REPOSITORY_POLICY_AFTER_RECORD_ONLY_RECONCILIATION");
 
-// The read-only Verify job must consume the environment-scoped backend credential
-// used by GitHub policy readback, without granting that environment to mutating jobs.
-const verifyScope = workflow.split("\n  verify:\n");
-assert.equal(verifyScope.length, 2, "exactly one Verify job is required");
-const [unprivilegedJobs, verifyJob] = verifyScope;
-assert.match(verifyJob, /^    environment:\n      name: Production\n      deployment: false\n    runs-on:/m);
+// Every Migration 1051 job authenticates to the fixed Production origin.
+// Scope the Production credential per job, rather than inferring privilege from
+// semantic labels such as readiness, reconcile, apply or verify.
+const migrationJobNames = [
+  "readiness",
+  "reconcile_record_only",
+  "apply_after_record_only_reconcile",
+  "apply",
+  "verify",
+];
+for (const [index, name] of migrationJobNames.entries()) {
+  const marker = "\n  " + name + ":\n";
+  assert.equal(workflow.split(marker).length, 2, "Migration 1051 job must exist exactly once: " + name);
+  const startIndex = workflow.indexOf(marker) + marker.length;
+  const nextJobName = migrationJobNames[index + 1];
+  const endIndex = nextJobName ? workflow.indexOf("\n  " + nextJobName + ":\n", startIndex) : workflow.length;
+  assert.ok(endIndex > startIndex, "Migration 1051 job boundary must be stable: " + name);
+  const job = workflow.slice(startIndex, endIndex);
+  assert.match(job, /^    environment:\n      name: Production\n      deployment: false\n    runs-on:/m,
+    "Only explicitly Production-bound jobs may authenticate: " + name);
+  assert.match(job, /^      RUNTIME_BASE_URL: https:\/\/auth\.mad4b\.com$/m);
+  assert.match(job, /^      BACKEND_API_KEY: \$\{\{ secrets\.BACKEND_API_KEY \}\}$/m);
+  assert.doesNotMatch(job, /https:\/\/dev\.mad4b\.com/,
+    "Production jobs must never target Windows Staging: " + name);
+}
+const verifyJob = workflow.slice(workflow.indexOf("\n  verify:\n"));
 assert.match(verifyJob, /ROLLOUT_PHASE: verify/);
-assert.match(verifyJob, /BACKEND_API_KEY: \$\{\{ secrets\.BACKEND_API_KEY \}\}/);
-assert.doesNotMatch(unprivilegedJobs, /^    environment:/m, "readiness/reconcile/apply must not inherit Production secret scope");
 assert.match(verifyJob, /Capture bounded Migration 1051 metadata diagnostic without Apply/);
 assert.match(verifyJob, /Verify exact ledger and authority metadata without Apply/);
 
