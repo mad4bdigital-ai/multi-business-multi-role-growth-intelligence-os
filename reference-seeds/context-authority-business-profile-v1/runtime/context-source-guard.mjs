@@ -17,11 +17,18 @@ export function strictParseCsv(text,options={}) {
   const bytes=bounded('maxBytes',LIMITS.bytes),rowCap=bounded('maxRows',LIMITS.rows),colCap=bounded('maxColumns',LIMITS.columns),cellCap=bounded('maxCellLength',LIMITS.cell);
   if(typeof text!=='string')fail('TEXT_REQUIRED');
   if(BufferByteLength(text)>bytes)fail(options.maxBytes===undefined?'INPUT_BYTES_LIMIT':'INPUT_SIZE_LIMIT');
-  text=boundedText(text); const rows=[];let cells=[],v='',quoted=false,closed=false,started=false;
+  text=boundedText(text); const rows=[],sourceLines=[];
+  const keepBlankRows=options.preserveBlankRows===true;
+  let physicalLine=1,rowStartLine=1,cells=[],v='',quoted=false,closed=false,started=false;
   const emitCell=()=>{if(v.length>cellCap)fail('CELL_LIMIT');cells.push(v);if(cells.length>colCap)fail('COLUMN_LIMIT');v='';started=false;closed=false;};
-  const emitRow=()=>{emitCell();if(cells.some(x=>x!==''))rows.push(cells);cells=[];if(rows.length>rowCap+1)fail('ROW_LIMIT');};
+  const emitRow=()=>{emitCell();
+    if(keepBlankRows||cells.some(x=>x!=='')){rows.push(cells);sourceLines.push(rowStartLine);}
+    cells=[];if(rows.length>rowCap+1)fail('ROW_LIMIT');
+    rowStartLine=physicalLine;
+  };
   for(let i=0;i<text.length;i++){
     const ch=text[i];
+    if(ch==='\\r'||(ch==='\\n'&&text[i-1]!=='\\r'))physicalLine++;
     if(quoted){ if(ch==='"'){if(text[i+1]==='"'){v+='"';i++;}else{quoted=false;closed=true;}}else v+=ch; }
     else if(ch===',' || ch==='\n' || ch==='\r'){
       if(ch===',')emitCell(); else {emitRow();if(ch==='\r'&&text[i+1]==='\n')i++;}
@@ -33,6 +40,7 @@ export function strictParseCsv(text,options={}) {
   }
   if(quoted)fail('CSV_UNCLOSED_QUOTE');
   if(v!==''||cells.length||started||closed)emitRow();
+  Object.defineProperty(rows,'sourceLines',{value:sourceLines,enumerable:false});
   return rows;
 }
 export function guardMatrix(matrix,{requiredHeaders=['content title','blog title','title','content blog article','idea','content idea','عنوان المحتوى','عنوان المحتوي','العنوان','عنوان']}={}){

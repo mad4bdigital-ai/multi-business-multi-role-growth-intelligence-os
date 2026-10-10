@@ -27,3 +27,13 @@ test("external verifier and replay-ledger failures are structured denials",()=>{
  const ledger=verifyHostReceipt({...args,verifier:{verifyDetached:()=>true},replayStore:{consumeOnce(){throw Error("internal ledger details")}}});
  assert.equal(ledger.reason,"REPLAY_STORE_UNAVAILABLE");assert.equal(ledger.release_authorized,false);
 });
+
+test("blank CSV records do not shift physical source-line provenance",()=>{
+ const text="Content Title,Writer Brief\\nFirst,one\\n\\nSecond,two";
+ const r=importCsv({text,scope,source});
+ assert.equal(r.records.length,2);
+ assert.deepEqual(r.records.map(x=>x.source_line),[2,4]);
+ const quoted=importCsv({text:'Content Title,Writer Brief\\n"Line one\\nline two",one\\n\\nLater,two'.replaceAll('\\n','\n'),scope,source});
+ assert.deepEqual(quoted.records.map(x=>x.source_line),[2,5]);
+ assert.equal(quoted.records.length,2);
+});

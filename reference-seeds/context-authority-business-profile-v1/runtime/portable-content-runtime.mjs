@@ -59,10 +59,12 @@ export function importMatrix({matrix,scope,source,asOf,declaredDays}){
   const candidates=[],rejected=[],seen=new Set(),days=new Set();
   for(let i=1;i<matrix.length;i++){
     const row=matrix[i].map(x=>String(x??""));
-    if(row.length>64||row.some(x=>x.length>4096)){rejected.push({row_index:i+1,reason:"ROW_LIMIT"});continue;}
-    if(row.some(suspiciousValue)){rejected.push({row_index:i+1,reason:"SENSITIVE_VALUE_QUARANTINED"});continue;}
+    if(row.every(value=>value.trim()===""))continue; // Keep source offsets while skipping empty records.
+    const sourceLine=Array.isArray(matrix.sourceLines)?matrix.sourceLines[i]:i+1;
+    if(row.length>64||row.some(x=>x.length>4096)){rejected.push({row_index:sourceLine,reason:"ROW_LIMIT"});continue;}
+    if(row.some(suspiciousValue)){rejected.push({row_index:sourceLine,reason:"SENSITIVE_VALUE_QUARANTINED"});continue;}
     const get=k=>columns[k]===undefined?"":String(row[columns[k]]??"").trim();
-    const item={record_key:`candidate:${i}`,title:get("title"),date:get("date"),stage:get("stage"),format:get("format"),channel:get("channel"),persona:get("persona"),hook:get("hook"),writer_brief:get("writer_brief"),designer_brief:get("designer_brief"),status:"CANDIDATE_ONLY",source_taint:"UNTRUSTED_DATA",instruction_authority:false,external_revision_verified:false};
+    const item={record_key:`candidate:${i}`,source_line:sourceLine,title:get("title"),date:get("date"),stage:get("stage"),format:get("format"),channel:get("channel"),persona:get("persona"),hook:get("hook"),writer_brief:get("writer_brief"),designer_brief:get("designer_brief"),status:"CANDIDATE_ONLY",source_taint:"UNTRUSTED_DATA",instruction_authority:false,external_revision_verified:false};
     item.flags=reviewFlags(item,{asOf});
     const dedup=[norm(item.title),norm(item.format),norm(item.persona),norm(item.stage)].join("|");
     if(seen.has(dedup))item.flags.push("REPEATED_COPY");
@@ -77,7 +79,7 @@ export function importMatrix({matrix,scope,source,asOf,declaredDays}){
 }
 
 export function importCsv({text,scope,source,asOf,declaredDays}){
-  return importMatrix({matrix:parseCsv(text),scope,source,asOf,declaredDays});
+  return importMatrix({matrix:parseCsv(text,{preserveBlankRows:true}),scope,source,asOf,declaredDays});
 }
 
 export function compileContext({scope,persona,policy,claims=[],channel,format,style}){
