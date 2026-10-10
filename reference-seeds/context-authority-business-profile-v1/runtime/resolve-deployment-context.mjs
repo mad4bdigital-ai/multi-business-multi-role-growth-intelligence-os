@@ -26,6 +26,7 @@ export function resolveDeploymentContext({host,assertedScope={},verifyHostBindin
   if(host.mode==='wordpress_dedicated'){
     const siteUuid=/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
     if(!siteUuid.test(scoped.site_uuid)||scoped.tenant_ref!=='wp-site:'+scoped.site_uuid.toLowerCase())return deny('WP_SITE_IDENTITY_INVALID');
+    if(!['local','development','staging','production'].includes(scoped.environment))return deny('WP_ENVIRONMENT_UNRECOGNIZED');
     if(!Number.isSafeInteger(scoped.blog_id)||scoped.blog_id<1||!Number.isSafeInteger(scoped.network_id)||scoped.network_id<1)return deny('MULTISITE_CONTEXT_INVALID');
     const flags=host.wordpress_binding;
     if(!flags||['configured','origin_match','environment_match','deployment_binding_match','authority_ready','brand_bound'].some(k=>flags[k]!==true))return deny('WP_SITE_PROFILE_NOT_READY');

@@ -50,3 +50,6 @@ test('local evidence is development-only and never grants operational acceptance
  const receipt={...args.receipt,environment:'local'};
  assert.equal(guardReceipt({...args,expected,receipt}),null);
 });
+
+test('CSV lineage retains physical lines and skipped blank rows',()=>{const parsed=strictParseCsv('Content Title,Format\r\nFirst,Blog\r\n\r\n"Second\ncontinued",Social\r\n',{withLineage:true});assert.equal(parsed.rows.length,3);assert.deepEqual(parsed.lineage,[{source_row:1,start_line:1,end_line:1},{source_row:2,start_line:2,end_line:2},{source_row:4,start_line:4,end_line:5}]);});
+test('local development receipt never matches Staging provenance',()=>{const localExpected={...expected,environment:'local'};const localReceipt={...receipt,environment:'local'};assert.equal(guardReceipt({...args,expected:localExpected,receipt:localReceipt}),null);assert.equal(guardReceipt({...args,receipt:localReceipt}).reason,'PROVENANCE_MISMATCH')});

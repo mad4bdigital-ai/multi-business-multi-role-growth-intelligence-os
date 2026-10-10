@@ -17,12 +17,15 @@ export function strictParseCsv(text,options={}) {
   const bytes=bounded('maxBytes',LIMITS.bytes),rowCap=bounded('maxRows',LIMITS.rows),colCap=bounded('maxColumns',LIMITS.columns),cellCap=bounded('maxCellLength',LIMITS.cell);
   if(typeof text!=='string')fail('TEXT_REQUIRED');
   if(BufferByteLength(text)>bytes)fail(options.maxBytes===undefined?'INPUT_BYTES_LIMIT':'INPUT_SIZE_LIMIT');
-  text=boundedText(text); const rows=[],sourceLines=[];
+  text=boundedText(text); const rows=[],sourceLines=[],lineage=[];
   const keepBlankRows=options.preserveBlankRows===true;
-  let physicalLine=1,rowStartLine=1,cells=[],v='',quoted=false,closed=false,started=false;
+  let physicalLine=1,rowStartLine=1,sourceRow=0,cells=[],v='',quoted=false,closed=false,started=false;
   const emitCell=()=>{if(v.length>cellCap)fail('CELL_LIMIT');cells.push(v);if(cells.length>colCap)fail('COLUMN_LIMIT');v='';started=false;closed=false;};
-  const emitRow=()=>{emitCell();
-    if(keepBlankRows||cells.some(x=>x!=='')){rows.push(cells);sourceLines.push(rowStartLine);}
+  const emitRow=(terminated=false)=>{emitCell();sourceRow++;
+    if(keepBlankRows||cells.some(x=>x!=='')){
+      rows.push(cells);sourceLines.push(rowStartLine);
+      lineage.push({source_row:sourceRow,start_line:rowStartLine,end_line:terminated?physicalLine-1:physicalLine});
+    }
     cells=[];if(rows.length>rowCap+1)fail('ROW_LIMIT');
     rowStartLine=physicalLine;
   };
@@ -31,7 +34,7 @@ export function strictParseCsv(text,options={}) {
     if(ch==='\r'||(ch==='\n'&&text[i-1]!=='\r'))physicalLine++;
     if(quoted){ if(ch==='"'){if(text[i+1]==='"'){v+='"';i++;}else{quoted=false;closed=true;}}else v+=ch; }
     else if(ch===',' || ch==='\n' || ch==='\r'){
-      if(ch===',')emitCell(); else {emitRow();if(ch==='\r'&&text[i+1]==='\n')i++;}
+      if(ch===',')emitCell(); else {emitRow(true);if(ch==='\r'&&text[i+1]==='\n')i++;}
     } else if(ch==='"') {
       if(v!==''||started||closed)fail('CSV_INVALID_QUOTE');quoted=true;started=true;
     } else if(closed){ if(ch!==' '&&ch!=='\t')fail('CSV_TRAILING_CHAR_AFTER_QUOTE'); }
@@ -39,9 +42,9 @@ export function strictParseCsv(text,options={}) {
     if(v.length>cellCap)fail('CELL_LIMIT');
   }
   if(quoted)fail('CSV_UNCLOSED_QUOTE');
-  if(v!==''||cells.length||started||closed)emitRow();
+  if(v!==''||cells.length||started||closed)emitRow(false);
   Object.defineProperty(rows,'sourceLines',{value:sourceLines,enumerable:false});
-  return rows;
+  return options.withLineage===true?{rows,lineage}:rows;
 }
 export function guardMatrix(matrix,{requiredHeaders=['content title','blog title','title','content blog article','idea','content idea','عنوان المحتوى','عنوان المحتوي','العنوان','عنوان']}={}){
   if(!Array.isArray(matrix)||!matrix.length||matrix.length>LIMITS.rows+1)fail('MATRIX_BOUNDS');
