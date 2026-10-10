@@ -43,6 +43,9 @@ concurrency:
 jobs:
   dependency-readback:
     name: Verify exact governed migration dependencies
+    environment:
+      name: Production
+      deployment: false
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:

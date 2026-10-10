@@ -15,6 +15,9 @@ jobs:
       !github.event.issue.pull_request &&
       github.event.comment.body == 'AUTHORIZE_GOVERNED_MIGRATION_20260802_01_SPEC014_HOSTINGER_STORAGE_FOUNDATION' &&
       contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
+    environment:
+      name: Production
+      deployment: false
     runs-on: ubuntu-24.04
     timeout-minutes: 35
     concurrency:
