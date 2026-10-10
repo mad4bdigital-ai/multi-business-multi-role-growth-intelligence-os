@@ -26,8 +26,6 @@
         "http-generic-api/test-auth-oauth-routes.mjs",
         "http-generic-api/test-chatgpt-mcp-metadata-routing.mjs",
         "http-generic-api/test-environment-convergence-packaged-policy.mjs",
-        "http-generic-api/test-staging-environment-convergence-live-observation.mjs",
-        "http-generic-api/test-staging-environment-convergence-plan-live-observation.mjs",
         "http-generic-api/test-frontend-surface-dispatch.mjs",
         "http-generic-api/test-health-gateway-ready-provenance.mjs",
         "http-generic-api/test-platform-admin-workspace-resolver.mjs",
@@ -37,6 +35,8 @@
         "http-generic-api/test-staging-activation-oauth-profile-enabled.mjs",
         "http-generic-api/test-staging-activation-worker-plan-provenance.mjs",
         "http-generic-api/test-staging-environment-certification-contract.mjs",
+        "http-generic-api/test-staging-environment-convergence-live-observation.mjs",
+        "http-generic-api/test-staging-environment-convergence-plan-live-observation.mjs",
         "http-generic-api/test-staging-openapi-mcp-db-boundary.mjs",
         "http-generic-api/test-staging-runtime-oauth-profile.mjs",
         "http-generic-api/test-tenant-gpt-access-token-verifier.mjs",
@@ -60,8 +60,8 @@
         "http-generic-api/scripts/test-github-review-policy-target.mjs",
         "http-generic-api/test-github-repository-policy-1050-governed-rollout.mjs",
         "http-generic-api/test-github-repository-policy-1051-metadata-state.mjs",
-        "http-generic-api/test-github-repository-policy-live-activation-contract.mjs",
-        "http-generic-api/test-github-repository-policy-controller.mjs"
+        "http-generic-api/test-github-repository-policy-controller.mjs",
+        "http-generic-api/test-github-repository-policy-live-activation-contract.mjs"
       ]
     },
     {
@@ -81,14 +81,15 @@
         "http-generic-api/test-credential-resolution-authority.mjs",
         "http-generic-api/test-credential-resolution-plan.mjs",
         "http-generic-api/test-credential-resolver.mjs",
-        "http-generic-api/test-tenant-gpt-oauth-secret-ref.mjs"
+        "http-generic-api/test-tenant-gpt-oauth-secret-ref.mjs",
+        "http-generic-api/test-verify-runtime-profile.mjs"
       ]
     },
     {
       "id": "staging_environment_secret_generation",
       "test_paths": [
-        "http-generic-api/test-staging-environment-secret-governance.mjs",
-        "http-generic-api/scripts/staging-dual-mode-one-click-contract.mjs"
+        "http-generic-api/scripts/staging-dual-mode-one-click-contract.mjs",
+        "http-generic-api/test-staging-environment-secret-governance.mjs"
       ]
     },
     {
@@ -96,9 +97,9 @@
       "test_paths": [
         "canonicals/openapi/custom-gpt-surfaces.yaml",
         "http-generic-api/customGptLiveRegistrationReadback.js",
+        "http-generic-api/openapi/generated/custom-gpt-registration-manifest.json",
         "http-generic-api/scripts/custom-gpt-live-registration-readback.mjs",
-        "http-generic-api/test-custom-gpt-live-registration-readback.mjs",
-        "http-generic-api/openapi/generated/custom-gpt-registration-manifest.json"
+        "http-generic-api/test-custom-gpt-live-registration-readback.mjs"
       ]
     },
     {
@@ -209,6 +210,7 @@
         "http-generic-api/test-admin-control.mjs",
         "http-generic-api/test-admin-host-breakglass-routes.mjs",
         "http-generic-api/test-custom-gpt-schemas.mjs",
+        "http-generic-api/test-database-runtime-identity-policy.mjs",
         "http-generic-api/test-fixed-host-local-system-tool.mjs",
         "http-generic-api/test-frontend-surface-coverage-claims.mjs",
         "http-generic-api/test-gpt-tools-route-syntax-regression.mjs",
@@ -358,10 +360,10 @@
         ".github/workflows/openapi-auto-sync.yml",
         ".github/workflows/surface-contract-auto-remediation.yml",
         "http-generic-api/test-derived-state-converged-automerge-source-event.mjs",
+        "http-generic-api/test-github-finalizer-any-source-guard.mjs",
         "http-generic-api/test-repo-maintenance-sync.mjs",
         "http-generic-api/test-supervisor-runtime-assurance-automation.mjs",
-        "http-generic-api/test-surface-contract-auto-remediation.mjs",
-        "http-generic-api/test-github-finalizer-any-source-guard.mjs"
+        "http-generic-api/test-surface-contract-auto-remediation.mjs"
       ]
     },
     {
@@ -389,9 +391,9 @@
       "id": "tenant_gpt_oauth_server_owned_correlation",
       "test_paths": [
         "http-generic-api/test-spec012-t030-oauth-correlation-foundation.mjs",
-        "http-generic-api/test-tenant-gpt-oauth-recovery-evidence-sink.mjs",
         "http-generic-api/test-tenant-gpt-oauth-authorization-code-store.mjs",
         "http-generic-api/test-tenant-gpt-oauth-operation-correlation.mjs",
+        "http-generic-api/test-tenant-gpt-oauth-recovery-evidence-sink.mjs",
         "http-generic-api/test-tenant-gpt-oauth-token-binding-guard.mjs",
         "http-generic-api/test-tenant-gpt-oauth-token-binding-hardening.mjs"
       ]
@@ -640,13 +642,13 @@
         "http-generic-api/test-staging-autonomous-supervisor-contract.mjs",
         "http-generic-api/test-staging-autopilot-closure.mjs",
         "http-generic-api/test-staging-cloudflared-log-release.mjs",
+        "http-generic-api/test-staging-coldboot-recovery.mjs",
         "http-generic-api/test-staging-convergence-acknowledgement-cli.mjs",
         "http-generic-api/test-staging-one-click-autopilot-contract.mjs",
         "http-generic-api/test-staging-one-click-autopilot-core.mjs",
         "http-generic-api/test-staging-post-build-image-discovery.mjs",
         "http-generic-api/test-staging-schema-governance-powershell-revision-contract.mjs",
-        "http-generic-api/test-staging-smart-gateway-convergence-contract.mjs",
-        "http-generic-api/test-staging-coldboot-recovery.mjs"
+        "http-generic-api/test-staging-smart-gateway-convergence-contract.mjs"
       ]
     },
     {
@@ -761,9 +763,9 @@
       "test_paths": [
         "http-generic-api/scripts/platform-work-map-schema-intelligence.mjs",
         "http-generic-api/scripts/work-map-schema-classification-contract.mjs",
+        "http-generic-api/test-spec-kit-work-map-governance-gate.mjs",
         "http-generic-api/test-work-map-schema-classification-contract.mjs",
-        "http-generic-api/test-work-map-schema-classification.mjs",
-        "http-generic-api/test-spec-kit-work-map-governance-gate.mjs"
+        "http-generic-api/test-work-map-schema-classification.mjs"
       ]
     },
     {
@@ -776,12 +778,12 @@
       "id": "portable_context_seed_negative_acceptance",
       "test_paths": [
         "reference-seeds/context-authority-business-profile-v1/runtime/context-source-guard.test.mjs",
+        "reference-seeds/context-authority-business-profile-v1/runtime/deployment-dependency-evaluator.test.mjs",
         "reference-seeds/context-authority-business-profile-v1/runtime/portable-content-runtime.test.mjs",
         "reference-seeds/context-authority-business-profile-v1/runtime/resolve-deployment-context.test.mjs",
-        "reference-seeds/context-authority-business-profile-v1/runtime/deployment-dependency-evaluator.test.mjs",
-        "reference-seeds/context-authority-business-profile-v1/tools/test_seed.py",
+        "reference-seeds/context-authority-business-profile-v1/tools/test_audit_source_media.py",
         "reference-seeds/context-authority-business-profile-v1/tools/test_content_fabric.py",
-        "reference-seeds/context-authority-business-profile-v1/tools/test_audit_source_media.py"
+        "reference-seeds/context-authority-business-profile-v1/tools/test_seed.py"
       ]
     },
     {
