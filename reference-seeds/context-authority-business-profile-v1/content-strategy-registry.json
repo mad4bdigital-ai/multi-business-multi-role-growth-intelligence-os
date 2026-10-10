@@ -1,0 +1,435 @@
+{
+  "contract": "mad4b.reference.business-context.content-strategy.v1",
+  "status": "TEMPLATE_ONLY",
+  "configuration_grants_authority": false,
+  "stage_registry": [
+    {
+      "key": "awareness",
+      "purpose": "attract_and_educate",
+      "example_metrics": [
+        "reach",
+        "organic_visits",
+        "engaged_reach"
+      ],
+      "tenant_can_extend": true,
+      "status": "TEMPLATE_ONLY"
+    },
+    {
+      "key": "consideration",
+      "purpose": "build_fit_and_trust",
+      "example_metrics": [
+        "qualified_engagement",
+        "asset_consumption",
+        "demo_interest"
+      ],
+      "tenant_can_extend": true,
+      "status": "TEMPLATE_ONLY"
+    },
+    {
+      "key": "decision",
+      "purpose": "objection_resolution_and_conversion",
+      "example_metrics": [
+        "qualified_demo_rate",
+        "lead_to_customer_rate"
+      ],
+      "tenant_can_extend": true,
+      "status": "TEMPLATE_ONLY"
+    },
+    {
+      "key": "activation",
+      "purpose": "guide_first_value",
+      "example_metrics": [
+        "time_to_first_value",
+        "activation_rate"
+      ],
+      "tenant_can_extend": true,
+      "status": "TEMPLATE_ONLY"
+    },
+    {
+      "key": "retention",
+      "purpose": "enable_adoption_and_satisfaction",
+      "example_metrics": [
+        "retention_rate",
+        "repeat_usage"
+      ],
+      "tenant_can_extend": true,
+      "status": "TEMPLATE_ONLY"
+    },
+    {
+      "key": "advocacy",
+      "purpose": "earned_referrals_and_voice",
+      "example_metrics": [
+        "qualified_referrals",
+        "approved_testimonials"
+      ],
+      "tenant_can_extend": true,
+      "status": "TEMPLATE_ONLY"
+    },
+    {
+      "key": "reengagement",
+      "purpose": "restore_permission_based_relationships",
+      "example_metrics": [
+        "reactivation_rate"
+      ],
+      "tenant_can_extend": true,
+      "status": "TEMPLATE_ONLY"
+    }
+  ],
+  "pillar_registry": [
+    {
+      "key": "education_and_product",
+      "goal": "educate_about_offers",
+      "content_examples": [
+        "how_to",
+        "product_demo",
+        "capability_comparison"
+      ],
+      "required_proof_for_external_claims": true,
+      "status": "TEMPLATE_ONLY"
+    },
+    {
+      "key": "trust_and_proof",
+      "goal": "resolve_concerns_with_evidence",
+      "content_examples": [
+        "validated_case_study",
+        "verified_metric",
+        "audit_summary"
+      ],
+      "required_proof_for_external_claims": true,
+      "status": "TEMPLATE_ONLY"
+    },
+    {
+      "key": "industry_vision",
+      "goal": "thought_leadership",
+      "content_examples": [
+        "market_analysis",
+        "opinion",
+        "trend_review"
+      ],
+      "required_proof_for_external_claims": true,
+      "status": "TEMPLATE_ONLY"
+    },
+    {
+      "key": "growth_and_commercial_value",
+      "goal": "link_capabilities_to_business_outcomes",
+      "content_examples": [
+        "roi_model",
+        "economic_analysis",
+        "growth_playbook"
+      ],
+      "required_proof_for_external_claims": true,
+      "status": "TEMPLATE_ONLY"
+    },
+    {
+      "key": "transformation_and_operations",
+      "goal": "show_process_improvement",
+      "content_examples": [
+        "workflow_walkthrough",
+        "before_after",
+        "training"
+      ],
+      "required_proof_for_external_claims": true,
+      "status": "TEMPLATE_ONLY"
+    },
+    {
+      "key": "community_and_partnerships",
+      "goal": "enable_community_learning",
+      "content_examples": [
+        "partner_story",
+        "qa",
+        "interview"
+      ],
+      "required_proof_for_external_claims": true,
+      "status": "TEMPLATE_ONLY"
+    },
+    {
+      "key": "customer_enablement",
+      "goal": "post_sale_education",
+      "content_examples": [
+        "onboarding",
+        "support",
+        "advanced_guide"
+      ],
+      "required_proof_for_external_claims": true,
+      "status": "TEMPLATE_ONLY"
+    }
+  ],
+  "tactic_registry": [
+    {
+      "key": "inbound",
+      "intent": "permission_based_discovery",
+      "formats": [
+        "search",
+        "community",
+        "educational_assets"
+      ],
+      "applicability": "owner_profile_and_channel_policy",
+      "consent_required": false,
+      "status": "TEMPLATE_ONLY"
+    },
+    {
+      "key": "outbound",
+      "intent": "authorized_proactive_outreach",
+      "formats": [
+        "paid_media",
+        "consented_email",
+        "authorized_direct_sales"
+      ],
+      "applicability": "owner_profile_and_channel_policy",
+      "consent_required": true,
+      "status": "TEMPLATE_ONLY"
+    },
+    {
+      "key": "seo_editorial",
+      "intent": "satisfy_search_intent_with_evidence",
+      "formats": [
+        "blog",
+        "landing_page"
+      ],
+      "applicability": "owner_profile_and_channel_policy",
+      "consent_required": false,
+      "status": "TEMPLATE_ONLY"
+    },
+    {
+      "key": "lifecycle_nurture",
+      "intent": "guide_by_actual_stage",
+      "formats": [
+        "email_sequence",
+        "educational_series"
+      ],
+      "applicability": "owner_profile_and_channel_policy",
+      "consent_required": false,
+      "status": "TEMPLATE_ONLY"
+    },
+    {
+      "key": "conversion_optimization",
+      "intent": "remove_specific_conversion_friction",
+      "formats": [
+        "comparison",
+        "demo",
+        "landing_experiment"
+      ],
+      "applicability": "owner_profile_and_channel_policy",
+      "consent_required": false,
+      "status": "TEMPLATE_ONLY"
+    },
+    {
+      "key": "retargeting",
+      "intent": "reengage_when_consent_and_platform_policy_allow",
+      "formats": [
+        "paid_media",
+        "email_sequence"
+      ],
+      "applicability": "owner_profile_and_channel_policy",
+      "consent_required": true,
+      "status": "TEMPLATE_ONLY"
+    },
+    {
+      "key": "community_marketing",
+      "intent": "answer_questions_without_spam",
+      "formats": [
+        "forum_answer",
+        "live_session"
+      ],
+      "applicability": "owner_profile_and_channel_policy",
+      "consent_required": false,
+      "status": "TEMPLATE_ONLY"
+    },
+    {
+      "key": "public_relations",
+      "intent": "publish_verifiable_newsworthy_facts",
+      "formats": [
+        "press_release",
+        "executive_statement"
+      ],
+      "applicability": "owner_profile_and_channel_policy",
+      "consent_required": false,
+      "status": "TEMPLATE_ONLY"
+    },
+    {
+      "key": "ugc_and_advocacy",
+      "intent": "solicit_permissioned_authentic_reviews",
+      "formats": [
+        "testimonial",
+        "review"
+      ],
+      "applicability": "owner_profile_and_channel_policy",
+      "consent_required": true,
+      "status": "TEMPLATE_ONLY"
+    },
+    {
+      "key": "creator_partnerships",
+      "intent": "authorized_creator_collaboration",
+      "formats": [
+        "creator_brief",
+        "co_created_story"
+      ],
+      "applicability": "owner_profile_and_channel_policy",
+      "consent_required": false,
+      "status": "TEMPLATE_ONLY"
+    },
+    {
+      "key": "customer_education",
+      "intent": "improve_time_to_value_and_adoption",
+      "formats": [
+        "onboarding",
+        "webinar"
+      ],
+      "applicability": "owner_profile_and_channel_policy",
+      "consent_required": false,
+      "status": "TEMPLATE_ONLY"
+    },
+    {
+      "key": "experimentation",
+      "intent": "test_hypotheses_with_guardrails",
+      "formats": [
+        "ab_test",
+        "holdout"
+      ],
+      "applicability": "owner_profile_and_channel_policy",
+      "consent_required": false,
+      "status": "TEMPLATE_ONLY"
+    }
+  ],
+  "channel_registry": [
+    {
+      "key": "blog",
+      "family": "long_form",
+      "intent": "intent_answering",
+      "verification": "evidence_citations",
+      "owner_customizable": true,
+      "default_publish_enabled": false
+    },
+    {
+      "key": "website_landing",
+      "family": "conversion",
+      "intent": "specific_offer_and_proof",
+      "verification": "verified_cta",
+      "owner_customizable": true,
+      "default_publish_enabled": false
+    },
+    {
+      "key": "linkedin",
+      "family": "professional_social",
+      "intent": "decision_support",
+      "verification": "substantive_claims",
+      "owner_customizable": true,
+      "default_publish_enabled": false
+    },
+    {
+      "key": "facebook",
+      "family": "community_social",
+      "intent": "conversation",
+      "verification": "community_policy",
+      "owner_customizable": true,
+      "default_publish_enabled": false
+    },
+    {
+      "key": "instagram",
+      "family": "visual_social",
+      "intent": "short_caption_or_carousel",
+      "verification": "image_rights",
+      "owner_customizable": true,
+      "default_publish_enabled": false
+    },
+    {
+      "key": "x",
+      "family": "short_social",
+      "intent": "compact_idea",
+      "verification": "platform_limits_at_publish_time",
+      "owner_customizable": true,
+      "default_publish_enabled": false
+    },
+    {
+      "key": "tiktok",
+      "family": "short_video",
+      "intent": "hook_and_demonstration",
+      "verification": "video_rights",
+      "owner_customizable": true,
+      "default_publish_enabled": false
+    },
+    {
+      "key": "youtube",
+      "family": "video",
+      "intent": "tutorial_story_or_demo",
+      "verification": "script_and_media_rights",
+      "owner_customizable": true,
+      "default_publish_enabled": false
+    },
+    {
+      "key": "email",
+      "family": "lifecycle_message",
+      "intent": "one_clear_purpose",
+      "verification": "consent_and_unsubscribe",
+      "owner_customizable": true,
+      "default_publish_enabled": false
+    },
+    {
+      "key": "whatsapp",
+      "family": "direct_message",
+      "intent": "service_or_consent_based_dialogue",
+      "verification": "opt_in_and_template_policy",
+      "owner_customizable": true,
+      "default_publish_enabled": false
+    },
+    {
+      "key": "press",
+      "family": "earned_media",
+      "intent": "newsworthiness",
+      "verification": "fact_checks_and_quote_approval",
+      "owner_customizable": true,
+      "default_publish_enabled": false
+    },
+    {
+      "key": "sales_deck",
+      "family": "private_sales_enablement",
+      "intent": "objection_to_evidence",
+      "verification": "pricing_and_claim_freshness",
+      "owner_customizable": true,
+      "default_publish_enabled": false
+    },
+    {
+      "key": "communities",
+      "family": "community_answer",
+      "intent": "genuine_help",
+      "verification": "no_spam",
+      "owner_customizable": true,
+      "default_publish_enabled": false
+    },
+    {
+      "key": "webinar",
+      "family": "live_education",
+      "intent": "demonstration_and_qa",
+      "verification": "speaker_review",
+      "owner_customizable": true,
+      "default_publish_enabled": false
+    }
+  ],
+  "content_goal_definition": {
+    "required": [
+      "goal_id",
+      "stage_ref",
+      "metric_ref",
+      "audience_ref",
+      "proof_policy_ref",
+      "owner_ref"
+    ],
+    "cross_channel_measurement": true,
+    "metric_definition_required": true
+  },
+  "planning_model": {
+    "strategy_ref": null,
+    "brand_ref": null,
+    "audience_ref": null,
+    "persona_ref": null,
+    "funnel_stage_ref": null,
+    "pillar_ref": null,
+    "tactic_refs": [],
+    "content_goal_ref": null,
+    "claim_references": [],
+    "language_ref": null
+  },
+  "rule": "Stage, pillar, tactic, format, channel and KPI are independent axes. Their mapping is context-specific, not an inferred fixed matrix.",
+  "audience_identity": "segment_aggregates_only_no_personal_records",
+  "status_migration": "REVIEW_REQUIRED"
+}
