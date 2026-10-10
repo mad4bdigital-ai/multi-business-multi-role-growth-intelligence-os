@@ -154,7 +154,7 @@ jobs:
   alert:
     name: OpenAPI guard alert lifecycle
     needs: guard
-    if: ${{ always() && github.ref_name == github.event.repository.default_branch }}
+    if: ${{ always() && github.event_name == 'push' && github.ref == 'refs/heads/main' }}
     environment:
       name: Production
       deployment: false
@@ -162,6 +162,7 @@ jobs:
     permissions:
       actions: read
       contents: read
+      issues: write
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
 
@@ -260,3 +261,104 @@ jobs:
               throw new Error(`CI guard SQL ingestion failed with HTTP ${response.status}: ${result?.error?.code || "unknown_error"}`);
             }
             core.info(`SQL guard signal stored: event=${result?.event?.event_id || "unknown"}, alert=${result?.alert?.alert_id || "none"}, slo=${result?.slo?.overall_status || "unknown"}.`);
+
+      - name: Open, update, or resolve the OpenAPI guard incident
+        continue-on-error: true
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+        env:
+          GUARD_RESULT: ${{ needs.guard.result }}
+          OUTCOME_CLASSIFICATION: ${{ steps.classify.outputs.outcome_classification }}
+          SUPERSEDING_RUN_URL: ${{ steps.classify.outputs.superseding_run_url }}
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const expected_head_sha = context.sha;
+            async function verifyFreshHead() {
+              const { data: currentHead } = await github.rest.repos.getBranch({ owner, repo, branch: "main" });
+              if (context.eventName !== "push"
+                  || context.ref !== "refs/heads/main"
+                  || currentHead.commit.sha !== expected_head_sha) {
+                throw new Error("guard_incident_expected_head_sha_mismatch");
+              }
+            }
+            await verifyFreshHead();
+            const marker = "<!-- openapi-response-object-guard-alert -->";
+            const title = "[OpenAPI Guard] Custom GPT Contract Guard failing";
+            const guardResult = process.env.GUARD_RESULT || "unknown";
+            const outcomeClassification = process.env.OUTCOME_CLASSIFICATION || guardResult;
+            const runUrl = `${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`;
+            const observedAt = new Date().toISOString();
+
+            if (outcomeClassification === "cancelled_due_to_superseding_run") {
+              core.info(`Superseded cancellation is neutral; no OpenAPI guard incident mutation will occur. Superseding run: ${process.env.SUPERSEDING_RUN_URL || "unknown"}.`);
+              return;
+            }
+
+            const openIssues = await github.paginate(github.rest.issues.listForRepo, {
+              owner,
+              repo,
+              state: "open",
+              per_page: 100,
+            });
+            const matches = openIssues.filter((issue) =>
+              !issue.pull_request
+              && issue.title === title
+              && (issue.body || "").includes(marker),
+            );
+
+            if (guardResult === "success") {
+              for (const issue of matches) {
+                await verifyFreshHead();
+                await github.rest.issues.createComment({
+                  owner,
+                  repo,
+                  issue_number: issue.number,
+                  body: `Recovered after a successful default-branch guard run: ${runUrl}`,
+                });
+                await verifyFreshHead();
+                await github.rest.issues.update({
+                  owner,
+                  repo,
+                  issue_number: issue.number,
+                  state: "closed",
+                  state_reason: "completed",
+                });
+              }
+              core.info(matches.length > 0
+                ? `Closed ${matches.length} OpenAPI guard alert issue(s).`
+                : "No open OpenAPI guard alert issue required resolution.");
+              return;
+            }
+
+            const body = `${marker}
+            ## OpenAPI Response Object guard alert
+
+            The default-branch **Custom GPT Contract Guard** did not succeed.
+
+            - Result: **${guardResult}**
+            - Classification: **${outcomeClassification}**
+            - Observed: ${observedAt}
+            - Workflow run: ${runUrl}
+            - Ref: \`${context.ref}\`
+            - Commit: \`${context.sha}\`
+
+            Follow \`docs/openapi-response-object-guard-runbook.md\` before changing generated schemas.`;
+
+            if (matches.length > 0) {
+              const issue = matches[0];
+              await verifyFreshHead();
+              await github.rest.issues.update({ owner, repo, issue_number: issue.number, body });
+              await verifyFreshHead();
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: issue.number,
+                body: `Failure observed again: ${runUrl}`,
+              });
+              core.warning(`Updated OpenAPI guard alert issue #${issue.number}.`);
+              return;
+            }
+
+            const created = await github.rest.issues.create({ owner, repo, title, body });
+            core.warning(`Created OpenAPI guard alert issue #${created.data.number}.`);

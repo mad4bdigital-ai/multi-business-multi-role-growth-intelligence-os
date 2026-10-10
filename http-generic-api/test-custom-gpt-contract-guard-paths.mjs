@@ -32,21 +32,20 @@ for (const eventName of ["pull_request", "push"]) {
   }
 }
 
-// Pull-request checks must remain read-only. Backend SQL signals remain in
-// the original Production-bound job; GitHub Issue mutations require explicit dispatch.
-assert.match(workflowSource, /name: Classify and ingest SQL operational signal/);
-assert.doesNotMatch(workflowSource, /issues:\s*write/);
-assert.doesNotMatch(workflowSource, /github\.rest\.issues\.(?:create|update|delete)/);
-const incidentSource = await readFile(
-  new URL("../.github/workflows/custom-gpt-guard-incident-governed.yml", import.meta.url),
-  "utf8",
-);
-const incidentWorkflow = parse(incidentSource);
-assert.ok(incidentWorkflow?.on?.workflow_dispatch?.inputs?.expected_head_sha);
-assert.ok(incidentWorkflow?.on?.workflow_dispatch?.inputs?.source_run_id);
-assert.ok(incidentWorkflow?.on?.workflow_dispatch?.inputs?.confirmation);
-assert.equal(incidentWorkflow?.on?.pull_request, undefined);
-assert.match(incidentSource, /incident_writer_expected_head_sha_or_source_run_mismatch/);
-assert.match(incidentSource, /github\.rest\.issues\.(?:create|update)/);
-assert.match(incidentSource, /environment:\n      name: Production\n      deployment: false/);
-console.log("custom GPT Contract Guard path and incident write separation passed");
+// Retain automatic incident handling only for main-branch push events.
+// Pull requests must never gain Issue write privileges or Production mutation.
+const guardJob = workflow.jobs?.guard;
+const incidentJob = workflow.jobs?.alert;
+assert.ok(guardJob && incidentJob, "contract guard and incident lifecycle jobs must both exist");
+assert.equal(guardJob.permissions?.issues, undefined, "pull-request guard must not hold Issue write permission");
+assert.equal(incidentJob.permissions?.issues, "write", "main-only alert must retain Issue lifecycle operations");
+assert.equal(incidentJob.if, "${{ always() && github.event_name == 'push' && github.ref == 'refs/heads/main' }}",
+  "incident writer must have an exact main-only push condition");
+assert.match(workflowSource, /guard_incident_expected_head_sha_mismatch/);
+assert.match(workflowSource, /const expected_head_sha = context\.sha/);
+assert.match(workflowSource, /github\.rest\.repos\.getBranch/);
+assert.match(workflowSource, /currentHead\.commit\.sha !== expected_head_sha/);
+assert.match(workflowSource, /await github\.rest\.issues\.(?:create|update|createComment)/);
+assert.equal((workflowSource.match(/await verifyFreshHead\(\);/g) || []).length >= 5, true,
+  "every GitHub Issue write must recheck exact current HEAD");
+console.log("custom GPT Contract Guard path coverage and push-only incident governance passed");
