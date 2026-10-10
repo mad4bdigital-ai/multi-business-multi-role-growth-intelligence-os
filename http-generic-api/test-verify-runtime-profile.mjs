@@ -19,17 +19,21 @@ assert.equal(productionJob.split('BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }
 assert(!workflow.includes('cat inspect.json') && !workflow.includes('| tee inspect.json'), 'authenticated runtime payloads must never be echoed to GitHub Actions logs');
 
 const probeMarker = 'Protected Backend credential probe: HTTP';
+assert.equal(workflow.split('runtime_backend_auth_probe_not_protected').length - 1, 2,
+  'both environments must reject an auth probe endpoint that is publicly accessible');
+assert.equal(workflow.split('unauth_http_status=').length - 1, 2,
+  'both environments must check a no-credential control before sending a Backend key');
 assert.equal(workflow.split(probeMarker).length - 1, 2, 'Staging and Production must both authenticate against a protected Backend endpoint');
 assert.equal(workflow.split('runtime_backend_api_key_missing').length - 1, 2, 'both jobs must reject missing credentials');
 assert.equal(workflow.split('runtime_backend_auth_rejected').length - 1, 2, 'both jobs must reject 401 and 403');
 assert.equal(workflow.split('runtime_backend_redirect_rejected').length - 1, 2, 'both jobs must reject redirects');
 assert.equal(workflow.split('runtime_backend_protected_probe_failed').length - 1, 2, 'both jobs must reject non-2xx protected responses');
-assert.equal(workflow.split("--max-redirs 0").length - 1, 2, 'both backend probes must disable redirects');
-assert.equal(workflow.split('-o /dev/null').length - 1, 2, 'backend response bodies must not be stored or printed');
+assert.equal(workflow.split("--max-redirs 0").length - 1, 4, 'both authenticated and unauthenticated probes must disable redirects');
+assert.equal(workflow.split('-o /dev/null').length - 1, 4, 'no negative-control or authenticated backend response body may be stored or printed');
 assert(!workflow.includes('-o inspect.json'), 'protected Backend response must never be written to checkout');
 
 assert.equal(workflow.split(probeMarker).length - 1, 2, 'both Staging and Production inspection jobs must log bounded successful status only');
-assert.equal(workflow.split("--proto '=https'").length - 1, 2, 'both authenticated inspection probes must reject non-HTTPS protocols');
+assert.equal(workflow.split("--proto '=https'").length - 1, 4, 'both negative control and authenticated probes must reject non-HTTPS protocols');
 assert(workflow.includes('runtime_profile:'), 'Verify Runtime workflow must expose runtime_profile input');
 assert(workflow.includes('default: "api_only"'), 'Verify Runtime workflow must default to api_only profile');
 assert(workflow.includes('EXPECT_QUEUE_AVAILABLE: ${{ inputs.expect_queue_available }}'), 'workflow must pass queue expectation to script');

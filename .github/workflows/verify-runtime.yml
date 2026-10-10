@@ -108,6 +108,19 @@ jobs:
           BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
         run: |
           set -euo pipefail
+          # Negative control: an unauthenticated request MUST be rejected by the
+          # same read-only endpoint used to verify the configured credential.
+          unauth_http_status="$(curl --silent --show-error --max-time 15 --proto '=https' --max-redirs 0 \
+            -o /dev/null -w '%{http_code}' \
+            -H "Content-Type: application/json" \
+            "${RUNTIME_BASE_URL}/governance/execution-log-latest-inspect")"
+          case "${unauth_http_status}" in
+            401|403) ;;
+            *)
+              echo "::error title=Backend authentication::error_code=runtime_backend_auth_probe_not_protected;http_status=${unauth_http_status}" >&2
+              exit 1
+              ;;
+          esac
           if [[ -z "${BACKEND_API_KEY:-}" ]]; then
             echo "::error title=Backend authentication::error_code=runtime_backend_api_key_missing" >&2
             exit 1
@@ -211,6 +224,19 @@ jobs:
           BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
         run: |
           set -euo pipefail
+          # Negative control: an unauthenticated request MUST be rejected by the
+          # same read-only endpoint used to verify the configured credential.
+          unauth_http_status="$(curl --silent --show-error --max-time 15 --proto '=https' --max-redirs 0 \
+            -o /dev/null -w '%{http_code}' \
+            -H "Content-Type: application/json" \
+            "${RUNTIME_BASE_URL}/governance/execution-log-latest-inspect")"
+          case "${unauth_http_status}" in
+            401|403) ;;
+            *)
+              echo "::error title=Backend authentication::error_code=runtime_backend_auth_probe_not_protected;http_status=${unauth_http_status}" >&2
+              exit 1
+              ;;
+          esac
           if [[ -z "${BACKEND_API_KEY:-}" ]]; then
             echo "::error title=Backend authentication::error_code=runtime_backend_api_key_missing" >&2
             exit 1
