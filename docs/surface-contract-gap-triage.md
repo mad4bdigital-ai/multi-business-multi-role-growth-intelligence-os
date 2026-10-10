@@ -4,22 +4,25 @@
 
 ## Summary
 
-- Triaged items: 10
-- Gate candidates: 6
+- Triaged items: 13
+- Gate candidates: 9
 - New-gap gate: fail
-- Blocking new items: 7
+- Blocking new items: 10
 
 ## Class counts
 
-- new_surface_immediate_review: 6
+- new_surface_immediate_review: 9
 - safety_marker_review: 3
 - standard_backlog_review: 1
 
 ## Immediate review candidates
 
-- `20260808_github_issue_comment_dispatch_parity.sql` — critical_review, score 908; next: classify route-like strings, then add OpenAPI contract or false-positive exemption
+- `20260808_github_issue_comment_dispatch_parity.sql` — critical_review, score 907; next: classify route-like strings, then add OpenAPI contract or false-positive exemption
 - `20260810_github_issue_comment_exact_response_parity.sql` — critical_review, score 906; next: classify route-like strings, then add OpenAPI contract or false-positive exemption
 - `20260812_repository_reconciliation_admin_apply_activation.sql` — critical_review, score 861; next: add targeted patch-index, parity, and governance documentation
-- `20260815_custom_gpt_mcp_catalog_levels.sql` — critical_review, score 850; next: add targeted patch-index, parity, and governance documentation
+- `20261007_credential_platform_binding_policy.sql` — critical_review, score 850; next: add targeted patch-index, parity, and governance documentation
+- `20260815_custom_gpt_mcp_catalog_levels.sql` — critical_review, score 849; next: add targeted patch-index, parity, and governance documentation
+- `20261008_admin_local_connector_target_catalog_alignment.sql` — critical_review, score 751; next: add targeted patch-index, parity, and governance documentation
+- `20261009_hostinger_recovery_allowlist_discovery.sql` — critical_review, score 751; next: add targeted patch-index, parity, and governance documentation
 - `1038_sprint69_github_actions_workflow_control_dispatch.sql` — high_review, score 655; next: add targeted patch-index, parity, and governance documentation
 - `1030_sprint69_default_blocker_recovery_governance_seed.sql` — high_review, score 477; next: add targeted patch-index, parity, and governance documentation
