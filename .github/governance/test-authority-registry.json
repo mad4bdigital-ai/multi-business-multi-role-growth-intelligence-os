@@ -58,7 +58,8 @@
         "http-generic-api/scripts/test-github-review-policy-target.mjs",
         "http-generic-api/test-github-repository-policy-1050-governed-rollout.mjs",
         "http-generic-api/test-github-repository-policy-1051-metadata-state.mjs",
-        "http-generic-api/test-github-repository-policy-live-activation-contract.mjs"
+        "http-generic-api/test-github-repository-policy-live-activation-contract.mjs",
+        "http-generic-api/test-github-repository-policy-controller.mjs"
       ]
     },
     {
@@ -357,7 +358,8 @@
         "http-generic-api/test-derived-state-converged-automerge-source-event.mjs",
         "http-generic-api/test-repo-maintenance-sync.mjs",
         "http-generic-api/test-supervisor-runtime-assurance-automation.mjs",
-        "http-generic-api/test-surface-contract-auto-remediation.mjs"
+        "http-generic-api/test-surface-contract-auto-remediation.mjs",
+        "http-generic-api/test-github-finalizer-any-source-guard.mjs"
       ]
     },
     {
