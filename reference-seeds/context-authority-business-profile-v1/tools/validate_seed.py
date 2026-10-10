@@ -42,7 +42,7 @@ def validate(root=ROOT):
         if manifest.get(key) != val:
             faults.append("unsafe_manifest:" + key)
     paths = manifest.get("files", [])
-    if not isinstance(paths, list) or len(paths) != 37 or len(paths) != len(set(paths)):
+    if not isinstance(paths, list) or len(paths) != 41 or len(paths) != len(set(paths)):
         faults.append("invalid_manifest_file_list")
         paths = []
     for rel in paths:
@@ -159,6 +159,31 @@ def validate(root=ROOT):
             faults.append("deployment_modes_implicitly_authorized")
     except (OSError, json.JSONDecodeError):
         faults.append("deployment_mode_contract_missing")
+    try:
+        dep = read(root, "deployment-dependency-graph.json")
+        names = {"shared_multi_tenant", "dedicated_isolated", "dedicated_autonomous", "wordpress_dedicated"}
+        if dep.get("contract") != "mad4b.context-deployment-dependencies.v1" or set(dep.get("modes", {})) != names:
+            faults.append("deployment_dependency_modes")
+        bridge = dep.get("plugin_adapter", {})
+        if (bridge.get("contract") != "mad4b.deployment-mode-resolution.v1" or
+            bridge.get("supported_major") != 1 or bridge.get("min_minor") != 1 or
+            bridge.get("required_plugin_state") != "RESOLVED_FOR_REVIEW_ONLY"):
+            faults.append("wordpress_adapter_version_policy")
+        status = dep.get("dependency_failure", {})
+        if (status.get("missing_identity") != "BLOCKED" or status.get("missing_optional") != "CAPABILITY_UNAVAILABLE_ONLY" or
+            status.get("missing_discovery") != "DISCOVERY_BLOCKED_ONLY"):
+            faults.append("deployment_dependency_failure_policy")
+        invariant = dep.get("invariant", {})
+        if any(invariant.get(key) is not True for key in (
+            "no_default_mode_auto_switch", "provider_absence_cannot_change_tenant",
+            "provider_absence_cannot_change_brand", "dependency_success_does_not_grant_write"
+        )):
+            faults.append("deployment_dependency_isolation_policy")
+        required = dep.get("modes", {}).get("wordpress_dedicated", {}).get("required_identity", [])
+        if not all(item in required for item in ("site_profile","bound_deployment_identity","brand_context_profile","wordpress_blog_network_identity")):
+            faults.append("wordpress_dedicated_identity_requirements")
+    except (OSError, ValueError):
+        faults.append("deployment_dependency_graph_invalid")
     return sorted(set(faults))
 
 if __name__ == "__main__":

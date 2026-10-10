@@ -1,7 +1,7 @@
 {
   "contract": "mad4b.reference.business-context.seed.v1",
   "seed_key": "reference.context_authority_business_profile",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "status": "DRAFT_NON_AUTHORIZING",
   "artifact_type": "portable_reference_seed",
   "scope": "general_any_business",
@@ -54,7 +54,11 @@
     "deployment-mode-contract.json",
     "runtime/resolve-deployment-context.mjs",
     "runtime/resolve-deployment-context.test.mjs",
-    "docs/deployment-modes-architecture.md"
+    "docs/deployment-modes-architecture.md",
+    "deployment-dependency-graph.json",
+    "runtime/deployment-dependency-evaluator.mjs",
+    "runtime/deployment-dependency-evaluator.test.mjs",
+    "docs/dependency-closure-v061.md"
   ],
   "acceptance_state": "NOT_RUN",
   "installed_state": "NOT_INSTALLED",
@@ -70,5 +74,7 @@
   "native_integrated_acceptance": "NOT_RUN_ON_PINNED_HEAD",
   "deployment_modes": "FOUR_FIRST_CLASS_VARIANTS",
   "wordpress_dedicated_mode": "ADAPTER_IMPLEMENTED_ON_WORDPRESS_PR258_PENDING_NATIVE_STAGING_ACCEPTANCE",
-  "native_deployment_modes_acceptance": "NOT_RUN_ON_PINNED_HEAD"
+  "native_deployment_modes_acceptance": "NOT_RUN_ON_PINNED_HEAD",
+  "dependency_closure": "IDENTITY_DISCOVERY_OPTIONAL_PROVIDER_SEPARATION",
+  "wordpress_cross_repo_native_acceptance": "NOT_RUN_ON_PINNED_PAIR"
 }
