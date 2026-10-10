@@ -3,17 +3,20 @@ const LIMITS = Object.freeze({bytes:2_000_000,rows:5000,columns:64,cell:4096});
 const PRIVATE = /(?:-----BEGIN [A-Z ]*PRIVATE KEY-----|\b(?:api[_\s-]?key|client[_\s-]?secret|password|bearer|authorization|access[_\s-]?token|refresh[_\s-]?token)\s*(?:[:=]|\s+)\s*['"]?[A-Za-z0-9_./+\-=]{5,})/i;
 const EMAIL = /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i;
 const FORMULA = /^[\s\u0000-\u001f]*[=+\-@]/;
-const HAZARD_HEADERS = /(?:password|secret|token|api[ _-]?key|access[ _-]?key|e-?mail|phone|passport|national[ _-]?id|birth[ _-]?date|dob|authorization)/i;
+const HAZARD_HEADERS = /(?:password|secret|token|api[ _-]?key|access[ _-]?key|passport|national[ _-]?id|birth[ _-]?date|dob|authorization)|^(?:email|e-mail|email address|contact email|customer email|phone|phone number|customer phone)$/i;
 function fail(code) { throw new Error(code); }
 const name = s => String(s ?? '').normalize('NFKC').trim().toLocaleLowerCase('en').replace(/[\s_\-]+/g,' ');
 function boundedText(input){ if(typeof input!=='string')fail('TEXT_REQUIRED'); if(BufferByteLength(input)>LIMITS.bytes) fail('INPUT_BYTES_LIMIT'); return input.replace(/^\uFEFF/,''); }
 function BufferByteLength(input){return new TextEncoder().encode(input).length;}
 /** RFC4180-style CSV with strict quote placement, BOM, CRLF and deterministic limits. */
 export function strictParseCsv(text,options={}) {
-  if(options.maxBytes!==undefined && BufferByteLength(text)>Math.min(LIMITS.bytes,options.maxBytes))fail('INPUT_SIZE_LIMIT');
+  const bounded=(key,def)=>{const v=options[key];if(v===undefined)return def;if(!Number.isInteger(v)||v<1)fail('INVALID_LIMIT');return Math.min(def,v);};
+  const bytes=bounded('maxBytes',LIMITS.bytes),rowCap=bounded('maxRows',LIMITS.rows),colCap=bounded('maxColumns',LIMITS.columns),cellCap=bounded('maxCellLength',LIMITS.cell);
+  if(typeof text!=='string')fail('TEXT_REQUIRED');
+  if(BufferByteLength(text)>bytes)fail(options.maxBytes===undefined?'INPUT_BYTES_LIMIT':'INPUT_SIZE_LIMIT');
   text=boundedText(text); const rows=[];let cells=[],v='',quoted=false,closed=false,started=false;
-  const emitCell=()=>{if(v.length>LIMITS.cell)fail('CELL_LIMIT');cells.push(v);if(cells.length>LIMITS.columns)fail('COLUMN_LIMIT');v='';started=false;closed=false;};
-  const emitRow=()=>{emitCell();if(cells.some(x=>x!==''))rows.push(cells);cells=[];if(rows.length>LIMITS.rows+1)fail('ROW_LIMIT');};
+  const emitCell=()=>{if(v.length>cellCap)fail('CELL_LIMIT');cells.push(v);if(cells.length>colCap)fail('COLUMN_LIMIT');v='';started=false;closed=false;};
+  const emitRow=()=>{emitCell();if(cells.some(x=>x!==''))rows.push(cells);cells=[];if(rows.length>rowCap+1)fail('ROW_LIMIT');};
   for(let i=0;i<text.length;i++){
     const ch=text[i];
     if(quoted){ if(ch==='"'){if(text[i+1]==='"'){v+='"';i++;}else{quoted=false;closed=true;}}else v+=ch; }
@@ -23,7 +26,7 @@ export function strictParseCsv(text,options={}) {
       if(v!==''||started||closed)fail('CSV_INVALID_QUOTE');quoted=true;started=true;
     } else if(closed){ if(ch!==' '&&ch!=='\t')fail('CSV_TRAILING_CHAR_AFTER_QUOTE'); }
     else {v+=ch;started=true;}
-    if(v.length>LIMITS.cell)fail('CELL_LIMIT');
+    if(v.length>cellCap)fail('CELL_LIMIT');
   }
   if(quoted)fail('CSV_UNCLOSED_QUOTE');
   if(v!==''||cells.length||started||closed)emitRow();
