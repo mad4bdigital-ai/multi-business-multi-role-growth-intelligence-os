@@ -1484,8 +1484,8 @@ test("generator plan-only mode inventories the exact migration chain", () => {
   // The catalog trust proposal adds exactly two independently named, inert
   // staging-only tables; keep explicit coverage instead of weakening census checks.
   const capcatMigrationSql=fs.readFileSync(path.join(migrationsDir,"966_capability_catalog_trust_authority.sql"),"utf8");
-  assert.match(capcatMigrationSql,/CREATE TABLE IF NOT EXISTS platform_capability_catalog_keys\\s*\\(/u);
-  assert.match(capcatMigrationSql,/CREATE TABLE IF NOT EXISTS platform_capability_catalog_consumed_nonces\\s*\\(/u);
+  assert.match(capcatMigrationSql,/CREATE TABLE IF NOT EXISTS platform_capability_catalog_keys\s*\(/u);
+  assert.match(capcatMigrationSql,/CREATE TABLE IF NOT EXISTS platform_capability_catalog_consumed_nonces\s*\(/u);
   const expectedIndexProjectedTables = 588 + 2 + 2; // Local Manager two + Capability Catalog two.
   assert.equal(plan.ordered_index_key_width_chain.tables_projected, expectedIndexProjectedTables);
   const localManagerIndexSql = [
