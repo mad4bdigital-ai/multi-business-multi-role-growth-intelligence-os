@@ -820,7 +820,8 @@
     "**/*.test.mjs",
     "**/*.test.js",
     "**/*.test.ts",
-    "**/*.test.tsx"
+    "**/*.test.tsx",
+    "reference-seeds/context-authority-business-profile-v1/tools/test_*.py"
   ],
   "governed_exclusions": [],
   "invariants": [
