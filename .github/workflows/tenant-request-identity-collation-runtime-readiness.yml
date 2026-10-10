@@ -7,14 +7,16 @@ on:
 permissions:
   contents: read
 
-jobs:
-  runtime-readiness:
+jobs:  runtime-readiness:
     name: Verify tenant-request identity collation migration readiness
     if: >-
       github.event.issue.number == 4449 &&
       !github.event.issue.pull_request &&
       github.event.comment.body == 'VERIFY_20260808_TENANT_REQUEST_IDENTITY_COLLATION_READINESS' &&
       contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
+    environment:
+      name: Production
+      deployment: false
     runs-on: ubuntu-latest
     timeout-minutes: 20
     concurrency:

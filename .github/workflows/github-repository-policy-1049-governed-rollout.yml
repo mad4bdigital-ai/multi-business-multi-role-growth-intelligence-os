@@ -74,8 +74,7 @@ on:
 permissions:
   contents: read
 
-jobs:
-  runtime_recovery:
+jobs:  runtime_recovery:
     name: Execute one protected exact-head runtime recovery phase
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-24.04
@@ -186,6 +185,9 @@ jobs:
       !github.event.issue.pull_request &&
       github.event.comment.body == 'AUTHORIZE_GOVERNED_MIGRATION_1049_GITHUB_REPOSITORY_POLICY_SINGLE_OWNER_MODE' &&
       contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
+    environment:
+      name: Production
+      deployment: false
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 35
     concurrency:
@@ -226,6 +228,9 @@ jobs:
       !github.event.issue.pull_request &&
       github.event.comment.body == 'APPLY_1049_GITHUB_REPOSITORY_POLICY_SINGLE_OWNER_MODE' &&
       contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
+    environment:
+      name: Production
+      deployment: false
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 40
     concurrency:
@@ -266,6 +271,9 @@ jobs:
       !github.event.issue.pull_request &&
       github.event.comment.body == 'VERIFY_GOVERNED_MIGRATION_1049_GITHUB_REPOSITORY_POLICY_SINGLE_OWNER_MODE' &&
       contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
+    environment:
+      name: Production
+      deployment: false
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 35
     concurrency:

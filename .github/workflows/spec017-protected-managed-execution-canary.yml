@@ -11,8 +11,7 @@ concurrency:
   group: spec017-protected-managed-execution-canary-${{ github.event.comment.id || github.run_id }}
   cancel-in-progress: false
 
-jobs:
-  canary:
+jobs:  canary:
     name: Exercise protected tenant/admin managed execution lifecycle
     if: >-
       github.event.issue.pull_request != null &&
@@ -21,6 +20,9 @@ jobs:
     permissions:
       contents: read
       pull-requests: read
+    environment:
+      name: Production
+      deployment: false
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 15
     env:

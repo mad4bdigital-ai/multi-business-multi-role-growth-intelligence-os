@@ -117,8 +117,7 @@ concurrency:
   group: custom-gpt-contract-guard-${{ github.ref }}
   cancel-in-progress: true
 
-jobs:
-  guard:
+jobs:  guard:
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -155,6 +154,9 @@ jobs:
     name: OpenAPI guard alert lifecycle
     needs: guard
     if: ${{ always() && github.ref_name == github.event.repository.default_branch }}
+    environment:
+      name: Production
+      deployment: false
     runs-on: ubuntu-latest
     permissions:
       actions: read

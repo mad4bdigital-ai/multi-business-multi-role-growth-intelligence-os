@@ -11,13 +11,15 @@ concurrency:
   group: tenant-request-identity-collation-readonly-diagnostic
   cancel-in-progress: false
 
-jobs:
-  diagnostic:
+jobs:  diagnostic:
     if: >-
       github.event.issue.number == 4449 &&
       !github.event.issue.pull_request &&
       contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association) &&
       github.event.comment.body == 'RUN_READ_ONLY_DIAGNOSTIC_20260808_TENANT_REQUEST_IDENTITY_COLLATION_ALIGNMENT'
+    environment:
+      name: Production
+      deployment: false
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     env:
