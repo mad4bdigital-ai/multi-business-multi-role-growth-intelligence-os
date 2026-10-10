@@ -107,13 +107,34 @@ jobs:
           RUNTIME_BASE_URL: ${{ inputs.runtime_base_url }}
           BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
         run: |
-          http_status="$(curl -sS --max-time 15 --proto '=https' \
-            -o inspect.json -w '%{http_code}' \
+          set -euo pipefail
+          if [[ -z "${BACKEND_API_KEY:-}" ]]; then
+            echo "::error title=Backend authentication::error_code=runtime_backend_api_key_missing" >&2
+            exit 1
+          fi
+          http_status="$(curl --silent --show-error --max-time 15 --proto '=https' --max-redirs 0 \
+            -o /dev/null -w '%{http_code}' \
             -H "Authorization: Bearer ${BACKEND_API_KEY}" \
             -H "Content-Type: application/json" \
             "${RUNTIME_BASE_URL}/governance/execution-log-latest-inspect")"
-          echo "Execution-log inspection HTTP status: ${http_status}"
-          # Keep response payload off GitHub Actions logs: it may contain private runtime data.
+          case "${http_status}" in
+            2??)
+              echo "Protected Backend credential probe: HTTP ${http_status}"
+              ;;
+            401|403)
+              echo "::error title=Backend authentication::error_code=runtime_backend_auth_rejected;http_status=${http_status}" >&2
+              exit 1
+              ;;
+            3??)
+              echo "::error title=Backend authentication::error_code=runtime_backend_redirect_rejected;http_status=${http_status}" >&2
+              exit 1
+              ;;
+            *)
+              echo "::error title=Backend authentication::error_code=runtime_backend_protected_probe_failed;http_status=${http_status}" >&2
+              exit 1
+              ;;
+          esac
+          # No response body, Authorization header, or credential value reaches Actions logs.
 
       - name: Run patch-vs-runtime verification
         working-directory: http-generic-api
@@ -189,13 +210,34 @@ jobs:
           RUNTIME_BASE_URL: ${{ inputs.runtime_base_url }}
           BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
         run: |
-          http_status="$(curl -sS --max-time 15 --proto '=https' \
-            -o inspect.json -w '%{http_code}' \
+          set -euo pipefail
+          if [[ -z "${BACKEND_API_KEY:-}" ]]; then
+            echo "::error title=Backend authentication::error_code=runtime_backend_api_key_missing" >&2
+            exit 1
+          fi
+          http_status="$(curl --silent --show-error --max-time 15 --proto '=https' --max-redirs 0 \
+            -o /dev/null -w '%{http_code}' \
             -H "Authorization: Bearer ${BACKEND_API_KEY}" \
             -H "Content-Type: application/json" \
             "${RUNTIME_BASE_URL}/governance/execution-log-latest-inspect")"
-          echo "Execution-log inspection HTTP status: ${http_status}"
-          # Keep response payload off GitHub Actions logs: it may contain private runtime data.
+          case "${http_status}" in
+            2??)
+              echo "Protected Backend credential probe: HTTP ${http_status}"
+              ;;
+            401|403)
+              echo "::error title=Backend authentication::error_code=runtime_backend_auth_rejected;http_status=${http_status}" >&2
+              exit 1
+              ;;
+            3??)
+              echo "::error title=Backend authentication::error_code=runtime_backend_redirect_rejected;http_status=${http_status}" >&2
+              exit 1
+              ;;
+            *)
+              echo "::error title=Backend authentication::error_code=runtime_backend_protected_probe_failed;http_status=${http_status}" >&2
+              exit 1
+              ;;
+          esac
+          # No response body, Authorization header, or credential value reaches Actions logs.
 
       - name: Run patch-vs-runtime verification
         working-directory: http-generic-api
