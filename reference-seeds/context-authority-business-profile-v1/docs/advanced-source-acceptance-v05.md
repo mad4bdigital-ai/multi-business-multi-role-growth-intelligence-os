@@ -13,7 +13,7 @@ Status: **DRAFT / NON-AUTHORIZING**. The seed remains standalone and sector-neut
 
 ## Offline evidence
 
-- The byte-identical `context-source-guard.mjs` and `context-source-guard.test.mjs` fetched from the PR were tested locally with Node: **18/18 PASS**, independently matched using their Git blob SHA-1 object IDs.
+- The byte-identical `context-source-guard.mjs` and `context-source-guard.test.mjs` fetched from the PR were tested locally with Node: **22/22 PASS**, independently matched using their Git blob SHA-1 object IDs. Additional 8/8 cross-module V8 checks exercised source taint, source revision uncertainty, scoped receipt binding, and editorial quarantine. V8 is not a substitute for native Node acceptance of the whole PR.
 - A separate V8 synthetic integration exercise of portable runtime entry points passed **9/9** before the final mandatory tenant/brand receipt tightening. The full native Node runtime suite still needs execution against the final pinned HEAD.
 - The previous generic local PDF/DOCX/image auditor passed four native unit cases, and its bounded follow-up implementation was run on a **private selected set of 76 assets** (22 PDFs, 47 images, 7 DOCX): 124 PDF pages, 67 without text layer, zero render failures, zero quarantined files.
 - Heuristic text signals in this selected set identified 7 unfinished-feature markers, 3 percentage-based claims needing evidence and 1 sensitive configuration-field mention. These are **flags**, not verified defects or secrets. No source strings or private source IDs are included.
@@ -36,3 +36,9 @@ This invokes seven existing Python/Node suites, requires the local Git HEAD to m
 5. Bind and prove a provider-specific read-only staging integration, exact environment and source revisions; browser and publication remain separately authorized.
 
 No merge, production promotion, site write, source mutation or transfer of customer documents occurred.
+
+## Hardened source-as-data boundary
+
+The portable importer and persona adapter label all imported text as `UNTRUSTED_DATA` with `instruction_authority=false`; the source-provided revision stays externally unverified. The editorial-review path now quarantines obvious credential and personal-email content without truncating legitimate long-form bodies to the shorter CSV-cell limit. These are heuristic admission filters, **not** a guarantee that all private information or prompt injection is detectable; no source text becomes an instruction authority.
+
+Provider-facing source ingestion must not treat historical documentation, embedded prompts, asserted `APPROVED` states or marketing copy as evidence of current product capabilities. Exact-tenant/brand/site readback is required before any future runtime promotion.
