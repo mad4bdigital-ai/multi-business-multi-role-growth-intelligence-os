@@ -64,6 +64,7 @@ assert.match(readiness, /safe_to_register_auto_merge: false/, "native auto-merge
 assert.match(workflow, /error_code=attestation_transport_failed/, "transport failure must have a nonsecret, typed diagnostic");
 assert.match(workflow, /error_code=attestation_http_status_invalid/, "invalid HTTP response must fail closed");
 assert.match(workflow, /error_code=attestation_response_contract_mismatch/, "invalid successful response must fail closed with typed diagnostic");
+assert.match(workflow, /error_code=attestation_identity_readback_missing/, "attestor and same-cycle status identities must be present");
 assert.match(workflow, /http_status=%s error_code=%s/, "non-200 errors must expose only bounded status and machine code");
 assert.match(workflow, /\^\[a-z\]\[a-z0-9_\]\{2,127\}\$/, "server error codes must be allowlisted before logging");
 assert.doesNotMatch(workflow, /printf[^\n]*(?:\$response|BACKEND_API_KEY)/, "raw response files and backend credentials must never be printed");
