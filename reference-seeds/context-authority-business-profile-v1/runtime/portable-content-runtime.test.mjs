@@ -3,6 +3,7 @@ import {test} from "node:test";
 import {importCsv,importMatrix,compileContext,parseCsv,verifyHostReceipt} from "./portable-content-runtime.mjs";
 const scope={tenant_ref:"tenant-synthetic",brand_ref:"brand-synthetic",locale:"ar"};
 const source={source_key:"fixture",revision:"r1"};
+test('CSV candidate record lineage preserves source row after blank lines',()=>{const result=importCsv({text:'Content Title,Format\nFirst,Blog\n\nSecond,Social\n',scope,source});assert.equal(result.records[1].source_row,4);assert.equal(result.records[1].source_start_line,4);assert.equal(result.records[1].source_end_line,4);});
 test("quoted multiline CSV and BOM",()=>{const v=importCsv({text:'\uFEFFDate,Content Title,Format\\n2025-06-01,"A title, with comma",Blog\\n'.replaceAll('\\n','\n'),scope,source,asOf:"2026-10-10"});assert.equal(v.records[0].title,"A title, with comma");assert.equal(v.status,"CANDIDATE_ONLY");assert.equal(v.publication_authorized,false)});
 test("source with credential pattern denied before producing candidate records",()=>{const mixed='Date,Content Title,Format,Writer Brief\n2025-06-01,Idea 1,Email,a\n2025-06-03,Private config,Social,api_key=123456789\n';assert.throws(()=>importCsv({text:mixed,scope,source,asOf:"2026-10-10"}),/SENSITIVE_SOURCE_REQUIRES_PRIVATE_QUARANTINE/);const clean='Date,Content Title,Format\n2025-06-01,Idea 1,Email\n2025-06-02,Guaranteed 70% growth,Social\n';const v=importCsv({text:clean,scope,source,declaredDays:365,asOf:"2026-10-10"});assert.equal(v.counts.rows,2);assert(v.warnings.includes("MISLEADING_PLAN_SIZE"));assert(v.records[0].flags.includes("PLACEHOLDER_TITLE"));assert(v.records[1].flags.includes("UNVERIFIED_NUMERIC_CLAIM"));});
 test("CSV malformed and size denied",()=>{assert.throws(()=>parseCsv('"unfinished'),/CSV_UNCLOSED_QUOTE/);assert.throws(()=>parseCsv('a'.repeat(11),{maxBytes:10}),/INPUT_SIZE_LIMIT/)});
@@ -36,4 +37,26 @@ test("blank CSV records do not shift physical source-line provenance",()=>{
  const quoted=importCsv({text:'Content Title,Writer Brief\\n"Line one\\nline two",one\\n\\nLater,two'.replaceAll('\\n','\n'),scope,source});
  assert.deepEqual(quoted.records.map(x=>x.source_line),[2,5]);
  assert.equal(quoted.records.length,2);
+});
+
+test("signed local receipt is development evidence only and cannot certify staging",()=>{
+ const expected={
+  tenant_ref:"t",brand_ref:"b",exact_head:"commit",artifact_sha256:"artifact",
+  site_uuid:"site",environment:"local",source_generation:"g",
+  policy_digest:"policy",required_checks:["identity"]
+ };
+ const receipt={...expected,verifier_id:"host-1",signature:"opaque",nonce:"dev-once",
+  observed_at:"2026-10-10T12:00:00Z",checks:[{id:"identity",pass:true}]};
+ const opts={
+  expected,receipt,trust:{approved_verifiers:["host-1"]},
+  verifier:{verifyDetached:()=>true},replayStore:{consumeOnce:()=>true},
+  now:"2026-10-10T12:01:00Z"
+ };
+ const local=verifyHostReceipt(opts);
+ assert.equal(local.status,"LOCAL_DEVELOPMENT_EVIDENCE_ONLY");
+ assert.equal(local.evidence_environment,"local");
+ assert.equal(local.operational_acceptance,false);
+ assert.equal(local.publication_authorized,false);
+ assert.equal(local.release_authorized,false);
+ assert.equal(verifyHostReceipt({...opts,expected:{...expected,environment:"staging"}}).reason,"PROVENANCE_MISMATCH");
 });

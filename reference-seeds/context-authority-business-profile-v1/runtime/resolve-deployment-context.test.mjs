@@ -47,3 +47,5 @@ test('untrusted mode or auto-default disagreement refused',()=>{
  assert.equal(resolveDeploymentContext({host:{...wp,mode:'unknown'},verifyHostBinding:callback}).reason,'UNSUPPORTED_MODE');
  assert.equal(resolveDeploymentContext({host:{host_kind:'platform',mode:'dedicated_isolated',selection:'automatic',scope:{...base,deployment_ref:'d'}},verifyHostBinding:callback}).reason,'DEFAULT_MODE_DISAGREEMENT');
 });
+
+test('WordPress local scope stays review-only, unknown environment rejected',()=>{const local={...wp,scope:{...wp.scope,environment:'local'}};const result=resolveDeploymentContext({host:local,verifyHostBinding:callback});assert.equal(result.scope.environment,'local');assert.equal(result.execution_authorized,false);assert.equal(result.publication_authorized,false);assert.equal(resolveDeploymentContext({host:{...wp,scope:{...wp.scope,environment:'bad'}},verifyHostBinding:callback}).reason,'WP_ENVIRONMENT_UNRECOGNIZED')});

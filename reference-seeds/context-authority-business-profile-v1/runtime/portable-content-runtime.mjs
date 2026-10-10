@@ -48,7 +48,7 @@ export function reviewFlags(item,{asOf}={}){
   return flags;
 }
 
-export function importMatrix({matrix,scope,source,asOf,declaredDays}){
+export function importMatrix({matrix,scope,source,asOf,declaredDays,lineage}){
   guardMatrix(matrix);
   const s=requireScoped(scope);
   if(!source||!source.source_key||!source.revision||!Array.isArray(matrix)||!matrix.length)throw new Error("SOURCE_REVISION_AND_ROWS_REQUIRED");
@@ -61,10 +61,11 @@ export function importMatrix({matrix,scope,source,asOf,declaredDays}){
     const row=matrix[i].map(x=>String(x??""));
     if(row.every(value=>value.trim()===""))continue; // Keep source offsets while skipping empty records.
     const sourceLine=Array.isArray(matrix.sourceLines)?matrix.sourceLines[i]:i+1;
+    const provenance=Array.isArray(lineage)?lineage[i]:null;
     if(row.length>64||row.some(x=>x.length>4096)){rejected.push({row_index:sourceLine,reason:"ROW_LIMIT"});continue;}
     if(row.some(suspiciousValue)){rejected.push({row_index:sourceLine,reason:"SENSITIVE_VALUE_QUARANTINED"});continue;}
     const get=k=>columns[k]===undefined?"":String(row[columns[k]]??"").trim();
-    const item={record_key:`candidate:${i}`,source_line:sourceLine,title:get("title"),date:get("date"),stage:get("stage"),format:get("format"),channel:get("channel"),persona:get("persona"),hook:get("hook"),writer_brief:get("writer_brief"),designer_brief:get("designer_brief"),status:"CANDIDATE_ONLY",source_taint:"UNTRUSTED_DATA",instruction_authority:false,external_revision_verified:false};
+    const item={record_key:`candidate:${i}`,source_line:sourceLine,source_row:provenance?.source_row??i+1,source_start_line:provenance?.start_line??sourceLine,source_end_line:provenance?.end_line??sourceLine,title:get("title"),date:get("date"),stage:get("stage"),format:get("format"),channel:get("channel"),persona:get("persona"),hook:get("hook"),writer_brief:get("writer_brief"),designer_brief:get("designer_brief"),status:"CANDIDATE_ONLY",source_taint:"UNTRUSTED_DATA",instruction_authority:false,external_revision_verified:false};
     item.flags=reviewFlags(item,{asOf});
     const dedup=[norm(item.title),norm(item.format),norm(item.persona),norm(item.stage)].join("|");
     if(seen.has(dedup))item.flags.push("REPEATED_COPY");
@@ -79,7 +80,8 @@ export function importMatrix({matrix,scope,source,asOf,declaredDays}){
 }
 
 export function importCsv({text,scope,source,asOf,declaredDays}){
-  return importMatrix({matrix:parseCsv(text,{preserveBlankRows:true}),scope,source,asOf,declaredDays});
+  const parsed=parseCsv(text,{preserveBlankRows:true,withLineage:true});
+  return importMatrix({matrix:parsed.rows,lineage:parsed.lineage,scope,source,asOf,declaredDays});
 }
 
 export function compileContext({scope,persona,policy,claims=[],channel,format,style}){
@@ -122,6 +124,13 @@ export function verifyHostReceipt({receipt,expected,trust,verifier,replayStore,n
   try {consumed=replayStore.consumeOnce(receipt.verifier_id+"|"+receipt.nonce,receipt.observed_at)===true;}
   catch {return deny("REPLAY_STORE_UNAVAILABLE");}
   if(!consumed)return deny("REPLAY_DETECTED");
+  // A genuine signed LOCAL receipt is useful as developer evidence, never as
+  // a Staging/Production Host attestation or publication/release grant.
+  if(receipt.environment==="local")return {
+    status:"LOCAL_DEVELOPMENT_EVIDENCE_ONLY",evidence_environment:"local",
+    checks:required.length,requires_human_approval:true,
+    operational_acceptance:false,publication_authorized:false,release_authorized:false
+  };
   return {status:"ATTESTED_FOR_REVIEW_ONLY",checks:required.length,requires_human_approval:true,operational_acceptance:false,publication_authorized:false,release_authorized:false};
 }
 
