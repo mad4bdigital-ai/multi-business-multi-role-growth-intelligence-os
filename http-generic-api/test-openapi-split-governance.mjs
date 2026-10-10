@@ -153,6 +153,20 @@ for (const surface of GENERATED_SURFACES) {
 }
 assert.equal(registry.surfaces.admin_core.server_url, "https://auth.mad4b.com");
 assert.equal(registry.surfaces.tenant_core.server_url, "https://auth.mad4b.com");
+const recoveryDiscovery = YAML.parse(mainText).paths?.["/platform/remote-runtime/hosting/recovery-allowlist/discover"]?.post;
+assert.equal(recoveryDiscovery?.operationId, "discoverHostingerRecoveryAllowlist",
+  "Admin Hostinger discovery must retain its canonical bounded operation identity");
+assert.equal(recoveryDiscovery?.["x-custom-gpt-exclude"], true,
+  "The Hostinger admin route must never be exposed directly through a Custom GPT surface");
+assert.deepEqual(recoveryDiscovery?.security, [{adminBearerAuth: []}, {backendApiKeyAuth: []}]);
+const hostingerTenantExclusions = registry.surfaces.tenant_core.candidate_policy.exclusion_records
+  .filter(record => record.operation_id === "discoverHostingerRecoveryAllowlist");
+assert.equal(hostingerTenantExclusions.length, 1,
+  "Tenant Core tag matching requires one explicit reviewed Hostinger admin exclusion");
+assert.equal(hostingerTenantExclusions[0].owner, "remote-runtime");
+assert(hostingerTenantExclusions[0].reason.includes("platform admin principal"));
+assert(!String(recoveryDiscovery?.["x-custom-gpt-surfaces"] || "").includes("tenant_core"),
+  "An admin-backend operation cannot acquire Tenant OAuth via a source marker");
 assert.equal(registry.surfaces.activation_admin.server_url, "https://activation.mad4b.com");
 assert.equal(registry.surfaces.tenant_activation.server_url, "https://activation.mad4b.com");
 assert.equal(registry.surfaces.tenant_activation.oauth_endpoints.authorization_url, "https://activation.mad4b.com/auth/oauth/authorize");

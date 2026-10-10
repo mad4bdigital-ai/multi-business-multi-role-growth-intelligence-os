@@ -44,9 +44,10 @@
     {
       "id": "admin_tool_descriptor_binding_contract",
       "test_paths": [
-        "http-generic-api/test-admin-tool-descriptor-binding.mjs",
+        "http-generic-api/openapi.yaml",
         "http-generic-api/routes/gptToolsRoutes.js",
-        "http-generic-api/openapi.yaml"
+        "http-generic-api/test-admin-tool-descriptor-binding.mjs",
+        "http-generic-api/test-platform-tool-dispatch-binding-integrity.mjs"
       ]
     },
     {
@@ -57,7 +58,8 @@
         "http-generic-api/scripts/test-github-review-policy-target.mjs",
         "http-generic-api/test-github-repository-policy-1050-governed-rollout.mjs",
         "http-generic-api/test-github-repository-policy-1051-metadata-state.mjs",
-        "http-generic-api/test-github-repository-policy-live-activation-contract.mjs"
+        "http-generic-api/test-github-repository-policy-live-activation-contract.mjs",
+        "http-generic-api/test-github-repository-policy-controller.mjs"
       ]
     },
     {
@@ -205,6 +207,7 @@
         "http-generic-api/test-custom-gpt-schemas.mjs",
         "http-generic-api/test-fixed-host-local-system-tool.mjs",
         "http-generic-api/test-frontend-surface-coverage-claims.mjs",
+        "http-generic-api/test-gpt-tools-route-syntax-regression.mjs",
         "http-generic-api/test-host-breakglass-capsule-executor.mjs",
         "http-generic-api/test-host-breakglass-catalog.mjs",
         "http-generic-api/test-host-breakglass-local-readback.mjs",
@@ -213,6 +216,10 @@
         "http-generic-api/test-host-breakglass-ssh-capsule-executor.mjs",
         "http-generic-api/test-host-local-runtime-inspection.mjs",
         "http-generic-api/test-hostinger-production-runtime-readback-r7.mjs",
+        "http-generic-api/test-hostinger-recovery-capability-discovery.mjs",
+        "http-generic-api/test-hostinger-recovery-provider-safety.mjs",
+        "http-generic-api/test-hostinger-recovery-seed-replay.mjs",
+        "http-generic-api/test-mcp-catalog-schema-guard.mjs",
         "http-generic-api/test-mcp-catalog-schema-preflight.mjs",
         "http-generic-api/test-openapi-detail-closure-batch.mjs",
         "http-generic-api/test-openapi-split-governance.mjs",
@@ -254,11 +261,14 @@
       "test_paths": [
         "http-generic-api/routes/connectorAgentRoutes.js",
         "http-generic-api/routes/connectorProxyRoutes.js",
+        "http-generic-api/test-admin-local-connector-target.mjs",
+        "http-generic-api/test-admin-self-recovery-contract.mjs",
         "http-generic-api/test-connect-routes.mjs",
         "http-generic-api/test-connector-agent-installer-permission-grants.mjs",
         "http-generic-api/test-connector-local-api-key-registry.mjs",
         "http-generic-api/test-control-plane-convergence-regressions.mjs",
         "http-generic-api/test-db-driven-connector-capability-policy.mjs",
+        "http-generic-api/test-installer-credential-epoch.mjs",
         "http-generic-api/test-local-connector-capability-installer-grants.mjs",
         "http-generic-api/test-local-connector-composite-health.mjs",
         "http-generic-api/test-local-connector-convergence-inspector.mjs",
@@ -343,7 +353,8 @@
         "http-generic-api/test-derived-state-converged-automerge-source-event.mjs",
         "http-generic-api/test-repo-maintenance-sync.mjs",
         "http-generic-api/test-supervisor-runtime-assurance-automation.mjs",
-        "http-generic-api/test-surface-contract-auto-remediation.mjs"
+        "http-generic-api/test-surface-contract-auto-remediation.mjs",
+        "http-generic-api/test-github-finalizer-any-source-guard.mjs"
       ]
     },
     {
@@ -739,7 +750,8 @@
         "http-generic-api/scripts/platform-work-map-schema-intelligence.mjs",
         "http-generic-api/scripts/work-map-schema-classification-contract.mjs",
         "http-generic-api/test-work-map-schema-classification-contract.mjs",
-        "http-generic-api/test-work-map-schema-classification.mjs"
+        "http-generic-api/test-work-map-schema-classification.mjs",
+        "http-generic-api/test-spec-kit-work-map-governance-gate.mjs"
       ]
     },
     {
@@ -858,7 +870,8 @@
       "invariant_id": "work_map_schema_classification_contract",
       "protected_by_tests": [
         "http-generic-api/test-work-map-schema-classification-contract.mjs",
-        "http-generic-api/test-work-map-schema-classification.mjs"
+        "http-generic-api/test-work-map-schema-classification.mjs",
+        "http-generic-api/test-spec-kit-work-map-governance-gate.mjs"
       ],
       "protected_by_verifiers": [
         "work_map_currentness"

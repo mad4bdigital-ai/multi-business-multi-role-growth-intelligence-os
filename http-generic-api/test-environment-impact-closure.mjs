@@ -15,6 +15,19 @@ const derivedOutputs = derivedState.artifacts.flatMap((artifact) =>
   (artifact.outputs || []).map((pattern) => ({ artifact_id: artifact.artifact_id, pattern })),
 );
 const report = buildReport();
+// PR8461 exact-name classifications prevent silently treating legacy top-level
+// documentation as runtime authority or legacy migration code as repository-only.
+for (const name of ["GPT_Admin_Assistant_Knowledge_Guide.md", "runtime_confirmation_procedure.md"]) {
+  const classes = classifyPath(name, policy.path_classes).map(entry => entry.id);
+  assert(classes.includes("repository_governance"), `missing exact repository impact: ${name}`);
+  assert(!classes.includes("shared_runtime"), `documentation cannot imply runtime mutation: ${name}`);
+}
+const legacyMigrationClasses = classifyPath(
+  "http-generic-api/scripts/governed-migration-runner-legacy.mjs", policy.path_classes,
+).map(entry => entry.id);
+assert(legacyMigrationClasses.includes("shared_runtime"),
+  "Legacy migration runner remains an executable cross-environment surface");
+
 
 assert.equal(report.contract, "mad4b.environment-impact-closure.v1");
 assert.equal(report.converged, true, JSON.stringify(report.issues));

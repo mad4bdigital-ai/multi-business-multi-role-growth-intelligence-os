@@ -196,6 +196,42 @@
       "secrets_included": false
     },
     {
+      "config_key": "connector.config.id",
+      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
+      "owner": "local-connector",
+      "risk_class": "critical",
+      "scope_types": [
+        "platform",
+        "production",
+        "staging"
+      ],
+      "binding_ref": "local-connector/server.mjs",
+      "resolver_ref": "local-connector/server.mjs",
+      "readback_ref": "http-generic-api/test-admin-local-connector-target.mjs",
+      "shadow_evidence_ref": "docs/runbooks/admin-local-connector-stale-device-closure-20261008.md",
+      "classification": "runtime_setting",
+      "status": "shadow",
+      "secrets_included": false
+    },
+    {
+      "config_key": "connector.device.id",
+      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
+      "owner": "local-connector",
+      "risk_class": "critical",
+      "scope_types": [
+        "platform",
+        "production",
+        "staging"
+      ],
+      "binding_ref": "local-connector/server.mjs",
+      "resolver_ref": "local-connector/server.mjs",
+      "readback_ref": "http-generic-api/test-admin-local-connector-target.mjs",
+      "shadow_evidence_ref": "docs/runbooks/admin-local-connector-stale-device-closure-20261008.md",
+      "classification": "runtime_setting",
+      "status": "shadow",
+      "secrets_included": false
+    },
+    {
       "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
       "owner": "platform-governance",
       "scope_types": [
@@ -1592,5 +1628,5 @@
     "production_activation_allowed": false
   },
   "$schema": "../../.specify/schemas/platform-configuration-entry-registry.schema.json",
-  "entry_count": 89
+  "entry_count": 91
 }

@@ -8,6 +8,7 @@ import {
   requireLocalManagerDevice,
 } from "../services/localManagerDeviceLinkService.js";
 import { buildLocalConnectorRouteLifecycleFromDb } from "../localConnectorRouteLifecyclePolicy.js";
+import { currentInstallerCredentialEpoch, assertCurrentInstallerCredentialEpoch } from "../installerCredentialEpoch.js";
 import {
   connectorLocalApiKeySelectFragment,
   hasConnectorLocalApiKeyColumn,
@@ -1042,11 +1043,19 @@ export async function provisionLocalConnectorInstall(req, body = {}) {
   const [[tenant]] = await pool.query("SELECT tenant_id FROM `tenants` WHERE tenant_id = ? LIMIT 1", [resolvedTenantId]);
   if (!tenant) throw httpError(404, "tenant_not_found", "Tenant not found.");
 
-  const [[existing]] = await pool.query(
-    `SELECT config_id, cf_tunnel_id, cf_tunnel_name, cf_token, connector_secret, ${connectorLocalApiKeySelect}, tunnel_url, public_gateway_url, device_runtime_url, admin_recovery_url FROM \`local_connector_user_configs\` WHERE user_id = ? AND tenant_id = ? AND device_id = ? LIMIT 1`,
+  const [existingMatches] = await pool.query(
+    `SELECT config_id, is_enabled, lifecycle_state, revoked_at, archived_at, cf_tunnel_id, cf_tunnel_name, cf_token, connector_secret, ${connectorLocalApiKeySelect}, tunnel_url, public_gateway_url, device_runtime_url, admin_recovery_url FROM \`local_connector_user_configs\` WHERE user_id = ? AND tenant_id = ? AND device_id = ? LIMIT 2`,
     [resolvedUserId, resolvedTenantId, device_id]
   );
 
+  if (existingMatches.length > 1) throw httpError(409, "device_config_ambiguous", "Multiple canonical device rows require manual reconciliation.");
+  const existing = existingMatches[0] || null;
+
+  if (existing && (Number(existing.is_enabled) !== 1 || existing.lifecycle_state !== "active" ||
+      existing.revoked_at || existing.archived_at)) {
+    throw httpError(409, "device_reenrollment_required",
+      "A disabled, revoked, or archived device cannot be reused; start new device pairing.");
+  }
   let configId = existing?.config_id || randomUUID();
   let tunnelId = existing?.cf_tunnel_id || null;
   let tunnelToken = existing?.cf_token || null;
@@ -1265,6 +1274,9 @@ export function buildLocalConnectorInstallRoutes(deps) {
   // Allows the signed-in Local Manager app to request a short-lived repair installer
   // for its own linked device without requiring a platform/admin bearer token.
   router.post("/local-connector/install/device-download-link", async (req, res) => {
+    res.setHeader("Cache-Control", "no-store, max-age=0");
+    res.setHeader("Referrer-Policy", "no-referrer");
+    res.setHeader("X-Content-Type-Options", "nosniff");
     try {
       const device = await requireFreshLocalManagerDeviceForPrivilegedInstaller(req);
       const format = String(req.body?.format || "bat").trim().toLowerCase();
@@ -1276,25 +1288,27 @@ export function buildLocalConnectorInstallRoutes(deps) {
         `SELECT c.config_id, c.tenant_id, c.device_id
            FROM \`local_connector_user_configs\` c
           WHERE c.user_id = ? AND c.is_enabled = 1
+            AND c.lifecycle_state = 'active' AND c.revoked_at IS NULL AND c.archived_at IS NULL
             AND c.tenant_id <=> ?
-            AND (c.device_id = ? OR EXISTS (
-              SELECT 1 FROM \`local_connector_device_aliases\` a
-               WHERE a.canonical_config_id = c.config_id AND a.canonical_device_id = c.device_id
-                 AND a.alias_device_id = ? AND a.user_id = c.user_id
-                 AND a.tenant_id <=> c.tenant_id AND a.status = 'active'))
+            AND c.device_id = ?
           LIMIT 2`,
-        [device.user_id, device.tenant_id || null, device.device_id, device.device_id]
+        [device.user_id, device.tenant_id || null, device.device_id]
       );
       if (rows.length > 1) return res.status(409).json({ ok: false, error: { code: "connector_config_ambiguous", message: "Multiple connector identities match this device. Reconcile before repair." }, secrets_included: false });
       const config = rows[0] || null;
       if (!config) return res.status(404).json({ ok: false, error: { code: "connector_config_not_found", message: "Provision this device through authenticated account setup before requesting repair." }, secrets_included: false });
       // Installer-link issuance is read-only; aliases belong to the dedicated writer.
+      const credentialEpoch = await currentInstallerCredentialEpoch({
+        config_id: config.config_id, user_id: device.user_id,
+        tenant_id: config.tenant_id || device.tenant_id, device_id: config.device_id
+      });
       const token = signInstallerDownloadToken(createInstallerCapability({
         config_id: config.config_id,
         user_id: device.user_id,
         tenant_id: config.tenant_id || device.tenant_id,
         device_id: config.device_id,
         format,
+        credential_epoch: credentialEpoch,
         app_managed: appManaged,
         ttl_minutes: ttl,
       }));
@@ -1330,25 +1344,37 @@ export function buildLocalConnectorInstallRoutes(deps) {
   // Creates a short-lived signed download link for install-local-connector.ps1 or .bat.
   // The token is HMAC-signed and contains no connector credentials itself.
   router.post("/local-connector/install/download-link", requireBackendApiKey, async (req, res) => {
+    res.setHeader("Cache-Control", "no-store, max-age=0");
+    res.setHeader("Referrer-Policy", "no-referrer");
+    res.setHeader("X-Content-Type-Options", "nosniff");
     try {
       const { user_id, tenant_id, device_id, ttl_minutes = 10 } = req.body || {};
       const format = String(req.body?.format || "ps1").trim().toLowerCase();
       if (!device_id) return res.status(400).json({ ok: false, error: { code: "missing_fields", message: "device_id is required." } });
       if (!["ps1", "bat"].includes(format)) return res.status(400).json({ ok: false, error: { code: "unsupported_format", message: "format must be ps1 or bat." } });
       const principal = await resolveRequestedLocalPrincipal(req, { user_id, tenant_id });
-      const [[config]] = await getPool().query(
-        "SELECT config_id, tenant_id FROM `local_connector_user_configs` WHERE user_id = ? AND tenant_id = ? AND device_id = ? AND is_enabled = 1 LIMIT 1",
+      const [configs] = await getPool().query(
+        "SELECT config_id, tenant_id FROM `local_connector_user_configs` WHERE user_id = ? AND tenant_id = ? AND device_id = ? AND is_enabled = 1 AND lifecycle_state = 'active' AND revoked_at IS NULL AND archived_at IS NULL LIMIT 2",
         [principal.userId, principal.tenantId, device_id]
       );
-      if (!config) return res.status(404).json({ ok: false, error: { code: "connector_config_not_found" } });
+      if (configs.length !== 1) return res.status(configs.length ? 409 : 404).json({
+        ok: false, secrets_included: false,
+        error: {code: configs.length ? "connector_config_ambiguous" : "connector_config_not_found"}
+      });
+      const config = configs[0];
       const ttl = Math.max(5, Math.min(10, Number(ttl_minutes || 10)));
       assertNoInstallerAuthorityOverrides(req.body || {});
+      const credentialEpoch = await currentInstallerCredentialEpoch({
+        config_id: config.config_id, user_id: principal.userId,
+        tenant_id: config.tenant_id || principal.tenantId, device_id: device_id
+      });
       const token = signInstallerDownloadToken(createInstallerCapability({
         config_id: config.config_id,
         user_id: principal.userId,
         tenant_id: config.tenant_id || principal.tenantId,
         device_id,
         format,
+        credential_epoch: credentialEpoch,
         ttl_minutes: ttl,
       }));
       const path = format === "bat" ? "/local-connector/install/download" : "/connector-agent/installer.ps1";
@@ -1376,14 +1402,18 @@ export function buildLocalConnectorInstallRoutes(deps) {
   // Public token-gated compatibility entrypoint. This file is the sole owner
   // of the route; both formats converge on the canonical connector-agent PS1.
   router.get("/local-connector/install/download", async (req, res) => {
+    res.setHeader("Cache-Control", "no-store, max-age=0");
+    res.setHeader("Referrer-Policy", "no-referrer");
+    res.setHeader("X-Content-Type-Options", "nosniff");
     try {
       const token = String(req.query.token || "");
       const payload = verifyInstallerDownloadToken(token);
+      await assertCurrentInstallerCredentialEpoch(payload);
       if (!["ps1", "bat"].includes(payload.format)) {
         throw httpError(400, "unsupported_format", "Only ps1 or bat installer downloads are supported.");
       }
       const [[config]] = await getPool().query(
-        "SELECT config_id, device_id FROM `local_connector_user_configs` WHERE config_id = ? AND user_id = ? AND tenant_id = ? AND device_id = ? AND is_enabled = 1 LIMIT 1",
+        "SELECT config_id, device_id FROM `local_connector_user_configs` WHERE config_id = ? AND user_id = ? AND tenant_id = ? AND device_id = ? AND is_enabled = 1 AND lifecycle_state = 'active' AND revoked_at IS NULL AND archived_at IS NULL LIMIT 1",
         [payload.config_id, payload.user_id, payload.tenant_id, payload.device_id]
       );
       if (!config) throw httpError(404, "connector_config_not_found", "No active connector config was found for this download token.");

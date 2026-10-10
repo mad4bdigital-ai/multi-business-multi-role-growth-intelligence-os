@@ -205,7 +205,8 @@
           "http-generic-api/src/**",
           "install-local-connector.ps1",
           "local-connector/**",
-          "specs/020-platform-resource-identity-brand-governance/**"
+          "specs/020-platform-resource-identity-brand-governance/**",
+          "http-generic-api/scripts/governed-migration-runner-legacy.mjs"
         ],
         "exclude_patterns": [
           "http-generic-api/test-*.js",
@@ -354,7 +355,9 @@
           "specs/021-portable-staging-autopilot/e2e-phases.json",
           "specs/integration-governed-execution-runtime-composition/wordpress-site-control-plane-provider-profile.json",
           "specs/integration-governed-execution-runtime-composition/x0-external-certification-reference.json",
-          "Updating Registry Patch Index.md"
+          "Updating Registry Patch Index.md",
+          "GPT_Admin_Assistant_Knowledge_Guide.md",
+          "runtime_confirmation_procedure.md"
         ],
         "environments": [
           "repository"

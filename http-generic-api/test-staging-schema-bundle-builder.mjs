@@ -462,7 +462,9 @@ test("schema bundle manifest declares exactly three isolated roles", () => {
     "20260920_wordpress_staging_plugin_deploy_v2_canonical_seed.sql",
   "20260922_local_manager_control_templates_registry.sql",
   "20261007_credential_platform_binding_policy.sql",
-  ]);
+    "20261008_admin_local_connector_target_catalog_alignment.sql",
+  "20261009_hostinger_recovery_allowlist_discovery.sql",
+]);
   assert.deepEqual(manifest.canonical_seed_lifecycle.mcp_catalog_required_columns, [
     "admin_platform_endpoint_tools.mcp_catalog_level",
     "tenant_platform_endpoint_tools.mcp_catalog_level",
@@ -1481,12 +1483,11 @@ test("generator plan-only mode inventories the exact migration chain", () => {
     /KEY `idx_lm_desktop_command_claim_token`\s*\(\s*`claim_token`\s*,\s*`status`\s*\)/iu,
     "desktop command ownership must retain the claim-token lookup index",
   );
-  // The catalog trust proposal adds exactly two independently named, inert
-  // staging-only tables; keep explicit coverage instead of weakening census checks.
-  const capcatMigrationSql=fs.readFileSync(path.join(migrationsDir,"966_capability_catalog_trust_authority.sql"),"utf8");
-  assert.match(capcatMigrationSql,/CREATE TABLE IF NOT EXISTS platform_capability_catalog_keys\s*\(/u);
-  assert.match(capcatMigrationSql,/CREATE TABLE IF NOT EXISTS platform_capability_catalog_consumed_nonces\s*\(/u);
-  const expectedIndexProjectedTables = 588 + 2 + 2; // Local Manager two + Capability Catalog two.
+  // Extend the certified census only for the two explicit catalog trust tables.
+  const catalogTrustSql=fs.readFileSync(path.join(migrationsDir,"966_capability_catalog_trust_authority.sql"),"utf8");
+  assert.match(catalogTrustSql,/CREATE TABLE IF NOT EXISTS platform_capability_catalog_keys\s*\(/u);
+  assert.match(catalogTrustSql,/CREATE TABLE IF NOT EXISTS platform_capability_catalog_consumed_nonces\s*\(/u);
+  const expectedIndexProjectedTables = 588 + 2 + 2; // Local Manager two + Catalog Trust two.
   assert.equal(plan.ordered_index_key_width_chain.tables_projected, expectedIndexProjectedTables);
   const localManagerIndexSql = [
     desktopCommandMigrationSql,
@@ -1579,7 +1580,7 @@ test("generator plan-only mode inventories the exact migration chain", () => {
     true,
     "Local Manager control-template registry migration must be part of the ordered schema plan",
   );
-  assert.equal(plan.ordered_foreign_key_compatibility_chain.tables_projected, 591 + 2); // Two explicitly asserted additive Catalog Trust tables.
+  assert.equal(plan.ordered_foreign_key_compatibility_chain.tables_projected, 591 + 2); // Two explicitly asserted additive catalog tables.
   assert.equal(plan.ordered_foreign_key_compatibility_chain.foreign_keys_checked, 138);
   assert.equal(plan.ordered_foreign_key_compatibility_chain.type_comparisons, 140);
   assert.equal(plan.ordered_foreign_key_compatibility_chain.type_mismatches, 0);
@@ -1604,7 +1605,9 @@ test("generator plan-only mode inventories the exact migration chain", () => {
     "20260920_wordpress_staging_plugin_deploy_v2_canonical_seed.sql",
     "20260922_local_manager_control_templates_registry.sql",
   "20261007_credential_platform_binding_policy.sql",
-  ]);
+    "20261008_admin_local_connector_target_catalog_alignment.sql",
+  "20261009_hostinger_recovery_allowlist_discovery.sql",
+]);
   assert.equal(plan.canonical_seed_lifecycle.readback_required, true);
   assert.equal(plan.ordered_preuse_audit.missing_table_gaps, 0);
   assert.equal(plan.ordered_preuse_audit.missing_column_gaps, 0);

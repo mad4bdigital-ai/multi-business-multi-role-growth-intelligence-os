@@ -87,7 +87,12 @@ function fixture() {
   const row={session_id:"session",user_id:"user",tenant_id:"tenant",device_id:"device",hostname:"device",status:"approved",expires_at:new Date(Date.now()+600000),poll_token_hash:hash("poll"),metadata_json:JSON.stringify({device_public_key_spki:spki.toString("base64"),device_public_key_fingerprint_sha256:hash(spki),device_proof_challenge_sha256:hash("challenge")})};
   const canonical=["mad4b.local-manager.device-proof.v1","session","ABCD-EFGH",hash("poll"),"challenge"].join("\n");
   const req={body:{device_code:"ABCD-EFGH",poll_token:"poll",device_proof_challenge:"challenge",device_proof:crypto.sign("sha256",Buffer.from(canonical),privateKey).toString("base64")}};
-  const res=()=>({status(value){this.code=value;return this;},json(value){this.body=value;return this;}});
+  const res=()=>({
+    headers: {},
+    setHeader(name,value){this.headers[String(name).toLowerCase()]=String(value);return this;},
+    status(value){this.code=value;return this;},
+    json(value){this.body=value;return this;},
+  });
   let updates=0;
   query=async(sql,values)=>{
     if(sql.includes("information_schema.COLUMNS")) return [columns];
@@ -124,8 +129,28 @@ test("repair ignores tenant overrides and denies ambiguous configs without write
   const handler=router.stack.find(layer=>layer.route?.path==="/local-connector/install/device-download-link").route.stack[0].handle;
   const original=query;
   for(const count of [0,2]) {
-    query=(sql,values)=>{assert.doesNotMatch(sql,/^(UPDATE|INSERT|DELETE)/u);if(sql.includes("local_connector_user_configs")){assert.match(sql,/c\.tenant_id <=> \?/u);assert.match(sql,/a\.tenant_id <=> c\.tenant_id/u);assert.deepEqual(values,["user","tenant","device","device"]);return Promise.resolve([Array.from({length:count},(_,i)=>({config_id:`config-${i}`,tenant_id:"tenant",device_id:"device"}))]);}return original(sql,values);};
-    const result=f.res();await handler({headers:{authorization:`Bearer ${token}`},body:{tenant_id:"other"},auth:{is_admin:true}},result);assert.equal(result.code,count?409:404);assert.equal(result.body.download_url,undefined);
+    query=(sql,values)=>{
+      assert.doesNotMatch(sql,/^(UPDATE|INSERT|DELETE)/u);
+      if(sql.includes("local_connector_user_configs")){
+        assert.match(sql,/FROM `local_connector_user_configs` c/u);
+        assert.match(sql,/c\.user_id = \?/u);
+        assert.match(sql,/c\.tenant_id <=> \?/u);
+        assert.match(sql,/c\.device_id = \?/u);
+        assert.match(sql,/c\.is_enabled = 1/u);
+        assert.match(sql,/c\.lifecycle_state = 'active'/u);
+        assert.match(sql,/c\.revoked_at IS NULL/u);
+        assert.match(sql,/c\.archived_at IS NULL/u);
+        assert.match(sql,/LIMIT 2/u);
+        assert.deepEqual(values,["user","tenant","device"]);
+        return Promise.resolve([Array.from({length:count},(_,i)=>({config_id:`config-${i}`,tenant_id:"tenant",device_id:"device"}))]);
+      }
+      return original(sql,values);
+    };
+    const result=f.res();await handler({headers:{authorization:`Bearer ${token}`},body:{tenant_id:"other"},auth:{is_admin:true}},result);
+    assert.equal(result.headers["cache-control"],"no-store, max-age=0");
+    assert.equal(result.headers["referrer-policy"],"no-referrer");
+    assert.equal(result.headers["x-content-type-options"],"nosniff");
+    assert.equal(result.code,count?409:404);assert.equal(result.body.download_url,undefined);
   }
 });
 test("release selection is environment-bound after URL canonicalization",async()=>{

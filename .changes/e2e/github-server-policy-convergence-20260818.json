@@ -62,13 +62,23 @@
       ".specify/spec-kit-work-map-integration-policy.json",
       "docs/governance/configuration-drift-policy.json",
       "specs/**/work-map-integration.json",
-      "http-generic-api/scripts/spec-kit-work-map-integration-gate.mjs"
+      "http-generic-api/scripts/spec-kit-work-map-integration-gate.mjs",
+      ".github/ops/github-finalizer-check-source.mjs",
+      "http-generic-api/test-github-finalizer-any-source-guard.mjs",
+      "docs/runbooks/github-any-source-main-trusted-finalizer-20261009.md",
+      "http-generic-api/scripts/manifests/test-manifest-upstream-main.mjs",
+      "http-generic-api/scripts/manifests/test-manifest-spec011.mjs"
     ]
   },
-  "merge_contract": { "minimum_phase": "mvp" },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
   "environment_impact": {
     "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
-    "declared_targets": ["staging", "production"],
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
     "cross_environment_reviewed": true,
     "live_staging_certification_required": true,
     "production_mutation_allowed": false
@@ -104,7 +114,8 @@
             "Have the GitHub App publish Derived State Closure for main or Governed Production Promotion for Production, with same-cycle status readback, and expose the resolved App id plus status creator id to the finalizer.",
             "For objection-free main only, have the central finalizer verifier require repository allow_auto_merge=false, active pull_request/required_status_checks/non_fast_forward rules, no merge_queue, exactly one active managed governance Ruleset, zero bypass actors, Derived State Closure bound to the exact attestor App id, exact base/head/candidate identity, and a success status on the exact candidate from the same-cycle attestor status creator.",
             "Allow the Governance Finalizer to execute gh pr merge only without --auto and without --admin, bound by --match-head-commit to the exact source head, then require same-cycle merged-state and merge-commit readback.",
-            "Require Production's current merge-candidate tree to equal the certified executed release-candidate tree before promotion attestation; generic main finalizer merge authority never applies to Production."
+            "Require Production's current merge-candidate tree to equal the certified executed release-candidate tree before promotion attestation; generic main finalizer merge authority never applies to Production.",
+            "Verify main any-source Rulesets using the explicit Constitution opt-in, independently attest the exact merge candidate with the GitHub App, and pass the just-published status ID plus status creator ID into the protected finalizer readiness gate."
           ],
           "assertions": [
             "The Constitution is the runtime source of truth for both main and Production branch policy.",
@@ -120,7 +131,7 @@
             "The final required main status is emitted by the trusted GitHub App, not by PR-controlled workflow code.",
             "Repository native auto-merge must be disabled before main automated finalization; generated writers cannot register auto-merge and the finalizer never uses --auto.",
             "The finalizer merge actor has no admin/ruleset-bypass path; the active managed Ruleset must contain zero bypass actors and the merge command never uses --admin.",
-            "The finalizer verifier reads active branch rules and the managed Ruleset, requires Derived State Closure to be bound to the exact attestor App id, and requires the exact candidate success status to be created by the status creator returned from the same-cycle attestation.",
+            "The finalizer verifier reads active branch rules and the managed Ruleset; main may opt in to GitHub Any source only when the latest exact candidate success status ID and its creator match the trusted same-cycle attestation, while app-bound policies still require the exact attestor App ID. An unbound Ruleset never proves server-side source restriction.",
             "Main automated finalization is allowed only when manual_count=0 and base SHA, source head SHA, and merge-candidate SHA remain exactly attested; same-cycle merged-state readback is mandatory.",
             "Production generic PR merge is blocked by the App-bound Governed Production Promotion status and same-tree/same-candidate proof; the generic main finalizer merge job does not run for Production.",
             "Workflow count cannot increase while above target, and becomes hard-capped at 160 once the target is reached.",
@@ -129,7 +140,8 @@
             "Shared-runtime impact declares staging and production, records cross-environment review, requires live Staging certification, and keeps production_mutation_allowed false.",
             "The executable universe remains fail-closed: changed executables require semantic classes and registered verifier authority; unsupported language-level validation is not inferred from filenames.",
             "Semantic facets such as auth_profile, db_effect, provider_effect, and route resolve through the declarative semantic-verifier-requirements registry to registered safe verifiers, with missing mappings failing closed.",
-            "Test authority is registered and test removal or unregistered test paths fail closed; no live Ruleset Apply, repository-setting mutation, protected-ref mutation outside an independently authorized merge, force push, database mutation, provider mutation, Production deployment, migration, grant, or secret disclosure is performed by this PR."
+            "Test authority is registered and test removal or unregistered test paths fail closed; no live Ruleset Apply, repository-setting mutation, protected-ref mutation outside an independently authorized merge, force push, database mutation, provider mutation, Production deployment, migration, grant, or secret disclosure is performed by this PR.",
+            "Any source on main is never reported as server-side App publisher binding; governed finalizer merges require the latest exact candidate success status ID and trusted creator from the same attestation cycle, and reject stale or spoofed context updates; Production remains App-bound."
           ],
           "tests": [
             {
@@ -234,7 +246,10 @@
             "http-generic-api/test-derived-state-converged-automerge-source-event.mjs",
             "docs/repository-ci-surface-policy.json",
             "docs/work-maps/README.md",
-            "docs/work-maps/repository-automation-map.md"
+            "docs/work-maps/repository-automation-map.md",
+            ".github/ops/github-finalizer-check-source.mjs",
+            "http-generic-api/test-github-finalizer-any-source-guard.mjs",
+            "docs/runbooks/github-any-source-main-trusted-finalizer-20261009.md"
           ]
         }
       ]

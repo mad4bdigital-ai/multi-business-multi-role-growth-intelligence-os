@@ -20,6 +20,12 @@ const paths = {
 const read = (file) => JSON.parse(fs.readFileSync(path.join(root, file), "utf8"));
 const constitution = read(paths.constitution), policies = read(paths.policies), semantic = read(paths.semantic), verifiers = read(paths.verifiers), derived = read(paths.derived), evidence = read(paths.evidence), waivers = read(paths.waivers), e2e = read(paths.e2e);
 assert.equal(constitution.contract, "mad4b.repository-governance-constitution.v1");
+const documentationPatterns = constitution.surface_classes.find(entry => entry.id === "documentation_evidence")?.patterns || [];
+for (const rootDocument of ["GPT_Admin_Assistant_Knowledge_Guide.md", "runtime_confirmation_procedure.md"]) {
+  assert(documentationPatterns.includes(rootDocument),
+    `unclassified legacy root documentation must not bypass repository governance: ${rootDocument}`);
+}
+
 assert.equal(constitution.authority.final_gate_context, "Derived State Closure");
 assert.equal(constitution.authority.final_gate_mode, "trusted_app_exact_candidate_attestation");
 assert.equal(constitution.authority.policy_execution_mode, "declarative_registered_assertions_over_semantic_graph");

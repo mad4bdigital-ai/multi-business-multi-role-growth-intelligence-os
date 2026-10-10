@@ -2774,6 +2774,39 @@
       "contains_secret_value": false,
       "grants_runtime_mutation": false,
       "grants_production_activation": false
+    },
+    {
+      "fingerprint": "local-connector/server.mjs|CONNECTOR_CONFIG_ID|environment_reference|connector.config.id",
+      "owner": "local-connector",
+      "reason": "Non-secret, exact canonical connector.config.id enrolled identity used to reject cross-device connector policy and heartbeat calls. Metadata-only baseline; cannot grant connection, execution, token reuse or Production authority. The baseline entry is only a code-scanner CI governance declaration; the live runtime setting is separately classified in platform-configuration-entry-registry.json.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "local-connector/server.mjs|CONNECTOR_DEVICE_ID|environment_reference|connector.device.id",
+      "owner": "local-connector",
+      "reason": "Non-secret, exact canonical connector.device.id enrolled identity used to reject cross-device connector policy and heartbeat calls. Metadata-only baseline; cannot grant connection, execution, token reuse or Production authority. The baseline entry is only a code-scanner CI governance declaration; the live runtime setting is separately classified in platform-configuration-entry-registry.json.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": ".github/ops/github-followup-automerge-readiness.mjs|expectedAttestorStatusId|environment_reference|expected.attestor.status.id",
+      "owner": "repository-governance",
+      "reason": "Non-secret exact same-cycle GitHub Commit Status identity carried from the trusted backend attestor to the finalizer; rejects an older or foreign status for the same context. Cannot grant repository bypass, token access, database mutation or Production activation.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
     }
   ],
   "safety": {

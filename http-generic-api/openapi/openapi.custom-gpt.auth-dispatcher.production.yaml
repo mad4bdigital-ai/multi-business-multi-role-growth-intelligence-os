@@ -278,12 +278,6 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/ErrorResponse"
-    NotFound:
-      description: Resource not found
-      content:
-        application/json:
-          schema:
-            $ref: "#/components/schemas/ErrorResponse"
 security:
   - backendBearerAuth: []
 paths:
@@ -1990,24 +1984,26 @@ paths:
       security:
         - backendBearerAuth: []
       operationId: getLocalConnectorInstallBundle
-      summary: Resolve or download a local connector installer
-      description: Generate a pre-filled Windows .bat installer for the local connector stack (cloudflared + Node.js service via NSSM). Reads cf_token and connector_secret from local_connector_user_configs in DB for the given user_id + device_id. Falls back to server env only if no DB row exists. The default JSON mod.
+      summary: Resolve a canonical connector device and a protected signed-installer handoff
+      description: Legacy format=bat direct credential delivery is retired (410). JSON returns no secrets and references the separate signed, scoped, expiring installer authorization POST workflow.
       parameters:
         - name: user_id
           in: query
           required: false
           schema:
             type: string
-          description: User ID whose device config to load from DB. Defaults to platform admin.
-        - name: device_id
+        - name: tenant_id
           in: query
           required: false
           schema:
             type: string
-            minLength: 1
+        - name: device_id
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 2
             maxLength: 128
-            default: mohammedlap
-          description: Device ID (hostname) to load config for. Defaults to mohammedlap.
         - name: format
           in: query
           required: false
@@ -2017,93 +2013,93 @@ paths:
               - json
               - bat
             default: json
-          description: json returns a no-secret handoff; bat returns the authenticated binary installer.
+          description: bat returns 410 with the secure migration route; only json returns 200.
       responses:
         "200":
-          description: Metadata-only secure handoff or authenticated installer attachment
+          description: Read-only scoped diagnosis and installer workflow metadata
           content:
             application/json:
               schema:
                 type: object
-                additionalProperties: false
                 required:
                   - ok
-                  - artifact_delivery
-                  - script_content_omitted
+                  - user_id
+                  - tenant_id
+                  - device_id
+                  - config_id
+                  - device_state
                   - credential_materialized
-                  - public_storage_allowed
-                  - secure_download
+                  - signed_installer
                   - secrets_included
                 properties:
                   ok:
                     type: boolean
                     const: true
-                  artifact_delivery:
+                  user_id:
                     type: string
-                    const: authenticated_direct_download_only
-                  script_content_omitted:
-                    type: boolean
-                    const: true
-                  script_content_reason:
+                  tenant_id:
                     type: string
+                  device_id:
+                    type: string
+                  config_id:
+                    type: string
+                  device_state:
+                    type: string
+                    enum:
+                      - ACTIVE
+                      - STALE
                   credential_materialized:
                     type: boolean
                     const: false
+                  script_content_omitted:
+                    type: boolean
+                    const: true
                   public_storage_allowed:
                     type: boolean
                     const: false
-                  secure_download:
+                  signed_installer:
                     type: object
-                    additionalProperties: false
                     required:
                       - method
                       - path
-                      - query
-                      - requires_backend_api_key
-                      - requires_admin_principal
+                      - format
+                      - requires_authenticated_principal
+                      - requires_explicit_canonical_target
+                      - direct_admin_bat_disabled
                     properties:
                       method:
                         type: string
-                        const: GET
+                        const: POST
                       path:
                         type: string
-                        const: /admin/cli/local-connector/install-bundle
-                      query:
-                        type: object
-                        additionalProperties: false
-                        required:
-                          - user_id
-                          - device_id
-                          - format
-                        properties:
-                          user_id:
-                            type: string
-                          device_id:
-                            type: string
-                          format:
-                            type: string
-                            const: bat
-                      requires_backend_api_key:
+                        const: /local-connector/install/download-link
+                      format:
+                        type: string
+                        const: ps1
+                      requires_authenticated_principal:
                         type: boolean
                         const: true
-                      requires_admin_principal:
+                      requires_explicit_canonical_target:
+                        type: boolean
+                        const: true
+                      direct_admin_bat_disabled:
                         type: boolean
                         const: true
                   secrets_included:
                     type: boolean
                     const: false
-            application/octet-stream:
-              schema:
-                type: string
-                format: binary
+        "400":
+          description: Invalid device or format
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
-        "404":
-          $ref: "#/components/responses/NotFound"
-        "500":
-          $ref: "#/components/responses/InternalError"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "410":
+          description: Legacy direct BAT credential generation is retired
+        "503":
+          description: Device inventory unavailable
   /admin/cli/local-connector/self-repair:
     post:
       tags:
@@ -2133,9 +2129,12 @@ paths:
                 user_id:
                   type: string
                   description: User ID whose device to repair. Defaults to platform admin.
+                tenant_id:
+                  type: string
+                  description: Tenant scope for non-platform user when not supplied by authenticated identity.
                 device_id:
                   type: string
-                  description: Device hostname to repair. Defaults to mohammedlap.
+                  description: Explicit canonical device ID is required. Stale devices may be diagnosed without execution authority.
       responses:
         "200":
           description: Diagnosis and no-secret authenticated repair handoff
@@ -2176,15 +2175,22 @@ paths:
                       secrets_included:
                         type: boolean
                         const: false
+                  recovery_plan:
+                    type: object
+                    additionalProperties: true
+                    properties:
+                      status:
+                        type: string
+                      installer_eligible:
+                        type: boolean
+                      next_action:
+                        type: string
                   repair:
                     type: object
                     additionalProperties: true
                     required:
                       - required
                       - installer_generated
-                      - artifact_delivery
-                      - public_storage_allowed
-                      - secure_download
                       - secrets_included
                     properties:
                       required:
@@ -2192,6 +2198,10 @@ paths:
                       installer_generated:
                         type: boolean
                         const: false
+                      preview_only:
+                        type: boolean
+                      verification_pending:
+                        type: boolean
                       artifact_delivery:
                         type: string
                         const: authenticated_direct_download_only
@@ -2220,35 +2230,41 @@ paths:
                         required:
                           - method
                           - path
-                          - query
-                          - requires_backend_api_key
-                          - requires_admin_principal
+                          - body
+                          - requires_authenticated_principal
+                          - requires_signed_expiring_capability
+                          - direct_admin_bat_disabled
                         properties:
                           method:
                             type: string
-                            const: GET
+                            const: POST
                           path:
                             type: string
-                            const: /admin/cli/local-connector/install-bundle
-                          query:
+                            const: /local-connector/install/download-link
+                          body:
                             type: object
-                            additionalProperties: false
                             required:
                               - user_id
+                              - tenant_id
                               - device_id
                               - format
                             properties:
                               user_id:
                                 type: string
+                              tenant_id:
+                                type: string
                               device_id:
                                 type: string
                               format:
                                 type: string
-                                const: bat
-                          requires_backend_api_key:
+                                const: ps1
+                          requires_authenticated_principal:
                             type: boolean
                             const: true
-                          requires_admin_principal:
+                          requires_signed_expiring_capability:
+                            type: boolean
+                            const: true
+                          direct_admin_bat_disabled:
                             type: boolean
                             const: true
                       secrets_included:
@@ -2446,9 +2462,9 @@ paths:
 x-custom-gpt-generation:
   generator: http-generic-api/scripts/split-openapi.mjs
   source_openapi: http-generic-api/openapi.yaml
-  source_openapi_sha256: e2d6546ce541455437efb02e8c9e6facec279069cc5bb7adb023cea033631d18
+  source_openapi_sha256: c09b6d93a11edb0e9fc5d99f18bcf6d7b537fe6a51652746fa8477704dca4e87
   registry_file: canonicals/openapi/custom-gpt-surfaces.yaml
-  registry_sha256: 155e3332cc8359116ad5f437eea298f18808e179dadc49d6dea12a71a6fe7ac9
+  registry_sha256: c7ee3b98b51106ccee3240fd77c5e5dab33dfc7aa5c087acc93a8cbecadee7d6
   domain_family_policy: http-generic-api/config/domain-family-policy.json
   domain_family_policy_sha256: 5cdcb4b16a07d999dcff35d8a1fef14d441f4bac4ee26b8326cba1b2d92b3d3d
   environment: production
@@ -2629,8 +2645,8 @@ x-mad4b-registration-contract:
   environment: production
   source_surface: admin_core
   generation_mode: generated_from_openapi
-  source_openapi_sha256: e2d6546ce541455437efb02e8c9e6facec279069cc5bb7adb023cea033631d18
-  source_manifest_sha256: 155e3332cc8359116ad5f437eea298f18808e179dadc49d6dea12a71a6fe7ac9
+  source_openapi_sha256: c09b6d93a11edb0e9fc5d99f18bcf6d7b537fe6a51652746fa8477704dca4e87
+  source_manifest_sha256: c7ee3b98b51106ccee3240fd77c5e5dab33dfc7aa5c087acc93a8cbecadee7d6
   surface_operation_manifest_sha256: 41ea3c3cbdf1ec9b75a423b3b84ec6f77b888893edff08a04c7c9f699b5e3139
   surface_operation_manifest_hash_scope: split_surface_operation_manifest.v1
   registration_operation_manifest_sha256: f72392346e93b53f8ac8511dcf2acc996c896b5fd0dc77ea32d4a674b6d43b9e
