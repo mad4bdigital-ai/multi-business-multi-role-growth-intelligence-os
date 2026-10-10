@@ -87,7 +87,7 @@ jobs:
   probe-production-auth:
     name: Read-only Production Backend key acceptance
     needs: validate-target
-    if: needs.validate-target.outputs.target == 'production' && inputs.runtime_profile != 'auth_probe_only' && inputs.runtime_profile == 'auth_probe_only'
+    if: needs.validate-target.outputs.target == 'production' && inputs.runtime_profile == 'auth_probe_only'
     environment:
       name: Production
       deployment: false
@@ -210,7 +210,7 @@ jobs:
   verify-production:
     name: Verify Hostinger Production with environment credential
     needs: validate-target
-    if: needs.validate-target.outputs.target == 'production'
+    if: needs.validate-target.outputs.target == 'production' && inputs.runtime_profile != 'auth_probe_only'
     environment:
       name: Production
       deployment: false
