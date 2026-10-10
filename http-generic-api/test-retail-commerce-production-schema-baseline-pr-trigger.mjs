@@ -28,7 +28,7 @@ assert.equal(job.env.DB_HOST, "${{ secrets.DB_HOST }}");
 assert.equal(job.env.DB_NAME, "${{ secrets.DB_NAME }}");
 assert.equal(job.env.DB_USER, "${{ secrets.DB_USER }}");
 assert.equal(job.env.DB_PASSWORD, "${{ secrets.DB_PASSWORD }}");
-assert.equal(job.env.BACKEND_API_KEY, "${{ secrets.BACKEND_API_KEY }}");
+assert.equal(job.env.BACKEND_API_KEY, "${{ secrets.HOSTINGER_PRODUCTION_BACKEND_API_KEY }}");
 assert.equal(job.env.RUNTIME_BASE_URL, "https://auth.mad4b.com");
 
 const steps = job.steps;

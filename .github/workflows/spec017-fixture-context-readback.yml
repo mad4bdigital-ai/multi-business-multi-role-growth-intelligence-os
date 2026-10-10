@@ -21,6 +21,9 @@ jobs:
     permissions:
       contents: read
       pull-requests: read
+    environment:
+      name: Production
+      deployment: false
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 10
     env:
@@ -76,7 +79,7 @@ jobs:
         id: execute
         working-directory: http-generic-api
         env:
-          BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
+          BACKEND_API_KEY: ${{ secrets.HOSTINGER_PRODUCTION_BACKEND_API_KEY }}
           SOURCE_SHA: ${{ steps.trigger.outputs.expected_main_sha }}
           EXPECTED_PRODUCTION_SHA: ${{ steps.trigger.outputs.expected_production_sha }}
           SPEC017_FIXTURE_PARENT_TICKET_ID: ${{ steps.trigger.outputs.parent_ticket_id }}

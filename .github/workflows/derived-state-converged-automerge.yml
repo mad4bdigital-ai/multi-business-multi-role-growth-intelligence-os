@@ -32,9 +32,12 @@ jobs:
     if: >-
       (github.event_name == 'workflow_run' &&
        github.event.workflow_run.conclusion == 'success' &&
-       ((github.event.workflow_run.name == 'Derived State Closure' && github.event.workflow_run.event == 'pull_request') ||
+       ((github.event.workflow_run.name == 'Derived State Closure' && (github.event.workflow_run.event == 'pull_request' || github.event.workflow_run.event == 'pull_request_review')) ||
         (github.event.workflow_run.name == 'Governed Production Promotion Request Launcher' && github.event.workflow_run.event == 'workflow_dispatch'))) ||
       (github.event_name == 'workflow_dispatch' && inputs.confirmation == 'FINALIZE_GOVERNANCE_ATTESTATION')
+    environment:
+      name: Production
+      deployment: false
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     outputs:
@@ -49,7 +52,7 @@ jobs:
       attestor_status_id: ${{ steps.final.outputs.attestor_status_id }}
     env:
       GH_TOKEN: ${{ github.token }}
-      BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
+      BACKEND_API_KEY: ${{ secrets.HOSTINGER_PRODUCTION_BACKEND_API_KEY }}
       RUNTIME_BASE_URL: https://auth.mad4b.com
     steps:
       - name: Resolve and validate trusted source evidence
@@ -59,6 +62,10 @@ jobs:
           SOURCE_RUN_ID: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.id || inputs.source_run_id }}
         run: |
           set -euo pipefail
+          if [[ -z "${BACKEND_API_KEY:-}" ]]; then
+            echo "::error title=Trusted attestation configuration::error_code=production_environment_backend_api_key_missing" >&2
+            exit 1
+          fi
           [[ "$SOURCE_RUN_ID" =~ ^[1-9][0-9]*$ ]]
           run="$RUNNER_TEMP/source-run.json"
           gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${SOURCE_RUN_ID}" > "$run"
@@ -67,7 +74,7 @@ jobs:
           source_event="$(jq -r '.event' "$run")"
           case "$source_path" in
             .github/workflows/derived-state-closure.yml)
-              test "$source_event" = "pull_request"
+              [[ "$source_event" == "pull_request" || "$source_event" == "pull_request_review" ]]
               branch="main"
               prefix="derived-state-closure-"
               ;;
@@ -145,6 +152,26 @@ jobs:
             --arg pr "$pr_number" --arg source "$source_head_sha" --arg base "$base_sha" --arg candidate "$candidate_sha" --arg executed "$executed_sha" \
             --arg digest "$evidence_digest" --arg run "$SOURCE_RUN_ID" --arg confirm "$confirm" \
             '{mode:$mode,owner:$owner,repo:$repo,default_branch:$branch,pr_number:($pr|tonumber),source_head_sha:$source,base_sha:$base,candidate_sha:$candidate,executed_sha:$executed,evidence_sha256:$digest,source_run_id:($run|tonumber),confirm:$confirm}' > "$payload"
+          # Validate the Production-scoped credential against a protected read-only endpoint before attestation.
+          # Never log the credential, headers, response body, or an attacker-controlled origin.
+          probe_http="$(curl --silent --show-error --max-time 15 --proto '=https' --max-redirs 0 --output /dev/null --write-out '%{http_code}' \
+            -H "Authorization: Bearer $BACKEND_API_KEY" \
+            "$RUNTIME_BASE_URL/governance/execution-log-latest-inspect")" || {
+              echo "::error title=Production Backend preflight::error_code=production_backend_probe_transport_failed" >&2
+              exit 1
+            }
+          case "$probe_http" in
+            2??) ;;
+            401|403)
+              echo "::error title=Production Backend preflight::error_code=production_backend_auth_rejected;http_status=$probe_http" >&2
+              exit 1 ;;
+            3??)
+              echo "::error title=Production Backend preflight::error_code=production_backend_probe_redirect_rejected;http_status=$probe_http" >&2
+              exit 1 ;;
+            *)
+              echo "::error title=Production Backend preflight::error_code=production_backend_probe_not_ready;http_status=$probe_http" >&2
+              exit 1 ;;
+          esac
           response="$RUNNER_TEMP/attestation-response.json"
           # Report only an HTTP status and a bounded machine error.code; never emit the body, headers, or credential.
           if ! http="$(curl -sS -o "$response" -w '%{http_code}' -X POST "$RUNTIME_BASE_URL/admin/repository-automation/policy-controller" -H "Authorization: Bearer $BACKEND_API_KEY" -H 'Accept: application/json' -H 'Content-Type: application/json' --data-binary "@$payload")"; then

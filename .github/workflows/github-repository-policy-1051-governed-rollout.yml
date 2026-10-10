@@ -15,6 +15,9 @@ jobs:
       !github.event.issue.pull_request &&
       github.event.comment.body == 'AUTHORIZE_GOVERNED_MIGRATION_1051_GITHUB_REPOSITORY_POLICY_LIVE_APPLY_AUTHORITY' &&
       contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
+    environment:
+      name: Production
+      deployment: false
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 35
     concurrency:
@@ -23,7 +26,7 @@ jobs:
     env:
       ROLLOUT_PHASE: readiness
       RUNTIME_BASE_URL: https://auth.mad4b.com
-      BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
+      BACKEND_API_KEY: ${{ secrets.HOSTINGER_PRODUCTION_BACKEND_API_KEY }}
       GH_READ_TOKEN: ${{ github.token }}
       REPOSITORY: mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os
       CONTROL_ISSUE: '6625'
@@ -61,6 +64,9 @@ jobs:
       !github.event.issue.pull_request &&
       github.event.comment.body == 'RECONCILE_1051_GITHUB_REPOSITORY_POLICY_RECORD_ONLY_LEDGER' &&
       contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
+    environment:
+      name: Production
+      deployment: false
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 45
     concurrency:
@@ -69,7 +75,7 @@ jobs:
     env:
       ROLLOUT_PHASE: readiness
       RUNTIME_BASE_URL: https://auth.mad4b.com
-      BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
+      BACKEND_API_KEY: ${{ secrets.HOSTINGER_PRODUCTION_BACKEND_API_KEY }}
       GH_READ_TOKEN: ${{ github.token }}
       REPOSITORY: mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os
       CONTROL_ISSUE: '6625'
@@ -111,6 +117,9 @@ jobs:
       !github.event.issue.pull_request &&
       github.event.comment.body == 'APPLY_1051_GITHUB_REPOSITORY_POLICY_AFTER_RECORD_ONLY_RECONCILIATION' &&
       contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
+    environment:
+      name: Production
+      deployment: false
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 45
     concurrency:
@@ -119,7 +128,7 @@ jobs:
     env:
       ROLLOUT_PHASE: apply
       RUNTIME_BASE_URL: https://auth.mad4b.com
-      BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
+      BACKEND_API_KEY: ${{ secrets.HOSTINGER_PRODUCTION_BACKEND_API_KEY }}
       GH_READ_TOKEN: ${{ github.token }}
       REPOSITORY: mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os
       CONTROL_ISSUE: '6625'
@@ -161,6 +170,9 @@ jobs:
       !github.event.issue.pull_request &&
       github.event.comment.body == 'APPLY_1051_GITHUB_REPOSITORY_POLICY_LIVE_APPLY_AUTHORITY' &&
       contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
+    environment:
+      name: Production
+      deployment: false
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 40
     concurrency:
@@ -169,7 +181,7 @@ jobs:
     env:
       ROLLOUT_PHASE: apply
       RUNTIME_BASE_URL: https://auth.mad4b.com
-      BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
+      BACKEND_API_KEY: ${{ secrets.HOSTINGER_PRODUCTION_BACKEND_API_KEY }}
       GH_READ_TOKEN: ${{ github.token }}
       REPOSITORY: mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os
       CONTROL_ISSUE: '6625'
@@ -220,7 +232,7 @@ jobs:
     env:
       ROLLOUT_PHASE: verify
       RUNTIME_BASE_URL: https://auth.mad4b.com
-      BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
+      BACKEND_API_KEY: ${{ secrets.HOSTINGER_PRODUCTION_BACKEND_API_KEY }}
       GH_READ_TOKEN: ${{ github.token }}
       REPOSITORY: mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os
       CONTROL_ISSUE: '6625'

@@ -43,11 +43,14 @@ concurrency:
 jobs:
   dependency-readback:
     name: Verify exact governed migration dependencies
+    environment:
+      name: Production
+      deployment: false
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
       RUNTIME_BASE_URL: https://auth.mad4b.com
-      BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
+      BACKEND_API_KEY: ${{ secrets.HOSTINGER_PRODUCTION_BACKEND_API_KEY }}
       MIGRATION: ${{ inputs.migration }}
       EXPECTED_CHECKSUM_SHA256: ${{ inputs.expected_checksum_sha256 }}
       EXPECTED_STATEMENT_COUNT: ${{ inputs.expected_statement_count }}
