@@ -9,7 +9,8 @@ import { dirname, join, resolve } from "node:path";
 // secret name for Hostinger Production. GitHub secret presence must be checked live.
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const workflows = join(root, ".github", "workflows");
-const prodSecret = "secrets.BACKEND_API_KEY";
+const prodSecret = "secrets.HOSTINGER_PRODUCTION_BACKEND_API_KEY";
+const stagingSecret = "secrets.BACKEND_API_KEY";
 const stagingFiles = new Set(["staging-post-deploy-verification.yml"]);
 const productionEnv = "    environment:\n      name: Production\n";
 const productionShortEnv = "    environment: Production";
@@ -30,9 +31,12 @@ for (const filename of readdirSync(workflows).filter((s) => /\.ya?ml$/u.test(s))
     const job = indexes[i];
     const end = indexes[i + 1]?.i ?? lines.length;
     const text = lines.slice(job.i + 1, end).join("\n");
-    if (!text.includes(prodSecret)) continue;
+    const usesProductionSecret = text.includes(prodSecret);
+    const usesStagingSecret = text.includes(stagingSecret);
+    if (!usesProductionSecret && !usesStagingSecret) continue;
     const isStaging = stagingFiles.has(filename) || (filename === "verify-runtime.yml" && job.name === "verify-staging");
     if (isStaging) {
+      assert(usesStagingSecret && !usesProductionSecret, `${filename}/${job.name}: Staging must use only Repository BACKEND_API_KEY`);
       if (filename === "verify-runtime.yml") {
         assert(!text.includes("    environment:"), "Windows Staging verifier must retain Repository Secret");
         assert(text.includes("needs: validate-target"), "Windows Staging verifier requires credential-free URL validation");
@@ -40,6 +44,7 @@ for (const filename of readdirSync(workflows).filter((s) => /\.ya?ml$/u.test(s))
       records.push({ filename, job: job.name, scope: "Windows Staging" });
       continue;
     }
+    assert(usesProductionSecret && !usesStagingSecret, `${filename}/${job.name}: Production must never read the shared Repository BACKEND_API_KEY`);
     const protectedProduction = text.includes(productionEnv) || text.includes(productionShortEnv);
     assert(protectedProduction, `${filename}/${job.name}: Production backend key cannot fall back to Windows Staging Repository Secret`);
     if (filename === "verify-runtime.yml") {

@@ -147,7 +147,7 @@ jobs:
       - name: Resolve runtime database identity from Hostinger App Env
         shell: bash
         env:
-          BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
+          BACKEND_API_KEY: ${{ secrets.HOSTINGER_PRODUCTION_BACKEND_API_KEY }}
         run: |
           set -euo pipefail
           node --input-type=module - <<'NODE'
@@ -257,7 +257,7 @@ jobs:
             --attestation-output "${EVIDENCE_DIR}/repository-attestation.json"
       - name: Observe live SQL catalog with same-cycle readback
         env:
-          BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
+          BACKEND_API_KEY: ${{ secrets.HOSTINGER_PRODUCTION_BACKEND_API_KEY }}
         run: |
           EVIDENCE_PATH="${EVIDENCE_DIR}/catalog-observation.json" \
           OBSERVED_REF="${GITHUB_SHA}" \

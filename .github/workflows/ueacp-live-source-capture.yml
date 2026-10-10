@@ -121,7 +121,7 @@ jobs:
       - name: Resolve runtime database identity from Hostinger App Env
         shell: bash
         env:
-          BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
+          BACKEND_API_KEY: ${{ secrets.HOSTINGER_PRODUCTION_BACKEND_API_KEY }}
         run: |
           set -euo pipefail
           node --input-type=module - <<'NODE'
@@ -198,13 +198,13 @@ jobs:
           NODE
       - name: Observe live catalog read-only with same-cycle readback
         env:
-          BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
+          BACKEND_API_KEY: ${{ secrets.HOSTINGER_PRODUCTION_BACKEND_API_KEY }}
           EVIDENCE_PATH: ${{ runner.temp }}/ueacp-live-source-capture/catalog-observation.json
           OBSERVED_REF: ${{ github.sha }}
         run: node .github/scripts/authority-live-census-observation.mjs
       - name: Collect all eight fixed authority sources
         env:
-          BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
+          BACKEND_API_KEY: ${{ secrets.HOSTINGER_PRODUCTION_BACKEND_API_KEY }}
           AUTHORIZATION_PATH: ${{ runner.temp }}/ueacp-live-source-capture/authorization.json
           CENSUS_PATH: ${{ runner.temp }}/ueacp-live-source-capture/catalog-observation.json
           EVIDENCE_PATH: ${{ runner.temp }}/ueacp-live-source-capture/live-evidence-packet.json

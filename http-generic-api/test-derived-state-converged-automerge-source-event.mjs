@@ -22,7 +22,7 @@ for (const workflowName of credentialBoundWorkflows) {
   const jobStarts = [...jobText.matchAll(/^  ([a-zA-Z0-9_-]+):\s*$/gm)];
   for (let i = 0; i < jobStarts.length; i++) {
     const job = jobText.slice(jobStarts[i].index, i + 1 < jobStarts.length ? jobStarts[i + 1].index : jobText.length);
-    if (!job.includes("BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}")) continue;
+    if (!job.includes("BACKEND_API_KEY: ${{ secrets.HOSTINGER_PRODUCTION_BACKEND_API_KEY }}")) continue;
     assert.match(job, /^    environment:\n      name: Production\n      deployment: false$/m,
       `${workflowName}/${jobStarts[i][1]}: Production Backend key requires Production Environment`);
   }
@@ -31,8 +31,10 @@ for (const workflowName of credentialBoundWorkflows) {
 
 const attestJob = workflow.split("\n  attest:\n")[1]?.split("\n  merge:\n")[0] || "";
 assert.ok(attestJob.includes("    environment:\n      name: Production\n      deployment: false\n"), "attestation must bind Production Environment without creating a deployment");
-assert.ok(attestJob.includes("BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}"), "attestation must resolve Production Environment BACKEND_API_KEY secret");
+assert.ok(attestJob.includes("BACKEND_API_KEY: ${{ secrets.HOSTINGER_PRODUCTION_BACKEND_API_KEY }}"), "attestation must resolve Production Environment BACKEND_API_KEY secret");
 assert.ok(attestJob.includes("error_code=production_environment_backend_api_key_missing"), "a missing Production API key must fail before calling the runtime");
+assert.match(attestJob, /governance\/execution-log-latest-inspect/, "attestor must perform safe read-only acceptance probe before invoking policy-controller");
+assert.match(attestJob, /production_backend_auth_rejected/, "attestor must distinguish rejected runtime keys without logging values");
 assert.ok(attestJob.indexOf("    environment:") < attestJob.indexOf("    runs-on:"), "Production Environment must bind the attestation job before runner steps");
 
 assert.match(

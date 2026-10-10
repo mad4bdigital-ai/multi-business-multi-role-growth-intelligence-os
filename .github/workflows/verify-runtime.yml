@@ -187,7 +187,7 @@ jobs:
       - name: Inspect execution-log sheet read attempts
         env:
           RUNTIME_BASE_URL: ${{ inputs.runtime_base_url }}
-          BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
+          BACKEND_API_KEY: ${{ secrets.HOSTINGER_PRODUCTION_BACKEND_API_KEY }}
         run: |
           curl -sS \
             -H "Authorization: Bearer ${BACKEND_API_KEY}" \
@@ -201,7 +201,7 @@ jobs:
         working-directory: http-generic-api
         env:
           RUNTIME_BASE_URL: ${{ inputs.runtime_base_url }}
-          BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
+          BACKEND_API_KEY: ${{ secrets.HOSTINGER_PRODUCTION_BACKEND_API_KEY }}
           RUNTIME_PROFILE: ${{ inputs.runtime_profile }}
           EXPECT_QUEUE_AVAILABLE: ${{ inputs.expect_queue_available }}
           EXPECT_WORKER_ENABLED: ${{ inputs.expect_worker_enabled }}

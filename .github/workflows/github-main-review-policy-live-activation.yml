@@ -28,7 +28,7 @@ jobs:
       POLICY_PHASE: readiness
       TARGET_BRANCH: ${{ github.event.comment.body == 'AUTHORIZE_GITHUB_PRODUCTION_POLICY_READINESS' && 'Production' || 'main' }}
       RUNTIME_BASE_URL: https://auth.mad4b.com
-      BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
+      BACKEND_API_KEY: ${{ secrets.HOSTINGER_PRODUCTION_BACKEND_API_KEY }}
       GH_READ_TOKEN: ${{ github.token }}
       REPOSITORY: ${{ github.repository }}
       CONTROL_ISSUE: '6625'
@@ -76,7 +76,7 @@ jobs:
       POLICY_PHASE: apply
       TARGET_BRANCH: ${{ github.event.comment.body == 'APPLY_GITHUB_PRODUCTION_POLICY' && 'Production' || 'main' }}
       RUNTIME_BASE_URL: https://auth.mad4b.com
-      BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
+      BACKEND_API_KEY: ${{ secrets.HOSTINGER_PRODUCTION_BACKEND_API_KEY }}
       GH_READ_TOKEN: ${{ github.token }}
       REPOSITORY: ${{ github.repository }}
       CONTROL_ISSUE: '6625'
@@ -124,7 +124,7 @@ jobs:
       POLICY_PHASE: verify
       TARGET_BRANCH: ${{ github.event.comment.body == 'VERIFY_GITHUB_PRODUCTION_POLICY' && 'Production' || 'main' }}
       RUNTIME_BASE_URL: https://auth.mad4b.com
-      BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
+      BACKEND_API_KEY: ${{ secrets.HOSTINGER_PRODUCTION_BACKEND_API_KEY }}
       GH_READ_TOKEN: ${{ github.token }}
       REPOSITORY: ${{ github.repository }}
       CONTROL_ISSUE: '6625'

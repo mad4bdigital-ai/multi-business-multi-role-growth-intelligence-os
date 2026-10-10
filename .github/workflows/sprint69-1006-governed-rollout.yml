@@ -36,7 +36,7 @@ jobs:
     env:
       ROLLOUT_PHASE: readiness
       RUNTIME_BASE_URL: https://auth.mad4b.com
-      BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
+      BACKEND_API_KEY: ${{ secrets.HOSTINGER_PRODUCTION_BACKEND_API_KEY }}
       GH_READ_TOKEN: ${{ github.token }}
       REPOSITORY: mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os
       CONTROL_ISSUE: '4122'
@@ -109,7 +109,7 @@ jobs:
     env:
       ROLLOUT_PHASE: apply
       RUNTIME_BASE_URL: https://auth.mad4b.com
-      BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
+      BACKEND_API_KEY: ${{ secrets.HOSTINGER_PRODUCTION_BACKEND_API_KEY }}
       GH_READ_TOKEN: ${{ github.token }}
       REPOSITORY: mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os
       CONTROL_ISSUE: '4122'

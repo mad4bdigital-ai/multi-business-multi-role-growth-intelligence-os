@@ -30,7 +30,7 @@ jobs:
       DB_NAME: ${{ secrets.DB_NAME }}
       DB_USER: ${{ secrets.DB_USER }}
       DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
-      BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
+      BACKEND_API_KEY: ${{ secrets.HOSTINGER_PRODUCTION_BACKEND_API_KEY }}
       RUNTIME_BASE_URL: https://auth.mad4b.com
       DB_CONNECTION_LIMIT: "1"
       DB_CONNECT_TIMEOUT_MS: "10000"
