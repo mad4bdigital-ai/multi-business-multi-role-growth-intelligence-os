@@ -1,4 +1,4 @@
-import {strictParseCsv,guardMatrix,guardContext,guardReceipt} from './context-source-guard.mjs';
+import {strictParseCsv,guardMatrix,guardContext,guardEditorial,guardReceipt} from './context-source-guard.mjs';
 /** Portable offline candidate-ingest + contextual projection + host-attestation boundary.
  * No OAuth, I/O, persistence, external publishing or signature implementation.
  * Receipts require host-injected trusted verification and atomic nonce store.
@@ -152,6 +152,8 @@ export function importPersonaMatrix({matrix,scope,source,persona_key}){
 export function assessEditorialRow({row,headers,scope,source}){
  const scoped=requireScoped(scope);
  if(!Array.isArray(row)||!Array.isArray(headers)||!source?.source_key||!source.revision)throw new Error("PUBLISH_SOURCE_REQUIRED");
+ const admission=guardEditorial({row,headers});
+ if(admission)return {status:"QUARANTINED",reason:admission,publish_authorized:false,side_effects:false};
  if(row.some(suspiciousValue))return {status:"QUARANTINED",reason:"SENSITIVE_VALUE",publish_authorized:false};
  const h=headers.map(norm);
  const get=x=>{const i=h.indexOf(norm(x));return i>=0?String(row[i]??"").trim():""};
