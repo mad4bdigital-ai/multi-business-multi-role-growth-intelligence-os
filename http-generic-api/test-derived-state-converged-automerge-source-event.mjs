@@ -61,6 +61,14 @@ assert.match(readiness, /allowedCheckSource\(managedBinding,/, "managed source m
 assert.match(readiness, /commits\/\$\{expectedCandidate\}\/statuses\?per_page=100/, "verifier must read exact-candidate statuses");
 assert.match(readiness, /latestSameCycleAttestorStatus\(statuses,/, "candidate success must be proven by the native tested pure predicate");
 assert.match(readiness, /safe_to_register_auto_merge: false/, "native auto-merge registration must remain forbidden");
+assert.match(workflow, /error_code=attestation_transport_failed/, "transport failure must have a nonsecret, typed diagnostic");
+assert.match(workflow, /error_code=attestation_http_status_invalid/, "invalid HTTP response must fail closed");
+assert.match(workflow, /error_code=attestation_response_contract_mismatch/, "invalid successful response must fail closed with typed diagnostic");
+assert.match(workflow, /error_code=attestation_identity_readback_missing/, "attestor and same-cycle status identities must be present");
+assert.match(workflow, /http_status=%s error_code=%s/, "non-200 errors must expose only bounded status and machine code");
+assert.match(workflow, /\^\[a-z\]\[a-z0-9_\]\{2,127\}\$/, "server error codes must be allowlisted before logging");
+assert.doesNotMatch(workflow, /printf[^\n]*(?:\$response|BACKEND_API_KEY)/, "raw response files and backend credentials must never be printed");
+assert.doesNotMatch(workflow, /echo[^\n]*\.error\.message/, "untrusted error messages must not enter workflow logs");
 assert.match(workflow, /attestor_status_id: \$\{\{ steps\.final\.outputs\.attestor_status_id \}\}/, "attestation must return the exact newly created status ID");
 assert.match(workflow, /EXPECTED_ATTESTOR_STATUS_ID="\$ATTESTOR_STATUS_ID"/, "finalizer must carry the same-cycle status ID to the verifier");
 assert.match(readiness, /expectedAttestorStatusId = Number\(process\.env\.EXPECTED_ATTESTOR_STATUS_ID/, "status ID must be explicitly supplied");
