@@ -16,6 +16,9 @@ assert(productionJob.includes('    environment:\\n      name: Production\\n     
 assert.equal(stagingJob.split('BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}').length - 1, 2, 'Staging must keep existing Repository key references');
 assert.equal(productionJob.split('BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}').length - 1, 2, 'Production key must be resolved inside Production job');
 
+assert(!workflow.includes('cat inspect.json') && !workflow.includes('| tee inspect.json'), 'authenticated runtime payloads must never be echoed to GitHub Actions logs');
+assert.equal(workflow.split('Execution-log inspection HTTP status:').length - 1, 2, 'both Staging and Production inspection jobs must log bounded HTTP status only');
+assert.equal(workflow.split("--proto '=https'").length - 1, 2, 'both authenticated inspection probes must reject non-HTTPS protocols');
 assert(workflow.includes('runtime_profile:'), 'Verify Runtime workflow must expose runtime_profile input');
 assert(workflow.includes('default: "api_only"'), 'Verify Runtime workflow must default to api_only profile');
 assert(workflow.includes('EXPECT_QUEUE_AVAILABLE: ${{ inputs.expect_queue_available }}'), 'workflow must pass queue expectation to script');
