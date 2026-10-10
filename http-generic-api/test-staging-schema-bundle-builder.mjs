@@ -1579,7 +1579,7 @@ test("generator plan-only mode inventories the exact migration chain", () => {
     true,
     "Local Manager control-template registry migration must be part of the ordered schema plan",
   );
-  assert.equal(plan.ordered_foreign_key_compatibility_chain.tables_projected, 591);
+  assert.equal(plan.ordered_foreign_key_compatibility_chain.tables_projected, 591 + 2); // Two explicitly asserted additive Catalog Trust tables.
   assert.equal(plan.ordered_foreign_key_compatibility_chain.foreign_keys_checked, 138);
   assert.equal(plan.ordered_foreign_key_compatibility_chain.type_comparisons, 140);
   assert.equal(plan.ordered_foreign_key_compatibility_chain.type_mismatches, 0);
