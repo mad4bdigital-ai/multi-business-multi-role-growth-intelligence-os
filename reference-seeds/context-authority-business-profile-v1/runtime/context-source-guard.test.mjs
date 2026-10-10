@@ -1,5 +1,5 @@
 import {test} from 'node:test';import assert from 'node:assert/strict';
-import {strictParseCsv,guardMatrix,guardContext,guardReceipt} from './context-source-guard.mjs';
+import {strictParseCsv,guardMatrix,guardContext,guardEditorial,guardReceipt} from './context-source-guard.mjs';
 const source={tenant_ref:'t',brand_ref:'b'};
 const demo={scope:source,persona:source,policy:{...source,channels:['blog']},claims:[],channel:'blog',style:'educational'};
 const expected={tenant_ref:'t',brand_ref:'b',exact_head:'head',artifact_sha256:'sha256',site_uuid:'site',environment:'staging',source_generation:'generation',policy_digest:'policy',required_checks:['content','scope']};
@@ -27,3 +27,6 @@ test('claim site mismatch and duplicate IDs refused',()=>{assert.throws(()=>guar
 
 test('caller-stricter row/column/cell caps are enforced',()=>{assert.throws(()=>strictParseCsv('A,B',{maxColumns:1}),/COLUMN_LIMIT/);assert.throws(()=>strictParseCsv('Title\nx\ny',{maxRows:1}),/ROW_LIMIT/);assert.throws(()=>strictParseCsv('A\n12345',{maxCellLength:4}),/CELL_LIMIT/);assert.throws(()=>strictParseCsv('Title',{maxBytes:-1}),/INVALID_LIMIT/)});
 test('email marketing headings are not automatically private email columns',()=>assert.equal(guardMatrix([['Content Title','Email Campaign'],['Article','Newsletter']]),true));
+
+test('private editorial contact is quarantined without revealing content',()=>assert.equal(guardEditorial({headers:['Blog Title','Blog Content'],row:['Headline','Contact abc@example.com']}),'SENSITIVE_EDITORIAL_CONTENT'));
+test('clean long editorial content not mistaken for short CSV cell',()=>assert.equal(guardEditorial({headers:['Blog Title','Blog Content'],row:['Article','A'.repeat(12000)]}),null));
