@@ -45,6 +45,18 @@ class AuditTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,"FILE_COUNT_LIMIT"):audit(self.root,max_files=1)
         with self.assertRaisesRegex(ValueError,"INVALID_SOURCE_DIRECTORY"):audit(self.root/"missing")
         with self.assertRaisesRegex(ValueError,"INVALID_BUDGET"):audit(self.root,max_pages=0)
+    def test_excessive_pdf_page_pixels_fail_before_raster(self):
+        large=fitz.open()
+        large.new_page(width=50000,height=50000)
+        large.save(self.root/"oversized-page.pdf")
+        large.close()
+        result=audit(self.root)
+        large_result=next(x for x in result["records"]
+                          if x["type"]=="pdf" and x.get("render_failures",0)>0)
+        self.assertEqual(large_result["render_failures"],1)
+        self.assertEqual(large_result["page_checks"][0]["reason"],"PAGE_PIXEL_BUDGET")
+        self.assertFalse(result["approval_granted"])
+
     def test_symlink_rejected(self):
         outside=self.root.parent/"audit-outside-fixture.txt"
         outside.write_text("Synthetic only",encoding="utf-8")
