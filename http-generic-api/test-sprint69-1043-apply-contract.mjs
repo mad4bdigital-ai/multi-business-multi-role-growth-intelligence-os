@@ -45,7 +45,7 @@ assert.equal(workflow.includes(READINESS_CONFIRM), false, 'Apply workflow must n
 assert.match(workflow, /^\s{2}apply:/m);
 assert.equal((workflow.match(/^\s{2}apply:/gm) || []).length, 1);
 assert.doesNotMatch(workflow, /gh\s+api|issues:\s*write|comments\/|workflow_dispatch/);
-assert.match(workflow, /BACKEND_API_KEY: \$\{\{ secrets\.BACKEND_API_KEY \}\}/);
+assert.match(workflow, /BACKEND_API_KEY: \$\{\{ secrets\.HOSTINGER_PRODUCTION_BACKEND_API_KEY \}\}/);
 assert.match(workflow, /GH_READ_TOKEN: \$\{\{ github\.token \}\}/);
 assert.match(workflow, /ref: main/);
 assert.match(workflow, /if: always\(\)[\s\S]*actions\/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4/);

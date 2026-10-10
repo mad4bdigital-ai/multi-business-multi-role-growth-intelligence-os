@@ -220,7 +220,7 @@ assert.equal(verifyScope.length, 2, "exactly one Verify job is required");
 const [unprivilegedJobs, verifyJob] = verifyScope;
 assert.match(verifyJob, /^    environment:\n      name: Production\n      deployment: false\n    runs-on:/m);
 assert.match(verifyJob, /ROLLOUT_PHASE: verify/);
-assert.match(verifyJob, /BACKEND_API_KEY: \$\{\{ secrets\.BACKEND_API_KEY \}\}/);
+assert.match(verifyJob, /BACKEND_API_KEY: \$\{\{ secrets\.HOSTINGER_PRODUCTION_BACKEND_API_KEY \}\}/);
 assert.doesNotMatch(unprivilegedJobs, /^    environment:/m, "readiness/reconcile/apply must not inherit Production secret scope");
 assert.match(verifyJob, /Capture bounded Migration 1051 metadata diagnostic without Apply/);
 assert.match(verifyJob, /Verify exact ledger and authority metadata without Apply/);

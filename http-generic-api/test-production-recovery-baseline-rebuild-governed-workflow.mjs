@@ -18,7 +18,7 @@ assert.match(workflow, /startsWith\(github\.event\.comment\.body, 'APPLY_HOSTING
 assert.match(workflow, /startsWith\(github\.event\.comment\.body, 'APPROVE PRODUCTION RECOVERY '\)/u);
 assert.match(workflow, /contents:\s*read/u);
 assert.match(workflow, /issues:\s*write/u);
-assert.match(workflow, /BACKEND_API_KEY:\s*\$\{\{\s*secrets\.BACKEND_API_KEY\s*\}\}/u);
+assert.match(workflow, /BACKEND_API_KEY:\s*\$\{\{\s*secrets\.HOSTINGER_PRODUCTION_BACKEND_API_KEY\s*\}\}/u);
 
 const productionRecoveryJobs = [
   "Prepare exact Production baseline rebuild approval",
@@ -33,7 +33,7 @@ for (const jobName of productionRecoveryJobs) {
   const nextJob = tail.match(/\n  [A-Za-z0-9_-]+:\n(?=\s+name:)/u);
   const block = nextJob ? tail.slice(0, nextJob.index) : tail;
   assert.match(block, /environment:\s*\n\s*name:\s*Production\s*\n\s*deployment:\s*false/u, `${jobName} must bind the Production environment without creating a deployment`);
-  assert.match(block, /BACKEND_API_KEY:\s*\$\{\{\s*secrets\.BACKEND_API_KEY\s*\}\}/u, `${jobName} must consume the Production-scoped backend key`);
+  assert.match(block, /BACKEND_API_KEY:\s*\$\{\{\s*secrets\.HOSTINGER_PRODUCTION_BACKEND_API_KEY\s*\}\}/u, `${jobName} must consume the Production-scoped backend key`);
 }
 
 assert.match(workflow, /cancel-in-progress:\s*false/u);
