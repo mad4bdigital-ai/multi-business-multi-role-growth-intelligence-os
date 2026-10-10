@@ -213,17 +213,44 @@ assert.equal(RECORD_CONFIRM, "RECORD_1051_GITHUB_REPOSITORY_POLICY_LIVE_APPLY_AU
 assert.equal(RECONCILE_CONFIRM, "RECONCILE_1051_GITHUB_REPOSITORY_POLICY_RECORD_ONLY_LEDGER");
 assert.equal(RECONCILED_APPLY_CONFIRM, "APPLY_1051_GITHUB_REPOSITORY_POLICY_AFTER_RECORD_ONLY_RECONCILIATION");
 
-// The read-only Verify job must consume the environment-scoped backend credential
-// used by GitHub policy readback, without granting that environment to mutating jobs.
-const verifyScope = workflow.split("\n  verify:\n");
-assert.equal(verifyScope.length, 2, "exactly one Verify job is required");
-const [unprivilegedJobs, verifyJob] = verifyScope;
-assert.match(verifyJob, /^    environment:\n      name: Production\n      deployment: false\n    runs-on:/m);
-assert.match(verifyJob, /ROLLOUT_PHASE: verify/);
-assert.match(verifyJob, /BACKEND_API_KEY: \$\{\{ secrets\.HOSTINGER_PRODUCTION_BACKEND_API_KEY \}\}/);
-assert.doesNotMatch(unprivilegedJobs, /^    environment:/m, "readiness/reconcile/apply must not inherit Production secret scope");
-assert.match(verifyJob, /Capture bounded Migration 1051 metadata diagnostic without Apply/);
-assert.match(verifyJob, /Verify exact ledger and authority metadata without Apply/);
+// All five Migration 1051 phases call the Production Backend. Each job
+// requires protected Environment authorization, but only executable node
+// steps receive the Production key; setup, checkout and upload do not.
+const expected1051Jobs = {
+  readiness: { command: "AUTHORIZE_GOVERNED_MIGRATION_1051_GITHUB_REPOSITORY_POLICY_LIVE_APPLY_AUTHORITY", steps: 2 },
+  reconcile_record_only: { command: "RECONCILE_1051_GITHUB_REPOSITORY_POLICY_RECORD_ONLY_LEDGER", steps: 3 },
+  apply_after_record_only_reconcile: { command: "APPLY_1051_GITHUB_REPOSITORY_POLICY_AFTER_RECORD_ONLY_RECONCILIATION", steps: 3 },
+  apply: { command: "APPLY_1051_GITHUB_REPOSITORY_POLICY_LIVE_APPLY_AUTHORITY", steps: 2 },
+  verify: { command: "VERIFY_GOVERNED_MIGRATION_1051_GITHUB_REPOSITORY_POLICY_LIVE_APPLY_AUTHORITY", steps: 2 },
+};
+const jobSections = workflow.slice(workflow.indexOf("\njobs:\n") + "\njobs:\n".length)
+  .split(/\n(?=  (?:readiness|reconcile_record_only|apply_after_record_only_reconcile|apply|verify):\n)/u);
+assert.equal(jobSections.length, 5, "all five authorized phases must remain");
+for (const job of jobSections) {
+  const name = /^  ([a-z_]+):\n/u.exec(job)?.[1];
+  assert.ok(Object.hasOwn(expected1051Jobs, name), "unexpected Migration 1051 job");
+  const [header, body, ...extra] = job.split("\n    steps:\n");
+  assert.ok(body && extra.length === 0, `${name}: missing or duplicate step list`);
+  assert.match(header, /\n    environment:\n      name: Production\n      deployment: false\n    runs-on:/u, `${name}: protected Production scope is mandatory`);
+  assert.ok(header.includes(`github.event.comment.body == '${expected1051Jobs[name].command}'`), `${name}: exact command check required`);
+  assert.match(header, /github.event.comment.author_association/u, `${name}: identity check required`);
+  assert.doesNotMatch(header, /BACKEND_API_KEY:|HOSTINGER_PRODUCTION_BACKEND_API_KEY/u, `${name}: job-wide key forbidden`);
+  assert.doesNotMatch(job, /secrets\.BACKEND_API_KEY/u, `${name}: Staging key forbidden`);
+  const steps = body.split(/\n(?=      - (?:name:|uses:))/u);
+  let count = 0;
+  for (const step of steps) {
+    const isBackendStep = /run: node \.github\/ops\/github-repository-policy-1051-(?:metadata-state|governed-rollout)\.mjs/u.test(step);
+    const keyPresent = step.includes("          BACKEND_API_KEY: ${{ secrets.HOSTINGER_PRODUCTION_BACKEND_API_KEY }}");
+    assert.equal(keyPresent, isBackendStep, `${name}: credential must be step-scoped to Backend execution only`);
+    if (isBackendStep) { assert.match(step, /\n        env:\n/u); count++; }
+  }
+  assert.equal(count, expected1051Jobs[name].steps, `${name}: missing bound Backend node step`);
+}
+const verifyJob = jobSections.find((section) => section.startsWith("  verify:\n"));
+assert.ok(verifyJob, "dedicated read-only Verify phase required");
+assert.match(verifyJob, /ROLLOUT_PHASE: verify/u);
+assert.match(verifyJob, /Capture bounded Migration 1051 metadata diagnostic without Apply/u);
+assert.match(verifyJob, /Verify exact ledger and authority metadata without Apply/u);
 
 assert.match(workflow, /RECONCILE_1051_GITHUB_REPOSITORY_POLICY_RECORD_ONLY_LEDGER/);
 assert.match(workflow, /APPLY_1051_GITHUB_REPOSITORY_POLICY_AFTER_RECORD_ONLY_RECONCILIATION/);
