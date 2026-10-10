@@ -62,7 +62,7 @@ export function importMatrix({matrix,scope,source,asOf,declaredDays}){
     if(row.length>64||row.some(x=>x.length>4096)){rejected.push({row_index:i+1,reason:"ROW_LIMIT"});continue;}
     if(row.some(suspiciousValue)){rejected.push({row_index:i+1,reason:"SENSITIVE_VALUE_QUARANTINED"});continue;}
     const get=k=>columns[k]===undefined?"":String(row[columns[k]]??"").trim();
-    const item={record_key:`candidate:${i}`,title:get("title"),date:get("date"),stage:get("stage"),format:get("format"),channel:get("channel"),persona:get("persona"),hook:get("hook"),writer_brief:get("writer_brief"),designer_brief:get("designer_brief"),status:"CANDIDATE_ONLY"};
+    const item={record_key:`candidate:${i}`,title:get("title"),date:get("date"),stage:get("stage"),format:get("format"),channel:get("channel"),persona:get("persona"),hook:get("hook"),writer_brief:get("writer_brief"),designer_brief:get("designer_brief"),status:"CANDIDATE_ONLY",source_taint:"UNTRUSTED_DATA",instruction_authority:false,external_revision_verified:false};
     item.flags=reviewFlags(item,{asOf});
     const dedup=[norm(item.title),norm(item.format),norm(item.persona),norm(item.stage)].join("|");
     if(seen.has(dedup))item.flags.push("REPEATED_COPY");
@@ -95,7 +95,7 @@ export function compileContext({scope,persona,policy,claims=[],channel,format,st
     if(ok)eligible.push(claim.id);
     else blocked.push({claim_ref:claim.id||"unidentified",reason:"UNVERIFIED_OR_WRONG_SCOPE"});
   }
-  return {state:"PREVIEW_ONLY",scope:s,audience_role:persona.role||"unspecified",buyer_stage:persona.stage||"unspecified",channel,format,style,brand_voice:policy.voice||"unset",policy_revision:policy.revision||"unknown",candidate_claim_refs:eligible,excluded_claims:blocked,needs_independent_claim_verification:true,publication_authorized:false,execution_authorized:false};
+  return {state:"PREVIEW_ONLY",scope:s,audience_role:persona.role||"unspecified",buyer_stage:persona.stage||"unspecified",channel,format,style,brand_voice:policy.voice||"unset",policy_revision:policy.revision||"unknown",candidate_claim_refs:eligible,excluded_claims:blocked,needs_independent_claim_verification:true,needs_policy_owner_and_revision_verification:true,publication_authorized:false,execution_authorized:false};
 }
 
 export function verifyHostReceipt({receipt,expected,trust,verifier,replayStore,now}){
@@ -143,7 +143,7 @@ export function importPersonaMatrix({matrix,scope,source,persona_key}){
    if(!value)continue;
    const flags=reviewFlags({title:value,writer_brief:why});
    if(!why)flags.push("MISSING_REASON");
-   records.push({candidate_ref:`persona:${rowNum}:${kind}`,persona_key,kind,value,why_it_matters:why,flags,status:"CANDIDATE_ONLY",publish_authorized:false});
+   records.push({candidate_ref:`persona:${rowNum}:${kind}`,persona_key,kind,value,why_it_matters:why,flags,status:"CANDIDATE_ONLY",source_taint:"UNTRUSTED_DATA",instruction_authority:false,publish_authorized:false});
   }
  }
  return {status:"CANDIDATE_ONLY",scope:bound,source:{source_key:source.source_key,revision:source.revision},persona_key,records,quarantine,side_effects:false};
