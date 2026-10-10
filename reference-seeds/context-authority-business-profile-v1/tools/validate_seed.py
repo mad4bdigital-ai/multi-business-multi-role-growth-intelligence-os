@@ -134,6 +134,16 @@ def validate(root=ROOT):
         if (review_schema.get("additionalProperties") is not False or
             review_schema.get("properties", {}).get("execution_authority", {}).get("const") is not False):
             faults.append("media_receipt_must_not_authorize")
+        guard = review_schema.get("allOf", [])
+        approved_guard = any(
+            rule.get("if", {}).get("properties", {}).get("owner_review", {}).get("const") == "APPROVED"
+            and {"reviewer_ref", "review_receipt_ref"}.issubset(set(rule.get("then", {}).get("required", [])))
+            and all(rule.get("then", {}).get("properties", {}).get(key, {}).get("const") == "PASS"
+                    for key in ("structural_status", "visual_status", "semantic_status"))
+            for rule in guard if isinstance(rule, dict)
+        )
+        if not approved_guard:
+            faults.append("media_approval_without_independent_review")
     except (OSError, json.JSONDecodeError):
         faults.append("media_receipt_schema_missing")
     return sorted(set(faults))

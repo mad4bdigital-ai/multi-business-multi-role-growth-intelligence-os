@@ -75,6 +75,45 @@
     },
     "execution_authority": {
       "const": false
+    },
+    "reviewer_ref": {
+      "type": "string",
+      "minLength": 1
+    },
+    "review_receipt_ref": {
+      "type": "string",
+      "minLength": 1
     }
-  }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "owner_review": {
+            "const": "APPROVED"
+          }
+        },
+        "required": [
+          "owner_review"
+        ]
+      },
+      "then": {
+        "required": [
+          "reviewer_ref",
+          "review_receipt_ref"
+        ],
+        "properties": {
+          "structural_status": {
+            "const": "PASS"
+          },
+          "visual_status": {
+            "const": "PASS"
+          },
+          "semantic_status": {
+            "const": "PASS"
+          }
+        }
+      }
+    }
+  ]
 }
