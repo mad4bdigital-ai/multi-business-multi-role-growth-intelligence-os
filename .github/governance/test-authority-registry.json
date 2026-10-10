@@ -81,7 +81,8 @@
         "http-generic-api/test-credential-resolution-authority.mjs",
         "http-generic-api/test-credential-resolution-plan.mjs",
         "http-generic-api/test-credential-resolver.mjs",
-        "http-generic-api/test-tenant-gpt-oauth-secret-ref.mjs"
+        "http-generic-api/test-tenant-gpt-oauth-secret-ref.mjs",
+        "http-generic-api/test-verify-runtime-profile.mjs"
       ]
     },
     {
