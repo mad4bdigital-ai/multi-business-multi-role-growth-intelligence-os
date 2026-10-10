@@ -1,0 +1,190 @@
+{
+  "contract": "mad4b.reference.business-context.pipeline.v1",
+  "status": "SPEC_ONLY",
+  "phases": [
+    {
+      "id": "discover",
+      "purpose": "Discover sources and inventories within explicit tenant/brand scope",
+      "output": "safe_metadata_index",
+      "execution_enabled": false
+    },
+    {
+      "id": "classify",
+      "purpose": "Classify source and content confidentiality; exclude credentials",
+      "output": "source_classification",
+      "execution_enabled": false
+    },
+    {
+      "id": "map",
+      "purpose": "Map content into semantic claims and custom dimensions",
+      "output": "candidate_claim_graph",
+      "execution_enabled": false
+    },
+    {
+      "id": "link",
+      "purpose": "Link claims, provenance, audience, locale and intended output",
+      "output": "lineage_graph",
+      "execution_enabled": false
+    },
+    {
+      "id": "reconcile",
+      "purpose": "Determine per-field owner and conflicts; detect revisions",
+      "output": "conflict_matrix",
+      "execution_enabled": false
+    },
+    {
+      "id": "review",
+      "purpose": "Request owner approval for missing/contested fields and numerical claims",
+      "output": "review_queue",
+      "execution_enabled": false
+    },
+    {
+      "id": "resolve",
+      "purpose": "Produce a context projection scoped to purpose, channel, role, locale",
+      "output": "effective_context_candidate",
+      "execution_enabled": false
+    },
+    {
+      "id": "certify",
+      "purpose": "Independently verify lineage/privacy/policy constraints",
+      "output": "reviewed_context_snapshot",
+      "execution_enabled": false
+    },
+    {
+      "id": "materialize",
+      "purpose": "Future governed registry persistence; DISABLED in seed",
+      "output": "NOT_IMPLEMENTED",
+      "execution_enabled": false
+    }
+  ],
+  "projections": [
+    {
+      "key": "brand_writer",
+      "requires": [
+        "brand.identity",
+        "brand.messaging",
+        "content.editorial",
+        "governance.compliance"
+      ],
+      "role": "editorial_author"
+    },
+    {
+      "key": "sales_enablement",
+      "requires": [
+        "business.offers",
+        "business.audiences",
+        "sales.enablement",
+        "brand.messaging"
+      ],
+      "role": "sales_operator"
+    },
+    {
+      "key": "customer_onboarding",
+      "requires": [
+        "business.offers",
+        "sales.onboarding",
+        "operations.delivery"
+      ],
+      "role": "customer_success"
+    },
+    {
+      "key": "marketing_strategy",
+      "requires": [
+        "business.strategy",
+        "business.audiences",
+        "analytics.measurement",
+        "research.market"
+      ],
+      "role": "marketing_planner"
+    },
+    {
+      "key": "support_knowledge",
+      "requires": [
+        "business.offers",
+        "support.customer_success",
+        "knowledge.sources"
+      ],
+      "role": "support_operator"
+    }
+  ],
+  "retries": {
+    "unknown_commit": "never_replay_without_independent_readback",
+    "ingest_fail": "per_source_quarantine",
+    "version_drift": "invalidate_affected_context",
+    "provider_unavailable": "no_implicit_fallback"
+  },
+  "acceptance": [
+    {
+      "id": "CAF-001",
+      "assertion": "zero private source values in seed",
+      "status": "OPEN",
+      "proof_required": "independent_live_or_native_acceptance"
+    },
+    {
+      "id": "CAF-002",
+      "assertion": "unmapped new dimension can be added without runtime code",
+      "status": "OPEN",
+      "proof_required": "independent_live_or_native_acceptance"
+    },
+    {
+      "id": "CAF-003",
+      "assertion": "no stale or unverified promotional claim approved",
+      "status": "OPEN",
+      "proof_required": "independent_live_or_native_acceptance"
+    },
+    {
+      "id": "CAF-004",
+      "assertion": "conflicting owners cannot silently merge",
+      "status": "OPEN",
+      "proof_required": "independent_live_or_native_acceptance"
+    },
+    {
+      "id": "CAF-005",
+      "assertion": "cross-tenant and cross-brand scopes do not inherit automatically",
+      "status": "OPEN",
+      "proof_required": "independent_live_or_native_acceptance"
+    },
+    {
+      "id": "CAF-006",
+      "assertion": "policy restrictions cannot be loosened by overlays",
+      "status": "OPEN",
+      "proof_required": "independent_live_or_native_acceptance"
+    },
+    {
+      "id": "CAF-007",
+      "assertion": "context snapshot is not execution permission",
+      "status": "OPEN",
+      "proof_required": "independent_live_or_native_acceptance"
+    },
+    {
+      "id": "CAF-008",
+      "assertion": "source version invalidates affected claims",
+      "status": "OPEN",
+      "proof_required": "independent_live_or_native_acceptance"
+    },
+    {
+      "id": "CAF-009",
+      "assertion": "new connector classes are metadata-only by default",
+      "status": "OPEN",
+      "proof_required": "independent_live_or_native_acceptance"
+    },
+    {
+      "id": "CAF-010",
+      "assertion": "secret-looking source files excluded from default discovery",
+      "status": "OPEN",
+      "proof_required": "independent_live_or_native_acceptance"
+    },
+    {
+      "id": "CAF-011",
+      "assertion": "native owner confirmation before active profile",
+      "status": "OPEN",
+      "proof_required": "independent_live_or_native_acceptance"
+    },
+    {
+      "id": "CAF-012",
+      "assertion": "sector example never prepopulates real brand facts",
+      "status": "OPEN",
+      "proof_required": "independent_live_or_native_acceptance"
+    }
+  ]
+}

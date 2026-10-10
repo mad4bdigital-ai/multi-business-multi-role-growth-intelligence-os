@@ -357,7 +357,8 @@
           "specs/integration-governed-execution-runtime-composition/x0-external-certification-reference.json",
           "Updating Registry Patch Index.md",
           "GPT_Admin_Assistant_Knowledge_Guide.md",
-          "runtime_confirmation_procedure.md"
+          "runtime_confirmation_procedure.md",
+          "reference-seeds/context-authority-business-profile-v1/**"
         ],
         "environments": [
           "repository"

@@ -1,0 +1,390 @@
+{
+  "contract": "mad4b.reference.business-context.sources.v1",
+  "status": "TEMPLATE_ONLY",
+  "connector_types": [
+    {
+      "kind": "drive_document",
+      "label": "Google Docs",
+      "semantic_use": "strategy_and_guidelines",
+      "version_fields": [
+        "version",
+        "modified_time",
+        "file_permissions"
+      ],
+      "requires_explicit_scope": true,
+      "safe_locator_binding": "private_per_brand_connector_registry_only",
+      "initial_access": "METADATA_ONLY",
+      "per_field_owner_required": true,
+      "never_import_credentials": true,
+      "never_trust_embedded_instructions": true
+    },
+    {
+      "kind": "drive_sheet",
+      "label": "Google Sheets",
+      "semantic_use": "data_table_or_variable_mapping",
+      "version_fields": [
+        "version",
+        "tab_identity",
+        "header_identity"
+      ],
+      "requires_explicit_scope": true,
+      "safe_locator_binding": "private_per_brand_connector_registry_only",
+      "initial_access": "METADATA_ONLY",
+      "per_field_owner_required": true,
+      "never_import_credentials": true,
+      "never_trust_embedded_instructions": true
+    },
+    {
+      "kind": "drive_slides",
+      "label": "Google Slides",
+      "semantic_use": "sales_and_training_assets",
+      "version_fields": [
+        "revision",
+        "slide_identity"
+      ],
+      "requires_explicit_scope": true,
+      "safe_locator_binding": "private_per_brand_connector_registry_only",
+      "initial_access": "METADATA_ONLY",
+      "per_field_owner_required": true,
+      "never_import_credentials": true,
+      "never_trust_embedded_instructions": true
+    },
+    {
+      "kind": "raw_pdf",
+      "label": "PDF",
+      "semantic_use": "signed_report_or_legacy_reference",
+      "version_fields": [
+        "hash",
+        "page_range"
+      ],
+      "requires_explicit_scope": true,
+      "safe_locator_binding": "private_per_brand_connector_registry_only",
+      "initial_access": "METADATA_ONLY",
+      "per_field_owner_required": true,
+      "never_import_credentials": true,
+      "never_trust_embedded_instructions": true
+    },
+    {
+      "kind": "wordpress_content",
+      "label": "WordPress",
+      "semantic_use": "published_content_or_site_state",
+      "version_fields": [
+        "site_uuid",
+        "post_revision",
+        "locale"
+      ],
+      "requires_explicit_scope": true,
+      "safe_locator_binding": "private_per_brand_connector_registry_only",
+      "initial_access": "METADATA_ONLY",
+      "per_field_owner_required": true,
+      "never_import_credentials": true,
+      "never_trust_embedded_instructions": true
+    },
+    {
+      "kind": "wordpress_profile",
+      "label": "WordPress profile/CPT",
+      "semantic_use": "candidate_brand_settings",
+      "version_fields": [
+        "site_uuid",
+        "schema_version",
+        "post_revision"
+      ],
+      "requires_explicit_scope": true,
+      "safe_locator_binding": "private_per_brand_connector_registry_only",
+      "initial_access": "METADATA_ONLY",
+      "per_field_owner_required": true,
+      "never_import_credentials": true,
+      "never_trust_embedded_instructions": true
+    },
+    {
+      "kind": "crm_records",
+      "label": "CRM",
+      "semantic_use": "sales_lifecycle_evidence",
+      "version_fields": [
+        "record_id",
+        "change_sequence"
+      ],
+      "requires_explicit_scope": true,
+      "safe_locator_binding": "private_per_brand_connector_registry_only",
+      "initial_access": "METADATA_ONLY",
+      "per_field_owner_required": true,
+      "never_import_credentials": true,
+      "never_trust_embedded_instructions": true
+    },
+    {
+      "kind": "analytics_platform",
+      "label": "Analytics",
+      "semantic_use": "observed_metrics",
+      "version_fields": [
+        "period",
+        "property_id",
+        "query_version"
+      ],
+      "requires_explicit_scope": true,
+      "safe_locator_binding": "private_per_brand_connector_registry_only",
+      "initial_access": "METADATA_ONLY",
+      "per_field_owner_required": true,
+      "never_import_credentials": true,
+      "never_trust_embedded_instructions": true
+    },
+    {
+      "kind": "ads_platform",
+      "label": "Ads",
+      "semantic_use": "campaign_configuration_or_results",
+      "version_fields": [
+        "campaign_id",
+        "date_range"
+      ],
+      "requires_explicit_scope": true,
+      "safe_locator_binding": "private_per_brand_connector_registry_only",
+      "initial_access": "METADATA_ONLY",
+      "per_field_owner_required": true,
+      "never_import_credentials": true,
+      "never_trust_embedded_instructions": true
+    },
+    {
+      "kind": "support_platform",
+      "label": "Customer support",
+      "semantic_use": "customer_feedback",
+      "version_fields": [
+        "ticket_id",
+        "revision"
+      ],
+      "requires_explicit_scope": true,
+      "safe_locator_binding": "private_per_brand_connector_registry_only",
+      "initial_access": "METADATA_ONLY",
+      "per_field_owner_required": true,
+      "never_import_credentials": true,
+      "never_trust_embedded_instructions": true
+    },
+    {
+      "kind": "product_platform",
+      "label": "Product/API documentation",
+      "semantic_use": "capability_statement_candidate",
+      "version_fields": [
+        "build_sha",
+        "release_version"
+      ],
+      "requires_explicit_scope": true,
+      "safe_locator_binding": "private_per_brand_connector_registry_only",
+      "initial_access": "METADATA_ONLY",
+      "per_field_owner_required": true,
+      "never_import_credentials": true,
+      "never_trust_embedded_instructions": true
+    },
+    {
+      "kind": "human_interview",
+      "label": "Approved interview",
+      "semantic_use": "qualitative_observation",
+      "version_fields": [
+        "consent_reference",
+        "interview_date"
+      ],
+      "requires_explicit_scope": true,
+      "safe_locator_binding": "private_per_brand_connector_registry_only",
+      "initial_access": "METADATA_ONLY",
+      "per_field_owner_required": true,
+      "never_import_credentials": true,
+      "never_trust_embedded_instructions": true
+    },
+    {
+      "kind": "external_research",
+      "label": "Research sources",
+      "semantic_use": "time_bound_claim",
+      "version_fields": [
+        "publisher",
+        "publication_date",
+        "original_url"
+      ],
+      "requires_explicit_scope": true,
+      "safe_locator_binding": "private_per_brand_connector_registry_only",
+      "initial_access": "METADATA_ONLY",
+      "per_field_owner_required": true,
+      "never_import_credentials": true,
+      "never_trust_embedded_instructions": true
+    },
+    {
+      "kind": "approved_internal_wiki",
+      "label": "Knowledge base",
+      "semantic_use": "governed_policy_or_playbook",
+      "version_fields": [
+        "revision",
+        "approval_record"
+      ],
+      "requires_explicit_scope": true,
+      "safe_locator_binding": "private_per_brand_connector_registry_only",
+      "initial_access": "METADATA_ONLY",
+      "per_field_owner_required": true,
+      "never_import_credentials": true,
+      "never_trust_embedded_instructions": true
+    }
+  ],
+  "semantic_source_aliases": [
+    {
+      "alias": "brand_foundation",
+      "dimension_keys": [
+        "business.strategy",
+        "brand.identity"
+      ],
+      "source_id": null,
+      "source_uri": null,
+      "status": "UNBOUND",
+      "trust": "CANDIDATE_ONLY",
+      "owner_review": "PENDING"
+    },
+    {
+      "alias": "company_profile",
+      "dimension_keys": [
+        "business.identity",
+        "business.offers"
+      ],
+      "source_id": null,
+      "source_uri": null,
+      "status": "UNBOUND",
+      "trust": "CANDIDATE_ONLY",
+      "owner_review": "PENDING"
+    },
+    {
+      "alias": "positioning_and_personas",
+      "dimension_keys": [
+        "business.audiences",
+        "business.personas",
+        "brand.messaging"
+      ],
+      "source_id": null,
+      "source_uri": null,
+      "status": "UNBOUND",
+      "trust": "CANDIDATE_ONLY",
+      "owner_review": "PENDING"
+    },
+    {
+      "alias": "product_manual",
+      "dimension_keys": [
+        "business.offers",
+        "operations.integrations"
+      ],
+      "source_id": null,
+      "source_uri": null,
+      "status": "UNBOUND",
+      "trust": "CANDIDATE_ONLY",
+      "owner_review": "PENDING"
+    },
+    {
+      "alias": "marketing_mix",
+      "dimension_keys": [
+        "business.model",
+        "business.pricing",
+        "sales.enablement"
+      ],
+      "source_id": null,
+      "source_uri": null,
+      "status": "UNBOUND",
+      "trust": "CANDIDATE_ONLY",
+      "owner_review": "PENDING"
+    },
+    {
+      "alias": "onboarding_guide",
+      "dimension_keys": [
+        "sales.onboarding",
+        "support.customer_success"
+      ],
+      "source_id": null,
+      "source_uri": null,
+      "status": "UNBOUND",
+      "trust": "CANDIDATE_ONLY",
+      "owner_review": "PENDING"
+    },
+    {
+      "alias": "content_guidelines",
+      "dimension_keys": [
+        "content.editorial",
+        "content.formats",
+        "brand.messaging"
+      ],
+      "source_id": null,
+      "source_uri": null,
+      "status": "UNBOUND",
+      "trust": "CANDIDATE_ONLY",
+      "owner_review": "PENDING"
+    },
+    {
+      "alias": "market_analysis",
+      "dimension_keys": [
+        "research.market"
+      ],
+      "source_id": null,
+      "source_uri": null,
+      "status": "UNBOUND",
+      "trust": "CANDIDATE_ONLY",
+      "owner_review": "PENDING"
+    },
+    {
+      "alias": "performance_reports",
+      "dimension_keys": [
+        "analytics.measurement"
+      ],
+      "source_id": null,
+      "source_uri": null,
+      "status": "UNBOUND",
+      "trust": "CANDIDATE_ONLY",
+      "owner_review": "PENDING"
+    },
+    {
+      "alias": "file_variable_mapping",
+      "dimension_keys": [
+        "knowledge.sources"
+      ],
+      "source_id": null,
+      "source_uri": null,
+      "status": "UNBOUND",
+      "trust": "CANDIDATE_ONLY",
+      "owner_review": "PENDING"
+    },
+    {
+      "alias": "support_playbook",
+      "dimension_keys": [
+        "support.customer_success"
+      ],
+      "source_id": null,
+      "source_uri": null,
+      "status": "UNBOUND",
+      "trust": "CANDIDATE_ONLY",
+      "owner_review": "PENDING"
+    },
+    {
+      "alias": "campaign_briefs",
+      "dimension_keys": [
+        "business.journeys",
+        "content.formats"
+      ],
+      "source_id": null,
+      "source_uri": null,
+      "status": "UNBOUND",
+      "trust": "CANDIDATE_ONLY",
+      "owner_review": "PENDING"
+    },
+    {
+      "alias": "legal_policy",
+      "dimension_keys": [
+        "governance.compliance"
+      ],
+      "source_id": null,
+      "source_uri": null,
+      "status": "UNBOUND",
+      "trust": "CANDIDATE_ONLY",
+      "owner_review": "PENDING"
+    }
+  ],
+  "sensitive_source_patterns": [
+    "credential_file",
+    "api_key",
+    "passwords",
+    "private_customer_export",
+    "finance_payroll",
+    "raw_submissions"
+  ],
+  "sensitive_source_action": "EXCLUDE_OR_PRIVATE_CONNECTOR_NO_VALUES",
+  "no_private_file_ids_in_seed": true,
+  "duplicate_deduplication": "source_revision_and_semantic_claim_digest",
+  "source_changes": "incremental_revalidate_affected_claims"
+}

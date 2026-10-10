@@ -2840,6 +2840,28 @@
       "contains_secret_value": false,
       "grants_runtime_mutation": false,
       "grants_production_activation": false
+    },
+    {
+      "fingerprint": "reference-seeds/context-authority-business-profile-v1/runtime/portable-content-runtime.test.mjs|scope|literal_declaration|scope",
+      "owner": "context-authority-reference-seed",
+      "reason": "Non-secret synthetic, offline-only reference-seed fixture/default. No real site, execution grant, live source binding or production activation is introduced. Registered as a non-secret CI governance input; runtime configuration/catalog registration is not implied.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "reference-seeds/context-authority-business-profile-v1/runtime/resolve-deployment-context.mjs|EXPECTED_DEFAULTS|literal_declaration|expected.defaults",
+      "owner": "context-authority-reference-seed",
+      "reason": "Non-secret synthetic, offline-only reference-seed fixture/default. No real site, execution grant, live source binding or production activation is introduced. Registered as a non-secret CI governance input; runtime configuration/catalog registration is not implied.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
     }
   ],
   "safety": {
