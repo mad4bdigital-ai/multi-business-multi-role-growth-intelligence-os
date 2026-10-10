@@ -55,11 +55,15 @@ export function guardContext({scope,persona,policy,claims=[],channel,style}){
   if(policy.tenant_ref!==scope.tenant_ref||policy.brand_ref!==scope.brand_ref)fail('POLICY_SCOPE_MISMATCH');
   if(!Array.isArray(policy.channels)||policy.channels.some(x=>typeof x!=='string'))fail('CHANNEL_POLICY_INVALID');
   if(!Array.isArray(claims)||claims.length>1000)fail('CLAIM_BUDGET');
+  const seenIds=new Set();
   for(const c of claims){
     if(!c||typeof c!=='object')fail('INVALID_CLAIM');
     if(c.value!==undefined||c.raw!==undefined)fail('CLAIM_VALUES_MUST_STAY_IN_SOURCE_VAULT');
     if(typeof c.id!=='string'||c.id.length>160)fail('CLAIM_ID_INVALID');
     if(PRIVATE.test(c.id))fail('CLAIM_REF_LEAKAGE');
+    if(seenIds.has(c.id))fail('DUPLICATE_CLAIM_ID');
+    seenIds.add(c.id);
+    if(scope.site_uuid && c.site_uuid && c.site_uuid!==scope.site_uuid)fail('CLAIM_SITE_SCOPE_MISMATCH');
   }
   if(typeof channel!=='string'||!channel)fail('CHANNEL_REQUIRED');
   if(style!==undefined&&typeof style!=='string')fail('STYLE_INVALID');
@@ -70,7 +74,7 @@ export function guardReceipt({receipt,expected,trust,verifier,replayStore,now}){
   const deny=reason=>({status:'DENIED',reason,operational_acceptance:false,publication_authorized:false,release_authorized:false});
   if(!receipt||!expected||!trust||!verifier||!replayStore||!now)return deny('MISSING_HOST_EVIDENCE');
   if(typeof verifier.verifyDetached!=='function'||typeof replayStore.consumeOnce!=='function')return deny('VERIFIER_OR_REPLAY_STORE_UNAVAILABLE');
-  const required=['exact_head','artifact_sha256','site_uuid','environment','source_generation','policy_digest'];
+  const required=['tenant_ref','brand_ref','exact_head','artifact_sha256','site_uuid','environment','source_generation','policy_digest'];
   if(required.some(k=>typeof expected[k]!=='string'||!expected[k]||receipt[k]!==expected[k]))return deny('PROVENANCE_MISMATCH');
   if(!['staging','production','development','test'].includes(receipt.environment))return deny('ENVIRONMENT_UNRECOGNIZED');
   if(!Array.isArray(expected.required_checks)||!expected.required_checks.length||new Set(expected.required_checks).size!==expected.required_checks.length)return deny('REQUIRED_CHECK_POLICY_MISSING');
