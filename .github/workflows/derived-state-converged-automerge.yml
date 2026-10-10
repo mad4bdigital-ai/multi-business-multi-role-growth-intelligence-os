@@ -177,6 +177,10 @@ jobs:
           attestor_app_id="$(jq -r '.app_id // empty' "$response")"
           status_creator_id="$(jq -r '.status_creator_id // empty' "$response")"
           attestor_status_id="$(jq -r '.status_id // empty' "$response")"
+          if [[ ! "$attestor_app_id" =~ ^[1-9][0-9]*$ || ! "$status_creator_id" =~ ^[1-9][0-9]*$ || ! "$attestor_status_id" =~ ^[1-9][0-9]*$ ]]; then
+            echo "::error title=Trusted attestation response::error_code=attestation_identity_readback_missing" >&2
+            exit 1
+          fi
           [[ "$attestor_app_id" =~ ^[1-9][0-9]*$ ]]
           [[ "$status_creator_id" =~ ^[1-9][0-9]*$ ]]
           [[ "$attestor_status_id" =~ ^[1-9][0-9]*$ ]]
