@@ -35,8 +35,8 @@ for (const eventName of ["pull_request", "push"]) {
 // Pull-request checks must remain read-only. Backend SQL signals remain in
 // the original Production-bound job; GitHub Issue mutations require explicit dispatch.
 assert.match(workflowSource, /name: Classify and ingest SQL operational signal/);
-assert.doesNotMatch(workflowSource, /issues:\\s*write/);
-assert.doesNotMatch(workflowSource, /github\\.rest\\.issues\\.(?:create|update|delete)/);
+assert.doesNotMatch(workflowSource, /issues:\s*write/);
+assert.doesNotMatch(workflowSource, /github\.rest\.issues\.(?:create|update|delete)/);
 const incidentSource = await readFile(
   new URL("../.github/workflows/custom-gpt-guard-incident-governed.yml", import.meta.url),
   "utf8",
@@ -47,6 +47,6 @@ assert.ok(incidentWorkflow?.on?.workflow_dispatch?.inputs?.source_run_id);
 assert.ok(incidentWorkflow?.on?.workflow_dispatch?.inputs?.confirmation);
 assert.equal(incidentWorkflow?.on?.pull_request, undefined);
 assert.match(incidentSource, /incident_writer_expected_head_sha_or_source_run_mismatch/);
-assert.match(incidentSource, /github\\.rest\\.issues\\.(?:create|update)/);
-assert.match(incidentSource, /environment:\\n      name: Production\\n      deployment: false/);
+assert.match(incidentSource, /github\.rest\.issues\.(?:create|update)/);
+assert.match(incidentSource, /environment:\n      name: Production\n      deployment: false/);
 console.log("custom GPT Contract Guard path and incident write separation passed");
