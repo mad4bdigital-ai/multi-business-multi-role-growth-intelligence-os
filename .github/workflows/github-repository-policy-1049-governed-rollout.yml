@@ -74,7 +74,8 @@ on:
 permissions:
   contents: read
 
-jobs:  runtime_recovery:
+jobs:
+  runtime_recovery:
     name: Execute one protected exact-head runtime recovery phase
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-24.04

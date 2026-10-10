@@ -7,7 +7,8 @@ on:
 permissions:
   contents: read
 
-jobs:  readiness:
+jobs:
+  readiness:
     name: Authorize and dry-run remaining tenant runtime migration
     if: >-
       github.event.issue.number == 6871 &&

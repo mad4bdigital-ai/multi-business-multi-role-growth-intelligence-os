@@ -11,7 +11,8 @@ concurrency:
   group: spec017-fixture-context-readback-${{ github.event.comment.id || github.run_id }}
   cancel-in-progress: false
 
-jobs:  readback:
+jobs:
+  readback:
     name: Read existing managed-execution fixture context
     if: >-
       github.event.issue.pull_request != null &&

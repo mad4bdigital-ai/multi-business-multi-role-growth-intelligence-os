@@ -117,7 +117,8 @@ concurrency:
   group: custom-gpt-contract-guard-${{ github.ref }}
   cancel-in-progress: true
 
-jobs:  guard:
+jobs:
+  guard:
     runs-on: ubuntu-latest
     defaults:
       run:
