@@ -2,7 +2,7 @@ import {test} from 'node:test';import assert from 'node:assert/strict';
 import {strictParseCsv,guardMatrix,guardContext,guardReceipt} from './context-source-guard.mjs';
 const source={tenant_ref:'t',brand_ref:'b'};
 const demo={scope:source,persona:source,policy:{...source,channels:['blog']},claims:[],channel:'blog',style:'educational'};
-const expected={exact_head:'head',artifact_sha256:'sha256',site_uuid:'site',environment:'staging',source_generation:'generation',policy_digest:'policy',required_checks:['content','scope']};
+const expected={tenant_ref:'t',brand_ref:'b',exact_head:'head',artifact_sha256:'sha256',site_uuid:'site',environment:'staging',source_generation:'generation',policy_digest:'policy',required_checks:['content','scope']};
 const receipt={...expected,verifier_id:'trust-a',nonce:'nonce-valid',signature:'opaque-signature',observed_at:'2026-10-10T00:00:00Z',checks:[{id:'content',pass:true},{id:'scope',pass:true}]};
 const args={expected,receipt,trust:{approved_verifiers:['trust-a']},verifier:{verifyDetached:()=>true},replayStore:{consumeOnce:()=>true},now:'2026-10-10T00:01:00Z'};
 test('quoted CSV and multiline correctly parsed',()=>{assert.deepEqual(strictParseCsv('\uFEFFTitle,Description\r\n"title, one","line one\nline two"\r\n'),[['Title','Description'],['title, one','line one\nline two']])});
@@ -20,3 +20,7 @@ test('wrong site and revision blocked',()=>assert.equal(guardReceipt({...args,re
 test('unknown environment blocked',()=>assert.equal(guardReceipt({...args,expected:{...expected,environment:'unknown'},receipt:{...receipt,environment:'unknown'}}).reason,'ENVIRONMENT_UNRECOGNIZED'));
 test('untrusted verifier blocked',()=>assert.equal(guardReceipt({...args,trust:{approved_verifiers:[]}}).reason,'VERIFIER_NOT_ALLOWED'));
 test('future or stale receipt blocked',()=>assert.equal(guardReceipt({...args,now:'2026-10-10T12:01:00Z'}).reason,'EVIDENCE_TIME_INVALID'));
+
+test('cross-brand evidence refused',()=>assert.equal(guardReceipt({...args,receipt:{...receipt,brand_ref:'another'}}).reason,'PROVENANCE_MISMATCH'));
+test('missing tenant binding refused',()=>{const {tenant_ref,...unsafe}=expected;assert.equal(guardReceipt({...args,expected:unsafe}).reason,'PROVENANCE_MISMATCH')});
+test('claim site mismatch and duplicate IDs refused',()=>{assert.throws(()=>guardContext({...demo,scope:{...source,site_uuid:'s1'},claims:[{id:'c',site_uuid:'s2'}]}),/CLAIM_SITE_SCOPE_MISMATCH/);assert.throws(()=>guardContext({...demo,claims:[{id:'c'},{id:'c'}]}),/DUPLICATE_CLAIM_ID/)});
