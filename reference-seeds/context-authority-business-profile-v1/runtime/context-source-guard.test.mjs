@@ -36,3 +36,17 @@ test('numeric negative discounts remain data while expressions are quarantined',
  for(const s of ['-1+2','-SUM(A1)','+20%','=HYPERLINK(A1)','@SUM(A1)'])
    assert.throws(()=>guardMatrix([['Content Title'],[s]]),/SPREADSHEET_FORMULA_REQUIRES_QUARANTINE/);
 });
+
+test('WordPress dedicated receipt rejects cross-blog, cross-network, missing expected scope',()=>{
+ const expected={...args.expected,deployment_mode:'wordpress_dedicated',blog_id:5,network_id:1};
+ const receipt={...args.receipt,deployment_mode:'wordpress_dedicated',blog_id:5,network_id:1};
+ assert.equal(guardReceipt({...args,expected,receipt}),null);
+ assert.equal(guardReceipt({...args,expected,receipt:{...receipt,blog_id:6}}).reason,'WP_MULTISITE_SCOPE_MISMATCH');
+ assert.equal(guardReceipt({...args,expected,receipt:{...receipt,network_id:2}}).reason,'WP_MULTISITE_SCOPE_MISMATCH');
+ assert.equal(guardReceipt({...args,expected:{...expected,blog_id:0},receipt}).reason,'WP_MULTISITE_EXPECTED_SCOPE_MISSING');
+});
+test('local evidence is development-only and never grants operational acceptance',()=>{
+ const expected={...args.expected,environment:'local'};
+ const receipt={...args.receipt,environment:'local'};
+ assert.equal(guardReceipt({...args,expected,receipt}),null);
+});

@@ -103,7 +103,17 @@ export function guardReceipt({receipt,expected,trust,verifier,replayStore,now}){
   if(typeof verifier.verifyDetached!=='function'||typeof replayStore.consumeOnce!=='function')return deny('VERIFIER_OR_REPLAY_STORE_UNAVAILABLE');
   const required=['tenant_ref','brand_ref','exact_head','artifact_sha256','site_uuid','environment','source_generation','policy_digest'];
   if(required.some(k=>typeof expected[k]!=='string'||!expected[k]||receipt[k]!==expected[k]))return deny('PROVENANCE_MISMATCH');
-  if(!['staging','production','development','test'].includes(receipt.environment))return deny('ENVIRONMENT_UNRECOGNIZED');
+  if(!['local','staging','production','development','test'].includes(receipt.environment))return deny('ENVIRONMENT_UNRECOGNIZED');
+  // WordPress Dedicated receipts must also bind the specific multisite blog
+  // and network; tenant/brand/site UUID alone does not separate all sites.
+  if(expected.deployment_mode==='wordpress_dedicated'){
+    if(!Number.isSafeInteger(expected.blog_id)||expected.blog_id<1||
+       !Number.isSafeInteger(expected.network_id)||expected.network_id<1)
+      return deny('WP_MULTISITE_EXPECTED_SCOPE_MISSING');
+    if(receipt.deployment_mode!=='wordpress_dedicated'||
+       receipt.blog_id!==expected.blog_id||receipt.network_id!==expected.network_id)
+      return deny('WP_MULTISITE_SCOPE_MISMATCH');
+  }
   if(!Array.isArray(expected.required_checks)||!expected.required_checks.length||new Set(expected.required_checks).size!==expected.required_checks.length)return deny('REQUIRED_CHECK_POLICY_MISSING');
   if(!Array.isArray(receipt.checks)||new Set(receipt.checks.map(x=>x?.id)).size!==receipt.checks.length || receipt.checks.some(x=>!x||x.pass!==true))return deny('CHECK_SET_INVALID');
   if(expected.required_checks.some(k=>!receipt.checks.some(c=>c.id===k&&c.pass===true)))return deny('REQUIRED_CHECK_NOT_PASSED');
