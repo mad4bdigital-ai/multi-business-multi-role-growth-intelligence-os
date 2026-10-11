@@ -4,6 +4,29 @@ import { readFileSync } from "node:fs";
 const workflow = readFileSync("../.github/workflows/derived-state-converged-automerge.yml", "utf8");
 const readiness = readFileSync("../.github/ops/github-followup-automerge-readiness.mjs", "utf8");
 
+const attestorJob = workflow.split("\n  attest:\n")[1]?.split("\n  merge:\n")[0];
+assert.ok(attestorJob, "Finalizer must expose an independently protected attestor job");
+assert.match(
+  attestorJob,
+  /    environment:\n      name: Production\n      deployment: false\n    runs-on: ubuntu-24\.04/,
+  "trusted Production attestation must use the protected Production Environment without deployment",
+);
+assert.match(
+  attestorJob,
+  /BACKEND_API_KEY: \$\{\{ secrets\.HOSTINGER_PRODUCTION_BACKEND_API_KEY \}\}/,
+  "Production Finalizer must use only the Environment Production credential",
+);
+assert.doesNotMatch(
+  attestorJob,
+  /BACKEND_API_KEY: \$\{\{ secrets\.BACKEND_API_KEY \}\}/,
+  "Windows Staging repository key must not be used by the Production Finalizer",
+);
+assert.match(
+  attestorJob,
+  /error_code=production_environment_backend_api_key_missing/,
+  "absence of the Production credential must fail closed before authentication",
+);
+
 assert.match(
   workflow,
   /github\.event\.workflow_run\.name == 'Derived State Closure' && github\.event\.workflow_run\.event == 'pull_request'/,
