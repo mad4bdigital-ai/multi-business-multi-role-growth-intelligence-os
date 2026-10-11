@@ -97,6 +97,10 @@ assert.match(readiness, /allowedCheckSource\(activeBinding,/, "active source mus
 assert.match(readiness, /allowedCheckSource\(managedBinding,/, "managed source must pass the independent trusted-check guard");
 assert.match(readiness, /commits\/\$\{expectedCandidate\}\/statuses\?per_page=100/, "verifier must read exact-candidate statuses");
 assert.match(readiness, /latestSameCycleAttestorStatus\(statuses,/, "candidate success must be proven by the native tested pure predicate");
+assert.match(readiness, /blocked_test_merge_check_target_conflict/, "candidate check target conflicts must be rejected");
+assert.match(readiness, /evaluateRequiredHeadChecks\(activeBindings,/, "all four required checks must be verified on HEAD");
+assert.match(readiness, /blocked_github_mergeability/, "GitHub mergeable_state must agree");
+assert.match(workflow, /attestor_runtime_head_target_not_certified/, "legacy Backend candidate-only attestation must fail closed");
 assert.match(readiness, /safe_to_register_auto_merge: false/, "native auto-merge registration must remain forbidden");
 assert.match(workflow, /error_code=attestation_transport_failed/, "transport failure must have a nonsecret, typed diagnostic");
 assert.match(workflow, /error_code=attestation_http_status_invalid/, "invalid HTTP response must fail closed");

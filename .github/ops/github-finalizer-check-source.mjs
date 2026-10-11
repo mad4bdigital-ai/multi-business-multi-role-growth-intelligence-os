@@ -24,3 +24,30 @@ export function latestSameCycleAttestorStatus(statuses, { context, statusId, cre
     && Number(newest?.id || 0) === statusId
     && Number(newest?.creator?.id || 0) === creatorId;
 }
+
+// Pure required-check evaluator. Never treat an arbitrary commit status as
+// a replacement for actual CI Check Runs. If a context has both types,
+// require both to pass, as GitHub's branch policy does.
+export function evaluateRequiredHeadChecks(bindings, { checkRuns = [], statuses = [], attestorContext = "Derived State Closure" } = {}) {
+  const passing = new Set(["success", "neutral", "skipped"]);
+  if (!Array.isArray(bindings) || !bindings.length || !Array.isArray(checkRuns) || !Array.isArray(statuses)) return { ok: false, missing: ["required_check_evidence_unavailable"], failing: [] };
+  const missing = [], failing = [];
+  for (const binding of bindings) {
+    const context = String(binding?.context || "");
+    if (!context) { missing.push("empty_context"); continue; }
+    const runs = checkRuns.filter(run => run?.name === context && (binding.integration_id == null || Number(run?.app?.id || 0) === binding.integration_id));
+    const latestStatus = statuses.find(status => status?.context === context);
+    if (context === attestorContext) {
+      if (!latestStatus) { missing.push(context); continue; }
+      if (latestStatus.state !== "success" || runs.some(run => run.status !== "completed" || !passing.has(run.conclusion))) failing.push(context);
+      continue;
+    }
+    // Registered CI contexts are emitted by GitHub Actions; a foreign app
+    // cannot make up a success result by posting an identically named status.
+    const ciRuns = runs.filter(run => run?.app?.slug === "github-actions");
+    if (!ciRuns.length) { missing.push(context); continue; }
+    const current = [...ciRuns].sort((a,b) => Date.parse(b.started_at || b.completed_at || "1970-01-01") - Date.parse(a.started_at || a.completed_at || "1970-01-01"))[0];
+    if (current.status !== "completed" || !passing.has(current.conclusion) || (latestStatus && latestStatus.state !== "success")) failing.push(context);
+  }
+  return { ok: missing.length === 0 && failing.length === 0, missing, failing };
+}

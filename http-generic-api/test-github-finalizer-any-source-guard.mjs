@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { isAuthorizedMainAnySource, allowedCheckSource, latestSameCycleAttestorStatus } from "../.github/ops/github-finalizer-check-source.mjs";
+import { isAuthorizedMainAnySource, allowedCheckSource, latestSameCycleAttestorStatus, evaluateRequiredHeadChecks } from "../.github/ops/github-finalizer-check-source.mjs";
 
 const attestorPolicy = {
   required_check_source_mode: "any_source_with_independent_finalizer_readback",
@@ -41,4 +41,15 @@ assert.equal(latestSameCycleAttestorStatus([{ ...good, id: 9011 }], candidate), 
 assert.equal(latestSameCycleAttestorStatus([], candidate), false);
 assert.equal(latestSameCycleAttestorStatus(null, candidate), false);
 assert.equal(latestSameCycleAttestorStatus([good], { ...candidate, statusId: 0 }), false);
+const bindings = ["Syntax Check", "Unit & Integration Tests", "Policy Objection Gate", "Derived State Closure"].map(context => ({ context, integration_id: null }));
+const passingRuns = bindings.slice(0, 3).map((b, i) => ({ name: b.context, status: "completed", conclusion: "success", started_at: "2026-10-11T10:0" + i + ":00Z", app: { slug: "github-actions", id: 15368 } }));
+const attestedStatus = { context: "Derived State Closure", state: "success", creator: { id: 7331 }, id: 9012 };
+const evaluate = (runs, statuses) => evaluateRequiredHeadChecks(bindings, { checkRuns: runs, statuses });
+assert.equal(evaluate(passingRuns, [attestedStatus]).ok, true);
+assert.deepEqual(evaluate(passingRuns.slice(1), [attestedStatus]).missing, ["Syntax Check"]);
+assert.equal(evaluate([{ ...passingRuns[0], conclusion: "failure" }, ...passingRuns.slice(1)], [attestedStatus]).ok, false);
+assert.equal(evaluate([{ ...passingRuns[0], status: "queued" }, ...passingRuns.slice(1)], [attestedStatus]).ok, false);
+assert.equal(evaluate(passingRuns, [{ ...attestedStatus, state: "failure" }]).ok, false);
+assert.equal(evaluate(passingRuns, [attestedStatus, { context: "Syntax Check", state: "failure" }]).ok, false);
+assert.equal(evaluate(passingRuns.map(run => ({ ...run, app: { slug: "untrusted", id: 99 } })), [attestedStatus]).ok, false);
 console.log("GITHUB_ANY_SOURCE_GUARD_NATIVE_PASS");

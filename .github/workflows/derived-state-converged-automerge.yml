@@ -234,6 +234,21 @@ jobs:
           test "$(jq -r '.candidate_sha' "$response")" = "$candidate_sha"
           test "$(jq -r '.source_provenance.artifact_digest_sha256' "$response")" = "$evidence_digest"
           test "$(jq -r '.same_cycle_readback_proven' "$response")" = "true"
+          # Reject an old Backend runtime that still publishes a candidate-
+          # only status, and require same-cycle exact-tree HEAD evidence.
+          if [[ "$branch" == main ]]; then
+            if ! jq -e --arg source "$source_head_sha" --arg candidate "$candidate_sha" '
+              .status_target_sha == $source
+              and .source_head_status.source_head_sha == $source
+              and .source_head_status.status_id == .status_id
+              and .source_head_status.status_creator_id == .status_creator_id
+              and .source_head_tree_sha == .candidate_tree_sha
+              and .executed_sha == $candidate
+            ' "$response" >/dev/null 2>&1; then
+              echo "::error title=Trusted attestation target::error_code=attestor_runtime_head_target_not_certified" >&2
+              exit 1
+            fi
+          fi
           attestor_app_id="$(jq -r '.app_id // empty' "$response")"
           status_creator_id="$(jq -r '.status_creator_id // empty' "$response")"
           attestor_status_id="$(jq -r '.status_id // empty' "$response")"

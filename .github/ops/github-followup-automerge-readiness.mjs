@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { isAuthorizedMainAnySource, allowedCheckSource, latestSameCycleAttestorStatus } from "./github-finalizer-check-source.mjs";
+import { isAuthorizedMainAnySource, allowedCheckSource, latestSameCycleAttestorStatus, evaluateRequiredHeadChecks } from "./github-finalizer-check-source.mjs";
 
 const repository = String(process.env.GITHUB_REPOSITORY || "").trim();
 const token = String(process.env.GH_TOKEN || "").trim();
@@ -216,17 +216,45 @@ if (blockingLabels.length > 0) {
   });
 }
 
-const statuses = await github(`commits/${expectedCandidate}/statuses?per_page=100`);
-// GitHub returns newest statuses first. Never accept an older trusted success
-// when an untrusted actor has overwritten the same context in any-source mode.
+// GitHub selects the test-merge SHA whenever it has a status/check, and
+// then ignores the successful HEAD CI runs. Reject this exact conflict.
+const candidateStatuses = await github(`commits/${expectedCandidate}/statuses?per_page=100`);
+const candidateRuns = await github(`commits/${expectedCandidate}/check-runs?per_page=1`);
+if (!Array.isArray(candidateStatuses) || candidateStatuses.length !== 0 || Number(candidateRuns?.total_count ?? -1) !== 0) {
+  fail("blocked_test_merge_check_target_conflict", "Test-merge commit contains a status or check run; GitHub would select the wrong SHA.", {
+    candidate_sha: expectedCandidate, candidate_status_count: Array.isArray(candidateStatuses) ? candidateStatuses.length : null,
+    candidate_check_run_count: candidateRuns?.total_count ?? null,
+  });
+}
+const statuses = await github(`commits/${expectedPrHead}/statuses?per_page=100`);
 const latestIsTrusted = latestSameCycleAttestorStatus(statuses, {
   context: requiredContext, statusId: expectedAttestorStatusId, creatorId: expectedStatusCreatorId,
 });
 if (!latestIsTrusted) {
-  fail("blocked_exact_attestor_status_missing", "Exact merge candidate does not expose the same-cycle trusted attestor success status.", {
-    observed_base_sha: observedBaseHead,
-    candidate_sha: expectedCandidate,
-    status_context: requiredContext,
+  fail("blocked_exact_attestor_status_missing", "Selected HEAD does not contain the exact same-cycle trusted attestor status.", {
+    source_head_sha: expectedPrHead, certified_candidate_sha: expectedCandidate, status_context: requiredContext,
+  });
+}
+const contexts = [...new Set(activeBindings.map(entry => entry.context))].sort();
+const managedContexts = [...new Set(managedBindings.map(entry => entry.context))].sort();
+if (JSON.stringify(contexts) !== JSON.stringify(managedContexts) || !contexts.includes(requiredContext)) {
+  fail("blocked_required_check_set_mismatch", "Active branch policy and managed ruleset disagree on required contexts.", { contexts, managedContexts });
+}
+const checkRuns = [];
+for (let page = 1; page <= 20; page++) {
+  const batch = await github(`commits/${expectedPrHead}/check-runs?per_page=100&page=${page}`);
+  if (!Array.isArray(batch?.check_runs) || !Number.isInteger(Number(batch.total_count))) fail("blocked_check_runs_unreadable", "HEAD Check Runs could not be enumerated.");
+  checkRuns.push(...batch.check_runs);
+  if (checkRuns.length >= Number(batch.total_count)) break;
+  if (page === 20) fail("blocked_check_runs_truncated", "HEAD Check Runs exceed pagination safety budget.");
+}
+const requiredHeadEvidence = evaluateRequiredHeadChecks(activeBindings, { checkRuns, statuses, attestorContext: requiredContext });
+if (!requiredHeadEvidence.ok) {
+  fail("blocked_required_head_checks_incomplete", "HEAD Required Checks are missing, pending, unsuccessful, or emitted by the wrong App.", { required_check_evidence: requiredHeadEvidence });
+}
+if (pr?.mergeable !== true || !["clean", "has_hooks"].includes(String(pr?.mergeable_state || ""))) {
+  fail("blocked_github_mergeability", "GitHub does not report clean mergeability after the HEAD checks.", {
+    mergeable: pr?.mergeable ?? null, mergeable_state: String(pr?.mergeable_state || "unknown"),
   });
 }
 
@@ -254,6 +282,9 @@ const receipt = {
   expected_attestor_app_id: expectedAttestorAppId,
   expected_status_creator_id: expectedStatusCreatorId,
   exact_attestor_status_proven: latestIsTrusted,
+  selected_check_sha: expectedPrHead,
+  verified_required_contexts: contexts,
+  required_check_evidence: requiredHeadEvidence,
   followup_pr: Number(prNumber),
   manual_objection_present: false,
   safe_to_register_auto_merge: false,
