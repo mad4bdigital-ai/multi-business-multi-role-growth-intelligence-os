@@ -140,11 +140,38 @@ export async function runGithubRepositoryGovernanceAttestation(input = {}, deps 
     if (!SHA_RE.test(candidateTreeSha) || candidateTreeSha !== executedTreeSha) throw error(409, "github_governance_attestation_candidate_tree_mismatch", "Production merge-candidate tree differs from the certified executed release-candidate tree.");
     relation = "executed_source_tree_equals_merge_candidate_tree";
   }
+  let sourceHeadTreeSha = null;
+  if (n.branch === "main") {
+    // A status on source HEAD is truthful only if it denotes the exact tested tree.
+    const [candidateCommit, sourceHeadCommit] = await Promise.all([
+      request({ path: `${base}/git/commits/${n.candidateSha}`, token, fetchImpl }),
+      request({ path: `${base}/git/commits/${n.sourceHeadSha}`, token, fetchImpl }),
+    ]);
+    const candidatePayload = requireResult(candidateCommit, "github_governance_attestation_candidate_commit_read_failed", "Unable to read main merge candidate commit.");
+    const sourcePayload = requireResult(sourceHeadCommit, "github_governance_attestation_source_head_commit_read_failed", "Unable to read main source-head commit.");
+    candidateTreeSha = String(candidatePayload?.tree?.sha || "").toLowerCase();
+    sourceHeadTreeSha = String(sourcePayload?.tree?.sha || "").toLowerCase();
+    if (!SHA_RE.test(candidateTreeSha) || candidateTreeSha !== sourceHeadTreeSha) throw error(409, "github_governance_attestation_main_source_head_tree_mismatch", "main source HEAD and certified merge candidate must have identical trees before dual-target trusted status publication.");
+  }
   const fingerprint = governanceAttestationFingerprint({ contract: GITHUB_REPOSITORY_GOVERNANCE_ATTESTATION_VERSION, app_id: appId, repository: `${n.owner}/${n.repo}`, branch: n.branch, context: n.policy.context, pr_number: n.prNumber, source_head_sha: n.sourceHeadSha, base_sha: n.baseSha, candidate_sha: n.candidateSha, executed_sha: n.executedSha, executed_relation: relation, evidence_sha256: n.evidenceSha256, source_run_id: n.sourceRunId, source_artifact_id: sourceProvenance.artifact_id });
+  // Keep the legacy candidate status identity: the finalizer still pins this exact ID.
   const created = requireResult(await request({ method: "POST", path: `${base}/statuses/${n.candidateSha}`, token, fetchImpl, body: { state: "success", context: n.policy.context, description: `${n.branch} governance attested ${fingerprint.slice(0, 12)}`.slice(0, 140) } }), "github_governance_attestation_status_create_failed", "Unable to publish final governance status.");
-  if (created?.state !== "success" || created?.context !== n.policy.context) throw error(409, "github_governance_attestation_status_response_mismatch", "Published status does not match context/state.");
+  if (created?.state !== "success" || created?.context !== n.policy.context || !Number(created?.id || 0)) throw error(409, "github_governance_attestation_status_response_mismatch", "Published candidate status does not match context/state/identity.");
   const statuses = requireResult(await request({ path: `${base}/commits/${n.candidateSha}/statuses?per_page=100`, token, fetchImpl }), "github_governance_attestation_status_readback_failed", "Unable to read back final status.");
-  const matching = (Array.isArray(statuses) ? statuses : []).filter((status) => status?.context === n.policy.context && status?.state === "success" && String(status?.creator?.id || "") === String(created?.creator?.id || ""));
-  if (!matching.length) throw error(409, "github_governance_attestation_same_cycle_readback_failed", "Same-cycle readback did not prove the published status.");
-  return { contract: GITHUB_REPOSITORY_GOVERNANCE_ATTESTATION_VERSION, mode: "attest", repository: `${n.owner}/${n.repo}`, branch: n.branch, context: n.policy.context, pr_number: n.prNumber, source_head_sha: n.sourceHeadSha, base_sha: n.baseSha, candidate_sha: n.candidateSha, executed_sha: n.executedSha, executed_relation: relation, candidate_tree_sha: candidateTreeSha, executed_tree_sha: executedTreeSha, evidence_sha256: n.evidenceSha256, source_run_id: n.sourceRunId, source_provenance: sourceProvenance, app_id: appId, attestation_fingerprint: fingerprint, status_id: Number(created?.id || 0) || null, status_creator_id: Number(created?.creator?.id || 0) || null, same_cycle_readback_proven: true, mutation_executed: true, repository_content_mutation_executed: false, force_push_executed: false, secrets_included: false };
+  const latestCandidate = (Array.isArray(statuses) ? statuses : []).find((status) => status?.context === n.policy.context);
+  if (latestCandidate?.state !== "success" || Number(latestCandidate?.id || 0) !== Number(created.id) || String(latestCandidate?.creator?.id || "") !== String(created?.creator?.id || "")) throw error(409, "github_governance_attestation_same_cycle_readback_failed", "Exact newest candidate status ID and publisher do not match the current trusted cycle.");
+
+  let sourceHeadStatus = null;
+  if (n.branch === "main") {
+    // Protect against a test-merge SHA refresh between the first and second writes.
+    const live = requireResult(await request({ path: `${base}/pulls/${n.prNumber}`, token, fetchImpl }), "github_governance_attestation_main_source_head_pr_recheck_failed", "Unable to recheck main PR before dual-target publication.");
+    if (live?.state !== "open" || String(live?.base?.sha || "").toLowerCase() !== n.baseSha || String(live?.head?.sha || "").toLowerCase() !== n.sourceHeadSha || String(live?.merge_commit_sha || "").toLowerCase() !== n.candidateSha) throw error(409, "github_governance_attestation_merge_candidate_drift", "Current main test-merge identity changed before source-HEAD status publication.");
+    const headCreated = requireResult(await request({ method: "POST", path: `${base}/statuses/${n.sourceHeadSha}`, token, fetchImpl, body: { state: "success", context: n.policy.context, description: `main exact-tree governance attested ${fingerprint.slice(0, 12)}`.slice(0, 140) } }), "github_governance_attestation_source_head_status_create_failed", "Unable to publish the trusted source-head status.");
+    if (headCreated?.state !== "success" || headCreated?.context !== n.policy.context || !Number(headCreated?.id || 0) || String(headCreated?.creator?.id || "") !== String(created?.creator?.id || "")) throw error(409, "github_governance_attestation_source_head_status_response_mismatch", "Trusted source-head status identity does not match the candidate's trusted publisher.");
+    const headStatuses = requireResult(await request({ path: `${base}/commits/${n.sourceHeadSha}/statuses?per_page=100`, token, fetchImpl }), "github_governance_attestation_source_head_status_readback_failed", "Unable to read back source-head status.");
+    const latestHead = (Array.isArray(headStatuses) ? headStatuses : []).find((status) => status?.context === n.policy.context);
+    if (latestHead?.state !== "success" || Number(latestHead?.id || 0) !== Number(headCreated.id) || String(latestHead?.creator?.id || "") !== String(created?.creator?.id || "")) throw error(409, "github_governance_attestation_source_head_same_cycle_readback_failed", "Exact newest source-head status ID and publisher do not match the trusted candidate.");
+    sourceHeadStatus = { status_id: Number(headCreated.id), status_creator_id: Number(headCreated.creator.id), same_cycle_readback_proven: true, source_head_sha: n.sourceHeadSha, source_head_tree_sha: sourceHeadTreeSha };
+  }
+  return { contract: GITHUB_REPOSITORY_GOVERNANCE_ATTESTATION_VERSION, mode: "attest", repository: `${n.owner}/${n.repo}`, branch: n.branch, context: n.policy.context, pr_number: n.prNumber, source_head_sha: n.sourceHeadSha, base_sha: n.baseSha, candidate_sha: n.candidateSha, executed_sha: n.executedSha, executed_relation: relation, candidate_tree_sha: candidateTreeSha, executed_tree_sha: executedTreeSha, source_head_tree_sha: sourceHeadTreeSha, source_head_status: sourceHeadStatus, evidence_sha256: n.evidenceSha256, source_run_id: n.sourceRunId, source_provenance: sourceProvenance, app_id: appId, attestation_fingerprint: fingerprint, status_id: Number(created?.id || 0) || null, status_creator_id: Number(created?.creator?.id || 0) || null, same_cycle_readback_proven: true, mutation_executed: true, repository_content_mutation_executed: false, force_push_executed: false, secrets_included: false };
 }
