@@ -32,7 +32,7 @@ jobs:
     if: >-
       (github.event_name == 'workflow_run' &&
        github.event.workflow_run.conclusion == 'success' &&
-       ((github.event.workflow_run.name == 'Derived State Closure' && github.event.workflow_run.event == 'pull_request') ||
+       ((github.event.workflow_run.name == 'Derived State Closure' && (github.event.workflow_run.event == 'pull_request' || github.event.workflow_run.event == 'pull_request_review')) ||
         (github.event.workflow_run.name == 'Governed Production Promotion Request Launcher' && github.event.workflow_run.event == 'workflow_dispatch'))) ||
       (github.event_name == 'workflow_dispatch' && inputs.confirmation == 'FINALIZE_GOVERNANCE_ATTESTATION')
     environment:
@@ -74,7 +74,7 @@ jobs:
           source_event="$(jq -r '.event' "$run")"
           case "$source_path" in
             .github/workflows/derived-state-closure.yml)
-              test "$source_event" = "pull_request"
+              [[ "$source_event" == "pull_request" || "$source_event" == "pull_request_review" ]]
               branch="main"
               prefix="derived-state-closure-"
               ;;
@@ -152,6 +152,59 @@ jobs:
             --arg pr "$pr_number" --arg source "$source_head_sha" --arg base "$base_sha" --arg candidate "$candidate_sha" --arg executed "$executed_sha" \
             --arg digest "$evidence_digest" --arg run "$SOURCE_RUN_ID" --arg confirm "$confirm" \
             '{mode:$mode,owner:$owner,repo:$repo,default_branch:$branch,pr_number:($pr|tonumber),source_head_sha:$source,base_sha:$base,candidate_sha:$candidate,executed_sha:$executed,evidence_sha256:$digest,source_run_id:($run|tonumber),confirm:$confirm}' > "$payload"
+          # Verify only the backend credential guard; sheet-service health is separate.
+          PROBE_KEY="$BACKEND_API_KEY"
+          if [[ -z "$PROBE_KEY" ]]; then
+            echo "::error title=Production Backend auth::error_code=production_backend_key_not_configured" >&2
+            exit 1
+          fi
+          invalid_key="invalid-probe-$(openssl rand -hex 24)"
+          # Auth-only probe: no response bodies, no redirect, no API-key/JWT ambiguity.
+          request_code() {
+            local key="$1" endpoint="$2" code
+            if ! code="$(curl --silent --show-error --max-time 20 --proto '=https' --max-redirs 0 --output /dev/null --write-out '%{http_code}' -H "x-api-key: $key" "$endpoint")"; then
+              echo "::error title=Production Backend auth::error_code=production_backend_auth_probe_transport_failed" >&2
+              return 1
+            fi
+            printf '%s' "$code"
+          }
+          binding='https://auth.mad4b.com/deployment-info/runtime-binding'
+          binding_control="$(request_code "$invalid_key" "$binding")"
+          binding_status="$(request_code "$PROBE_KEY" "$binding")"
+          if [[ "$binding_control" == 403 && "$binding_status" == 200 ]]; then
+            echo "PRODUCTION_BACKEND_AUTH_ACCEPTED: PASS;probe=runtime_binding;http_status=200;negative_control=403;secrets_included=false"
+          else
+            if [[ "$binding_control" == 403 && ( "$binding_status" == 401 || "$binding_status" == 403 ) ]]; then
+              echo "::error title=Production Backend auth::error_code=production_backend_auth_rejected;http_status=$binding_status" >&2
+              exit 1
+            fi
+            # Deployed versions without runtime-binding can still prove auth via
+            # a guarded legacy GET. HTTP 500 is not endpoint health success.
+            inspect='https://auth.mad4b.com/governance/execution-log-latest-inspect'
+            inspect_control="$(request_code "$invalid_key" "$inspect")"
+            inspect_status="$(request_code "$PROBE_KEY" "$inspect")"
+            if [[ "$inspect_control" != 403 ]]; then
+              echo "::error title=Production Backend auth::error_code=production_backend_auth_guard_not_verified;negative_control_status=$inspect_control" >&2
+              exit 1
+            fi
+            case "$inspect_status" in
+              2??)
+                echo "PRODUCTION_BACKEND_AUTH_ACCEPTED: PASS;probe=legacy_inspect;http_status=$inspect_status;negative_control=403;secrets_included=false"
+                ;;
+              500)
+                echo "::warning title=Runtime dependency degraded::error_code=execution_log_inspect_http_500;credential_guard_verified=true"
+                echo "PRODUCTION_BACKEND_AUTH_ACCEPTED: PASS;probe=legacy_inspect;http_status=500;negative_control=403;runtime_dependency=degraded;secrets_included=false"
+                ;;
+              401|403)
+                echo "::error title=Production Backend auth::error_code=production_backend_auth_rejected;http_status=$inspect_status" >&2
+                exit 1
+                ;;
+              *)
+                echo "::error title=Production Backend auth::error_code=production_backend_probe_inconclusive;http_status=$inspect_status" >&2
+                exit 1
+                ;;
+            esac
+          fi
           response="$RUNNER_TEMP/attestation-response.json"
           # Report only an HTTP status and a bounded machine error.code; never emit the body, headers, or credential.
           if ! http="$(curl -sS -o "$response" -w '%{http_code}' -X POST "$RUNTIME_BASE_URL/admin/repository-automation/policy-controller" -H "Authorization: Bearer $BACKEND_API_KEY" -H 'Accept: application/json' -H 'Content-Type: application/json' --data-binary "@$payload")"; then

@@ -15,6 +15,9 @@ jobs:
       !github.event.issue.pull_request &&
       github.event.comment.body == 'AUTHORIZE_GOVERNED_MIGRATION_1051_GITHUB_REPOSITORY_POLICY_LIVE_APPLY_AUTHORITY' &&
       contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
+    environment:
+      name: Production
+      deployment: false
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 35
     concurrency:
@@ -23,7 +26,6 @@ jobs:
     env:
       ROLLOUT_PHASE: readiness
       RUNTIME_BASE_URL: https://auth.mad4b.com
-      BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
       GH_READ_TOKEN: ${{ github.token }}
       REPOSITORY: mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os
       CONTROL_ISSUE: '6625'
@@ -42,8 +44,11 @@ jobs:
       - name: Capture Migration 225 envelope dependency diagnostic before authorization
         env:
           METADATA_DIAGNOSTIC_MODE: readiness
+          BACKEND_API_KEY: ${{ secrets.HOSTINGER_PRODUCTION_BACKEND_API_KEY }}
         run: node .github/ops/github-repository-policy-1051-metadata-state.mjs
       - name: Execute Production-bound authorization and dry-run
+        env:
+          BACKEND_API_KEY: ${{ secrets.HOSTINGER_PRODUCTION_BACKEND_API_KEY }}
         run: node .github/ops/github-repository-policy-1051-governed-rollout.mjs
       - name: Upload no-secret readiness evidence
         if: always()
@@ -61,6 +66,9 @@ jobs:
       !github.event.issue.pull_request &&
       github.event.comment.body == 'RECONCILE_1051_GITHUB_REPOSITORY_POLICY_RECORD_ONLY_LEDGER' &&
       contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
+    environment:
+      name: Production
+      deployment: false
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 45
     concurrency:
@@ -69,7 +77,6 @@ jobs:
     env:
       ROLLOUT_PHASE: readiness
       RUNTIME_BASE_URL: https://auth.mad4b.com
-      BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
       GH_READ_TOKEN: ${{ github.token }}
       REPOSITORY: mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os
       CONTROL_ISSUE: '6625'
@@ -88,12 +95,16 @@ jobs:
       - name: Capture Migration 225 and Governance writer readiness before orphan-ledger reconciliation
         env:
           METADATA_DIAGNOSTIC_MODE: readiness
+          BACKEND_API_KEY: ${{ secrets.HOSTINGER_PRODUCTION_BACKEND_API_KEY }}
         run: node .github/ops/github-repository-policy-1051-metadata-state.mjs
       - name: Create checksum-bound authorization and dry-run before record-only reconciliation
+        env:
+          BACKEND_API_KEY: ${{ secrets.HOSTINGER_PRODUCTION_BACKEND_API_KEY }}
         run: node .github/ops/github-repository-policy-1051-governed-rollout.mjs
       - name: Record exact Migration 1051 ledger without replaying SQL
         env:
           ROLLOUT_PHASE: record_only
+          BACKEND_API_KEY: ${{ secrets.HOSTINGER_PRODUCTION_BACKEND_API_KEY }}
         run: node .github/ops/github-repository-policy-1051-governed-rollout.mjs
       - name: Upload no-secret record-only reconciliation evidence
         if: always()
@@ -111,6 +122,9 @@ jobs:
       !github.event.issue.pull_request &&
       github.event.comment.body == 'APPLY_1051_GITHUB_REPOSITORY_POLICY_AFTER_RECORD_ONLY_RECONCILIATION' &&
       contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
+    environment:
+      name: Production
+      deployment: false
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 45
     concurrency:
@@ -119,7 +133,6 @@ jobs:
     env:
       ROLLOUT_PHASE: apply
       RUNTIME_BASE_URL: https://auth.mad4b.com
-      BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
       GH_READ_TOKEN: ${{ github.token }}
       REPOSITORY: mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os
       CONTROL_ISSUE: '6625'
@@ -138,12 +151,16 @@ jobs:
       - name: Recheck Migration 225 and Governance writer readiness before reconciled Apply
         env:
           METADATA_DIAGNOSTIC_MODE: readiness
+          BACKEND_API_KEY: ${{ secrets.HOSTINGER_PRODUCTION_BACKEND_API_KEY }}
         run: node .github/ops/github-repository-policy-1051-metadata-state.mjs
       - name: Verify exact record-only ledger before reconciled Apply
         env:
           ROLLOUT_PHASE: verify_record_only
+          BACKEND_API_KEY: ${{ secrets.HOSTINGER_PRODUCTION_BACKEND_API_KEY }}
         run: node .github/ops/github-repository-policy-1051-governed-rollout.mjs
       - name: Execute metadata Apply only after certified record-only reconciliation
+        env:
+          BACKEND_API_KEY: ${{ secrets.HOSTINGER_PRODUCTION_BACKEND_API_KEY }}
         run: node .github/ops/github-repository-policy-1051-governed-rollout.mjs
       - name: Upload no-secret reconciled Apply evidence
         if: always()
@@ -161,6 +178,9 @@ jobs:
       !github.event.issue.pull_request &&
       github.event.comment.body == 'APPLY_1051_GITHUB_REPOSITORY_POLICY_LIVE_APPLY_AUTHORITY' &&
       contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
+    environment:
+      name: Production
+      deployment: false
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 40
     concurrency:
@@ -169,7 +189,6 @@ jobs:
     env:
       ROLLOUT_PHASE: apply
       RUNTIME_BASE_URL: https://auth.mad4b.com
-      BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
       GH_READ_TOKEN: ${{ github.token }}
       REPOSITORY: mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os
       CONTROL_ISSUE: '6625'
@@ -188,8 +207,11 @@ jobs:
       - name: Enforce Migration 1051 pre-Apply metadata replay guard
         env:
           METADATA_DIAGNOSTIC_MODE: pre_apply
+          BACKEND_API_KEY: ${{ secrets.HOSTINGER_PRODUCTION_BACKEND_API_KEY }}
         run: node .github/ops/github-repository-policy-1051-metadata-state.mjs
       - name: Execute exactly-once metadata Apply and same-cycle certification
+        env:
+          BACKEND_API_KEY: ${{ secrets.HOSTINGER_PRODUCTION_BACKEND_API_KEY }}
         run: node .github/ops/github-repository-policy-1051-governed-rollout.mjs
       - name: Upload no-secret Apply evidence
         if: always()
@@ -220,7 +242,6 @@ jobs:
     env:
       ROLLOUT_PHASE: verify
       RUNTIME_BASE_URL: https://auth.mad4b.com
-      BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
       GH_READ_TOKEN: ${{ github.token }}
       REPOSITORY: mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os
       CONTROL_ISSUE: '6625'
@@ -239,8 +260,11 @@ jobs:
       - name: Capture bounded Migration 1051 metadata diagnostic without Apply
         env:
           METADATA_DIAGNOSTIC_MODE: verify
+          BACKEND_API_KEY: ${{ secrets.HOSTINGER_PRODUCTION_BACKEND_API_KEY }}
         run: node .github/ops/github-repository-policy-1051-metadata-state.mjs
       - name: Verify exact ledger and authority metadata without Apply
+        env:
+          BACKEND_API_KEY: ${{ secrets.HOSTINGER_PRODUCTION_BACKEND_API_KEY }}
         run: node .github/ops/github-repository-policy-1051-governed-rollout.mjs
       - name: Upload no-secret verification evidence
         if: always()

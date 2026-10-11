@@ -166,7 +166,7 @@ console.log(JSON.stringify({
   assert.equal(bridgeWorkflow.includes("READ_PRODUCTION_ENV_KEY_INVENTORY:([0-9a-f]{40})"), true);
   assert.equal(bridgeWorkflow.includes("name: Production"), true);
   assert.equal(bridgeWorkflow.includes("HOSTINGER_API_TOKEN: ${{ secrets.HOSTINGER_API_TOKEN }}"), true);
-  assert.equal(bridgeWorkflow.includes("BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}"), true);
+  assert.equal(bridgeWorkflow.includes("BACKEND_API_KEY: ${{ secrets.HOSTINGER_PRODUCTION_BACKEND_API_KEY }}"), true);
   assert.equal(bridgeWorkflow.includes("node scripts/production-runtime-env-key-inventory.mjs"), true);
   const inventoryJob = bridgeWorkflow.slice(bridgeWorkflow.indexOf("  env-key-inventory:"));
   assert.equal(/--request\s+(?:PUT|PATCH|DELETE)/u.test(inventoryJob), false);

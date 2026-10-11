@@ -97,16 +97,38 @@ jobs:
           test "$(grep -Ec '^[[:space:]]+BACKEND_API_KEY:' "$workflow")" -eq 2
           grep -Fq "steps.artifact_safety.outputs.safe == 'true'" "$workflow"
 
-  live-read-only-cycle:
-    name: Live Read-Only Evidence Cycle
+  authorize-ueacp:
+    name: Resolve independent UEACP Environment approval
     if: >-
       github.event_name == 'workflow_dispatch' &&
       vars.UEACP_LIVE_EVIDENCE_ENABLED == 'true' &&
       inputs.confirm == 'I_AUTHORIZE_READ_ONLY_UEACP_EVIDENCE'
     needs: contract
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 5
     environment: ueacp-live-evidence
+    steps:
+      - name: Confirm gated manual dispatch without backend credentials
+        shell: bash
+        env:
+          EXPECTED_CONFIRMATION: ${{ inputs.confirm }}
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF_NAME" = 'main'
+          test "$EXPECTED_CONFIRMATION" = 'I_AUTHORIZE_READ_ONLY_UEACP_EVIDENCE'
+
+  live-read-only-cycle:
+    name: Live Read-Only Evidence Cycle
+    if: >-
+      github.event_name == 'workflow_dispatch' &&
+      needs.authorize-ueacp.result == 'success' &&
+      inputs.confirm == 'I_AUTHORIZE_READ_ONLY_UEACP_EVIDENCE'
+    needs: [contract, authorize-ueacp]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment:
+      name: Production
+      deployment: false
     env:
       REPOSITORY: ${{ github.repository }}
       SOURCE_MANIFEST_FILE: ${{ inputs.source_manifest_file }}
@@ -125,7 +147,7 @@ jobs:
       - name: Resolve runtime database identity from Hostinger App Env
         shell: bash
         env:
-          BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
+          BACKEND_API_KEY: ${{ secrets.HOSTINGER_PRODUCTION_BACKEND_API_KEY }}
         run: |
           set -euo pipefail
           node --input-type=module - <<'NODE'
@@ -235,7 +257,7 @@ jobs:
             --attestation-output "${EVIDENCE_DIR}/repository-attestation.json"
       - name: Observe live SQL catalog with same-cycle readback
         env:
-          BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
+          BACKEND_API_KEY: ${{ secrets.HOSTINGER_PRODUCTION_BACKEND_API_KEY }}
         run: |
           EVIDENCE_PATH="${EVIDENCE_DIR}/catalog-observation.json" \
           OBSERVED_REF="${GITHUB_SHA}" \

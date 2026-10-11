@@ -46,7 +46,7 @@ assert.match(workflow, /\["OWNER","MEMBER","COLLABORATOR"\]/);
 assert.ok(workflow.includes(`github.event.comment.body == '${AUTH_CONFIRM}'`));
 assert.doesNotMatch(workflow, /^\s{2}apply:/m);
 assert.doesNotMatch(workflow, /gh\s+api|issues\/\$|comments/);
-assert.match(workflow, /BACKEND_API_KEY: \$\{\{ secrets\.BACKEND_API_KEY \}\}/);
+assert.match(workflow, /BACKEND_API_KEY: \$\{\{ secrets\.HOSTINGER_PRODUCTION_BACKEND_API_KEY \}\}/);
 assert.match(workflow, /GH_READ_TOKEN: \$\{\{ github\.token \}\}/);
 assert.match(workflow, /ref: main/);
 assert.match(workflow, /if: always\(\)[\s\S]*actions\/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4/);
