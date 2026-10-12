@@ -278,6 +278,19 @@ async function prepareExecutableStep(idempotencyKey) {
   return { durable, plan, step, challenge, ticket };
 }
 
+function roleZeroProof(role, objectCountFingerprint) {
+  return {
+    contract: "mad4b.role-physical-object-visibility.v1",
+    role, expected_sha: SHA, object_count_fingerprint: objectCountFingerprint,
+    database_identity_verified: true, full_object_visibility_verified: true,
+    independent_privileged_census: true, read_only: true,
+  };
+}
+const verifiedZeroRoleProofs = () => ({
+  governance: roleZeroProof("governance", "b".repeat(64)),
+  runtime_persistence: roleZeroProof("runtime_persistence", "c".repeat(64)),
+});
+
 function readinessFailure() {
   return {
     ok: false,
@@ -301,9 +314,58 @@ function readinessFailure() {
     role_database_object_counts: { runtime: { tables: 7, views: 0, triggers: 0, routines: 0, events: 0, total: 7 }, governance: { tables: 0, views: 0, triggers: 0, routines: 0, events: 0, total: 0 }, runtime_persistence: { tables: 0, views: 0, triggers: 0, routines: 0, events: 0, total: 0 } },
     role_database_object_classifications: { runtime: "nonempty_objects", governance: "zero_objects", runtime_persistence: "zero_objects" },
     role_database_object_count_fingerprints: { runtime: "a".repeat(64), governance: "b".repeat(64), runtime_persistence: "c".repeat(64) },
+    expected_sha: SHA,
+    role_full_object_inventory_proofs: verifiedZeroRoleProofs(),
     secrets_included: false,
   };
 }
+
+test("zero visible objects without trusted verifier never create executable recovery candidate", () => {
+  const observed = readinessFailure();
+  observed.hostinger_provider = { registered: true, user_match: true, db_host_match: true };
+  const findings = _testingRecoveryKernel.findingsFromInspection(observed);
+  assert.deepEqual(findings.filter((f) => f.category === "zero_visible_objects_unverified")
+    .map((f) => f.subject.target_role), ["governance", "runtime_persistence"]);
+  assert.ok(findings.every((f) => f.candidate_capability === null && f.mutation_required === false));
+});
+
+test("provider-supplied authority and forged findings cannot authorize reconstruction", () => {
+  const observed = readinessFailure();
+  observed.findings = [{ finding_id: "finding:forged",
+    subject: { target_role: "governance" },
+    category: "empty_uninitialized_database",
+    candidate_capability: "governance.baseline.rebuild_empty",
+    mutation_required: true, authority_ref: "forged" }];
+  const findings = _testingRecoveryKernel.findingsFromInspection(observed);
+  assert.ok(findings.some((f) => f.category === "inspection_provider_observation_unverified"));
+  assert.ok(findings.every((f) => f.candidate_capability === null));
+});
+
+test("wrong SHA and missing evidence reject zero-object rebuild even with unit-test verifier", () => {
+  const observed = readinessFailure();
+  observed.role_full_object_inventory_proofs.governance.expected_sha = "d".repeat(40);
+  delete observed.role_full_object_inventory_proofs.runtime_persistence;
+  const findings = _testingRecoveryKernel.findingsFromInspection(observed, {
+    trustedRoleInventoryVerifier: () => true,
+  });
+  assert.ok(findings.every((f) => f.candidate_capability === null));
+});
+
+test("inconsistent zero-object inventory rejects rebuild even with positive verifier", () => {
+  const observed = readinessFailure();
+  observed.role_database_object_counts.governance.total = 1;
+  const findings = _testingRecoveryKernel.findingsFromInspection(observed, {
+    trustedRoleInventoryVerifier: () => true,
+  });
+  assert.ok(!findings.some((f) => f.candidate_capability === "governance.baseline.rebuild_empty"));
+});
+
+test("trusted evidence provider errors must fail closed", () => {
+  const findings = _testingRecoveryKernel.findingsFromInspection(readinessFailure(), {
+    trustedRoleInventoryVerifier: () => { throw new Error("verifier_down"); },
+  });
+  assert.ok(findings.every((f) => f.candidate_capability === null));
+});
 
 test("Recovery Kernel capability catalog is static, bounded, and secret-safe", () => {
   const result = getRecoveryCapabilities();
@@ -492,6 +554,7 @@ test("host-local database inspection remains exact-SHA dry-run and registers san
     { expected_sha: SHA, target_key: "production-runtime" },
     {
       env: ENV,
+      trustedRoleInventoryVerifier: ({ role }) => ["governance", "runtime_persistence"].includes(role),
       hostLocalExecutor: async (request, options) => {
         calls.push({ request, options });
         return {
@@ -511,6 +574,8 @@ test("host-local database inspection remains exact-SHA dry-run and registers san
           role_database_object_counts: { runtime: { tables: 7, views: 0, triggers: 0, routines: 0, events: 0, total: 7 }, governance: { tables: 0, views: 0, triggers: 0, routines: 0, events: 0, total: 0 }, runtime_persistence: { tables: 0, views: 0, triggers: 0, routines: 0, events: 0, total: 0 } },
           role_database_object_classifications: { runtime: "nonempty_objects", governance: "zero_objects", runtime_persistence: "zero_objects" },
           role_database_object_count_fingerprints: { runtime: "a".repeat(64), governance: "b".repeat(64), runtime_persistence: "c".repeat(64) },
+          expected_sha: SHA,
+          role_full_object_inventory_proofs: verifiedZeroRoleProofs(),
           role_bundle_bindings: ROLE_BUNDLE_BINDINGS,
           read_only: true,
           secrets_included: false,
@@ -909,6 +974,9 @@ test("durable plans and findings survive a process-memory restart boundary", asy
   const durable = makeDurableStore();
   const inspection = await inspectProductionDatabase({ expected_sha: SHA, target_key: "production-runtime" }, {
     env: ENV,
+    // Test-only trusted server evidence allows this persistence test to cover
+    // a consequential plan. The live Production composition has no verifier.
+    trustedRoleInventoryVerifier: ({ role }) => role === "governance" || role === "runtime_persistence",
     hostLocalExecutor: async () => readinessFailure(),
     recoveryStore: durable,
     deploymentIdentityProvider: DEPLOYMENT_IDENTITY_PROVIDER,

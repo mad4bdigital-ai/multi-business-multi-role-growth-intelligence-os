@@ -63,6 +63,7 @@ import {
 } from "./recoveryExceptionLifecycle.js";
 import { readCanonicalStagingGrantBinding } from "./stagingGrantBinding.js";
 import { readCanonicalProductionGrantBinding } from "./productionGrantBinding.js";
+import { BOOTSTRAP_ROLE_GRANT_POLICIES } from "./databasePrivilegeContracts.js";
 
 export { assertTrustForMutation, deriveRoleTargetFingerprints, getRecoveryTrustModel, readRuntimeAttestation, readRecoveryManifest, activateExceptionLifecycle, approveExceptionLifecycle, buildDisasterRecoveryPreview, consumeExceptionLifecycle, createExceptionLifecycle, createExceptionLifecycleRecord, expireExceptionLifecycle, heartbeatExceptionLease, revokeExceptionLifecycle };
 
@@ -434,7 +435,7 @@ function inspectionFinding({ targetRole, resource, category, severity, expected,
   return { finding_id: id, ...finding };
 }
 
-function findingsFromInspection(inspection = {}) {
+function findingsFromInspection(inspection = {}, { trustedRoleInventoryVerifier = null } = {}) {
   const findings = [];
   const checks = inspection.checks && typeof inspection.checks === "object" ? inspection.checks : {};
   const dimensions = inspection.dimensions && typeof inspection.dimensions === "object" ? inspection.dimensions : {};
@@ -442,11 +443,69 @@ function findingsFromInspection(inspection = {}) {
   const roleClassifications = inspection.role_database_object_classifications && typeof inspection.role_database_object_classifications === "object" ? inspection.role_database_object_classifications : {};
   const roleCountFingerprints = inspection.role_database_object_count_fingerprints && typeof inspection.role_database_object_count_fingerprints === "object" ? inspection.role_database_object_count_fingerprints : {};
   const roleBundleBindings = inspection.role_bundle_bindings && typeof inspection.role_bundle_bindings === "object" ? inspection.role_bundle_bindings : {};
-  const roleEvidenceAvailable = ["runtime", "governance", "runtime_persistence"].every((role) => Object.prototype.hasOwnProperty.call(roleClassifications, role) && Object.prototype.hasOwnProperty.call(roleCounts, role));
+  const roleFullObjectInventoryProofs = inspection.role_full_object_inventory_proofs
+    && typeof inspection.role_full_object_inventory_proofs === "object"
+    ? inspection.role_full_object_inventory_proofs : {};
+  const roleTableEvidence = inspection.role_table_evidence && typeof inspection.role_table_evidence === "object" ? inspection.role_table_evidence : {};
+  const requiredObjectTypes = ["tables", "views", "triggers", "routines", "events"];
+  const roleCountConsistent = (role) => {
+    const counts = roleCounts[role];
+    if (!counts || requiredObjectTypes.some((key) => !Number.isSafeInteger(counts[key]) || counts[key] < 0)) return false;
+    if (!Number.isSafeInteger(counts.total) || counts.total < 0
+      || counts.total !== requiredObjectTypes.reduce((sum, key) => sum + counts[key], 0)) return false;
+    return roleClassifications[role] === (counts.total === 0 ? "zero_objects" : "nonempty_objects");
+  };
+  const roleEvidenceAvailable = ["runtime", "governance", "runtime_persistence"].every((role) =>
+    Object.prototype.hasOwnProperty.call(roleClassifications, role)
+    && Object.prototype.hasOwnProperty.call(roleCounts, role));
+  // Never promote a caller/provider boolean to an authority. The production
+  // composition currently does not install a trusted physical-evidence verifier.
+  // Any verifier must be injected by an independently audited server authority,
+  // not accepted through inspectProductionDatabase request input.
+  const trustedRoleProof = (role, requiredTableEvidence = null) => {
+    const proof = roleFullObjectInventoryProofs[role];
+    try {
+      return roleCountConsistent(role) && proof?.contract === "mad4b.role-physical-object-visibility.v1"
+      && proof.role === role && proof.expected_sha === inspection.expected_sha
+      && /^[0-9a-f]{40}$/u.test(String(proof.expected_sha || ""))
+      && proof.object_count_fingerprint === roleCountFingerprints[role]
+      && /^[0-9a-f]{64}$/u.test(String(proof.object_count_fingerprint || ""))
+      && proof.database_identity_verified === true
+      && proof.full_object_visibility_verified === true
+      && proof.independent_privileged_census === true
+      && proof.read_only === true
+      && typeof trustedRoleInventoryVerifier === "function"
+      && trustedRoleInventoryVerifier({
+        role, proof, expectedSha: inspection.expected_sha,
+        roleFingerprint: roleCountFingerprints[role],
+        roleObjectCounts: roleCounts[role],
+        requiredTableEvidence, // verifier must bind source-registered table evidence
+        requiredTableEvidenceDigest: requiredTableEvidence === null ? null
+          : stableHash(requiredTableEvidence),
+        sourceRequiredTables: BOOTSTRAP_ROLE_GRANT_POLICIES[role]?.required_tables || [],
+      }) === true;
+    } catch {
+      // A failing trust verifier may block recovery, never open a mutation path.
+      return false;
+    }
+  };
   const emptyRoles = new Set();
+  const zeroVisibilityUnverifiedRoles = new Set();
   if (roleEvidenceAvailable && inspection.full_inspection === true) {
     for (const role of ["runtime", "governance", "runtime_persistence"]) {
       if (roleClassifications[role] !== "zero_objects") continue;
+      const verified = trustedRoleProof(role) && roleCounts[role]?.total === 0;
+      if (!verified) {
+        zeroVisibilityUnverifiedRoles.add(role);
+        findings.push(inspectionFinding({
+          targetRole: role, resource: "role database object visibility",
+          category: "zero_visible_objects_unverified", severity: "critical",
+          expected: { privileged_full_object_visibility: true },
+          actual: { zero_objects_visible: true, physical_absence_proven: false },
+          authorityRef: null, repairability: "unknown_fail_closed", mutationRequired: false,
+        }));
+        continue;
+      }
       emptyRoles.add(role);
       const finding = inspectionFinding({
         targetRole: role,
@@ -463,19 +522,77 @@ function findingsFromInspection(inspection = {}) {
       findings.push(finding);
     }
   }
+  // A required table invisible in a non-empty role blocks grant/migration
+  // candidates, but the role-bound information_schema census alone cannot
+  // prove physical absence: role credentials may lack metadata visibility.
+  // Escalate as non-executable and request independent physical inspection.
+  const partialMissingRoles = new Set();
+  if (roleEvidenceAvailable && inspection.full_inspection === true) {
+    for (const role of ["runtime", "governance", "runtime_persistence"]) {
+      if (roleClassifications[role] !== "nonempty_objects") continue;
+      const roleTables = roleTableEvidence[role];
+      if (!Array.isArray(roleTables)) continue; // Unverified evidence cannot prove absence.
+      const unverifiedCount = roleTables.filter((entry) => entry?.present === false).length;
+      if (!unverifiedCount) continue;
+      partialMissingRoles.add(role);
+      findings.push(inspectionFinding({
+        targetRole: role,
+        resource: "role required database schema visibility",
+        category: "required_table_presence_unverified",
+        severity: "high",
+        expected: { required_tables_visible_to_inspector: true },
+        actual: { nonempty_objects_visible_to_inspector: true, required_tables_not_visible_count: unverifiedCount,
+          physical_absence_proven: false },
+        authorityRef: null,
+        repairability: "unknown_fail_closed",
+        mutationRequired: false,
+      }));
+    }
+  }
   const checkMap = [
     ["mcp_catalog_schema_ready", "governance", "admin_platform_endpoint_tools.mcp_catalog_level", "known_migration_gap", "high", "governance.mcp_catalog.repair", "20260815_custom_gpt_mcp_catalog_levels.sql"],
     ["governance_db_privilege_ready", "governance", "governance database privilege contract", "known_grant_gap", "high", "governance.grant.repair", "repository grant contract"],
     ["runtime_persistence_ready", "runtime_persistence", "governed_tool_response_chunks", "schema_drift", "high", "runtime_persistence.schema.repair", "persistence schema bundle"],
   ];
   for (const [check, role, resource, category, severity, candidate, authority] of checkMap) {
-    if (checks[check] === true || emptyRoles.has(role)) continue;
+    // Unknown/null readiness is NOT a failed readiness probe. Neither a
+    // verified partial schema nor an empty role may be treated as a grant gap.
+    if (checks[check] !== false || emptyRoles.has(role) || zeroVisibilityUnverifiedRoles.has(role) || partialMissingRoles.has(role)) continue;
+    // Do not infer a grant/migration deficiency from a role whose required
+    // schema inventory is unverified. Only a full independent inspection with
+    // explicit required-table presence may authorize a deterministic candidate.
+    const requiredEvidence = roleTableEvidence[role];
+    const requiredTables = BOOTSTRAP_ROLE_GRANT_POLICIES[role]?.required_tables || [];
+    const physicallyPresent = new Set(Array.isArray(requiredEvidence)
+      ? requiredEvidence.filter((entry) => entry?.present === true).map((entry) => String(entry.table || "").trim())
+      : []);
+    if (!roleEvidenceAvailable || inspection.full_inspection !== true
+      || !trustedRoleProof(role, requiredEvidence)
+      || !Array.isArray(requiredEvidence) || requiredTables.length === 0
+      || roleCounts[role]?.tables < requiredTables.length
+      || !requiredTables.every((table) => physicallyPresent.has(table))) continue;
     const finding = inspectionFinding({ targetRole: role, resource, category, severity, expected: { ready: true }, actual: { ready: checks[check] ?? dimensions[role] ?? false }, authorityRef: authority, repairability: candidate ? "deterministic" : "unknown_fail_closed", mutationRequired: true });
     finding.candidate_capability = candidate;
     findings.push(finding);
   }
+  // Inspection-provider notes are observations, never authoritative
+  // Recovery Kernel capability grants. Discard any provider-supplied candidate,
+  // authority reference, finding_id, or mutation flag; derive a fresh safe ID.
   if (Array.isArray(inspection.findings)) {
-    for (const item of inspection.findings.slice(0, 100)) findings.push(sanitizeEvidence(item));
+    for (const item of inspection.findings.slice(0, 100)) {
+      findings.push(inspectionFinding({
+        targetRole: ["runtime", "governance", "runtime_persistence"].includes(item?.subject?.target_role)
+          ? item.subject.target_role : "unknown",
+        resource: "untrusted inspection provider finding",
+        category: "inspection_provider_observation_unverified",
+        severity: "high",
+        expected: { canonical_recovery_classification_required: true },
+        actual: { observation_reported: true, provider_candidate_ignored: Boolean(item?.candidate_capability) },
+        authorityRef: null,
+        repairability: "unknown_fail_closed",
+        mutationRequired: false,
+      }));
+    }
   }
   if (findings.length === 0 && inspection.ok === false) {
     findings.push(inspectionFinding({ targetRole: "unknown", resource: "recovery inspection", category: "unknown_fail_closed", severity: "critical", expected: { ok: true }, actual: { ok: false }, authorityRef: null, repairability: "unknown_fail_closed", mutationRequired: false }));
@@ -1645,11 +1762,11 @@ export async function getRecoveryEvidence(input = {}, { recoveryStore } = {}) {
   return sanitizeEvidence({ ok: true, contract: "mad4b.recovery-evidence.v1", run_id: runId, evidence: run.evidence || {}, redaction: { applied: true, raw_logs_included: false, secrets_included: false }, durability: { durable: Boolean(recoveryStore && typeof recoveryStore.getRun === "function"), mode: recoveryStore ? "injected_store" : "degraded_memory_only_test_state" }, secrets_included: false });
 }
 
-export async function inspectProductionDatabase(input = {}, { env = process.env, repoRoot, hostLocalExecutor = executeHostLocalRoleInspection, recoveryStore } = {}) {
+export async function inspectProductionDatabase(input = {}, { env = process.env, repoRoot, hostLocalExecutor = executeHostLocalRoleInspection, recoveryStore, trustedRoleInventoryVerifier = null } = {}) {
   const request = requireProductionRequest(input, ["expected_sha", "target_key"]);
   const identity = readProductionIdentity({ env, expectedSha: request.expected_sha });
   const inspection = await hostLocalExecutor({ expected_sha: request.expected_sha, target_key: request.target_key }, { env, repoRoot });
-  const findings = findingsFromInspection(inspection);
+  const findings = findingsFromInspection(inspection, { trustedRoleInventoryVerifier });
   const trust = getRecoveryTrustModel({ env, expectedSha: request.expected_sha });
   const attestation = readRuntimeAttestation({ env, expectedSha: request.expected_sha });
   const causalGraph = buildCausalFindingGraph(findings);
