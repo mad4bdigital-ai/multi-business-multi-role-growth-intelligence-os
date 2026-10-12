@@ -16,16 +16,31 @@ const state = {
 };
 
 let failCasOnce = false;
+let failConfigCasOnce = false;
 
 function result(affectedRows = 1) {
   return [{ affectedRows }, []];
 }
 
 function createConnection() {
+  let transactionSnapshot = null;
   return {
-    async beginTransaction() {},
-    async commit() {},
-    async rollback() {},
+    async beginTransaction() {
+      transactionSnapshot = Object.fromEntries(
+        ["configs", "clients", "secrets"].map((key) => [
+          key, new Map([...state[key].entries()].map(([id, value]) => [id, structuredClone(value)])),
+        ]),
+      );
+    },
+    async commit() { transactionSnapshot = null; },
+    async rollback() {
+      if (!transactionSnapshot) return;
+      for (const key of ["configs", "clients", "secrets"]) {
+        state[key].clear();
+        for (const [id, value] of transactionSnapshot[key]) state[key].set(id, value);
+      }
+      transactionSnapshot = null;
+    },
     release() {},
     async query(sqlValue, params = []) {
       const sql = String(sqlValue);
@@ -79,6 +94,7 @@ function createConnection() {
       if (sql.startsWith("UPDATE platform_runtime_config SET config_json")) {
         const [newJson, key, oldJson] = params;
         const config = state.configs.get(key);
+        if (failConfigCasOnce) { failConfigCasOnce = false; return result(0); }
         if (!config || JSON.stringify(config.config) !== oldJson) return result(0);
         config.config = JSON.parse(newJson);
         return result();
@@ -311,6 +327,20 @@ await assert.rejects(
   (e) => e.code === "STAGING_CALLBACK_CONCURRENT_CLIENT_CHANGE",
 );
 assert.equal(JSON.parse(state.clients.get(stagingChatGPT.client_id).redirect_uris_json).length, 1);
+// Simulate a stale runtime-config write after the client row was updated.
+// A real SQL transaction must restore BOTH rows on a CAS conflict.
+failConfigCasOnce = true;
+await assert.rejects(
+  reconcileStagingChatGPTCallback({
+    env: callbackEnv, pool, callback_uri: callback,
+    expected_client_id: stagingChatGPT.client_id,
+    apply: true, confirmation: "APPEND_STAGING_CHATGPT_CALLBACK",
+  }),
+  (e) => e.code === "STAGING_CALLBACK_CONCURRENT_CONFIG_CHANGE",
+);
+assert.equal(JSON.parse(state.clients.get(stagingChatGPT.client_id).redirect_uris_json).length, 1);
+assert.equal(state.configs.get("remote_mcp.oauth.client.staging.openai_chatgpt").config.redirect_uris.length, 1);
+assert.equal(state.secrets.get("REMOTE_MCP_STAGING_OPENAI_CHATGPT_OAUTH_CLIENT_SECRET").value_sha256, secretDigest);
 const appended = await reconcileStagingChatGPTCallback({
   env: callbackEnv, pool, callback_uri: callback,
   expected_client_id: stagingChatGPT.client_id,
