@@ -22,11 +22,23 @@ export function validateEvidence(e, x) {
     source_head_sha: x.head, base_sha: x.base, merge_candidate_sha: x.candidate,
     executed_sha: x.candidate, source_run_id: x.run
   })) requireValid(String(e.identity?.[field]) === String(expected), "evidence_" + field + "_mismatch");
+  // The real derived-state report stores immutable SHA bindings inside candidate.
   requireValid(e.report?.contract === "mad4b.repository-derived-state-closure.v2" &&
-    e.report?.candidate_sha === x.candidate && e.report?.converged === true &&
+    e.report?.candidate?.sha === x.candidate &&
+    e.report?.candidate?.source_head_sha === x.head &&
+    e.report?.candidate?.base_sha === x.base &&
+    e.report?.candidate?.pr_number === x.pr &&
+    e.report?.converged === true &&
     e.report?.blocking_stale_or_failed_artifact_count === 0, "derived_state_not_converged");
   requireValid(e.finalizer?.contract === "mad4b.repository-governance-evidence-finalizer.v2" &&
-    e.finalizer?.merge_candidate_sha === x.candidate && e.finalizer?.converged === true &&
+    e.finalizer?.merge_candidate_sha === x.candidate &&
+    e.finalizer?.source_head_sha === x.head &&
+    e.finalizer?.base_sha === x.base &&
+    e.finalizer?.executed_sha === x.candidate &&
+    e.finalizer?.pr_number === x.pr &&
+    e.finalizer?.required_count > 0 &&
+    e.finalizer?.failed_or_missing_required_count === 0 &&
+    e.finalizer?.converged === true &&
     Array.isArray(e.finalizer?.failed_or_missing_required_ids) &&
     e.finalizer.failed_or_missing_required_ids.length === 0, "producer_evidence_not_converged");
   requireValid(e.objections?.contract === "mad4b.repository-policy-objections.v1" &&
@@ -36,8 +48,10 @@ export function validateEvidence(e, x) {
     e.objections?.merge_allowed_by_source_policy === true &&
     e.objections?.automerge_allowed === false, "policy_objection_unresolved");
   requireValid(e.owner?.ok === true && e.owner?.exact_head_sha === x.head &&
+    e.owner?.pr_number === x.pr &&
     ["single_owner_attestation", "independent_approval"].includes(e.owner?.mode), "manual_authorization_missing");
-  requireValid(e.environment?.converged === true && e.environment?.issue_count === 0, "environment_impact_unresolved");
+  requireValid(e.environment?.converged === true && e.environment?.issue_count === 0 &&
+    e.environment?.expected_head_sha === x.head && e.environment?.base_sha === x.base, "environment_impact_unresolved");
   return true;
 }
 export function validateReview(reviews, ownerLogin, authorLogin, head) {

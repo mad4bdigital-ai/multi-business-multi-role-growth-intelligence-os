@@ -68,19 +68,33 @@ const identity = { pr_number: 8493, source_head_sha: head, base_sha: base,
 const evidence = {
   identity,
   report: { contract: "mad4b.repository-derived-state-closure.v2",
-    candidate_sha: candidate, converged: true, blocking_stale_or_failed_artifact_count: 0 },
+    candidate: { sha: candidate, pr_number: 8493, source_head_sha: head, base_sha: base },
+    converged: true, blocking_stale_or_failed_artifact_count: 0 },
   finalizer: { contract: "mad4b.repository-governance-evidence-finalizer.v2",
-    merge_candidate_sha: candidate, converged: true, failed_or_missing_required_ids: [] },
+    merge_candidate_sha: candidate, source_head_sha: head, base_sha: base,
+    executed_sha: candidate, pr_number: 8493, required_count: 1, failed_or_missing_required_count: 0,
+    converged: true, failed_or_missing_required_ids: [] },
   objections: { contract: "mad4b.repository-policy-objections.v1",
     candidate_sha: candidate, source_head_sha: head, blocking_count: 0, manual_count: 0,
     activation_count: 0, merge_allowed_by_source_policy: true, automerge_allowed: false },
-  owner: { ok: true, exact_head_sha: head, mode: "single_owner_attestation" },
-  environment: { converged: true, issue_count: 0 },
+  owner: { ok: true, pr_number: 8493, exact_head_sha: head, mode: "single_owner_attestation" },
+  environment: { converged: true, issue_count: 0, expected_head_sha: head, base_sha: base },
 };
 const exact = { pr: 8493, head, base, candidate, run };
 const copy = v => JSON.parse(JSON.stringify(v));
 function rejected(fn, tag) { assert.throws(fn, e => e.message.includes(tag), tag); }
 assert.equal(validateEvidence(evidence, exact), true);
+{
+  const wrongCandidate = copy(evidence);
+  wrongCandidate.report.candidate.sha = "f".repeat(40);
+  rejected(() => validateEvidence(wrongCandidate, exact), "derived_state_not_converged");
+  const wrongBase = copy(evidence);
+  wrongBase.report.candidate.base_sha = "f".repeat(40);
+  rejected(() => validateEvidence(wrongBase, exact), "derived_state_not_converged");
+  const wrongProducer = copy(evidence);
+  wrongProducer.finalizer.executed_sha = "f".repeat(40);
+  rejected(() => validateEvidence(wrongProducer, exact), "producer_evidence_not_converged");
+}
 assert.equal(statusTarget("main", head, candidate), head);
 assert.equal(statusTarget("Production", head, candidate), candidate);
 for (const [file, field, value] of [
@@ -90,6 +104,10 @@ for (const [file, field, value] of [
   ["identity", "source_run_id", 43],
   ["report", "converged", false],
   ["report", "blocking_stale_or_failed_artifact_count", 1],
+  ["finalizer", "required_count", 0],
+  ["finalizer", "failed_or_missing_required_count", 1],
+  ["owner", "pr_number", 99],
+  ["environment", "expected_head_sha", "f".repeat(40)],
   ["finalizer", "converged", false],
   ["objections", "blocking_count", 1],
   ["objections", "manual_count", 1],
