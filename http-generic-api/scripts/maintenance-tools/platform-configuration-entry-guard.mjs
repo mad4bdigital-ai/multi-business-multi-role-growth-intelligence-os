@@ -216,6 +216,22 @@ if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(fileURLToP
   const outputPath = path.resolve(repositoryRoot, args.output || DEFAULT_OUTPUT);
   fs.mkdirSync(path.dirname(outputPath), { recursive: true });
   fs.writeFileSync(outputPath, `${JSON.stringify(result, null, 2)}\n`, "utf8");
-  process.stdout.write(`${JSON.stringify({ contract: result.contract, ok: result.ok, findings: result.findings.length, registry_entry_count: result.registry_entry_count, secrets_included: false }, null, 2)}\n`);
+  // Emit only classification codes and non-secret locator keys. Full evidence
+  // stays in the canonical artifact; never print candidate values to logs.
+  const boundedFindings = result.findings.slice(0, 32).map((entry) => ({
+    code: String(entry.code || "unknown").slice(0, 128),
+    severity: String(entry.severity || "unknown").slice(0, 24),
+    path: String(entry.path || "").slice(0, 240),
+    config_key: String(entry.config_key || "").slice(0, 180),
+    candidate_id: String(entry.candidate_id || "").slice(0, 80),
+  }));
+  process.stdout.write(`${JSON.stringify({
+    contract: result.contract,
+    ok: result.ok,
+    findings: result.findings.length,
+    finding_codes: boundedFindings,
+    registry_entry_count: result.registry_entry_count,
+    secrets_included: false,
+  }, null, 2)}\n`);
   if (args.fail_on_findings && !result.ok) process.exitCode = 2;
 }
