@@ -261,6 +261,116 @@ export async function listRemoteMcpOAuthClientProvisioningStatus({ env = process
   };
 }
 
+
+/**
+ * Add one exact ChatGPT connector callback to an EXISTING OAuth client on
+ * local Windows Staging. Never invoked by the public /authorize route.
+ * Defaults to a read-only plan; the explicit apply uses a transactional CAS.
+ * In particular, this operation never passes or rotates client secrets.
+ */
+export async function reconcileStagingChatGPTCallback({
+  env = process.env,
+  pool = getPool(),
+  callback_uri,
+  expected_client_id,
+  apply = false,
+  confirmation = "",
+} = {}) {
+  function denied(code) {
+    const error = new Error(code);
+    error.code = code;
+    return error;
+  }
+  if (
+    String(env.DEPLOYMENT_ENVIRONMENT || "") !== "staging_local_windows_docker" ||
+    String(env.REMOTE_MCP_ENVIRONMENT || "") !== "staging"
+  ) throw denied("STAGING_CALLBACK_ENVIRONMENT_NOT_PROVEN");
+  const normalized = normalizeProvisioningInput({
+    env, environment: "staging", profile_key: "openai_chatgpt",
+  });
+  if (
+    normalized.profile.resource !== "https://mcp-dev.mad4b.com" ||
+    normalized.profile.authorization_server !== "https://dev.mad4b.com/auth/mcp"
+  ) throw denied("STAGING_CALLBACK_RESOURCE_OR_ISSUER_MISMATCH");
+  const requested = normalizeRemoteMcpProfileRedirectUris(
+    [callback_uri], "openai_chatgpt", env,
+  )[0];
+  // A connector callback ID is opaque, not a wildcard path or arbitrary page.
+  if (!/^https:\/\/chatgpt\.com\/connector\/oauth\/[A-Za-z0-9_-]{6,160}$/u.test(requested)) {
+    throw denied("STAGING_CALLBACK_PATH_UNSUPPORTED");
+  }
+  if (apply && confirmation !== "APPEND_STAGING_CHATGPT_CALLBACK") {
+    throw denied("STAGING_CALLBACK_EXPLICIT_CONFIRMATION_REQUIRED");
+  }
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+    const current = await readProvisionedState(connection, normalized.profile);
+    const client = current.client;
+    const config = current.config;
+    if (!client || !config || client.status !== "active" ||
+        client.client_profile_key !== "openai_chatgpt" ||
+        !String(client.client_id || "").startsWith("mcp_stg_") ||
+        client.client_id !== config.client_id ||
+        (expected_client_id && client.client_id !== expected_client_id)) {
+      throw denied("STAGING_CALLBACK_CLIENT_IDENTITY_MISMATCH");
+    }
+    if (!client.client_secret_hash || !current.secret ||
+        current.secret.status !== "active" || !current.secret.value_ciphertext) {
+      throw denied("STAGING_CALLBACK_CLIENT_SECRET_NOT_ACTIVE");
+    }
+    const existing = parseJsonArray(client.redirect_uris_json);
+    const fullList = normalizeRemoteMcpProfileRedirectUris(
+      existing, "openai_chatgpt", env,
+    );
+    if (fullList.length !== existing.length || fullList.length > 8) {
+      throw denied("STAGING_CALLBACK_EXISTING_REDIRECTS_INVALID");
+    }
+    const alreadyPresent = fullList.includes(requested);
+    const next = alreadyPresent ? fullList : [...fullList, requested];
+    if (next.length > 8) throw denied("STAGING_CALLBACK_REDIRECT_LIMIT");
+    const oldConfig = JSON.stringify(config);
+    if (!alreadyPresent && apply) {
+      const [clientUpdate] = await connection.query(
+        "UPDATE remote_mcp_oauth_clients SET redirect_uris_json = ? " +
+        "WHERE client_id = ? AND status = 'active' " +
+        "AND redirect_uris_json = ? AND client_secret_hash = ?",
+        [JSON.stringify(next), client.client_id, client.redirect_uris_json, client.client_secret_hash],
+      );
+      if (clientUpdate.affectedRows !== 1) throw denied("STAGING_CALLBACK_CONCURRENT_CLIENT_CHANGE");
+      const revisedConfig = { ...config, redirect_uris: next };
+      const [configUpdate] = await connection.query(
+        "UPDATE platform_runtime_config SET config_json = ?, updated_at = CURRENT_TIMESTAMP " +
+        "WHERE config_key = ? AND status = 'active' AND config_json = ?",
+        [JSON.stringify(revisedConfig), normalized.profile.client_config_key, oldConfig],
+      );
+      if (configUpdate.affectedRows !== 1) throw denied("STAGING_CALLBACK_CONCURRENT_CONFIG_CHANGE");
+    }
+    if (!apply || alreadyPresent) await connection.rollback();
+    else await connection.commit();
+    return {
+      ok: true,
+      contract: "mad4b.staging.chatgpt.callback-reconcile.v1",
+      environment: "staging",
+      profile_key: "openai_chatgpt",
+      client_id: client.client_id,
+      callback_sha256: sha256(requested),
+      already_registered: alreadyPresent,
+      registered_redirect_uri_count: next.length,
+      allowed_scope_count: parseJsonArray(client.allowed_scopes_json).length,
+      mutation_performed: Boolean(apply && !alreadyPresent),
+      client_secret_rotated: false,
+      production_mutation: false,
+      secrets_included: false,
+    };
+  } catch (error) {
+    try { await connection.rollback(); } catch {}
+    throw error;
+  } finally {
+    connection.release();
+  }
+}
+
 export async function provisionRemoteMcpOAuthClient(args = {}) {
   const input = normalizeProvisioningInput(args);
   if (!input.redirectUris.length) {
