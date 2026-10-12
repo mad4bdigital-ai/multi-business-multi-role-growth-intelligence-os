@@ -3,6 +3,7 @@ import {
   listRemoteMcpOAuthClientProvisioningStatus,
   provisionRemoteMcpOAuthClient,
   reconcileStagingChatGPTCallback,
+  reconcileRemoteMcpChatGPTCallback,
   readRemoteMcpOAuthClientProvisioningStatus,
 } from "./remoteMcpOAuthClientProvisioning.js";
 
@@ -274,7 +275,7 @@ await assert.rejects(
     env: { ...callbackEnv, DEPLOYMENT_ENVIRONMENT: "production_hostinger_autodeploy" },
     pool, callback_uri: callback,
   }),
-  (e) => e.code === "STAGING_CALLBACK_ENVIRONMENT_NOT_PROVEN",
+  (e) => e.code === "REMOTE_MCP_CALLBACK_ENVIRONMENT_NOT_PROVEN",
 );
 await assert.rejects(
   reconcileStagingChatGPTCallback({
@@ -297,7 +298,7 @@ await assert.rejects(
   reconcileStagingChatGPTCallback({
     env: callbackEnv, pool, callback_uri: callback,
   }),
-  (e) => e.code === "STAGING_CALLBACK_EXPECTED_CLIENT_ID_REQUIRED",
+  (e) => e.code === "REMOTE_MCP_CALLBACK_EXPECTED_CLIENT_ID_REQUIRED",
 );
 failCasOnce = true;
 await assert.rejects(
@@ -326,5 +327,67 @@ const repeated = await reconcileStagingChatGPTCallback({
 });
 assert.equal(repeated.already_registered, true);
 assert.equal(repeated.mutation_performed, false);
+
+
+const productionChatGPTEnv = {
+  ...productionEnv,
+  DEPLOYMENT_ENVIRONMENT: "production_hostinger_autodeploy",
+  REMOTE_MCP_CLIENT_PROFILE_KEY: "openai_chatgpt",
+  REMOTE_MCP_OAUTH_ALLOWED_REDIRECT_ORIGINS: "https://chatgpt.com",
+};
+const productionChatGPT = await provisionRemoteMcpOAuthClient({
+  env: productionChatGPTEnv,
+  pool, environment: "production", profile_key: "openai_chatgpt",
+  redirect_uris: ["https://chatgpt.com/connector_platform_oauth_redirect"],
+  scopes: ["identity.read", "workspaces.read"],
+});
+const prodRedirectBefore = state.clients.get(productionChatGPT.client_id).redirect_uris_json;
+const prodSecretDigestBefore = state.secrets.get("REMOTE_MCP_PRODUCTION_OPENAI_CHATGPT_OAUTH_CLIENT_SECRET").value_sha256;
+const productionPreview = await reconcileRemoteMcpChatGPTCallback({
+  environment: "production",
+  env: productionChatGPTEnv,
+  pool, callback_uri: callback, expected_client_id: productionChatGPT.client_id,
+});
+assert.equal(productionPreview.ok, true);
+assert.equal(productionPreview.environment, "production");
+assert.equal(productionPreview.registered_redirect_uri_count, 2);
+assert.equal(productionPreview.production_apply_blocked, true);
+assert.equal(productionPreview.mutation_performed, false);
+assert.equal(state.clients.get(productionChatGPT.client_id).redirect_uris_json, prodRedirectBefore);
+assert.equal(state.secrets.get("REMOTE_MCP_PRODUCTION_OPENAI_CHATGPT_OAUTH_CLIENT_SECRET").value_sha256, prodSecretDigestBefore);
+await assert.rejects(
+  reconcileRemoteMcpChatGPTCallback({
+    environment: "production",
+    env: productionChatGPTEnv, pool,
+    callback_uri: callback, expected_client_id: productionChatGPT.client_id,
+    apply: true, confirmation: "APPEND_STAGING_CHATGPT_CALLBACK",
+  }),
+  (e) => e.code === "PRODUCTION_CALLBACK_GOVERNED_APPROVAL_NOT_AVAILABLE",
+);
+await assert.rejects(
+  reconcileRemoteMcpChatGPTCallback({
+    environment: "production",
+    env: { ...productionChatGPTEnv, DEPLOYMENT_ENVIRONMENT: "staging_local_windows_docker" },
+    pool, callback_uri: callback, expected_client_id: productionChatGPT.client_id,
+  }),
+  (e) => e.code === "REMOTE_MCP_CALLBACK_ENVIRONMENT_NOT_PROVEN",
+);
+await assert.rejects(
+  reconcileRemoteMcpChatGPTCallback({
+    environment: "production",
+    env: productionChatGPTEnv, pool, callback_uri: callback, expected_client_id: stagingChatGPT.client_id,
+  }),
+  (e) => e.code === "REMOTE_MCP_CALLBACK_EXPECTED_CLIENT_ID_REQUIRED",
+);
+await assert.rejects(
+  reconcileRemoteMcpChatGPTCallback({
+    environment: "production",
+    env: productionChatGPTEnv, pool,
+    callback_uri: "https://chatgpt.com/connector/oauth/../../wrong",
+    expected_client_id: productionChatGPT.client_id,
+  }),
+);
+assert.equal(state.clients.get(productionChatGPT.client_id).redirect_uris_json, prodRedirectBefore);
+assert.equal(state.secrets.get("REMOTE_MCP_PRODUCTION_OPENAI_CHATGPT_OAUTH_CLIENT_SECRET").value_sha256, prodSecretDigestBefore);
 
 console.log("remote MCP client provisioning tests passed");
