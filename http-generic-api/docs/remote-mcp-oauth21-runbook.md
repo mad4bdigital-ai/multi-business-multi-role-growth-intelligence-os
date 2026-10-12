@@ -162,7 +162,7 @@ Adding a future profile is registry work, not a new storage design: add a unique
 
 Before any Production command is run, independently verify the target database, canonical Production resource/issuer, profile callback, secret-storage authority, and owner authorization. This source change defines and tests the provisioning boundary but does not execute Production provisioning, migration, grant, activation, deployment, or client linking. Existing unprefixed DCR identities remain temporarily accepted for compatibility; all newly provisioned identities use the environment-specific prefixes and a Staging runtime rejects `mcp_prd_*` identities while Production rejects `mcp_stg_*` identities.
 
-## ChatGPT callback reconciliation — Windows Staging only
+## ChatGPT callback reconciliation — environment-isolated Staging + Production
 
 ChatGPT custom-MCP registrations may use an account-specific callback
 `https://chatgpt.com/connector/oauth/<callback_id>` instead of the legacy
@@ -191,6 +191,45 @@ node scripts/provision-remote-mcp-client.mjs --environment=staging \
   --redirect-uri=https://chatgpt.com/connector/oauth/<actual-callback-id> \
   --apply --confirm=APPEND_STAGING_CHATGPT_CALLBACK
 ```
+
+### Production read-only planning (no execution authority)
+
+The same CLI `--reconcile-chatgpt-callback` operation now supports a
+strict **Production plan** after an independently verified Production runtime
+has been selected. Production must use:
+
+- `DEPLOYMENT_ENVIRONMENT=production_hostinger_autodeploy`;
+- `REMOTE_MCP_ENVIRONMENT=production`;
+- resource `https://mcp.mad4b.com`;
+- issuer `https://auth.mad4b.com/auth/mcp`;
+- the **existing** `mcp_prd_` client ID and its own Production database, secret
+  reference, and callback policy.
+
+The plan reads the exact existing Production `openai_chatgpt` profile,
+validates an exact ChatGPT callback URI and reports a **fingerprint only**;
+no changes are committed. The separate Production secret namespace is never
+inherited from `REMOTE_MCP_APP_SECRET` or the Staging profile.
+
+```bash
+# Run only from the independently verified, isolated Production runtime;
+# omitting --apply is mandatory for this preflight.
+node scripts/provision-remote-mcp-client.mjs --environment=production \
+  --profile=openai_chatgpt --reconcile-chatgpt-callback \
+  --expected-client-id=<existing-mcp_prd-client-id> \
+  --redirect-uri=https://chatgpt.com/connector/oauth/<actual-callback-id>
+```
+
+**Production apply is deliberately blocked** with
+`PRODUCTION_CALLBACK_GOVERNED_APPROVAL_NOT_AVAILABLE`, regardless of
+`--confirm` or a matching client ID. This repository change adds **no**
+Production OAuth/client provisioning, callback mutation or backdoor
+operator confirmation. A future separately reviewed execution adapter must
+verify the exact Production deployment SHA, server-bound plan digest,
+independent durable approval and one-use ticket, acquire a fenced lock,
+execute the exact bounded change, and verify readback before Production
+writes can be enabled. No elevated GitHub Actions permissions or CI bypass
+is implied. Never copy Staging configuration or a Staging client secret to
+Production.
 
 The operation requires `DEPLOYMENT_ENVIRONMENT=staging_local_windows_docker`,
 `REMOTE_MCP_ENVIRONMENT=staging`, and the exact Staging MCP resource and
