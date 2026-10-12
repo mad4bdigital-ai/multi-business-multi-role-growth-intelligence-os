@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import {
   listRemoteMcpOAuthClientProvisioningStatus,
   provisionRemoteMcpOAuthClient,
+  reconcileStagingChatGPTCallback,
+  reconcileRemoteMcpChatGPTCallback,
   readRemoteMcpOAuthClientProvisioningStatus,
 } from "./remoteMcpOAuthClientProvisioning.js";
 
@@ -13,15 +15,32 @@ const state = {
   secrets: new Map(),
 };
 
+let failCasOnce = false;
+let rejectSecondConfigCasOnce = false;
+
 function result(affectedRows = 1) {
   return [{ affectedRows }, []];
 }
 
 function createConnection() {
+  let transactionSnapshot = null;
   return {
-    async beginTransaction() {},
-    async commit() {},
-    async rollback() {},
+    async beginTransaction() {
+      transactionSnapshot = Object.fromEntries(
+        ["configs", "clients", "secrets"].map((key) => [
+          key, new Map([...state[key].entries()].map(([id, value]) => [id, structuredClone(value)])),
+        ]),
+      );
+    },
+    async commit() { transactionSnapshot = null; },
+    async rollback() {
+      if (!transactionSnapshot) return;
+      for (const key of ["configs", "clients", "secrets"]) {
+        state[key].clear();
+        for (const [id, value] of transactionSnapshot[key]) state[key].set(id, value);
+      }
+      transactionSnapshot = null;
+    },
     release() {},
     async query(sqlValue, params = []) {
       const sql = String(sqlValue);
@@ -61,6 +80,23 @@ function createConnection() {
           status: "active",
           expires_at: null,
         });
+        return result();
+      }
+      if (sql.startsWith("UPDATE remote_mcp_oauth_clients SET redirect_uris_json")) {
+        const [newUris, clientId, oldUris, hash] = params;
+        const client = state.clients.get(clientId);
+        if (failCasOnce) { failCasOnce = false; return result(0); }
+        if (!client || client.status !== "active" || client.redirect_uris_json !== oldUris ||
+            client.client_secret_hash !== hash) return result(0);
+        client.redirect_uris_json = newUris;
+        return result();
+      }
+      if (sql.startsWith("UPDATE platform_runtime_config SET config_json")) {
+        const [newJson, key, oldJson] = params;
+        const config = state.configs.get(key);
+        if (rejectSecondConfigCasOnce) { rejectSecondConfigCasOnce = false; return result(0); }
+        if (!config || JSON.stringify(config.config) !== oldJson) return result(0);
+        config.config = JSON.parse(newJson);
         return result();
       }
       if (sql.includes("UPDATE remote_mcp_oauth_clients")) {
@@ -227,5 +263,163 @@ await assert.rejects(
   }),
   (error) => error.code === "remote_mcp_client_secret_too_short",
 );
+
+
+const callbackEnv = {
+  ...stagingEnv,
+  DEPLOYMENT_ENVIRONMENT: "staging_local_windows_docker",
+  REMOTE_MCP_CLIENT_PROFILE_KEY: "openai_chatgpt",
+};
+const callback = "https://chatgpt.com/connector/oauth/Gid2Qc_xY8pe";
+const secretDigest = state.secrets.get("REMOTE_MCP_STAGING_OPENAI_CHATGPT_OAUTH_CLIENT_SECRET").value_sha256;
+const before = await reconcileStagingChatGPTCallback({
+  env: callbackEnv, pool, callback_uri: callback,
+  expected_client_id: stagingChatGPT.client_id,
+});
+assert.equal(before.contract, "mad4b.staging.chatgpt.callback-reconcile.v1");
+assert.equal(before.mutation_performed, false);
+assert.equal(before.registered_redirect_uri_count, 2);
+assert.equal(JSON.parse(state.clients.get(stagingChatGPT.client_id).redirect_uris_json).length, 1);
+await assert.rejects(
+  reconcileStagingChatGPTCallback({
+    env: callbackEnv, pool, callback_uri: callback,
+    apply: true, expected_client_id: stagingChatGPT.client_id,
+  }),
+  (e) => e.code === "STAGING_CALLBACK_EXPLICIT_CONFIRMATION_REQUIRED",
+);
+await assert.rejects(
+  reconcileStagingChatGPTCallback({
+    env: { ...callbackEnv, DEPLOYMENT_ENVIRONMENT: "production_hostinger_autodeploy" },
+    pool, callback_uri: callback,
+  }),
+  (e) => e.code === "REMOTE_MCP_CALLBACK_ENVIRONMENT_NOT_PROVEN",
+);
+await assert.rejects(
+  reconcileStagingChatGPTCallback({
+    env: callbackEnv, pool, callback_uri: "https://evil.example/connector/oauth/Gid2Qc_xY8pe",
+  }),
+);
+await assert.rejects(
+  reconcileStagingChatGPTCallback({
+    env: callbackEnv, pool, callback_uri: "https://chatgpt.com/connector/oauth/../../wrong",
+  }),
+);
+await assert.rejects(
+  reconcileStagingChatGPTCallback({
+    env: callbackEnv, pool, callback_uri: callback,
+    expected_client_id: "mcp_stg_1234567890abcdef",
+  }),
+  (e) => e.code === "STAGING_CALLBACK_CLIENT_IDENTITY_MISMATCH",
+);
+await assert.rejects(
+  reconcileStagingChatGPTCallback({
+    env: callbackEnv, pool, callback_uri: callback,
+  }),
+  (e) => e.code === "REMOTE_MCP_CALLBACK_EXPECTED_CLIENT_ID_REQUIRED",
+);
+failCasOnce = true;
+await assert.rejects(
+  reconcileStagingChatGPTCallback({
+    env: callbackEnv, pool, callback_uri: callback,
+    expected_client_id: stagingChatGPT.client_id,
+    apply: true, confirmation: "APPEND_STAGING_CHATGPT_CALLBACK",
+  }),
+  (e) => e.code === "STAGING_CALLBACK_CONCURRENT_CLIENT_CHANGE",
+);
+assert.equal(JSON.parse(state.clients.get(stagingChatGPT.client_id).redirect_uris_json).length, 1);
+// Simulate a stale runtime-config write after the client row was updated.
+// A real SQL transaction must restore BOTH rows on a CAS conflict.
+rejectSecondConfigCasOnce = true;
+await assert.rejects(
+  reconcileStagingChatGPTCallback({
+    env: callbackEnv, pool, callback_uri: callback,
+    expected_client_id: stagingChatGPT.client_id,
+    apply: true, confirmation: "APPEND_STAGING_CHATGPT_CALLBACK",
+  }),
+  (e) => e.code === "STAGING_CALLBACK_CONCURRENT_CONFIG_CHANGE",
+);
+assert.equal(JSON.parse(state.clients.get(stagingChatGPT.client_id).redirect_uris_json).length, 1);
+assert.equal(state.configs.get("remote_mcp.oauth.client.staging.openai_chatgpt").config.redirect_uris.length, 1);
+assert.equal(state.secrets.get("REMOTE_MCP_STAGING_OPENAI_CHATGPT_OAUTH_CLIENT_SECRET").value_sha256, secretDigest);
+const appended = await reconcileStagingChatGPTCallback({
+  env: callbackEnv, pool, callback_uri: callback,
+  expected_client_id: stagingChatGPT.client_id,
+  apply: true, confirmation: "APPEND_STAGING_CHATGPT_CALLBACK",
+});
+assert.equal(appended.mutation_performed, true);
+assert.equal(appended.client_secret_rotated, false);
+assert.equal(appended.registered_redirect_uri_count, 2);
+assert.equal(state.secrets.get("REMOTE_MCP_STAGING_OPENAI_CHATGPT_OAUTH_CLIENT_SECRET").value_sha256, secretDigest);
+assert.equal(state.configs.get("remote_mcp.oauth.client.staging.openai_chatgpt").config.redirect_uris.length, 2);
+const repeated = await reconcileStagingChatGPTCallback({
+  env: callbackEnv, pool, callback_uri: callback,
+  expected_client_id: stagingChatGPT.client_id,
+  apply: true, confirmation: "APPEND_STAGING_CHATGPT_CALLBACK",
+});
+assert.equal(repeated.already_registered, true);
+assert.equal(repeated.mutation_performed, false);
+
+
+const productionChatGPTEnv = {
+  ...productionEnv,
+  DEPLOYMENT_ENVIRONMENT: "production_hostinger_autodeploy",
+  REMOTE_MCP_CLIENT_PROFILE_KEY: "openai_chatgpt",
+  REMOTE_MCP_OAUTH_ALLOWED_REDIRECT_ORIGINS: "https://chatgpt.com",
+};
+const productionChatGPT = await provisionRemoteMcpOAuthClient({
+  env: productionChatGPTEnv,
+  pool, environment: "production", profile_key: "openai_chatgpt",
+  redirect_uris: ["https://chatgpt.com/connector_platform_oauth_redirect"],
+  scopes: ["identity.read", "workspaces.read"],
+});
+const prodRedirectBefore = state.clients.get(productionChatGPT.client_id).redirect_uris_json;
+const prodSecretDigestBefore = state.secrets.get("REMOTE_MCP_PRODUCTION_OPENAI_CHATGPT_OAUTH_CLIENT_SECRET").value_sha256;
+const productionPreview = await reconcileRemoteMcpChatGPTCallback({
+  environment: "production",
+  env: productionChatGPTEnv,
+  pool, callback_uri: callback, expected_client_id: productionChatGPT.client_id,
+});
+assert.equal(productionPreview.contract, "mad4b.remote-mcp.chatgpt.callback-reconcile.v2");
+assert.equal(productionPreview.ok, true);
+assert.equal(productionPreview.environment, "production");
+assert.equal(productionPreview.registered_redirect_uri_count, 2);
+assert.equal(productionPreview.production_apply_blocked, true);
+assert.equal(productionPreview.mutation_performed, false);
+assert.equal(state.clients.get(productionChatGPT.client_id).redirect_uris_json, prodRedirectBefore);
+assert.equal(state.secrets.get("REMOTE_MCP_PRODUCTION_OPENAI_CHATGPT_OAUTH_CLIENT_SECRET").value_sha256, prodSecretDigestBefore);
+await assert.rejects(
+  reconcileRemoteMcpChatGPTCallback({
+    environment: "production",
+    env: productionChatGPTEnv, pool,
+    callback_uri: callback, expected_client_id: productionChatGPT.client_id,
+    apply: true, confirmation: "APPEND_STAGING_CHATGPT_CALLBACK",
+  }),
+  (e) => e.code === "PRODUCTION_CALLBACK_GOVERNED_APPROVAL_NOT_AVAILABLE",
+);
+await assert.rejects(
+  reconcileRemoteMcpChatGPTCallback({
+    environment: "production",
+    env: { ...productionChatGPTEnv, DEPLOYMENT_ENVIRONMENT: "staging_local_windows_docker" },
+    pool, callback_uri: callback, expected_client_id: productionChatGPT.client_id,
+  }),
+  (e) => e.code === "REMOTE_MCP_CALLBACK_ENVIRONMENT_NOT_PROVEN",
+);
+await assert.rejects(
+  reconcileRemoteMcpChatGPTCallback({
+    environment: "production",
+    env: productionChatGPTEnv, pool, callback_uri: callback, expected_client_id: stagingChatGPT.client_id,
+  }),
+  (e) => e.code === "REMOTE_MCP_CALLBACK_EXPECTED_CLIENT_ID_REQUIRED",
+);
+await assert.rejects(
+  reconcileRemoteMcpChatGPTCallback({
+    environment: "production",
+    env: productionChatGPTEnv, pool,
+    callback_uri: "https://chatgpt.com/connector/oauth/../../wrong",
+    expected_client_id: productionChatGPT.client_id,
+  }),
+);
+assert.equal(state.clients.get(productionChatGPT.client_id).redirect_uris_json, prodRedirectBefore);
+assert.equal(state.secrets.get("REMOTE_MCP_PRODUCTION_OPENAI_CHATGPT_OAUTH_CLIENT_SECRET").value_sha256, prodSecretDigestBefore);
 
 console.log("remote MCP client provisioning tests passed");

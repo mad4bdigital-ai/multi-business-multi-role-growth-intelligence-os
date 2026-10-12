@@ -23,12 +23,14 @@ const job = workflow.jobs?.["production-schema-baseline"];
 assert(job, "Production schema-baseline job is required");
 assert.equal(job.environment, "Production");
 assert.match(job.if, /pull_request\.draft == true/u);
-assert.match(job.if, /gpt\/retail-commerce-production-schema-baseline-trigger-/u);
+assert(job.if.includes("contains(github.event.pull_request.labels.*.name, 'governed:retail-schema-baseline')"), "Governed owner PR label is required");
+assert(!job.if.includes("gpt/retail-commerce-production-schema-baseline-trigger-"), "Permanent workflow must not bind to a work branch");
+assert(workflow.on.pull_request.types.includes("labeled"), "Governed label event must trigger the bounded preflight");
 assert.equal(job.env.DB_HOST, "${{ secrets.DB_HOST }}");
 assert.equal(job.env.DB_NAME, "${{ secrets.DB_NAME }}");
 assert.equal(job.env.DB_USER, "${{ secrets.DB_USER }}");
 assert.equal(job.env.DB_PASSWORD, "${{ secrets.DB_PASSWORD }}");
-assert.equal(job.env.BACKEND_API_KEY, "${{ secrets.BACKEND_API_KEY }}");
+assert.equal(job.env.BACKEND_API_KEY, "${{ secrets.HOSTINGER_PRODUCTION_BACKEND_API_KEY }}");
 assert.equal(job.env.RUNTIME_BASE_URL, "https://auth.mad4b.com");
 
 const steps = job.steps;

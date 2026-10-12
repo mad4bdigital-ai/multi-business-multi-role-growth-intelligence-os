@@ -18,7 +18,7 @@ assert.match(workflow, /permissions:\s*\n\s*contents: read/);
 assert.doesNotMatch(workflow, /contents:\s*write|issues:\s*write|pull-requests:\s*write/);
 assert.match(workflow, /Checkout trusted default branch/);
 assert.match(workflow, /ref: main/);
-assert.match(workflow, /BACKEND_API_KEY: \$\{\{ secrets\.BACKEND_API_KEY \}\}/);
+assert.match(workflow, /BACKEND_API_KEY: \$\{\{ secrets\.HOSTINGER_PRODUCTION_BACKEND_API_KEY \}\}/);
 assert.match(workflow, /Upload sanitized read-only diagnostic evidence/);
 
 for (const value of [TRIGGER, MIGRATION]) {

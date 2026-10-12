@@ -139,6 +139,30 @@ const admin = { login: soleHuman, type: "User", permissions: { admin: true, main
   assert.equal(result.reason, "single_owner_exact_head_attestation");
 }
 
+
+{
+  // Denied or quoted strings containing the token are not owner approvals.
+  const invalidBodies = [
+    `This is NOT OWNER_ATTEST_SINGLE_OWNER. exact_head_sha: ${sha}`,
+    `Technical example:\nOWNER_ATTEST_SINGLE_OWNER\nexact_head_sha: ${sha}\nNot an approval`,
+    `OWNER_ATTEST_SINGLE_OWNER\nexact_head_sha: ${sha}\nNO APPROVAL`,
+    `Owner approval is required: OWNER_ATTEST_SINGLE_OWNER\nexact_head_sha: ${sha}`,
+    `OWNER_ATTEST_SINGLE_OWNER\nexact_head_sha: ${"b".repeat(40)}`,
+  ];
+  for (const body of invalidBodies) {
+    const result = evaluateReviewGate({
+      owner, author: soleHuman, headSha: sha, collaborators: [admin],
+      reviews: [{ user: { login: soleHuman }, state: "COMMENTED", commit_id: sha, body }],
+    });
+    assert.equal(result.ok, false, `Non-approval comment wrongly accepted: ${body}`);
+  }
+  const crlf = evaluateReviewGate({
+    owner, author: soleHuman, headSha: sha, collaborators: [admin],
+    reviews: [{ user: { login: soleHuman }, state: "COMMENTED", commit_id: sha,
+      body: `OWNER_ATTEST_SINGLE_OWNER\r\nexact_head_sha: ${sha}\r\n` }],
+  });
+  assert.equal(crlf.ok, true, "Canonical CRLF owner statement must remain valid");
+}
 console.log(JSON.stringify({
   ok: true,
   test: "single_owner_review_gate",

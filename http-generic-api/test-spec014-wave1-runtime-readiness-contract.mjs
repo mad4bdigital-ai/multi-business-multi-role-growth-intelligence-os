@@ -45,7 +45,7 @@ assert.match(workflow, /github\.event\.issue\.number == 6215/);
 assert.match(workflow, /!github\.event\.issue\.pull_request/);
 assert.match(workflow, /\["OWNER","MEMBER","COLLABORATOR"\]/);
 assert.ok(workflow.includes(`github.event.comment.body == '${AUTH_CONFIRM}'`));
-assert.match(workflow, /BACKEND_API_KEY: \$\{\{ secrets\.BACKEND_API_KEY \}\}/);
+assert.match(workflow, /BACKEND_API_KEY: \$\{\{ secrets\.HOSTINGER_PRODUCTION_BACKEND_API_KEY \}\}/);
 assert.match(workflow, /GH_READ_TOKEN: \$\{\{ github\.token \}\}/);
 assert.match(workflow, /ref: main/);
 assert.match(workflow, /persist-credentials: false/);

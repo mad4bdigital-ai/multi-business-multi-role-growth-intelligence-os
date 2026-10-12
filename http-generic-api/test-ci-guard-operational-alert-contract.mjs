@@ -50,6 +50,17 @@ assert.match(migration, /openapi_guard_slo/);
 assert.match(migration, /activation_operational_alert_ci_signal_ingest_api/);
 assert.match(migration, /POST \/activation\/operational-attention\/ci-signals/);
 
+// The issue/SQL alert job may mutate only after a trusted, exact-main
+// head readback. A pull_request event can NEVER access its write permissions.
+assert.match(workflow, /github\.event_name != 'pull_request'/u);
+assert.match(workflow, /github\.ref == 'refs\/heads\/main'/u);
+assert.match(workflow, /Verify exact default-branch head before issuing any alert writes/u);
+assert.match(workflow, /expected_head_sha = context\.sha/u);
+assert.match(workflow, /currentHead\.data\.commit\.sha !== expected_head_sha/u);
+assert.match(workflow, /stale_main_head_alert_denied/u);
+assert.match(workflow, /steps\.immutable_head\.outputs\.verified == 'true'/u);
+assert.match(workflow, /persist-credentials: false/u);
+
 assert.match(workflow, /drill_mode:/);
 assert.match(workflow, /Execute controlled failure drill/);
 assert.match(workflow, /BACKEND_API_KEY/);

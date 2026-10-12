@@ -122,7 +122,8 @@ async function get(path, opts = {}) {
       const res = await fetch(`${BASE_URL}${path}`, {
         headers,
         signal: AbortSignal.timeout(10000),
-        ...fetchOptions
+        ...fetchOptions,
+        redirect: "manual" // Reject HTTP redirects before forwarding a backend credential.
       });
       const text = await res.text();
       let body;
@@ -156,7 +157,8 @@ async function post(path, payload) {
       method: "POST",
       headers,
       body: JSON.stringify(payload),
-      signal: AbortSignal.timeout(15000)
+      signal: AbortSignal.timeout(15000),
+      redirect: "manual" // Never follow redirects on authenticated backend POSTs.
     });
     const text = await res.text();
     let body;

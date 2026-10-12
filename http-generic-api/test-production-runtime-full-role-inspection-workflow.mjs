@@ -43,7 +43,7 @@ test("full-role inspection calls only the protected role census endpoint with bo
   );
 
   assert.match(step, /inputs\.bootstrap_mode == 'full_role_inspection' && inputs\.bootstrap_target_source == 'host_local_role_env'/u);
-  assert.match(step, /BACKEND_API_KEY: \$\{\{ secrets\.BACKEND_API_KEY \}\}/u);
+  assert.match(step, /BACKEND_API_KEY: \$\{\{ secrets\.HOSTINGER_PRODUCTION_BACKEND_API_KEY \}\}/u);
   assert.match(step, /https:\/\/auth\.mad4b\.com\/deployment-info\/runtime-bootstrap-role-dry-run/u);
   assert.match(step, /\{expected_sha:\$expected_sha,target_key:\$target_key\}/u);
   assert.match(step, /raw-full-role-inspection\.json/u);

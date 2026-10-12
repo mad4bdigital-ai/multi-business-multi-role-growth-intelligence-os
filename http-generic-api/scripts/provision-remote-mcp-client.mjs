@@ -61,6 +61,7 @@ if (listProfiles) {
 
 const [{ getPool }, {
   provisionRemoteMcpOAuthClient,
+  reconcileRemoteMcpChatGPTCallback,
   readRemoteMcpOAuthClientProvisioningStatus,
   listRemoteMcpOAuthClientProvisioningStatus,
 }] = await Promise.all([
@@ -107,6 +108,18 @@ try {
     const result = await readRemoteMcpOAuthClientProvisioningStatus({ env: process.env, pool });
     console.log(JSON.stringify(result, null, 2));
     process.exitCode = result.ok ? 0 : 1;
+  } else if (process.argv.includes("--reconcile-chatgpt-callback")) {
+    const result = await reconcileRemoteMcpChatGPTCallback({
+      environment,
+      env: process.env,
+      pool,
+      callback_uri: argValue("redirect-uri"),
+      expected_client_id: argValue("expected-client-id"),
+      apply: process.argv.includes("--apply"),
+      confirmation: argValue("confirm"),
+    });
+    // Do not log full OAuth authorization requests, codes, secrets or tokens.
+    console.log(JSON.stringify(result, null, 2));
   } else {
     const expectedConfirmation = `PROVISION_REMOTE_MCP_${environment.toUpperCase()}`;
     if (argValue("confirm") !== expectedConfirmation) {

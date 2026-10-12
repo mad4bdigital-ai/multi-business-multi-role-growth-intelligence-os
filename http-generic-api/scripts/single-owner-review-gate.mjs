@@ -17,6 +17,15 @@ export function eligibleHumans(collaborators = []) {
     .map((item) => ({ login: item.login, permission: permissionOf(item) }));
 }
 
+// Owner attestation is a complete, exact two-line statement, not a token mention
+// within an explanatory paragraph, code sample, or explicit denial.
+function isExactSingleOwnerAttestation(body, headSha) {
+  const lines = String(body || "").trim().replace(/\r\n/g, "\n").split("\n");
+  return lines.length === 2
+    && lines[0].trim() === SINGLE_OWNER_ATTESTATION_TOKEN
+    && lines[1].trim() === `exact_head_sha: ${headSha}`;
+}
+
 export function evaluateReviewGate({ owner, author, headSha, collaborators = [], reviews = [] } = {}) {
   const eligible = eligibleHumans(collaborators);
   const byAuthor = new Map();
@@ -53,8 +62,7 @@ export function evaluateReviewGate({ owner, author, headSha, collaborators = [],
       return login === author
         && review?.state === "COMMENTED"
         && review?.commit_id === headSha
-        && body.includes(SINGLE_OWNER_ATTESTATION_TOKEN)
-        && body.includes(headSha);
+        && isExactSingleOwnerAttestation(body, headSha);
     })
     .sort((left, right) => {
       const leftTime = Date.parse(left?.submitted_at || left?.submittedAt || 0) || 0;
