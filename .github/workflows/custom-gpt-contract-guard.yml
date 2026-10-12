@@ -154,7 +154,7 @@ jobs:
   alert:
     name: OpenAPI guard alert lifecycle
     needs: guard
-    if: ${{ always() && github.ref_name == github.event.repository.default_branch }}
+    if: ${{ always() && github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || github.event_name == 'schedule') }}
     environment:
       name: Production
       deployment: false
@@ -165,8 +165,34 @@ jobs:
       issues: write
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Verify exact default-branch head before issuing any alert writes
+        id: immutable_head
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+        with:
+          script: |
+            const expected_head_sha = context.sha;
+            if (!/^[a-f0-9]{40}$/.test(expected_head_sha)) {
+              throw new Error("expected_head_sha_invalid");
+            }
+            if (context.eventName === "pull_request" || context.ref !== "refs/heads/main") {
+              throw new Error("untrusted_alert_source");
+            }
+            const currentHead = await github.rest.repos.getBranch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              branch: "main",
+            });
+            if (currentHead.data.commit.sha !== expected_head_sha) {
+              throw new Error("stale_main_head_alert_denied");
+            }
+            core.setOutput("verified", "true");
 
       - name: Classify and ingest SQL operational signal
+        if: ${{ steps.immutable_head.outputs.verified == 'true' }}
         id: classify
         continue-on-error: true
         uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
@@ -263,6 +289,7 @@ jobs:
             core.info(`SQL guard signal stored: event=${result?.event?.event_id || "unknown"}, alert=${result?.alert?.alert_id || "none"}, slo=${result?.slo?.overall_status || "unknown"}.`);
 
       - name: Open, update, or resolve the OpenAPI guard incident
+        if: ${{ steps.immutable_head.outputs.verified == 'true' }}
         continue-on-error: true
         uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
         env:
