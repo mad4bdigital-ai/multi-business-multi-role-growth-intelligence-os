@@ -289,9 +289,15 @@ await assert.rejects(
 await assert.rejects(
   reconcileStagingChatGPTCallback({
     env: callbackEnv, pool, callback_uri: callback,
-    expected_client_id: "mcp_stg_incorrect_id",
+    expected_client_id: "mcp_stg_1234567890abcdef",
   }),
   (e) => e.code === "STAGING_CALLBACK_CLIENT_IDENTITY_MISMATCH",
+);
+await assert.rejects(
+  reconcileStagingChatGPTCallback({
+    env: callbackEnv, pool, callback_uri: callback,
+  }),
+  (e) => e.code === "STAGING_CALLBACK_EXPECTED_CLIENT_ID_REQUIRED",
 );
 failCasOnce = true;
 await assert.rejects(
