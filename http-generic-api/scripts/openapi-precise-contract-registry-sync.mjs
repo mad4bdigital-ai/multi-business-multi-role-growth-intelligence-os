@@ -6,6 +6,10 @@ import {
   collectSupportTicketRuntimeOperations,
   inspectSupportTicketRuntimeContracts,
 } from "./support-ticket-runtime-openapi-contracts.mjs";
+import {
+  GOOGLE_DRIVE_READ_SCOPE,
+  GOOGLE_DRIVE_WRITE_SCOPE,
+} from "../managedGoogleOAuthProtocolPolicy.js";
 
 const ROOT = process.cwd();
 const OPENAPI_PATH = path.join(ROOT, "openapi.yaml");
@@ -22,6 +26,13 @@ const REMOTE_RUNTIME_CATALOG_READONLY_SIGNATURE = "GET /platform/remote-runtime/
 const REMOTE_RUNTIME_CATALOG_READONLY_OPERATION_ID = "getRemoteRuntimeTargetCatalogReadonly";
 const REMOTE_RUNTIME_CATALOG_READONLY_ROUTE_FILE = "routes/operationalConsoleRoutes.js";
 const REMOTE_RUNTIME_CATALOG_READONLY_PATH_ITEM_REF = "./openapi/remote-runtime-target-catalog-readonly.yaml#/remoteRuntimeTargetCatalogReadonlyPath";
+const MANAGED_GOOGLE_ROUTE_FILE = "routes/managedGoogleOAuthRoutes.js";
+const MANAGED_GOOGLE_PATH_ITEM_REF = "./openapi/managed-google-oauth.yaml";
+const MANAGED_GOOGLE_SCOPE_EXPANSION_TRANSITIONS = new Map([
+  ["POST /v1/google/oauth/session", { pointer: "managedGoogleOAuthSessionPath", operation_id: "createManagedGoogleOAuthSession", kind: "session" }],
+  ["POST /v1/google/oauth/redeem", { pointer: "managedGoogleOAuthRedeemPath", operation_id: "redeemManagedGoogleOAuthHandoff", kind: "redeem" }],
+  ["POST /v1/google/oauth/refresh", { pointer: "managedGoogleOAuthRefreshPath", operation_id: "refreshManagedGoogleOAuthAccessToken", kind: "refresh" }],
+]);
 const LEGACY_REGISTERED_PATH_TRANSITIONS = new Map([
   [
     "POST /admin/support/tickets/{ticket_id}/external-delivery/completion-certification",
@@ -342,6 +353,85 @@ function isKnownRemoteRuntimeCatalogReadonlyPredecessor(operation, contract) {
   return equivalent(operation, predecessor);
 }
 
+function restoreLegacyManagedGoogleScopeSchema(schema) {
+  if (!schema || typeof schema !== "object") return;
+  schema.properties ||= {};
+  schema.properties.requested_scope = {
+    type: "string",
+    enum: [GOOGLE_DRIVE_READ_SCOPE, GOOGLE_DRIVE_WRITE_SCOPE],
+  };
+  delete schema.properties.scope_profile;
+  delete schema.properties.requested_capabilities;
+}
+
+function restoreLegacyManagedGoogleTokenResponse(operation, { session = false } = {}) {
+  const properties = operation?.responses?.["200"]?.content?.["application/json"]?.schema?.properties;
+  if (!properties || typeof properties !== "object") return;
+  if (!session) {
+    properties.scope = {
+      type: "string",
+      enum: [GOOGLE_DRIVE_READ_SCOPE, GOOGLE_DRIVE_WRITE_SCOPE],
+    };
+  }
+  for (const field of [
+    "scope_profile",
+    "requested_capabilities",
+    "requested_scopes",
+    "missing_scopes",
+    "previously_granted_scopes",
+    "complete_scope_grant",
+    "incremental_authorization",
+  ]) delete properties[field];
+}
+
+function isKnownManagedGoogleOAuthScopeExpansionPredecessor(operation, contract) {
+  if (!operation || typeof operation !== "object") return false;
+  const transition = MANAGED_GOOGLE_SCOPE_EXPANSION_TRANSITIONS.get(contract.signature);
+  if (!transition) return false;
+  const expectedRef = `${MANAGED_GOOGLE_PATH_ITEM_REF}#/${transition.pointer}`;
+  if (contract.route_file !== MANAGED_GOOGLE_ROUTE_FILE
+    || contract.path_item_ref !== expectedRef
+    || contract.composition_mode !== "inline"
+    || operation.operationId !== transition.operation_id) return false;
+
+  const pathItem = loadReferencedPathItem(expectedRef);
+  const canonicalOperation = pathItem?.post;
+  if (!canonicalOperation || typeof canonicalOperation !== "object") return false;
+
+  // Managed refresh evolved in two reviewed steps: capability-profile expansion,
+  // then explicit current_granted_scope provenance. Accept only the exact
+  // immediately-previous canonical shape so the governed writer can converge
+  // it to the current canonical contract. Any other drift remains fail-closed.
+  if (transition.kind === "refresh") {
+    const immediatePredecessor = JSON.parse(JSON.stringify(canonicalOperation));
+    const immediateProperties = immediatePredecessor?.requestBody?.content?.["application/json"]?.schema?.properties;
+    if (immediateProperties && Object.hasOwn(immediateProperties, "current_granted_scope")) {
+      delete immediateProperties.current_granted_scope;
+      if (equivalent(operation, immediatePredecessor)) return true;
+    }
+  }
+
+  const predecessor = JSON.parse(JSON.stringify(canonicalOperation));
+
+  if (transition.kind === "session") {
+    restoreLegacyManagedGoogleScopeSchema(predecessor?.requestBody?.content?.["application/json"]?.schema);
+    restoreLegacyManagedGoogleTokenResponse(predecessor, { session: true });
+  } else if (transition.kind === "redeem") {
+    restoreLegacyManagedGoogleTokenResponse(predecessor);
+  } else if (transition.kind === "refresh") {
+    restoreLegacyManagedGoogleScopeSchema(predecessor?.requestBody?.content?.["application/json"]?.schema);
+    restoreLegacyManagedGoogleTokenResponse(predecessor);
+    predecessor.description = "Uses the broker-owned Google OAuth client secret to refresh an access token for an exact authenticated Site Profile. The requested access mode and scope must match the governed Drive scope contract exactly; scope escalation is rejected. The Google refresh token is credential material supplied only over the site-HMAC authenticated server-to-server channel and is never persisted in plaintext by this operation.";
+    if (predecessor.responses?.["400"]) {
+      predecessor.responses["400"].description = "Invalid refresh contract, access mode or exact Drive scope.";
+    }
+  } else {
+    return false;
+  }
+
+  return equivalent(operation, predecessor);
+}
+
 function inspectReplaceableRegisteredPath(current, routePath, pathItemRef, contracts) {
   if (!current || typeof current !== "object" || Array.isArray(current) || current.$ref) return null;
   const currentKeys = Object.keys(current);
@@ -361,7 +451,8 @@ function inspectReplaceableRegisteredPath(current, routePath, pathItemRef, contr
     return !isRuntimeDerivedRegisteredOperation(operation, contract.method)
       && !isKnownLegacyRegisteredOperation(operation, contract)
       && !isKnownWorkspaceV2RegisteredOperation(operation, contract)
-      && !isKnownRemoteRuntimeCatalogReadonlyPredecessor(operation, contract);
+      && !isKnownRemoteRuntimeCatalogReadonlyPredecessor(operation, contract)
+      && !isKnownManagedGoogleOAuthScopeExpansionPredecessor(operation, contract);
   })) return null;
 
   return {

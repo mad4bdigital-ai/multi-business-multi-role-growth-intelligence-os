@@ -64,13 +64,18 @@ export function classifyRuntimeIntegrity({
   if (provenanceDetected && provenance && expected && provenance !== expected) reasons.push("runtime_provenance_mismatch");
   if (dirtyCount > 0) reasons.push("unapproved_dirty_runtime");
 
+  // Manifest identity is not proof of the deployed bytes.
+  if (artifactProvenanceVerified) reasons.push("runtime_artifact_content_unverified");
   const verified = reasons.length === 0;
   return {
     contract: "mad4b.runtime-integrity.v1",
     state: verified ? "verified" : "degraded",
     verified,
-    tracked_checkout_clean: artifactProvenanceVerified || (statusReadbackAvailable && dirtyCount === 0),
-    local_application_code_mutation_detected: dirtyCount > 0,
+    tracked_checkout_clean: checkoutDetected && statusReadbackAvailable ? dirtyCount === 0 : null,
+    identity_verified: Boolean(expected && (checkout === expected || artifactProvenanceVerified)),
+    content_verified: verified && Boolean(checkoutDetected && statusReadbackAvailable),
+    tracked_file_mutation_detected: dirtyCount > 0,
+    local_application_code_mutation_detected: dirtyCount > 0 ? null : false,
     dirty_tracked_file_count: dirtyCount,
     expected_commit_sha_available: Boolean(expected),
     checkout_commit_sha_available: Boolean(checkout),
@@ -80,7 +85,7 @@ export function classifyRuntimeIntegrity({
         ? true
         : null,
     checkout_detected: Boolean(checkoutDetected),
-    readback_available: Boolean(statusReadbackAvailable || artifactProvenanceVerified),
+    readback_available: Boolean(statusReadbackAvailable && checkoutDetected),
     provenance_verified: artifactProvenanceVerified,
     provenance_source: artifactProvenanceVerified ? String(provenanceSource || "artifact") : null,
     read_only_check: true,

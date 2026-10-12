@@ -207,6 +207,11 @@ jobs:
       !github.event.issue.pull_request &&
       github.event.comment.body == 'VERIFY_GOVERNED_MIGRATION_1051_GITHUB_REPOSITORY_POLICY_LIVE_APPLY_AUTHORITY' &&
       contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
+    # Read-only verification uses the same environment-scoped backend API key
+    # as the main review policy readback. No deployment is created.
+    environment:
+      name: Production
+      deployment: false
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 35
     concurrency:

@@ -179,7 +179,13 @@ function readImpactDeclarations(paths = []) {
   return paths.map((relativePath) => {
     try {
       const document = readJson(relativePath);
-      return { path: relativePath, readable: true, document, environment_impact: document.environment_impact || {} };
+      return {
+        path: relativePath,
+        readable: true,
+        document,
+        environment_impact: document.environment_impact || {},
+        scope_include: Array.isArray(document?.scope?.include) ? document.scope.include : [],
+      };
     } catch (error) {
       return {
         path: relativePath,
@@ -190,6 +196,11 @@ function readImpactDeclarations(paths = []) {
       };
     }
   });
+}
+
+function declarationCoversPath(declaration, filePath) {
+  const normalized = String(filePath || "").replaceAll("\\", "/");
+  return (declaration?.scope_include || []).some((pattern) => globToRegExp(pattern).test(normalized));
 }
 
 function buildReport({ baseSha = null, headSha = null, impactDeclarationPath = null } = {}) {
@@ -362,6 +373,22 @@ function buildReport({ baseSha = null, headSha = null, impactDeclarationPath = n
       observed: declaration.environment_impact?.source_of_truth || null,
       expected: DEPLOYMENT_POLICY_PATH,
     });
+    expect(
+      declaration.environment_impact?.production_mutation_allowed === false,
+      "environment_impact_production_mutation_must_be_false",
+      { path: declaration.path, observed: declaration.environment_impact?.production_mutation_allowed ?? null },
+    );
+  }
+
+  const uncoveredEnvironmentSources = environmentChanges
+    .filter((change) => !readableDeclarations.some((declaration) => declarationCoversPath(declaration, change.path)))
+    .map((change) => change.path);
+  if (environmentChanges.length > 0 && readableDeclarations.length > 0) {
+    expect(
+      uncoveredEnvironmentSources.length === 0,
+      "environment_impact_source_path_uncovered",
+      { paths: uncoveredEnvironmentSources, declaration_paths: readableDeclarations.map((entry) => entry.path) },
+    );
   }
 
   const declaredTargets = stable(declarationImpacts.flatMap((impact) => impact.declared_targets || []));
@@ -461,7 +488,7 @@ function buildReport({ baseSha = null, headSha = null, impactDeclarationPath = n
   };
 }
 
-export { buildReport, classifyChange, classifyPath, globToRegExp, matchDerivedOutputs, parseNameStatusLine };
+export { buildReport, classifyChange, classifyPath, declarationCoversPath, globToRegExp, matchDerivedOutputs, parseNameStatusLine };
 
 if (import.meta.url === `file://${process.argv[1]}` || process.argv[1]?.endsWith("environment-impact-closure.mjs")) {
   const baseSha = String(arg("base-sha", process.env.BASE_SHA || "")).trim().toLowerCase() || null;

@@ -1,0 +1,320 @@
+{
+  "contract": "mad4b.reference.business-context.editorial-styles.v1",
+  "status": "TEMPLATE_ONLY",
+  "note": "Archetypes are normalized candidate families based on overlapping bilingual raw writing-style labels; not a 1:1 verified equivalence mapping.",
+  "archetypes": [
+    {
+      "key": "direct_response",
+      "label_en": "Direct response",
+      "label_ar": "مباشر",
+      "components": [
+        "offer_value",
+        "single_action"
+      ],
+      "evidence_gate": "verified_offer",
+      "style_strength": "CONFIGURABLE",
+      "status": "TEMPLATE_ONLY"
+    },
+    {
+      "key": "problem_first",
+      "label_en": "Problem first",
+      "label_ar": "المشكلة أولًا",
+      "components": [
+        "specific_pain",
+        "practical_remedy"
+      ],
+      "evidence_gate": "verified_product_fit",
+      "style_strength": "CONFIGURABLE",
+      "status": "TEMPLATE_ONLY"
+    },
+    {
+      "key": "educational",
+      "label_en": "Educational",
+      "label_ar": "تعليمي",
+      "components": [
+        "definition",
+        "steps",
+        "checklist"
+      ],
+      "evidence_gate": "source_grounding",
+      "style_strength": "CONFIGURABLE",
+      "status": "TEMPLATE_ONLY"
+    },
+    {
+      "key": "storytelling",
+      "label_en": "Narrative",
+      "label_ar": "قصصي",
+      "components": [
+        "situation",
+        "friction",
+        "change",
+        "learning"
+      ],
+      "evidence_gate": "disclose_fictional_case",
+      "style_strength": "CONFIGURABLE",
+      "status": "TEMPLATE_ONLY"
+    },
+    {
+      "key": "data_and_proof",
+      "label_en": "Data backed",
+      "label_ar": "قائم على الأدلة",
+      "components": [
+        "metric",
+        "context",
+        "method"
+      ],
+      "evidence_gate": "verified_metrics_required",
+      "style_strength": "CONFIGURABLE",
+      "status": "TEMPLATE_ONLY"
+    },
+    {
+      "key": "comparison",
+      "label_en": "Fair comparison",
+      "label_ar": "مقارنة",
+      "components": [
+        "criteria",
+        "tradeoffs",
+        "sources"
+      ],
+      "evidence_gate": "accurate_competitor_data",
+      "style_strength": "CONFIGURABLE",
+      "status": "TEMPLATE_ONLY"
+    },
+    {
+      "key": "before_after",
+      "label_en": "Before and after",
+      "label_ar": "قبل وبعد",
+      "components": [
+        "baseline",
+        "intervention",
+        "outcome"
+      ],
+      "evidence_gate": "real_case_verification",
+      "style_strength": "CONFIGURABLE",
+      "status": "TEMPLATE_ONLY"
+    },
+    {
+      "key": "demonstration",
+      "label_en": "Product demonstration",
+      "label_ar": "شرح تطبيقي",
+      "components": [
+        "task",
+        "steps",
+        "result"
+      ],
+      "evidence_gate": "reproducible_capability",
+      "style_strength": "CONFIGURABLE",
+      "status": "TEMPLATE_ONLY"
+    },
+    {
+      "key": "interactive",
+      "label_en": "Interactive",
+      "label_ar": "تفاعلي",
+      "components": [
+        "question",
+        "participation",
+        "followup"
+      ],
+      "evidence_gate": "respect_consent",
+      "style_strength": "CONFIGURABLE",
+      "status": "TEMPLATE_ONLY"
+    },
+    {
+      "key": "curiosity",
+      "label_en": "Curiosity and open loop",
+      "label_ar": "فضول",
+      "components": [
+        "question",
+        "explanation",
+        "closure"
+      ],
+      "evidence_gate": "no_false_teaser",
+      "style_strength": "CONFIGURABLE",
+      "status": "TEMPLATE_ONLY"
+    },
+    {
+      "key": "motivational",
+      "label_en": "Motivational",
+      "label_ar": "تحفيزي",
+      "components": [
+        "aspiration",
+        "path",
+        "next_step"
+      ],
+      "evidence_gate": "no_guaranteed_outcome",
+      "style_strength": "CONFIGURABLE",
+      "status": "TEMPLATE_ONLY"
+    },
+    {
+      "key": "expert_positioning",
+      "label_en": "Expert analysis",
+      "label_ar": "تحليل خبير",
+      "components": [
+        "evidence",
+        "interpretation",
+        "implication"
+      ],
+      "evidence_gate": "verified_credentials_if_claimed",
+      "style_strength": "CONFIGURABLE",
+      "status": "TEMPLATE_ONLY"
+    },
+    {
+      "key": "community",
+      "label_en": "Community building",
+      "label_ar": "بناء مجتمع",
+      "components": [
+        "shared_issue",
+        "exchange",
+        "peer_resource"
+      ],
+      "evidence_gate": "genuine_membership",
+      "style_strength": "CONFIGURABLE",
+      "status": "TEMPLATE_ONLY"
+    },
+    {
+      "key": "future_scenario",
+      "label_en": "Future scenario",
+      "label_ar": "محاكاة مستقبل",
+      "components": [
+        "assumptions",
+        "scenario",
+        "limits"
+      ],
+      "evidence_gate": "clearly_hypothetical",
+      "style_strength": "CONFIGURABLE",
+      "status": "TEMPLATE_ONLY"
+    },
+    {
+      "key": "ethical_purpose",
+      "label_en": "Ethical mission",
+      "label_ar": "مسؤولية",
+      "components": [
+        "impact",
+        "limits",
+        "measurement"
+      ],
+      "evidence_gate": "avoid_unverified_impact",
+      "style_strength": "CONFIGURABLE",
+      "status": "TEMPLATE_ONLY"
+    },
+    {
+      "key": "light_humor",
+      "label_en": "Light humor",
+      "label_ar": "فكاهة معتدلة",
+      "components": [
+        "contrast",
+        "punchline",
+        "learning"
+      ],
+      "evidence_gate": "avoid_sensitive_mockery",
+      "style_strength": "CONFIGURABLE",
+      "status": "TEMPLATE_ONLY"
+    },
+    {
+      "key": "urgency",
+      "label_en": "Time-sensitive action",
+      "label_ar": "إلحاح موثّق",
+      "components": [
+        "true_deadline",
+        "eligible_offer",
+        "cta"
+      ],
+      "evidence_gate": "real_expiry_evidence",
+      "style_strength": "CONFIGURABLE",
+      "status": "TEMPLATE_ONLY"
+    },
+    {
+      "key": "objection_reframe",
+      "label_en": "Objection handling",
+      "label_ar": "معالجة اعتراض",
+      "components": [
+        "objection",
+        "acknowledgment",
+        "evidence",
+        "choice"
+      ],
+      "evidence_gate": "no_manipulative_fear",
+      "style_strength": "CONFIGURABLE",
+      "status": "TEMPLATE_ONLY"
+    },
+    {
+      "key": "cinematic",
+      "label_en": "Visual storytelling",
+      "label_ar": "سرد بصري",
+      "components": [
+        "scene",
+        "action",
+        "tension",
+        "resolution"
+      ],
+      "evidence_gate": "production_rights",
+      "style_strength": "CONFIGURABLE",
+      "status": "TEMPLATE_ONLY"
+    },
+    {
+      "key": "micro_reward",
+      "label_en": "Progressive explanation",
+      "label_ar": "مكافآت معرفية",
+      "components": [
+        "hook",
+        "small_insight",
+        "deeper_insight",
+        "payoff"
+      ],
+      "evidence_gate": "no_misleading_cliffhanger",
+      "style_strength": "CONFIGURABLE",
+      "status": "TEMPLATE_ONLY"
+    }
+  ],
+  "composition_dimensions": [
+    "narrative_frame",
+    "evidence_density",
+    "sentence_rhythm",
+    "formality",
+    "emotional_intensity",
+    "call_to_action_style",
+    "hook_variant",
+    "explanation_depth",
+    "jargon_budget",
+    "reading_level",
+    "localization",
+    "humor_intensity",
+    "visual_narrative",
+    "voice_delivery",
+    "author_role"
+  ],
+  "style_switches": {
+    "language": "from_approved_localization",
+    "persona": "bounded_audience_overlay",
+    "channel": "platform_specific_output",
+    "campaign": "time_scoped_theme",
+    "style_id": "reviewed_archetype"
+  },
+  "copy_safety": {
+    "fabricated_testimonials": false,
+    "invented_metrics": false,
+    "false_scarcity": false,
+    "misleading_fear": false,
+    "guaranteed_roi": false,
+    "fictional_cases_require_label": true,
+    "no_exact_person_imitation": true,
+    "unsupported_compliance_claims": false
+  },
+  "writing_guardrails": {
+    "plain_language_preferred": true,
+    "claim_anchors_required": true,
+    "remove_empty_sentence": true,
+    "technical_terms_explained": true,
+    "cta_conditional_on_goal": true,
+    "word_count_dynamic_by_format": true
+  },
+  "conflict_handling": "authoritative_editorial_policy_overrides_generated_writer_instructions; unresolved_equal-rank_conflicts_block",
+  "lifecycle": [
+    "DRAFT",
+    "UNDER_REVIEW",
+    "APPROVED",
+    "DEPRECATED",
+    "RETIRED"
+  ],
+  "default_status": "DRAFT"
+}

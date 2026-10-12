@@ -49,10 +49,22 @@ export const BOOTSTRAP_ROLE_GRANT_POLICIES = Object.freeze({
 });
 
 const STAGING_RUNTIME_READ_ONLY_TABLES = Object.freeze([
+  // Canonical endpoint/export registries are required by runtime discovery and
+  // Staging registry reconciliation readback. Keep them SELECT-only.
+  "endpoints",
+  "platform_endpoint_tool_exports",
   "admin_platform_endpoint_tools",
   "tenant_platform_endpoint_tools",
   "sql_cache_runtime_policies",
   "platform_runtime_config",
+  "platform_secrets",
+  "tenant_secrets",
+  "secret_references",
+  "credential_bindings",
+  "user_app_connections",
+  "remote_mcp_oauth_clients",
+  "remote_mcp_oauth_authorization_codes",
+  "remote_mcp_oauth_grants",
   "users",
   "memberships",
   "tenants",
@@ -118,6 +130,18 @@ const STAGING_RUNTIME_READ_ONLY_MATRIX = Object.freeze(Object.fromEntries(
 
 const STAGING_RUNTIME_OPERATION_MATRIX = Object.freeze({
   ...STAGING_RUNTIME_READ_ONLY_MATRIX,
+  // Gateway certification appends durable audit evidence, while Dynamic Audit
+  // reads audit_log using the same Runtime identity when dedicated Control Plane
+  // write authority is disabled. SELECT never permits modifying audit records.
+  // No UPDATE, DELETE, schema-wide, or Production privilege is granted.
+  audit_log: Object.freeze(["SELECT", "INSERT"]),
+  platform_runtime_config: Object.freeze(["SELECT", "INSERT", "UPDATE"]),
+  platform_secrets: Object.freeze(["SELECT", "INSERT", "UPDATE"]),
+  secret_references: Object.freeze(["SELECT", "INSERT", "UPDATE"]),
+  credential_bindings: Object.freeze(["SELECT"]),
+  remote_mcp_oauth_clients: Object.freeze(["SELECT", "INSERT", "UPDATE"]),
+  remote_mcp_oauth_authorization_codes: Object.freeze(["SELECT", "INSERT", "UPDATE"]),
+  remote_mcp_oauth_grants: Object.freeze(["SELECT", "INSERT", "UPDATE"]),
   local_manager_desktop_commands: Object.freeze(["SELECT", "INSERT", "UPDATE"]),
   local_manager_device_link_sessions: Object.freeze(["SELECT", "INSERT", "UPDATE"]),
 });
@@ -145,6 +169,7 @@ export const STAGING_ROLE_GRANT_POLICIES = Object.freeze({
       "json_assets",
       "local_manager_desktop_commands",
       "local_manager_device_link_sessions",
+      "audit_log",
       ...STAGING_RUNTIME_READ_ONLY_TABLES,
     ],
     ["SELECT", "INSERT", "UPDATE"],

@@ -11,6 +11,9 @@ const healthMonitor = fs.readFileSync(path.join(packageRoot, "Staging-HealthMoni
 const doctor = fs.readFileSync(path.join(packageRoot, "Staging-Doctor.ps1"), "utf8");
 const maintenanceCmd = fs.readFileSync(path.join(packageRoot, "Staging-Maintenance.cmd"), "utf8");
 const maintenancePolicy = JSON.parse(fs.readFileSync(path.join(packageRoot, "staging-maintenance-policy.json"), "utf8"));
+const stagingAutoDeployPolicy = JSON.parse(fs.readFileSync(path.join(packageRoot, "auto-deploy-policy.json"), "utf8"));
+const stagingOneClickPolicy = JSON.parse(fs.readFileSync(path.join(packageRoot, "autopilot-one-click-policy.json"), "utf8"));
+const stagingExample = fs.readFileSync(path.join(root, "http-generic-api", ".env.staging.example"), "utf8");
 const installer = fs.readFileSync(path.join(packageRoot, "Install-AutoDeployTask.ps1"), "utf8");
 const uninstaller = fs.readFileSync(path.join(packageRoot, "Uninstall-AutoDeployTask.ps1"), "utf8");
 const oneClick = fs.readFileSync(path.join(packageRoot, "One-Click-Staging.ps1"), "utf8");
@@ -77,9 +80,47 @@ assert.match(doctor, /Repair/);
 assert.match(doctor, /\$gitCommand = Get-Command git -ErrorAction SilentlyContinue/);
 assert.match(doctor, /if \(\$null -ne \$gitCommand -and \(Test-Path/);
 assert.doesNotMatch(doctor, /Get-Command git -ErrorAction SilentlyContinue -and/);
+// PowerShell binds $host to the read-only automatic $Host variable (case-insensitive).
+assert.doesNotMatch(doctor, /\bforeach\s*\(\s*\$host\b/i);
+assert.match(doctor, /foreach\s*\(\s*\$forbiddenHostname\s+in\s+\$Policy\.forbidden_hosts\s*\)/);
+assert.match(doctor, /\[regex\]::Escape\(\$forbiddenHostname\)/);
+assert.match(doctor, /forbidden-host:\$forbiddenHostname/);
+assert.match(doctor, /detached:exact-local-origin-/);
+assert.match(doctor, /detached:not-exact-local-origin-/);
+assert.match(doctor, /rev-parse --verify "refs\/remotes\/origin\/\$expectedBranch"/);
+assert.match(doctor, /\$localShaValid -and \$remoteShaValid -and \(\$localSha -eq \$remoteSha\)/);
+assert.match(doctor, /Add-Check \$checks "repository:branch" \$branchEligible \$branch \$false/);
+// Reject partial PowerShell regex literals caused by JavaScript replacement interpolation.
+assert.ok(doctor.includes("($localSha -match '^[0-9a-fA-F]{40}$')"));
+assert.ok(doctor.includes("($remoteSha -match '^[0-9a-fA-F]{40}$')"));
+assert.equal((doctor.match(/function Invoke-Status\s*\{/g) || []).length, 1);
+assert.equal((doctor.match(/\$dirty = @\(\)/g) || []).length, 1);
 assert.equal(maintenancePolicy.maintenance.repair_may_delete_data, false);
 assert.match(maintenanceCmd, /Staging-Doctor\.ps1/);
 assert.equal(maintenancePolicy.contract, "mad4b.staging-maintenance.v1");
+assert.deepEqual(
+  [...maintenancePolicy.forbidden_hosts].sort(),
+  [...stagingAutoDeployPolicy.forbidden_hosts].sort(),
+  "Maintenance Doctor must enforce the Auto Deploy Production denylist",
+);
+assert.deepEqual(
+  [...maintenancePolicy.forbidden_hosts].sort(),
+  [...stagingOneClickPolicy.forbidden_hosts].sort(),
+  "Maintenance Doctor must enforce the One Click Production denylist",
+);
+assert.ok(Array.isArray(maintenancePolicy.optional_staging_hosts));
+assert.equal(new Set(maintenancePolicy.optional_staging_hosts).size, maintenancePolicy.optional_staging_hosts.length);
+for (const allowedHost of [...maintenancePolicy.required_hosts, ...maintenancePolicy.optional_staging_hosts]) {
+  assert.ok(stagingAutoDeployPolicy.allowed_staging_hosts.includes(allowedHost), `Auto Deploy must allow ${allowedHost}`);
+  assert.ok(stagingOneClickPolicy.allowed_staging_hosts.includes(allowedHost), `One Click must allow ${allowedHost}`);
+  assert.ok(!maintenancePolicy.forbidden_hosts.includes(allowedHost), `Doctor cannot deny approved Staging host: ${allowedHost}`);
+}
+assert.ok(maintenancePolicy.optional_staging_hosts.includes("activation-dev.mad4b.com"));
+assert.match(stagingExample, /^ACTIVATION_HOST_GATEWAY_HOST=activation-dev\.mad4b\.com$/m);
+assert.match(stagingExample, /^TENANT_GPT_STAGING_ACTIVATION_AUTHORIZATION_SERVER_URL=https:\/\/activation-dev\.mad4b\.com$/m);
+for (const forbiddenHost of ["auth.mad4b.com", "mcp.mad4b.com", "activation.mad4b.com"]) {
+  assert.ok(maintenancePolicy.forbidden_hosts.includes(forbiddenHost), `Production host must remain blocked: ${forbiddenHost}`);
+}
 assert.equal(maintenancePolicy.maintenance.repair_may_delete_data, false);
 assert.equal(maintenancePolicy.maintenance.repair_may_apply_migrations, false);
 assert.equal(maintenancePolicy.maintenance.repair_may_touch_production, false);

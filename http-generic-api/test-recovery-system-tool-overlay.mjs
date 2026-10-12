@@ -127,11 +127,11 @@ test("Staging capability reporting separates kernel discovery from bounded Syste
   ]);
   assert.deepEqual(staging.target_database_mutation_capabilities, []);
   assert.deepEqual(staging.rebuild_role_capability_keys, STAGING_REBUILD_ROLE_CAPABILITIES);
-  assert.deepEqual(staging.local_handoff_mutation_capabilities, STAGING_REBUILD_ROLE_CAPABILITIES);
+  assert.deepEqual(staging.local_handoff_mutation_capabilities, [...STAGING_REBUILD_ROLE_CAPABILITIES, "staging_database_schema_repair"]);
   assert.equal(staging.control_plane_state_write_capabilities.includes("staging_database_rebuild_empty"), false);
   assert.equal(staging.target_database_mutation_capabilities.includes("staging_database_rebuild_empty"), false);
   assert.equal(staging.system_surface_extensions.some((entry) => entry.capability_key === "staging_database_rebuild_empty"), false);
-  assert.equal(staging.system_surface_extensions.find((entry) => entry.capability_key === "staging_database_schema_repair").state_scope, "allowlist_plan_approval_ticket_only");
+  assert.equal(staging.system_surface_extensions.find((entry) => entry.capability_key === "staging_database_schema_repair").state_scope, "allowlist_plan_approval_verified_local_handoff_same_cycle_readback");
   const gatewayDryRun = staging.system_surface_extensions.find((entry) => entry.capability_key === "activation_gateway_dark_deploy_dry_run");
   assert.equal(gatewayDryRun.state_scope, "short_lived_governance_execution_plan_only");
   assert.equal(gatewayDryRun.target_database_mutation, false);
@@ -157,12 +157,14 @@ test("Staging access repair mutation is advertised only when execute and indepen
   });
   assert.deepEqual(staging.target_database_mutation_capabilities, ["staging_database_access_repair"]);
   assert.equal(staging.system_surface_extensions.find((entry) => entry.capability_key === "staging_database_access_repair").state_scope, "plan_approval_execute_readback");
-  assert.equal(staging.system_surface_extensions.find((entry) => entry.capability_key === "staging_database_schema_repair").state_scope, "allowlist_plan_approval_ticket_only");
+  assert.equal(staging.system_surface_extensions.find((entry) => entry.capability_key === "staging_database_schema_repair").state_scope, "allowlist_plan_approval_verified_local_handoff_same_cycle_readback");
 });
 
-test("Staging schema repair mutation is advertised only with fenced execution, durable ticket finalization, readback, and migration ledger", () => {
+test("Staging schema repair direct mutation requires an explicitly marked database executor; ordinary approval remains a verified local handoff", () => {
+  const directDatabaseExecutor = async () => ({ ok: true });
+  directDatabaseExecutor.staging_database_mutation_authority = true;
   const staging = projectRecoveryCapabilitiesForSystemSurface(STAGING_ENV, {
-    hostBreakglassMutationExecutor: async () => ({ ok: true }),
+    hostBreakglassMutationExecutor: directDatabaseExecutor,
     recoveryLock: { acquire() {}, heartbeat() {}, assertFence() {}, release() {} },
     readbackVerifier: { verify() {}, independent_authority: true, role_aware: true, mutation_authority: false },
     deploymentIdentityProvider: { readAttestation() {} },
@@ -171,6 +173,18 @@ test("Staging schema repair mutation is advertised only with fenced execution, d
   });
   assert.deepEqual(staging.target_database_mutation_capabilities, ["staging_database_access_repair", "staging_database_schema_repair"]);
   assert.equal(staging.system_surface_extensions.find((entry) => entry.capability_key === "staging_database_schema_repair").state_scope, "allowlist_plan_approval_execute_same_cycle_readback");
+
+  const unmarked = projectRecoveryCapabilitiesForSystemSurface(STAGING_ENV, {
+    hostBreakglassMutationExecutor: async () => ({ ok: true }),
+    recoveryLock: { acquire() {}, heartbeat() {}, assertFence() {}, release() {} },
+    readbackVerifier: { verify() {}, independent_authority: true, role_aware: true, mutation_authority: false },
+    deploymentIdentityProvider: { readAttestation() {} },
+    recoveryStore: { getPlan() {}, getExecutionTicket() {}, reserveExecutionTicket() {}, finalizeExecutionTicket() {}, markApprovalUsed() {} },
+    migrationLedger: { finalize() {} },
+  });
+  assert.deepEqual(unmarked.target_database_mutation_capabilities, ["staging_database_access_repair"]);
+  assert.equal(unmarked.system_surface_extensions.find((entry) => entry.capability_key === "staging_database_schema_repair").state_scope, "allowlist_plan_approval_verified_local_handoff_same_cycle_readback");
+  assert.equal(unmarked.local_handoff_mutation_capabilities.includes("staging_database_schema_repair"), true);
 });
 
 test("Bridge v2 validator accepts explicit server-managed confirmation fields and rejects caller tickets", () => {

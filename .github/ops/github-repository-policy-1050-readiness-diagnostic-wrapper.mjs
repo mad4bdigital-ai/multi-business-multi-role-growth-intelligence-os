@@ -149,6 +149,53 @@ async function writeBoundedJson(name, value) {
   await fs.writeFile(`${DIR}/${name}`, `${JSON.stringify(value, null, 2)}\n`, 'utf8');
 }
 
+function buildRecoveryHandoff(report) {
+  const roles = Array.isArray(report?.selected_rebuild_roles)
+    ? [...new Set(report.selected_rebuild_roles.map((role) => String(role)))].sort()
+    : [];
+  const expectedRoles = ['governance', 'runtime_persistence'];
+  const classifications = report?.role_database_object_classifications || {};
+  const fingerprints = report?.role_database_object_count_fingerprints || {};
+  const eligible = report?.result === 'inspection_complete'
+    && /^[0-9a-f]{40}$/.test(String(report?.production_sha || ''))
+    && /^[0-9a-f]{64}$/.test(String(report?.target_fingerprint || ''))
+    && JSON.stringify(roles) === JSON.stringify(expectedRoles)
+    && expectedRoles.every((role) => /^[0-9a-f]{64}$/.test(String(fingerprints[role] || '')))
+    && classifications.runtime === 'nonempty_objects'
+    && classifications.governance === 'zero_objects'
+    && classifications.runtime_persistence === 'zero_objects'
+    && report?.database_mutation_performed === false
+    && report?.migration_apply_performed === false
+    && report?.grant_mutation_performed === false
+    && report?.workflow_dispatch_performed === false;
+
+  return {
+    contract: 'github_repository_policy_1050_recovery_handoff.v1',
+    eligible_for_recovery_prepare: eligible,
+    reason: eligible
+      ? 'canonical_role_selective_baseline_rebuild_required'
+      : 'foundation_inspection_did_not_prove_exact_zero_object_role_set',
+    production_sha: report?.production_sha || null,
+    target_key: 'production-runtime',
+    selected_rebuild_roles: roles,
+    control_issue: 6813,
+    workflow: '.github/workflows/governed-production-promotion-dispatch-bridge.yml',
+    prepare_command: eligible
+      ? `APPLY_HOSTINGER_RUNTIME_BASELINE_REBUILD:${report.production_sha}:production-runtime:governance,runtime_persistence`
+      : null,
+    prepare_phase_is_read_only: true,
+    prepare_database_mutation_performed: false,
+    prepare_migration_apply_performed: false,
+    prepare_grant_mutation_performed: false,
+    prepare_provider_mutation_performed: false,
+    execution_requires_separate_server_issued_single_step_approval: true,
+    automatic_execution_allowed: false,
+    automatic_replay_allowed: false,
+    legacy_migration_225_apply_authorized: false,
+    secrets_included: false,
+  };
+}
+
 async function readProductionHead() {
   if (!interceptedGithubAuthorization || !interceptedGithubRepository) {
     const error = new Error('Prior governed GitHub read authority was not observed');
@@ -288,6 +335,7 @@ async function runGovernanceFoundationInspection() {
   }
 
   await writeBoundedJson('governance-foundation-inspection.json', report);
+  await writeBoundedJson('governance-foundation-recovery-handoff.json', buildRecoveryHandoff(report));
 }
 
 async function recordAdminControlFailure(response) {

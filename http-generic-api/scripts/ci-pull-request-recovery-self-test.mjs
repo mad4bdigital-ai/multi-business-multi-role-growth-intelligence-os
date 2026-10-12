@@ -18,7 +18,7 @@ const requiredRecoveryTokens = [
   "branches: [main, Production]",
   "types: [opened, reopened, synchronize, ready_for_review]",
   "permissions:\n  contents: read",
-  "name: Syntax Check",
+  "name: PR Recovery Syntax Check",
   "name: Unit & Integration Tests",
   "ref: ${{ steps.candidate.outputs.candidate_sha }}",
   "ref: ${{ needs.syntax.outputs.candidate_sha }}",
@@ -49,6 +49,8 @@ for (const forbidden of ["pull_request_target:", "actions: write", "contents: wr
 assert(canonical.includes("name: CI"), "canonical CI workflow name missing");
 assert(canonical.includes("pull_request:\n    branches: [main, Production]"), "canonical CI pull_request trigger missing");
 assert(canonical.includes("name: Syntax Check"), "canonical Syntax Check job missing");
+assert(!/\n\s+name: Syntax Check\s*\n/.test(recovery), "recovery must not duplicate the required canonical Syntax Check context");
+assert(/\n\s+name: PR Recovery Syntax Check\s*\n/.test(recovery), "recovery syntax job must use its dedicated context");
 assert(canonical.includes("name: Unit & Integration Tests"), "canonical Unit & Integration Tests job missing");
 
 for (const token of [
@@ -79,7 +81,7 @@ assert.equal(
 assert(canonical.includes('DEPLOYMENT_COMMIT_SHA: "${{ github.event.pull_request.head.sha || github.sha }}"'), "canonical deployment evidence must bind to the exact pull-request head");
 
 const testJobNeedsSyntax = /test:\n\s+name: Unit & Integration Tests[\s\S]*?needs: syntax/.test(recovery);
-assert(testJobNeedsSyntax, "Unit & Integration Tests must depend on Syntax Check");
+assert(testJobNeedsSyntax, "Unit & Integration Tests must depend on the recovery syntax job id");
 
 console.log(JSON.stringify({
   ok: true,

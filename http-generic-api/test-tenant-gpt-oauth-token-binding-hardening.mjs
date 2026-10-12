@@ -4,6 +4,10 @@ import jwt from "jsonwebtoken";
 import { TENANT_GPT_ACCESS_TOKEN_DEFAULT_TTL_SECONDS } from "./tenantGptAccessTokenProfile.js";
 import { TENANT_GPT_OAUTH_CLIENT_ID } from "./tenantGptOAuthPreset.js";
 import {
+  advanceTenantGptOAuthOperationCorrelation,
+  createTenantGptOAuthOperationCorrelation,
+} from "./tenantGptOAuthOperationCorrelation.js";
+import {
   BINDING_LIMITS,
   buildTenantGptOAuthTokenExchangeDeps,
   buildTenantGptOAuthTokenRequestBindingGuard,
@@ -13,6 +17,29 @@ import {
 const JWT_SECRET = "t031-binding-hardening-test-secret";
 const RESOURCE = "https://activation.mad4b.com";
 const CALLBACK = "https://chatgpt.com/aip/g-binding-hardening/oauth/callback";
+const AUTHORIZE_CORRELATION = createTenantGptOAuthOperationCorrelation({
+  protected_resource: RESOURCE,
+  client_id: TENANT_GPT_OAUTH_CLIENT_ID,
+  request_id: "binding-authorize-request",
+});
+const IDENTITY_CORRELATION = advanceTenantGptOAuthOperationCorrelation(
+  AUTHORIZE_CORRELATION,
+  {
+    stage: "identity_verify",
+    user_id: "user-1",
+    tenant_id: "tenant-1",
+    request_id: "binding-identity-request",
+  },
+);
+const CODE_CORRELATION = advanceTenantGptOAuthOperationCorrelation(
+  IDENTITY_CORRELATION,
+  {
+    stage: "oauth_code_issue",
+    oauth_code_jti: "code-jti-1",
+    request_id: "binding-code-request",
+  },
+);
+
 const PAYLOAD = Object.freeze({
   purpose: "custom_gpt_oauth_code",
   jti: "code-jti-1",
@@ -21,6 +48,7 @@ const PAYLOAD = Object.freeze({
   redirect_uri: CALLBACK,
   client_id: TENANT_GPT_OAUTH_CLIENT_ID,
   resource: RESOURCE,
+  oauth_correlation: CODE_CORRELATION,
 });
 
 for (const [claim, max] of Object.entries({
@@ -42,6 +70,18 @@ for (const [claim, max] of Object.entries({
   );
 }
 
+const validatedPayload = validateTenantGptOAuthAuthorizationCodeBindings(PAYLOAD);
+assert.equal(validatedPayload.oauth_correlation.stage, "oauth_code_issue");
+assert.equal(validatedPayload.oauth_correlation.operation_id, CODE_CORRELATION.operation_id);
+assert.throws(
+  () => validateTenantGptOAuthAuthorizationCodeBindings({
+    ...PAYLOAD,
+    oauth_correlation: { ...CODE_CORRELATION, operation_id: CODE_CORRELATION.correlation_id },
+  }),
+  (error) => error?.name === "JsonWebTokenError",
+  "authorization-code correlation tampering must fail closed",
+);
+
 const deps = buildTenantGptOAuthTokenExchangeDeps({}, { JWT_SECRET });
 assert.equal(deps.accessTokenTtlSeconds, TENANT_GPT_ACCESS_TOKEN_DEFAULT_TTL_SECONDS);
 const issued = deps.issueAccessToken(
@@ -62,6 +102,41 @@ assert.equal(verified.jti, "access-jti-1");
 assert.equal(verified.purpose, "tenant_gpt_access");
 assert.equal(verified.exp - verified.iat, 3600,
   "caller-provided seven-day TTL must be replaced by the governed one-hour profile");
+
+const TOKEN_CORRELATION = advanceTenantGptOAuthOperationCorrelation(
+  CODE_CORRELATION,
+  {
+    stage: "oauth_token_exchange",
+    access_token_jti: "access-jti-correlated",
+    request_id: "binding-token-request",
+  },
+);
+const correlatedIssued = deps.issueAccessToken(
+  { user_id: PAYLOAD.user_id, tenant_id: PAYLOAD.tenant_id },
+  {
+    clientId: PAYLOAD.client_id,
+    jwtid: "access-jti-correlated",
+    resource: PAYLOAD.resource,
+    scope: "",
+    oauthCorrelation: TOKEN_CORRELATION,
+  },
+);
+const correlatedVerified = jwt.verify(correlatedIssued, JWT_SECRET);
+assert.equal(correlatedVerified.oauth_correlation?.stage, "oauth_token_exchange");
+assert.equal(correlatedVerified.oauth_correlation?.operation_id, CODE_CORRELATION.operation_id);
+assert.throws(
+  () => deps.issueAccessToken(
+    { user_id: PAYLOAD.user_id, tenant_id: PAYLOAD.tenant_id },
+    {
+      clientId: PAYLOAD.client_id,
+      jwtid: "different-access-jti",
+      resource: PAYLOAD.resource,
+      oauthCorrelation: TOKEN_CORRELATION,
+    },
+  ),
+  (error) => error?.code === "oauth_correlation_access_jti_drift",
+  "access-token correlation must bind the access token JTI",
+);
 
 const boundedDeps = buildTenantGptOAuthTokenExchangeDeps({}, {
   JWT_SECRET,

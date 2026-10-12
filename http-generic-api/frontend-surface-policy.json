@@ -7884,6 +7884,21 @@
       ]
     },
     {
+      "rule_id": "hostinger-recovery-allowlist-readonly-discovery",
+      "operation": "POST /platform/remote-runtime/hosting/recovery-allowlist/discover",
+      "source_file": "routes/platformPluginRoutes.js",
+      "classification": "read_action",
+      "owner": "remote-runtime",
+      "rationale": "Admin-only bounded metadata SELECT over exact registered Hostinger target and planned allowlist entries. It never calls provider/SSH, mutates SQL or environment variables, creates a database, exposes credentials or certifies an executor; no production apply authority is inferred.",
+      "evidence_refs": [
+        "routes/platformPluginRoutes.js",
+        "hostingerRecoveryCapabilityDiscovery.js",
+        "hostingerRecoveryProviderContract.js",
+        "test-hostinger-recovery-capability-discovery.mjs",
+        "openapi.yaml"
+      ]
+    },
+    {
       "rule_id": "generated-gap-post-platform-remote-runtime-hosting-ssh-probe-routes-platformpluginroutes-js",
       "operation": "POST /platform/remote-runtime/hosting/ssh-probe",
       "source_file": "routes/platformPluginRoutes.js",

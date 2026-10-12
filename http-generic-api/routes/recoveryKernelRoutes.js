@@ -14,6 +14,8 @@ import {
   issueAndExecuteApprovedRecoveryStep,
   sanitizeRecoveryActionBridgeOutput,
 } from "../recoveryActionBridge.js";
+import { resolveRuntimeEnvironmentStrict } from "../runtimeEnvironmentResolver.js";
+import { productionEnvironmentIdentityIsValid } from "../productionRuntimeIdentityCompatibility.js";
 
 const READ_ONLY_CAPABILITIES = new Set([
   "production_identity",
@@ -75,28 +77,33 @@ function errorResponse(res, error, fallbackCode = "recovery_kernel_failed") {
 }
 
 function assertProductionEnvironment(env = process.env) {
-  const signals = [
-    ["NODE_ENV", env.NODE_ENV],
-    ["REMOTE_MCP_ENVIRONMENT", env.REMOTE_MCP_ENVIRONMENT],
-    ["DEPLOYMENT_ENVIRONMENT", env.DEPLOYMENT_ENVIRONMENT],
-    ["GITHUB_REF_NAME", env.GITHUB_REF_NAME],
-  ].filter(([, value]) => String(value || "").trim());
-  if (!signals.length) {
+  const hasEnvironmentSignal = Boolean(
+    String(env?.NODE_ENV || "").trim()
+      || String(env?.REMOTE_MCP_ENVIRONMENT || "").trim()
+      || String(env?.DEPLOYMENT_ENVIRONMENT || "").trim()
+      || String(env?.GITHUB_REF_NAME || "").trim()
+  );
+
+  if (!hasEnvironmentSignal) {
     const error = new Error("Recovery Kernel Production environment identity is unavailable.");
     error.status = 404;
     error.code = "recovery_kernel_production_environment_unavailable";
     throw error;
   }
-  for (const [name, value] of signals) {
-    const normalized = String(value).trim().toLowerCase();
-    const production = name === "GITHUB_REF_NAME" ? normalized === "production" : ["production", "prod"].includes(normalized);
-    if (!production) {
-      const error = new Error("Recovery Kernel is restricted to the Production environment.");
-      error.status = 404;
-      error.code = "recovery_kernel_production_only";
-      error.details = { signal: name, environment: normalized, secrets_included: false };
-      throw error;
-    }
+
+  if (!productionEnvironmentIdentityIsValid(env)) {
+    const runtime = resolveRuntimeEnvironmentStrict(env);
+    const error = new Error("Recovery Kernel is restricted to the Production environment.");
+    error.status = 404;
+    error.code = "recovery_kernel_production_only";
+    error.details = {
+      runtime_reason: runtime?.reason || null,
+      environment_key: runtime?.environment_key || null,
+      runtime_class: runtime?.runtime_class || null,
+      runtime_class_explicit: runtime?.runtime_class_explicit === true,
+      secrets_included: false,
+    };
+    throw error;
   }
 }
 
@@ -387,6 +394,7 @@ export const _testingRecoveryKernelRoutes = Object.freeze({
   READ_ONLY_CAPABILITIES,
   assertExactKeys,
   assertProductionEnvironment,
+  productionEnvironmentIdentityIsValid,
   errorResponse,
   resolveRecoveryRouteStores,
 });

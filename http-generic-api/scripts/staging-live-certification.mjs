@@ -5,6 +5,7 @@ import {
   loadActivationGatewayProfilePolicy,
   readEnvironmentConvergenceRegistry,
 } from "../environmentConvergenceRegistry.js";
+import { evaluateImmutableStagingArtifactIntegrity } from "../stagingImmutableArtifactIntegrity.js";
 
 const CONTRACT = "mad4b.staging-live-certification.v1";
 const SHA_RE = /^[0-9a-f]{40}$/u;
@@ -245,6 +246,18 @@ const governanceReadiness = body.governance_db_privilege_readiness || null;
 const platformAdminSemanticReadiness = body.platform_admin_semantic_readiness || null;
 const appManifest = body.deployment || {};
 const observedImageDigest = String(appManifest.image_digest || "").trim().toLowerCase();
+const immutableArtifactIntegrity = evaluateImmutableStagingArtifactIntegrity({
+  runtimeIntegrity,
+  appManifest,
+  expectedCommit,
+  expectedTree,
+  expectedContextFileSet,
+  expectedImageDigest,
+});
+
+const runtimeIntegritySatisfied =
+  runtimeIntegrity?.verified === true
+  || immutableArtifactIntegrity.verified === true;
 const artifactSetChecks = [
   check("app_tree_exact", appManifest.tree_sha === expectedTree, { expected: expectedTree, observed: appManifest.tree_sha || null }),
   check("app_context_file_set_exact", appManifest.context_file_set_sha256 === expectedContextFileSet, { expected: expectedContextFileSet, observed: appManifest.context_file_set_sha256 || null }),
@@ -261,10 +274,20 @@ const integrityChecks = [
   }),
   check("exact_branch", String(body.branch || "") === expectedBranch, { expected: expectedBranch, observed: body.branch || null }),
   check("staging_app_environment", String(body.app_env || "").toLowerCase() === "staging", { observed: body.app_env || null }),
-  check("runtime_integrity_verified", runtimeIntegrity?.verified === true, {
+  check("runtime_integrity_verified", runtimeIntegritySatisfied, {
     state: runtimeIntegrity?.state || null,
     reason_codes: runtimeIntegrity?.reason_codes || [],
     provenance_verified: runtimeIntegrity?.provenance_verified === true,
+    identity_verified: runtimeIntegrity?.identity_verified === true,
+    content_verified: runtimeIntegrity?.content_verified === true,
+    verification_mode:
+      runtimeIntegrity?.verified === true
+        ? "tracked_checkout"
+        : immutableArtifactIntegrity.verified === true
+          ? "immutable_staging_artifact"
+          : "unverified",
+    immutable_artifact_verified: immutableArtifactIntegrity.verified,
+    immutable_artifact_checks: immutableArtifactIntegrity.checks,
   }),
   check("runtime_integrity_read_only", runtimeIntegrity?.read_only_check === true, runtimeIntegrity?.read_only_check ?? null),
   check("deployment_evidence_secret_free", body.evidence?.secrets_included === false, body.evidence?.secrets_included ?? null),

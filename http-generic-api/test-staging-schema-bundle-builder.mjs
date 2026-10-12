@@ -27,6 +27,31 @@ const generator = fs.readFileSync(generatorPath, "utf8");
 const baselineSchema = fs.readFileSync(path.join(apiRoot, "schema.sql"), "utf8");
 const expectedCommit = spawnSync("git", ["rev-parse", "HEAD"], { cwd: repoRoot, encoding: "utf8" }).stdout.trim();
 
+test("registry reconciliation projection is repository-owned, insert-only, and strips live bindings", () => {
+  const config = manifest.canonical_registry_reconciliation_snapshot;
+  assert.equal(config.contract, "mad4b.staging.runtime-registry-reconciliation-snapshot.v1");
+  assert.equal(config.target_role, "runtime");
+  assert.equal(config.source_kind, "disposable_git_migration_projection");
+  assert.equal(config.replay_mode, "in_place_insert_only");
+  assert.equal(config.production_access_forbidden, true);
+  assert.equal(config.provider_access_forbidden, true);
+  assert.equal(config.live_environment_data_copy_forbidden, true);
+  assert.deepEqual(config.tables, ["actions","endpoints","admin_platform_endpoint_tools","tenant_platform_endpoint_tools","platform_endpoint_tool_exports"]);
+  assert.deepEqual(config.identity_columns_by_table.endpoints, ["parent_action_key","endpoint_key"]);
+  for (const column of ["api_key_value","secret_store_ref","openai_schema_file_id","oauth_client_secret_ref","oauth_last_validated_at"]) {
+    assert.equal(config.excluded_columns_by_table.actions.includes(column), true);
+  }
+  assert.equal(config.excluded_columns_by_table.endpoints.includes("child_openai_schema_file_id"), true);
+  assert.equal(config.excluded_columns_by_table.platform_endpoint_tool_exports.includes("source_endpoint_id"), true);
+  assert.deepEqual(manifest.validation.required_registry_reconciliation_bundle_files, ["runtime.registry-reconciliation.sql.gz"]);
+  assert.match(generator, /function makeCanonicalRegistryReconciliationDump\(manifest, runtimeTables\)/u);
+  assert.match(generator, /canonical_registry_reconciliation_snapshot/u);
+  assert.match(generator, /configured_identity/u);
+  assert.match(generator, /column_types: Object\.fromEntries/u);
+  assert.match(generator, /column_types: plan\.column_types/u);
+  assert.match(generator, /canonical registry reconciliation snapshot contains a forbidden mutation/u);
+});
+
 test("semantic snapshot replays foreign-key parents before children", () => {
   const tables = manifest.canonical_semantic_snapshot.tables;
   const dependency = { child: "activation_callback_registry", parent: "activation_operational_tile_registry", constraint: "fk_activation_callback_tile" };
@@ -419,7 +444,8 @@ test("schema bundle manifest declares exactly three isolated roles", () => {
   assert.deepEqual(manifest.validation.required_validation_repair_baseline_columns, ["validation_type", "repair_action", "repair_status", "priority"]);
   assert.equal(manifest.validation.required_runtime_table_census.length, 18);
   assert.deepEqual(manifest.validation.required_runtime_support_tables, [
-    "connected_systems", "platform_contract_surfaces", "platform_endpoint_tool_exports", "tenant_secrets", "platform_secrets",
+    "connected_systems", "user_app_connections", "platform_contract_surfaces", "platform_endpoint_tool_exports", "tenant_secrets", "platform_secrets",
+    "remote_mcp_oauth_grants", "remote_mcp_oauth_authorization_codes", "remote_mcp_oauth_clients", "platform_runtime_config",
     "secret_references", "credential_bindings", "admin_platform_endpoint_tools", "tenant_platform_endpoint_tools", "customer_sessions",
     "gpt_session_turns", "activation_dynamic_tab_registry", "activation_dynamic_tab_section_registry",
     "activation_dynamic_tab_discovery_rule_registry", "activation_section_action_registry", "activation_attention_rule_registry",
@@ -435,7 +461,10 @@ test("schema bundle manifest declares exactly three isolated roles", () => {
     "20260920_platform_admin_workspace_canonical_seed.sql",
     "20260920_wordpress_staging_plugin_deploy_v2_canonical_seed.sql",
   "20260922_local_manager_control_templates_registry.sql",
-  ]);
+  "20261007_credential_platform_binding_policy.sql",
+    "20261008_admin_local_connector_target_catalog_alignment.sql",
+  "20261009_hostinger_recovery_allowlist_discovery.sql",
+]);
   assert.deepEqual(manifest.canonical_seed_lifecycle.mcp_catalog_required_columns, [
     "admin_platform_endpoint_tools.mcp_catalog_level",
     "tenant_platform_endpoint_tools.mcp_catalog_level",
@@ -1393,6 +1422,7 @@ test("generator plan-only mode inventories the exact migration chain", () => {
     "20260922_local_manager_desktop_commands.sql",
     "20260922_local_manager_device_link_authority.sql",
     "20260922_local_manager_control_templates_registry.sql",
+  "20261007_credential_platform_binding_policy.sql",
   ];
   for (const file of localManagerMigrationFiles) {
     assert.equal(canonicalMigrationFiles.includes(file), true, `missing Local Manager migration from ordered plan: ${file}`);
@@ -1453,7 +1483,11 @@ test("generator plan-only mode inventories the exact migration chain", () => {
     /KEY `idx_lm_desktop_command_claim_token`\s*\(\s*`claim_token`\s*,\s*`status`\s*\)/iu,
     "desktop command ownership must retain the claim-token lookup index",
   );
-  const expectedIndexProjectedTables = 588 + 2; // Local Manager desktop commands + control-template registry; device-link sessions already existed in the projected chain.
+  // Extend the certified census only for the two explicit catalog trust tables.
+  const catalogTrustSql=fs.readFileSync(path.join(migrationsDir,"966_capability_catalog_trust_authority.sql"),"utf8");
+  assert.match(catalogTrustSql,/CREATE TABLE IF NOT EXISTS platform_capability_catalog_keys\s*\(/u);
+  assert.match(catalogTrustSql,/CREATE TABLE IF NOT EXISTS platform_capability_catalog_consumed_nonces\s*\(/u);
+  const expectedIndexProjectedTables = 588 + 2 + 2; // Local Manager two + Catalog Trust two.
   assert.equal(plan.ordered_index_key_width_chain.tables_projected, expectedIndexProjectedTables);
   const localManagerIndexSql = [
     desktopCommandMigrationSql,
@@ -1546,7 +1580,7 @@ test("generator plan-only mode inventories the exact migration chain", () => {
     true,
     "Local Manager control-template registry migration must be part of the ordered schema plan",
   );
-  assert.equal(plan.ordered_foreign_key_compatibility_chain.tables_projected, 591);
+  assert.equal(plan.ordered_foreign_key_compatibility_chain.tables_projected, 591 + 2); // Two explicitly asserted additive catalog tables.
   assert.equal(plan.ordered_foreign_key_compatibility_chain.foreign_keys_checked, 138);
   assert.equal(plan.ordered_foreign_key_compatibility_chain.type_comparisons, 140);
   assert.equal(plan.ordered_foreign_key_compatibility_chain.type_mismatches, 0);
@@ -1570,7 +1604,10 @@ test("generator plan-only mode inventories the exact migration chain", () => {
     "20260920_platform_admin_workspace_canonical_seed.sql",
     "20260920_wordpress_staging_plugin_deploy_v2_canonical_seed.sql",
     "20260922_local_manager_control_templates_registry.sql",
-  ]);
+  "20261007_credential_platform_binding_policy.sql",
+    "20261008_admin_local_connector_target_catalog_alignment.sql",
+  "20261009_hostinger_recovery_allowlist_discovery.sql",
+]);
   assert.equal(plan.canonical_seed_lifecycle.readback_required, true);
   assert.equal(plan.ordered_preuse_audit.missing_table_gaps, 0);
   assert.equal(plan.ordered_preuse_audit.missing_column_gaps, 0);

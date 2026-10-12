@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import { resolveRuntimeEnvironment } from "./runtimeEnvironmentResolver.js";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -24,6 +25,7 @@ function safeContractState() {
 
 export function getRuntimeBootstrapStatus(env = process.env) {
   const contract = safeContractState();
+  const runtime = resolveRuntimeEnvironment(env);
   const hookConfigured = String(env.RUNTIME_BOOTSTRAP_HOOK || "").trim() === HOOK_VALUE;
   const targetSource = String(env.BOOTSTRAP_TARGET_SOURCE || "repository_allowlist").trim().toLowerCase();
   const targetPlanConfigured = targetSource === "runtime_env"
@@ -44,6 +46,7 @@ export function getRuntimeBootstrapStatus(env = process.env) {
     reasons.push("explicit_release_hook_not_configured");
   } else {
     status = "bootstrap_required";
+    if (!runtime.ok) reasons.push(runtime.reason || "runtime_environment_unresolved");
     if (!targetPlanConfigured) reasons.push("target_binding_not_configured");
     if (!exactShaConfigured) reasons.push("exact_source_sha_not_configured");
     if (!bootstrapCredentialNamesConfigured) reasons.push("dedicated_bootstrap_credentials_not_configured");
@@ -52,11 +55,15 @@ export function getRuntimeBootstrapStatus(env = process.env) {
       reasons.push("explicit_invocation_and_confirmation_required");
     }
   }
+  if (runtime.ok && runtime.environment_key === "staging") {
+    status = "bootstrap_not_applicable";
+    reasons.splice(0, reasons.length, "hostinger_production_hook_not_applicable_to_staging");
+  }
   return {
     contract: "mad4b.hostinger.runtime-bootstrap-status.v1",
     status,
     hook: {
-      required: true,
+      required: runtime.environment_key !== "staging",
       configured: hookConfigured,
       value_exposed: false,
       auto_apply: false,
@@ -67,7 +74,8 @@ export function getRuntimeBootstrapStatus(env = process.env) {
     source_binding: {
       exact_sha_configured: exactShaConfigured,
       target_binding_configured: targetPlanConfigured,
-      branch: "Production",
+      branch: runtime.ok ? runtime.source_branch : null,
+      environment: runtime.ok ? runtime.environment_key : null,
       repository: "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os",
     },
     target_binding: {
@@ -82,6 +90,9 @@ export function getRuntimeBootstrapStatus(env = process.env) {
       values_exposed: false,
       runtime_credentials_accepted: false,
     },
+    configuration_only: true,
+    database_readiness: "not_checked",
+    environment_resolved: runtime.ok,
     database_connection_performed: false,
     database_mutation_performed: false,
     migration_apply_performed: false,

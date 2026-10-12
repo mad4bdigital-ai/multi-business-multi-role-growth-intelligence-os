@@ -44,6 +44,10 @@ assert.deepEqual(policy.lifecycle.canonical_seeds.seed_files, [
   "20260815_custom_gpt_mcp_catalog_levels.sql",
   "20260920_platform_admin_workspace_canonical_seed.sql",
   "20260920_wordpress_staging_plugin_deploy_v2_canonical_seed.sql",
+  "20260922_local_manager_control_templates_registry.sql",
+  "20261007_credential_platform_binding_policy.sql",
+  "20261008_admin_local_connector_target_catalog_alignment.sql",
+  "20261009_hostinger_recovery_allowlist_discovery.sql",
 ]);
 assert.equal(policy.lifecycle.canonical_seeds.explicit_apply_only, true);
 assert.equal(policy.lifecycle.canonical_seeds.readback_required, true);
@@ -180,8 +184,9 @@ assert.match(launcher, /Staging-GitTransport\.ps1/);
 assert.match(bootstrap, /Staging-GitTransport\.ps1/);
 assert.match(startAutoPilot, /Staging-GitTransport\.ps1/);
 assert.match(startAutoPilot, /Staging-Environment\.ps1/);
-assert.match(startAutoPilot, /Set-StagingTunnelRuntimeProfile -Path \$EnvFile -TunnelMode \$TunnelMode/);
+assert.match(startAutoPilot, /Initialize-StagingEnvironment[\s\S]*?-TunnelMode \$TunnelMode/);
 assert.match(stagingEnvironment, /function Set-StagingTunnelRuntimeProfile/);
+assert.match(stagingEnvironment, /function Initialize-StagingEnvironment[\s\S]*?Set-StagingTunnelRuntimeProfile -Path \$envFile -TunnelMode \$TunnelMode/);
 assert.match(stagingEnvironment, /mad4b\.staging-tunnel-runtime-profile\.v1/);
 assert.match(stagingEnvironment, /'windows_service'[\s\S]*?CLOUDFLARE_TUNNEL_ORIGIN_APP' 'http:\/\/127\.0\.0\.1:8080'/);
 assert.match(stagingEnvironment, /production_mutation = \$false/);
@@ -279,7 +284,7 @@ assert.match(startAutoPilot, /if \(\$RequireSchemaBundle\) \{ \$childArgs \+= "-
 assert.match(startAutoPilot, /if \(\$ApplySchemaBundle\) \{ \$childArgs \+= "-ApplySchemaBundle" \}/);
 assert.match(startAutoPilot, /\[switch\]\$EnableActivationGateway/);
 assert.match(startAutoPilot, /if \(\$EnableActivationGateway\) \{ \$childArgs \+= "-EnableActivationGateway" \}/);
-assert.match(startAutoPilot, /Set-EnvValue \$EnvFile "ACTIVATION_STAGING_GATEWAY_ENABLED" \$activationGatewayDesired/);
+assert.match(stagingEnvironment, /function Initialize-StagingEnvironment[\s\S]*?Set-StagingEnvValue \$envFile 'ACTIVATION_STAGING_GATEWAY_ENABLED'/);
 assert.match(autoDeploy, /\[switch\]\$EnableActivationGateway/);
 assert.match(autoDeploy, /if \(\$EnableActivationGateway\) \{ \$pilotArgs \+= "-EnableActivationGateway" \}/);
 assert.match(installAutoDeploy, /\[switch\]\$EnableActivationGateway/);

@@ -1,3 +1,10 @@
+import {
+  RUNTIME_ENVIRONMENT_ALIAS_MAP,
+  RUNTIME_ENVIRONMENT_POLICY_CONTRACT,
+  canonicalRuntimeVariantFor,
+  resolveRuntimeEnvironmentProfile,
+} from "./runtimeEnvironmentPolicy.js";
+
 export const RUNTIME_ENVIRONMENT_RESOLVER_CONTRACT = "mad4b.runtime-environment-resolver.v1";
 
 const ENVIRONMENT_KEYS = Object.freeze([
@@ -6,16 +13,7 @@ const ENVIRONMENT_KEYS = Object.freeze([
   "NODE_ENV",
 ]);
 
-const ALIASES = Object.freeze({
-  production: "production",
-  prod: "production",
-  production_hostinger_autodeploy: "production",
-  staging: "staging",
-  staging_hosted: "staging",
-  staging_local_windows_docker: "staging",
-  test: "test",
-  ci: "ci",
-});
+const ALIASES = RUNTIME_ENVIRONMENT_ALIAS_MAP;
 
 function normalize(value) {
   return String(value || "").trim().toLowerCase();
@@ -26,49 +24,20 @@ function valueEvidence(key, raw, canonical) {
 }
 
 function identityFor(environmentKey, runtimeVariant) {
-  if (environmentKey === "production") {
-    return {
-      environment: "production",
-      environment_key: "production",
-      runtime_class: "hostinger_autodeploy",
-      deployment_model: "production_hostinger",
-      source_branch: "Production",
-      branch: "Production",
-      authority_mode: "production_live_or_disabled",
-      gateway_class: "activation_gateway_production",
-      public_gateway: "activation.mad4b.com",
-      upstream_service: "auth.mad4b.com",
-    };
-  }
-  if (environmentKey === "staging") {
-    return {
-      environment: "staging",
-      environment_key: "staging",
-      runtime_class: runtimeVariant === "staging_local_windows_docker" ? "local_windows_docker" : "staging_hosted",
-      deployment_model: runtimeVariant === "staging_local_windows_docker" ? "main_local_staging" : "main_hosted_staging",
-      source_branch: "main",
-      branch: "main",
-      authority_mode: "non_live",
-      gateway_class: "activation_gateway_staging",
-      public_gateway: "activation-dev.mad4b.com",
-      upstream_service: "dev.mad4b.com",
-    };
-  }
-  if (["test", "ci"].includes(environmentKey)) {
-    return {
-      environment: environmentKey,
-      environment_key: environmentKey,
-      runtime_class: "synthetic_non_live",
-      deployment_model: "repository_test",
-      source_branch: null,
-      branch: null,
-      authority_mode: "non_live",
-      gateway_class: "activation_gateway_synthetic",
-      public_gateway: "activation.mad4b.com",
-      upstream_service: "auth.mad4b.com",
-    };
-  }
-  return null;
+  const profile = resolveRuntimeEnvironmentProfile(environmentKey, runtimeVariant);
+  if (!profile) return null;
+  return {
+    environment: profile.environment,
+    environment_key: profile.environment_key,
+    runtime_class: profile.runtime_class,
+    deployment_model: profile.deployment_model,
+    source_branch: profile.source_branch,
+    branch: profile.branch,
+    authority_mode: profile.authority_mode,
+    gateway_class: profile.gateway_class,
+    public_gateway: profile.public_gateway,
+    upstream_service: profile.upstream_service,
+  };
 }
 
 export function resolveRuntimeEnvironment(env = process.env) {
@@ -152,7 +121,9 @@ export function resolveRuntimeEnvironment(env = process.env) {
     contract: RUNTIME_ENVIRONMENT_RESOLVER_CONTRACT,
     ...identity,
     runtime_variant: runtimeVariant,
+    canonical_runtime_variant: canonicalRuntimeVariantFor(environmentKey, runtimeVariant),
     runtime_class_explicit: runtimeClassExplicit,
+    environment_policy_contract: RUNTIME_ENVIRONMENT_POLICY_CONTRACT,
     reason: null,
     values: evidence,
     unknown_values: [],
@@ -182,6 +153,7 @@ export function isProductionRuntime(env = process.env) {
 
 export const _testingRuntimeEnvironmentResolver = Object.freeze({
   ALIASES,
+  RUNTIME_ENVIRONMENT_POLICY_CONTRACT,
   ENVIRONMENT_KEYS,
   normalize,
 });

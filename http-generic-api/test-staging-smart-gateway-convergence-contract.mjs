@@ -10,8 +10,14 @@ import {
 } from "./activationGatewayRolloutTool.js";
 import { buildStagingActivationGatewayBundle } from "./stagingActivationGatewayBundle.js";
 import { PLATFORM_ADMIN_WORKSPACE_AUTHORITY } from "./src/domain/authorityScope/platformAdminWorkspaceAuthority.generated.js";
-import { buildStagingActivationGatewayApplyPlan, runStagingActivationGatewayApply, _testingStagingGatewayTransaction } from "./stagingActivationGatewayApplyAdapter.js";
-import { openStagingGatewayArtifact, sealStagingGatewayArtifact } from "./stagingGatewayExecutionPlanStore.js";
+import {
+  buildStagingActivationGatewayApplyPlan,
+  buildStagingActivationGatewayCertificationPlan,
+  runStagingActivationGatewayApply,
+  runStagingActivationGatewayTransactionCertification,
+  _testingStagingGatewayTransaction,
+} from "./stagingActivationGatewayApplyAdapter.js";
+import { openStagingGatewayArtifact, sealStagingGatewayArtifact, saveStagingGatewayExecutionPlan } from "./stagingGatewayExecutionPlanStore.js";
 import {
   buildStagingActivationTrustInstallPlan,
   installStagingActivationTrust,
@@ -34,6 +40,8 @@ const portableManifest = JSON.parse(fs.readFileSync(path.join(portable, "manifes
 const workerBuilder = fs.readFileSync(path.join(root, "http-generic-api/scripts/build-staging-worker.mjs"), "utf8");
 const serverBundleSource = fs.readFileSync(path.join(root, "http-generic-api/stagingActivationGatewayBundle.js"), "utf8");
 const serverAdapterSource = fs.readFileSync(path.join(root, "http-generic-api/stagingActivationGatewayApplyAdapter.js"), "utf8");
+const stagingGatewayCertificationCliSource = fs.readFileSync(path.join(root, "http-generic-api/scripts/staging-gateway-transaction-certification.mjs"), "utf8");
+const stagingGatewayRuntimeAuthoritySeed = fs.readFileSync(path.join(root, "http-generic-api/config/staging-gateway-runtime-authority-seed.sql"), "utf8");
 const convergenceEngineSource = fs.readFileSync(path.join(root, "http-generic-api/environmentConvergenceEngine.js"), "utf8");
 const convergenceRegistrySource = fs.readFileSync(path.join(root, "http-generic-api/environmentConvergenceRegistry.js"), "utf8");
 assert.match(convergenceEngineSource, /execution_ready_scope:\s*"server_governed_handoff"/u);
@@ -47,6 +55,13 @@ const hardeningMigrationSource = fs.readFileSync(path.join(root, "http-generic-a
 const trustedIngress = fs.readFileSync(path.join(root, "http-generic-api/trustedIngressContract.js"), "utf8");
 const activationGatewayRoutes = fs.readFileSync(path.join(root, "http-generic-api/routes/activationHostGatewayRoutes.js"), "utf8");
 const stagingEnvExample = fs.readFileSync(path.join(root, "http-generic-api/.env.staging.example"), "utf8");
+const stagingCompose = fs.readFileSync(path.join(root, "http-generic-api/docker-compose.staging.yml"), "utf8");
+const stagingEnvironmentSource = fs.readFileSync(path.join(portable, "Staging-Environment.ps1"), "utf8");
+const stagingWindowsCloudflaredSource = fs.readFileSync(path.join(portable, "Staging-WindowsCloudflared.ps1"), "utf8");
+const stagingProviderAuthorityHelper = fs.readFileSync(path.join(portable, "Enable-StagingActivationGatewayProviderAuthority.ps1"), "utf8");
+const repositoryGovernanceConstitution = JSON.parse(fs.readFileSync(path.join(root, "http-generic-api/config/repository-governance-constitution.json"), "utf8"));
+const derivedStateGovernance = JSON.parse(fs.readFileSync(path.join(root, ".github/derived-state-governance.json"), "utf8"));
+const providerAuthorityDeclaration = ".changes/e2e/staging-gateway-provider-authority-transport-20260927.json";
 const stagingWorker = fs.readFileSync(path.join(root, "edge/activation-gateway/src/worker-staging.mjs"), "utf8");
 
 const protectedPortablePaths = [
@@ -215,6 +230,12 @@ assert.match(rolloutWrapperSource, /stagingActivationGatewayApplyAdapter\.js/u);
 assert.match(productionRolloutSource, /script_name: "mad4b-activation-gateway"/u);
 assert.doesNotMatch(productionRolloutSource, /staging_activation_gateway_profile_apply/u);
 assert.match(serverAdapterSource, /staging_activation_gateway_profile_apply/u);
+assert.match(stagingGatewayCertificationCliSource, /runStagingActivationGatewayTransactionCertification/u);
+assert.match(stagingGatewayCertificationCliSource, /"expected-source-commit"/u);
+assert.match(stagingGatewayCertificationCliSource, /"expected-policy-hash"/u);
+assert.match(stagingGatewayCertificationCliSource, /"environment-convergence-plan-sha256"/u);
+assert.doesNotMatch(stagingGatewayCertificationCliSource, /"account-id"|"script-name"|"cloudflare-token"|"api-token"/u);
+assert.doesNotMatch(stagingGatewayCertificationCliSource, /CLOUDFLARE_API_TOKEN/u);
 assert.match(serverAdapterSource, /platform_resource_authority_bindings/u);
 assert.match(serverAdapterSource, /STAGING_ACTIVATION_GATEWAY_APPLY_ENABLED/u);
 assert.match(serverAdapterSource, /staging_activation_gateway_caller_target_override_forbidden/u);
@@ -291,6 +312,38 @@ assert.match(stagingEnvExample, /^REMOTE_MCP_TRUSTED_INGRESS_KEY_ID=$/mu);
 assert.match(stagingEnvExample, /^REMOTE_MCP_EXPECTED_DEPLOYMENT_SHA=$/mu);
 assert.match(stagingEnvExample, /^RECOVERY_STAGING_INGRESS_REPLAY_DIRECTORY=\/app\/data\/recovery-ingress$/mu);
 assert.doesNotMatch(stagingEnvExample, /^ACTIVATION_GATEWAY_INGRESS_PRIVATE_KEY_JWK=/mu);
+assert.match(stagingEnvExample, /^STAGING_ACTIVATION_GATEWAY_APPLY_ENABLED=false$/mu);
+assert.match(stagingEnvExample, /^STAGING_CLOUDFLARE_API_TOKEN_HOST_FILE=\.\/config\/empty-provider-secret$/mu);
+assert.doesNotMatch(stagingEnvExample, /^CLOUDFLARE_API_TOKEN=/mu);
+assert.match(stagingCompose, /source:\s*staging_cloudflare_api_token/u);
+assert.match(stagingCompose, /STAGING_CLOUDFLARE_API_TOKEN_FILE:\s*\/run\/secrets\/staging_cloudflare_api_token/u);
+assert.match(stagingCompose, /STAGING_ACTIVATION_GATEWAY_APPLY_ENABLED:\s*\$\{STAGING_ACTIVATION_GATEWAY_APPLY_ENABLED:-false\}/u);
+assert.match(stagingCompose, /STAGING_CLOUDFLARE_API_TOKEN_HOST_FILE:-\.\/config\/empty-provider-secret/u);
+assert.match(serverAdapterSource, /import fs from "node:fs"/u);
+assert.match(serverAdapterSource, /DEFAULT_STAGING_CLOUDFLARE_API_TOKEN_FILE/u);
+assert.match(serverAdapterSource, /STAGING_CLOUDFLARE_API_TOKEN_FILE/u);
+assert.match(serverAdapterSource, /staging_activation_gateway_provider_secret_unreadable/u);
+assert.match(serverAdapterSource, /resolveManagedCloudflareCredential/u);
+assert.match(serverAdapterSource, /const STAGING_CLOUDFLARE_SYSTEM_ID = "84310000-0000-4000-8000-000000000001"/u);
+assert.match(serverAdapterSource, /systemId:\s*STAGING_CLOUDFLARE_SYSTEM_ID/u);
+assert.match(stagingGatewayRuntimeAuthoritySeed, /\x2784310000-0000-4000-8000-000000000001\x27/u);
+assert.match(serverAdapterSource, /managed_cloudflare_credential_binding_ready/u);
+assert.match(serverAdapterSource, /staging_apply_feature_gate_managed/u);
+assert.match(serverAdapterSource, /legacy_secret_file_or_env/u);
+assert.match(stagingEnvironmentSource, /Cloudflare provider credentials must never be persisted in \.env\.staging/u);
+assert.match(stagingEnvironmentSource, /C:\\ProgramData\\Mad4B\\Staging\\Cloudflared\\tunnel-token\.txt/u);
+assert.match(stagingEnvironmentSource, /C:\\ProgramData\\Mad4B\\Staging\\Cloudflared\\cloudflared\.log/u);
+assert.doesNotMatch(stagingEnvironmentSource, /Set-StagingEnvValue[^\n]*'CLOUDFLARE_API_TOKEN'/u);
+assert.match(stagingWindowsCloudflaredSource, /legacyTokenFile = 'C:\\ProgramData\\cloudflared\\tunnel-token\.txt'/u);
+assert.match(stagingWindowsCloudflaredSource, /Copy only; never delete or/u);
+assert.match(stagingProviderAuthorityHelper, /ENABLE_STAGING_ACTIVATION_GATEWAY_PROVIDER_AUTHORITY/u);
+assert.match(stagingProviderAuthorityHelper, /Read-Host "Cloudflare API token" -AsSecureString/u);
+assert.match(stagingProviderAuthorityHelper, /STAGING_CLOUDFLARE_API_TOKEN_HOST_FILE/u);
+assert.match(stagingProviderAuthorityHelper, /STAGING_ACTIVATION_GATEWAY_APPLY_ENABLED" "true"/u);
+assert.match(stagingProviderAuthorityHelper, /provider_mutation_performed = \$false/u);
+assert.doesNotMatch(stagingProviderAuthorityHelper, /Write-Host[^\n]*\$plain/u);
+assert.ok(repositoryGovernanceConstitution.control_plane_paths.includes(providerAuthorityDeclaration));
+assert.ok(derivedStateGovernance.convergence.automation_control_paths.includes(providerAuthorityDeclaration));
 
 assert.match(liveCertification, /loadActivationGatewayProfilePolicy\("staging"/u);
 assert.doesNotMatch(liveCertification, /STAGING_CERT_GATEWAY_POLICY_PATH/u);
@@ -317,6 +370,10 @@ const dryRunQueries = [];
 const previewGovernancePool = {
   async query(sql, params = []) {
     dryRunQueries.push({ store: "governance", sql: String(sql), params });
+    if (String(sql).includes("FROM runtime_dispatch_certification_registry")) {
+      assert.deepEqual(params, ["staging_activation_gateway_apply_v1"]);
+      return [[{ certification_key: "staging_activation_gateway_apply_v1", certification_status: "pending", dispatch_allowed: 0, apply_allowed: 0, requires_readback: 1, expires_at: null }]];
+    }
     if (String(sql).includes("FROM platform_resource_authority_bindings")) {
       assert.deepEqual(params, [bindingId]);
       return [[{
@@ -347,6 +404,10 @@ const previewRuntimePool = {
     if (String(sql).includes("FROM workspace_registry")) {
       return [[{ workspace_id: platformWorkspaceId, tenant_id: platformTenantId, workspace_key: platformSeedKey, display_name: PLATFORM_ADMIN_WORKSPACE_AUTHORITY.identity.display_name, workspace_type: PLATFORM_ADMIN_WORKSPACE_AUTHORITY.identity.workspace_type, bootstrap_status: PLATFORM_ADMIN_WORKSPACE_AUTHORITY.identity.bootstrap_status, config_json: JSON.stringify({ authority_scope_key: platformAuthorityScope, platform_admin_workspace: true }) }]];
     }
+    if (String(sql).includes("FROM platform_runtime_config")) {
+      assert.deepEqual(params, ["staging_activation_gateway_apply"]);
+      return [[{ config_key: "staging_activation_gateway_apply", config_json: JSON.stringify({ enabled: true, environment: "staging" }), status: "active", updated_at: "2026-10-06T00:00:00.000Z" }]];
+    }
     throw new Error(`Unexpected Runtime SQL in Staging dry-run contract: ${sql}`);
   },
 };
@@ -367,7 +428,11 @@ const rolloutPlan = await buildActivationGatewayRolloutPlan({
   now: () => Date.parse("2026-09-11T12:00:00.000Z"),
 });
 assert.equal(rolloutPlan.adapter, "staging_activation_gateway_profile_apply");
-assert.equal(rolloutPlan.apply_ready, true);
+assert.equal(rolloutPlan.apply_ready, false);
+assert.equal(rolloutPlan.staging_certification_ready, false);
+assert.equal(rolloutPlan.checks.find((check) => check.key === "managed_cloudflare_credential_binding_ready")?.ok, true);
+assert.equal(rolloutPlan.checks.find((check) => check.key === "staging_apply_feature_gate_managed")?.ok, true);
+assert.equal(rolloutPlan.checks.find((check) => check.key === "dispatch_certification_ready")?.ok, false);
 assert.equal(rolloutPlan.resource_binding.binding_id, bindingId);
 assert.equal(rolloutPlan.resource_binding.account_id, accountId);
 assert.equal(rolloutPlan.resource_binding.script_name, scriptName);
@@ -375,6 +440,9 @@ assert.equal(rolloutPlan.provider_target_caller_selectable, false);
 assert.equal(rolloutPlan.workflow_dispatch, false);
 assert.equal(rolloutPlan.production_mutation, false);
 assert.equal(rolloutPlan.secrets_included, false);
+assert.equal(new Date(rolloutPlan.expires_at).getUTCMilliseconds(), 0,
+  "plan expiry must fit MariaDB TIMESTAMP(0) without losing exact-digest precision");
+assert.match(hardeningMigrationSource, /expires_at TIMESTAMP NOT NULL/u);
 assert.equal(dryRunQueries.some((entry) => entry.sql.includes("platform_resource_authority_bindings")), true);
 const servicePlan = await buildActivationGatewayRolloutPlan({ account_id: accountId, expected_source_commit: sourceSha,
   expected_policy_hash: staging.expected_policy_hash, environment_convergence_plan_sha256: convergencePlanSha }, {
@@ -396,6 +464,34 @@ const encrypted = sealStagingGatewayArtifact({ bundle: { secret: "private-test" 
 assert.equal(encrypted.includes("private-test"), false);
 assert.equal(openStagingGatewayArtifact(encrypted, { env: storageEnv, planId: rolloutPlan.plan_id }).bundle.secret, "private-test");
 assert.throws(() => openStagingGatewayArtifact(encrypted, { env: storageEnv, planId: crypto.randomUUID() }), /failed authentication/u);
+
+let expiryPrecisionRollback = false;
+let expiryPrecisionReleased = false;
+await assert.rejects(
+  saveStagingGatewayExecutionPlan({
+    async getConnection() {
+      return {
+        async beginTransaction() {},
+        async query() { return [{ affectedRows: 1 }]; },
+        async commit() { throw new Error("Invalid precision must not commit"); },
+        async rollback() { expiryPrecisionRollback = true; },
+        release() { expiryPrecisionReleased = true; },
+      };
+    },
+  }, {
+    plan_id: crypto.randomUUID(),
+    bundle_ref: "staging-gateway:subsecond-regression",
+    _planBody: { purpose: "transaction_certification", expires_at: "2026-10-08T01:00:38.707Z" },
+    resource_binding: { binding_id: bindingId },
+    workspace: { workspace_id: platformWorkspaceId },
+    expires_at: "2026-10-08T01:00:38.707Z",
+  }, { files: [] }, { env: storageEnv }),
+  (error) => error?.code === "staging_gateway_plan_expiry_precision_invalid",
+  "MariaDB TIMESTAMP(0) cannot round-trip canonical subsecond plan expiry"
+);
+assert.equal(expiryPrecisionRollback, true);
+assert.equal(expiryPrecisionReleased, true);
+
 assert.notEqual((await buildActivationGatewayRolloutPlan({ account_id: accountId, expected_source_commit: sourceSha,
   expected_policy_hash: staging.expected_policy_hash, environment_convergence_plan_sha256: convergencePlanSha },
 { runtimePool: previewRuntimePool, governancePool: previewGovernancePool, auth, env: { STAGING_ACTIVATION_GATEWAY_APPLY_ENABLED: "true", DEPLOYMENT_MANIFEST_JSON: JSON.stringify({ repository: "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os", branch: "main", commit_sha: sourceSha }) },
@@ -404,6 +500,20 @@ const savedArtifacts = new Map();
 const savedPlans = new Map();
 const envelopeBindings = new Map();
 const envelopeStates = new Map();
+let dispatchCertificationState = {
+  certification_key: "staging_activation_gateway_apply_v1",
+  certification_status: "certified",
+  smoke_strategy: "independent_same_cycle_staging_gateway_transaction_certification",
+  dispatch_allowed: 1,
+  apply_allowed: 1,
+  requires_resource_authority: 1,
+  requires_dry_run: 1,
+  requires_audit_evidence: 1,
+  requires_readback: 1,
+  last_evidence_ref: `staging-gateway-certification:${sourceSha}:${staging.expected_policy_hash}:${"c".repeat(64)}`,
+  last_certified_at: "2026-10-07T00:00:00.000Z",
+  expires_at: "2099-10-07T00:00:00.000Z",
+};
 const governancePool = {
   async query(sql, params = []) {
     const statement = String(sql);
@@ -420,7 +530,7 @@ const governancePool = {
     if (statement.includes("FROM staging_activation_gateway_envelope_plan_bindings"))
       return [envelopeBindings.has(params[0]) ? [envelopeBindings.get(params[0])] : []];
     if (statement.includes("FROM runtime_dispatch_certification_registry"))
-      return [[{ certification_status: "certified", dispatch_allowed: 1, apply_allowed: 1, requires_readback: 1 }]];
+      return [[{ ...dispatchCertificationState }]];
     if (statement.includes("UPDATE capability_resolution_envelope_ledger")) {
       const id = params.at(-1); const state = envelopeStates.get(id);
       if (!state || (statement.includes("execution_status IN") && !["not_executed", "referenced"].includes(state.execution_status))) return [{ affectedRows: 0 }];
@@ -453,14 +563,44 @@ const governancePool = {
         }
         if (String(sql).includes("INSERT INTO staging_activation_gateway_execution_plans")) {
           const body = JSON.parse(params[2]);
+          assert.equal(params[13] instanceof Date, true, "execution-plan expires_at must bind as a Date for MariaDB TIMESTAMP compatibility");
+          assert.equal(Number.isFinite(params[13].getTime()), true, "execution-plan expiry Date must be valid");
+          const persistedExpiry = new Date(Math.trunc(params[13].getTime() / 1000) * 1000).toISOString();
+          assert.equal(persistedExpiry, body.expires_at,
+            "MariaDB TIMESTAMP(0) readback must preserve the exact plan-body expiry");
           savedPlans.set(params[0], {
             plan_id: params[0], plan_sha256: params[1], plan_body_json: params[2],
             environment_convergence_plan_sha256: params[3], expected_source_commit: params[4],
             expected_policy_hash: params[5], resource_binding_id: params[6], workspace_id: params[7],
             bundle_sha256: params[8], secret_set_sha256: params[9], trust_key_id: params[10],
-            trust_public_key_sha256: params[11], bundle_ref: params[12], expires_at: body.expires_at,
+            trust_public_key_sha256: params[11], bundle_ref: params[12], expires_at: persistedExpiry,
             status: "ready",
           }); return [{ affectedRows: 1 }];
+        }
+        if (String(sql).includes("UPDATE runtime_dispatch_certification_registry")) {
+          if (dispatchCertificationState.certification_status !== "pending"
+            || Number(dispatchCertificationState.dispatch_allowed) !== 0
+            || Number(dispatchCertificationState.apply_allowed) !== 0) return [{ affectedRows: 0 }];
+          dispatchCertificationState = {
+            ...dispatchCertificationState,
+            certification_status: "certified",
+            dispatch_allowed: 1,
+            apply_allowed: 1,
+            requires_readback: 1,
+            last_evidence_ref: params[0],
+            last_certified_at: "2026-10-07T12:00:00.000Z",
+            expires_at: params[1] instanceof Date ? params[1].toISOString() : params[1],
+          };
+          return [{ affectedRows: 1 }];
+        }
+        if (String(sql).includes("FROM runtime_dispatch_certification_registry"))
+          return [[{ ...dispatchCertificationState }]];
+        if (String(sql).includes("UPDATE staging_activation_gateway_execution_plans")
+          && String(sql).includes("status='succeeded'")) {
+          const state = savedPlans.get(params[0]);
+          if (!state || state.status !== "executing") return [{ affectedRows: 0 }];
+          state.status = "succeeded";
+          return [{ affectedRows: 1 }];
         }
         throw new Error(`Unexpected execution plan store query: ${sql}`);
       },
@@ -499,11 +639,34 @@ assert.match(adapterSource, /markCapabilityEnvelopeReferenced\(\{ writerPool: go
 assert.match(adapterSource, /transitionCapabilityEnvelopeLifecycle\(\{ writerPool: governancePool/iu);
 await assert.rejects(runtimePool.query("INSERT INTO staging_activation_gateway_execution_plans VALUES (?)", ["forbidden"]), /runtime pool has no governance mutation authority/u);
 await assert.rejects(runtimePool.getConnection(), /runtime pool cannot write execution plans/u);
-const executionEnv = { ...storageEnv, STAGING_ACTIVATION_GATEWAY_APPLY_ENABLED: "true", DEPLOYMENT_MANIFEST_JSON: JSON.stringify({ repository: "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os", branch: "main", commit_sha: sourceSha }) };
+const executionEnv = { ...storageEnv, REMOTE_MCP_ENVIRONMENT: "staging", STAGING_ACTIVATION_GATEWAY_APPLY_ENABLED: "true", DEPLOYMENT_MANIFEST_JSON: JSON.stringify({ repository: "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os", branch: "main", commit_sha: sourceSha }) };
 const dryRunInput = { mode: "dry_run", account_id: accountId, expected_source_commit: sourceSha,
   expected_policy_hash: staging.expected_policy_hash, environment_convergence_plan_sha256: convergencePlanSha };
+const certificationExactHealth = { ok: true, stale: false, policyKey: staging.policy_key,
+  policyHash: staging.expected_policy_hash, sourceCommit: sourceSha, workerBuildSha: sourceSha,
+  workerBundleSha256: "a".repeat(64), secretsIncluded: false };
+const certificationExactReady = { ok: true, policyHash: staging.expected_policy_hash, upstreamSourceCommit: sourceSha,
+  recoveryTrustedIngress: { contract: "mad4b.staging.activation-recovery-origin-trust.v2",
+    key_id: "cert-old-key", public_key: "cert-old-public",
+    policy_hash: staging.expected_policy_hash, deployment_sha: sourceSha,
+    worker_bundle_sha256: "a".repeat(64), trusted_ingress_mode: "signature", secrets_included: false } };
+const classifyTrust = _testingStagingGatewayTransaction.classifyStagingGatewayCertificationBaseline;
+assert.equal(classifyTrust({ ok: true, status: 200, body: certificationExactHealth },
+  { ok: true, status: 200, body: certificationExactReady }, sourceSha, staging.expected_policy_hash).mode, "healthy_exact");
+for (const invalidTrust of [
+  null,
+  { ...certificationExactReady.recoveryTrustedIngress, worker_bundle_sha256: "c".repeat(64) },
+  { ...certificationExactReady.recoveryTrustedIngress, secrets_included: true },
+  { ...certificationExactReady.recoveryTrustedIngress, policy_hash: "c".repeat(64) },
+]) {
+  assert.equal(classifyTrust({ ok: true, status: 200, body: certificationExactHealth },
+    { ok: true, status: 200, body: { ...certificationExactReady, recoveryTrustedIngress: invalidTrust } },
+    sourceSha, staging.expected_policy_hash).ready, false, "healthy baseline must reject incomplete ingress trust");
+}
+const certificationExactFetch = async (url) => new Response(JSON.stringify(
+  url.endsWith("/health") ? certificationExactHealth : certificationExactReady), { status: 200 });
 const executionDeps = { runtimePool, governancePool, auth, env: executionEnv, cloudflareClient: fakeCloudflareClient,
-  registry, repositoryRoot: root };
+  registry, repositoryRoot: root, smokeFetch: certificationExactFetch };
 const firstExecution = await runStagingActivationGatewayApply(dryRunInput, executionDeps);
 const secondExecution = await runStagingActivationGatewayApply(dryRunInput, executionDeps);
 assert.notEqual(firstExecution.plan_sha256, secondExecution.plan_sha256);
@@ -526,8 +689,8 @@ const rollbackClient = { async request(request) {
   if (request.method === "POST") return { ok: true };
   return { ok: true, result: [{ id: "restored", versions: previous.versions }] };
 } };
-const previousHealth = { ok: true, body: { ok: true, sourceCommit: "old" } };
-const previousReady = { ok: true, body: { ok: true, trustedIngress: { key_id: "old-key" } } };
+const previousHealth = { ok: true, status: 200, body: { ok: true, sourceCommit: "old" } };
+const previousReady = { ok: true, status: 200, body: { ok: true, trustedIngress: { key_id: "old-key" } } };
 const rollbackFetch = async (url) => new Response(JSON.stringify(url.endsWith("/health")
   ? previousHealth.body : previousReady.body), { status: 200 });
 const restored = await _testingStagingGatewayTransaction.rollback({ client: rollbackClient,
@@ -609,11 +772,17 @@ const candidateHealth = { ok: true, stale: false, policyKey: staging.policy_key,
 const candidateReady = { ok: true, policyHash: staging.expected_policy_hash, upstreamSourceCommit: sourceSha,
   recoveryTrustedIngress: otherBundle.origin_trust };
 const smokeFetch = async (url) => new Response(JSON.stringify(deployedCandidate
-  ? (url.endsWith("/health") ? candidateHealth : { ...candidateReady, recoveryTrustedIngress: currentCandidateBundle.origin_trust })
+  ? (url.endsWith("/health") ? { ...candidateHealth, workerBundleSha256: currentCandidateBundle.worker_bundle_sha256 }
+    : { ...candidateReady, recoveryTrustedIngress: currentCandidateBundle.origin_trust })
   : (url.endsWith("/health")
-    ? { ok: true, sourceCommit: "b".repeat(40), policyHash: staging.expected_policy_hash }
-    : { ok: true, upstreamSourceCommit: "b".repeat(40), recoveryTrustedIngress: {
-      key_id: "old-key", public_key: "old-public" } })), { status: 200 });
+    ? { ok: true, stale: false, policyKey: staging.policy_key, sourceCommit: "b".repeat(40),
+      workerBuildSha: "b".repeat(40), workerBundleSha256: "b".repeat(64),
+      secretsIncluded: false, policyHash: staging.expected_policy_hash }
+    : { ok: true, upstreamSourceCommit: "b".repeat(40), policyHash: staging.expected_policy_hash,
+      recoveryTrustedIngress: { contract: "mad4b.staging.activation-recovery-origin-trust.v2",
+        key_id: "old-key", public_key: "old-public", policy_hash: staging.expected_policy_hash,
+        deployment_sha: "b".repeat(40), worker_bundle_sha256: "b".repeat(64),
+        trusted_ingress_mode: "signature", secrets_included: false } })), { status: 200 });
 const auditActions = [];
 const applied = await runStagingActivationGatewayApply({ ...dryRunInput, mode: "apply",
   plan_id: secondExecution.plan_id, plan_sha256: secondExecution.plan_sha256,
@@ -629,6 +798,288 @@ assert.equal(providerCalls.filter((call) => call.method === "POST" && call.apiPa
 assert.equal(providerCalls.filter((call) => call.method === "PUT").length, 0);
 assert.equal(savedPlans.get(secondExecution.plan_id).status, "succeeded");
 assert.equal(envelopeStates.get("successful-execution-envelope").execution_status, "executed");
+
+dispatchCertificationState = {
+  certification_key: "staging_activation_gateway_apply_v1",
+  certification_status: "pending",
+  smoke_strategy: "independent_same_cycle_staging_gateway_transaction_certification",
+  dispatch_allowed: 0,
+  apply_allowed: 0,
+  requires_resource_authority: 1,
+  requires_dry_run: 1,
+  requires_audit_evidence: 1,
+  requires_readback: 1,
+  last_evidence_ref: null,
+  last_certified_at: null,
+  expires_at: null,
+};
+const certificationPlanPreview = await buildStagingActivationGatewayCertificationPlan({
+  expected_source_commit: sourceSha,
+  expected_policy_hash: staging.expected_policy_hash,
+  environment_convergence_plan_sha256: convergencePlanSha,
+}, executionDeps);
+assert.equal(certificationPlanPreview.plan_purpose, "transaction_certification");
+assert.equal(certificationPlanPreview.apply_ready, false);
+assert.equal(certificationPlanPreview.certification_ready, true);
+assert.equal(new Date(certificationPlanPreview.expires_at).getUTCMilliseconds(), 0);
+assert.equal(certificationPlanPreview.checks.find((check) => check.key === "dispatch_certification_requires_certification")?.ok, true);
+assert.match(
+  certificationPlanPreview.required_confirmation,
+  new RegExp(`^CERTIFY_STAGING_GATEWAY_TRANSACTION_${sourceSha.slice(0, 12).toUpperCase()}_[0-9A-F]{12}$`, "u"),
+);
+
+const certificationPrepared = await runStagingActivationGatewayTransactionCertification({
+  mode: "prepare",
+  expected_source_commit: sourceSha,
+  expected_policy_hash: staging.expected_policy_hash,
+  environment_convergence_plan_sha256: convergencePlanSha,
+}, executionDeps);
+assert.equal(certificationPrepared.classification, "staging_activation_gateway_certification_ready");
+assert.equal(certificationPrepared.governance_state_mutation, true);
+assert.equal(new Date(certificationPrepared.expires_at).getUTCMilliseconds(), 0);
+assert.equal(savedPlans.get(certificationPrepared.plan_id).status, "ready");
+assert.equal(JSON.parse(savedPlans.get(certificationPrepared.plan_id).plan_body_json).purpose, "transaction_certification");
+await assert.rejects(
+  runStagingActivationGatewayApply({
+    mode: "apply",
+    plan_id: certificationPrepared.plan_id,
+    plan_sha256: certificationPrepared.plan_sha256,
+    environment_convergence_plan_sha256: convergencePlanSha,
+    confirm: certificationPrepared.required_confirmation,
+    capability_envelope_id: "successful-execution-envelope",
+    execution_nonce: "nonce:cert-plan-cannot-apply",
+  }, { ...executionDeps, audit: async () => {} }),
+  (error) => error?.code === "staging_activation_gateway_stale_plan",
+);
+
+const certificationProviderCalls = [];
+let certificationCandidateDeployed = false;
+const certificationCandidateVersionId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+const certificationProvider = {
+  token_present: true,
+  async request(request) {
+    certificationProviderCalls.push(request);
+    if (request.method === "GET" && request.apiPath.endsWith(`/scripts/${scriptName}`))
+      return { ok: true, result: {} };
+    if (request.method === "GET" && request.apiPath.endsWith("/deployments"))
+      return { ok: true, result: [{
+        id: certificationCandidateDeployed ? "cert-candidate-deployment" : "previous-cert-baseline",
+        versions: [{ version_id: certificationCandidateDeployed ? certificationCandidateVersionId : "old-version", percentage: 100 }],
+      }] };
+    if (request.method === "POST" && request.apiPath.endsWith("/versions"))
+      return { ok: true, result: { id: certificationCandidateVersionId } };
+    if (request.method === "POST" && request.apiPath.endsWith("/deployments?force=true")) {
+      certificationCandidateDeployed = false;
+      return { ok: true };
+    }
+    if (request.method === "POST" && request.apiPath.endsWith("/deployments")) {
+      certificationCandidateDeployed = true;
+      return { ok: true };
+    }
+    throw new Error(`Unexpected certification provider request: ${request.method} ${request.apiPath}`);
+  },
+};
+const certificationPreparedBundle = openStagingGatewayArtifact(
+  savedArtifacts.get(certificationPrepared.bundle_ref),
+  { env: executionEnv, planId: certificationPrepared.plan_id }).bundle;
+const certificationSmokeFetch = async (url) => {
+  if (!certificationCandidateDeployed) return certificationExactFetch(url);
+  const publicHealth = { ...certificationExactHealth,
+    workerBundleSha256: certificationPreparedBundle.worker_bundle_sha256 };
+  const publicReady = { ...certificationExactReady,
+    recoveryTrustedIngress: certificationPreparedBundle.origin_trust };
+  return new Response(JSON.stringify(url.endsWith("/health") ? publicHealth : publicReady), { status: 200 });
+};
+const certificationAuditActions = [];
+const certified = await runStagingActivationGatewayTransactionCertification({
+  mode: "apply",
+  plan_id: certificationPrepared.plan_id,
+  plan_sha256: certificationPrepared.plan_sha256,
+  environment_convergence_plan_sha256: convergencePlanSha,
+  confirm: certificationPrepared.required_confirmation,
+}, {
+  ...executionDeps,
+  cloudflareClient: certificationProvider,
+  smokeFetch: certificationSmokeFetch,
+  audit: async ({ action }) => { certificationAuditActions.push(action); },
+  repositoryRoot: "/this-path-must-not-be-read-during-certification-apply",
+});
+assert.equal(certified.classification, "staging_activation_gateway_transaction_certified");
+assert.equal(certified.rollback.rollback_verified, true);
+assert.equal(certified.candidate_retained, false);
+assert.equal(certificationCandidateDeployed, false);
+assert.deepEqual(certificationAuditActions, [
+  "activation_gateway.staging_transaction_certification.intent",
+  "activation_gateway.staging_transaction_certification",
+]);
+assert.equal(
+  certificationProviderCalls.some((call) => call.method === "POST" && call.apiPath.endsWith("/deployments?force=true")),
+  true,
+);
+assert.equal(dispatchCertificationState.certification_status, "certified");
+assert.equal(dispatchCertificationState.dispatch_allowed, 1);
+assert.equal(dispatchCertificationState.apply_allowed, 1);
+assert.match(
+  dispatchCertificationState.last_evidence_ref,
+  new RegExp(`^staging-gateway-certification:${sourceSha}:${staging.expected_policy_hash}:[0-9a-f]{64}$`, "u"),
+);
+assert.equal(savedPlans.get(certificationPrepared.plan_id).status, "succeeded");
+assert.equal(certified.candidate_public_ready_verified, true);
+assert.equal(certified.rollback.baseline_mode, "healthy_exact");
+assert.equal(certified.rollback.degraded_baseline_restored, false);
+
+// Regression: a healthy old Worker must be recoverable when /ready fails ONLY
+// because its source identity lags the exact, certified Staging upstream.
+const sourceDrift = "b".repeat(40);
+const driftError = { error: { code: "GATEWAY_UPSTREAM_DEPLOYMENT_EVIDENCE_MISMATCH",
+  details: { policy_hash_matches: true, source_commit_matches: false } }, secretsIncluded: false };
+const driftHealth = { ok: true, stale: false, policyKey: staging.policy_key,
+  policyHash: staging.expected_policy_hash, sourceCommit: sourceDrift, workerBuildSha: sourceDrift,
+  workerBundleSha256: "b".repeat(64), secretsIncluded: false };
+const negativeClassification = _testingStagingGatewayTransaction.classifyStagingGatewayCertificationBaseline;
+assert.equal(negativeClassification({ ok: true, status: 200, body: driftHealth },
+  { ok: false, status: 503, body: driftError }, sourceSha, staging.expected_policy_hash).mode, "release_identity_drift");
+for (const forbidden of [
+  { health: { ...driftHealth, stale: true }, error: driftError },
+  { health: { ...driftHealth, policyHash: "e".repeat(64) }, error: driftError },
+  { health: { ...driftHealth, workerBuildSha: sourceSha }, error: driftError },
+  { health: { ...driftHealth, workerBundleSha256: null }, error: driftError },
+  { health: { ...driftHealth, secretsIncluded: true }, error: driftError },
+  { health: driftHealth, error: { error: { ...driftError.error,
+    details: { policy_hash_matches: false, source_commit_matches: false } } } },
+  { health: driftHealth, error: { error: { code: "GATEWAY_POLICY_STALE",
+    details: { policy_hash_matches: true, source_commit_matches: false } } } },
+]) {
+  assert.equal(negativeClassification({ ok: true, status: 200, body: forbidden.health },
+    { ok: false, status: 503, body: forbidden.error }, sourceSha,
+    staging.expected_policy_hash).ready, false, "unrelated drift must be rejected");
+}
+
+dispatchCertificationState = {
+  certification_key: "staging_activation_gateway_apply_v1",
+  certification_status: "pending",
+  smoke_strategy: "independent_same_cycle_staging_gateway_transaction_certification",
+  dispatch_allowed: 0, apply_allowed: 0,
+  requires_resource_authority: 1, requires_dry_run: 1, requires_audit_evidence: 1,
+  requires_readback: 1, last_evidence_ref: null, last_certified_at: null, expires_at: null,
+};
+let driftCandidateDeployed = false;
+let driftPreparedBundle = null;
+let delayedPermanentCandidateHealthReads = 0;
+let driftBaselineBundleOverride = null;
+const driftSmokeFetch = async (url) => {
+  const health = driftCandidateDeployed
+    ? { ...certificationExactHealth, workerBundleSha256: driftPreparedBundle.worker_bundle_sha256 }
+    : { ...driftHealth, workerBundleSha256: driftBaselineBundleOverride || driftHealth.workerBundleSha256 };
+  if (url.endsWith("/health")) {
+    if (driftCandidateDeployed && delayedPermanentCandidateHealthReads > 0) {
+      delayedPermanentCandidateHealthReads--;
+      return new Response(JSON.stringify(driftHealth), { status: 200 });
+    }
+    return new Response(JSON.stringify(health), { status: 200 });
+  }
+  return driftCandidateDeployed
+    ? new Response(JSON.stringify({ ...certificationExactReady,
+      recoveryTrustedIngress: driftPreparedBundle.origin_trust }), { status: 200 })
+    : new Response(JSON.stringify(driftError), { status: 503 });
+};
+const driftDeps = { ...executionDeps, smokeFetch: driftSmokeFetch };
+const driftPreview = await buildStagingActivationGatewayCertificationPlan({
+  expected_source_commit: sourceSha,
+  expected_policy_hash: staging.expected_policy_hash,
+  environment_convergence_plan_sha256: convergencePlanSha,
+}, driftDeps);
+assert.equal(driftPreview.certification_ready, true);
+assert.equal(driftPreview.certification_baseline.mode, "release_identity_drift");
+assert.equal(driftPreview.certification_baseline.observed_source_commit, sourceDrift);
+assert.equal(driftPreview.checks.find((check) => check.key === "certification_public_baseline_supported")?.ok, true);
+const driftPrepared = await runStagingActivationGatewayTransactionCertification({
+  mode: "prepare", expected_source_commit: sourceSha,
+  expected_policy_hash: staging.expected_policy_hash,
+  environment_convergence_plan_sha256: convergencePlanSha,
+}, driftDeps);
+const boundDriftBaseline = JSON.parse(savedPlans.get(driftPrepared.plan_id).plan_body_json).certification_baseline;
+assert.equal(boundDriftBaseline.observed_source_commit, sourceDrift);
+assert.equal(boundDriftBaseline.observed_worker_bundle_sha256, driftHealth.workerBundleSha256);
+// Replacing Worker bytes with the same source SHA must invalidate the exact prepared plan.
+driftBaselineBundleOverride = "c".repeat(64);
+await assert.rejects(runStagingActivationGatewayTransactionCertification({
+  mode: "apply", plan_id: driftPrepared.plan_id, plan_sha256: driftPrepared.plan_sha256,
+  environment_convergence_plan_sha256: convergencePlanSha, confirm: driftPrepared.required_confirmation,
+}, { ...driftDeps, audit: async () => {} }),
+(error) => error?.code === "staging_activation_gateway_certification_baseline_drifted");
+assert.equal(savedPlans.get(driftPrepared.plan_id).status, "ready", "stale baseline must fail before plan claim or Cloudflare writes");
+driftBaselineBundleOverride = null;
+driftPreparedBundle = openStagingGatewayArtifact(savedArtifacts.get(driftPrepared.bundle_ref),
+  { env: executionEnv, planId: driftPrepared.plan_id }).bundle;
+const driftCalls = [];
+const driftProvider = { token_present: true, async request(request) {
+  driftCalls.push(request);
+  if (request.method === "GET" && request.apiPath.endsWith(`/scripts/${scriptName}`))
+    return { ok: true, result: {} };
+  if (request.method === "GET" && request.apiPath.endsWith("/deployments"))
+    return { ok: true, result: [{ id: driftCandidateDeployed ? "candidate-drift" : "old-drift",
+      versions: [{ version_id: driftCandidateDeployed ? certificationCandidateVersionId : "old-version", percentage: 100 }] }] };
+  if (request.method === "POST" && request.apiPath.endsWith("/versions"))
+    return { ok: true, result: { id: certificationCandidateVersionId } };
+  if (request.method === "POST" && request.apiPath.endsWith("/deployments?force=true")) {
+    driftCandidateDeployed = false; return { ok: true };
+  }
+  if (request.method === "POST" && request.apiPath.endsWith("/deployments")) {
+    driftCandidateDeployed = true; return { ok: true };
+  }
+  throw new Error(`Unexpected drift provider request: ${request.method} ${request.apiPath}`);
+} };
+const driftCertified = await runStagingActivationGatewayTransactionCertification({
+  mode: "apply", plan_id: driftPrepared.plan_id, plan_sha256: driftPrepared.plan_sha256,
+  environment_convergence_plan_sha256: convergencePlanSha, confirm: driftPrepared.required_confirmation,
+}, { ...driftDeps, cloudflareClient: driftProvider, audit: async () => {},
+  repositoryRoot: "/do-not-rebuild-the-certified-plan" });
+assert.equal(driftCertified.classification, "staging_activation_gateway_transaction_certified");
+assert.equal(driftCertified.candidate_public_ready_verified, true);
+assert.equal(driftCertified.rollback.rollback_verified, true);
+assert.equal(driftCertified.rollback.baseline_mode, "release_identity_drift");
+assert.equal(driftCertified.rollback.public_trust_restored, false);
+assert.equal(driftCertified.rollback.degraded_baseline_restored, true);
+assert.equal(driftCertified.candidate_retained, false);
+assert.equal(driftCandidateDeployed, false);
+assert.equal(savedPlans.get(driftPrepared.plan_id).status, "succeeded");
+assert.equal(driftCalls.some((call) => call.method === "POST" && call.apiPath.endsWith("/deployments?force=true")), true);
+assert.equal(driftCalls.some((call) => call.method === "DELETE"), false);
+
+// Regression: independent certification restores the old degraded Worker;
+// governed permanent apply must now be able to replace that very baseline.
+const driftApplyPlan = await runStagingActivationGatewayApply(dryRunInput, driftDeps);
+registerEnvelope(driftApplyPlan, "drift-recovery-permanent-apply-envelope");
+driftPreparedBundle = openStagingGatewayArtifact(savedArtifacts.get(driftApplyPlan.bundle_ref),
+  { env: executionEnv, planId: driftApplyPlan.plan_id }).bundle;
+// Simulate Cloudflare edge propagation lag after provider deployment readback.
+delayedPermanentCandidateHealthReads = 2;
+const permanentRecovered = await runStagingActivationGatewayApply({
+  ...dryRunInput, mode: "apply",
+  plan_id: driftApplyPlan.plan_id, plan_sha256: driftApplyPlan.plan_sha256,
+  confirm: driftApplyPlan.required_confirmation,
+  capability_envelope_id: "drift-recovery-permanent-apply-envelope",
+  execution_nonce: "nonce:drift-recovery:123456",
+}, { ...driftDeps, cloudflareClient: driftProvider, audit: async () => {},
+  repositoryRoot: "/do-not-rebuild-permanent-recovery-bundle" });
+assert.equal(permanentRecovered.classification, "staging_activation_gateway_apply_succeeded");
+assert.equal(permanentRecovered.execution.executed, true);
+assert.equal(permanentRecovered.readback.health.ok, true);
+assert.equal(permanentRecovered.readback.ready.ok, true);
+assert.equal(delayedPermanentCandidateHealthReads, 0, "permanent readback must retry until exact edge convergence");
+assert.equal(driftCandidateDeployed, true);
+assert.equal(savedPlans.get(driftApplyPlan.plan_id).status, "succeeded");
+assert.equal(envelopeStates.get("drift-recovery-permanent-apply-envelope").execution_status, "executed");
+
+const applyAfterCertification = await buildStagingActivationGatewayApplyPlan({
+  expected_source_commit: sourceSha,
+  expected_policy_hash: staging.expected_policy_hash,
+  environment_convergence_plan_sha256: convergencePlanSha,
+}, executionDeps);
+assert.equal(applyAfterCertification.apply_ready, true);
+assert.equal(applyAfterCertification.checks.find((check) => check.key === "dispatch_certification_ready")?.ok, true);
+
 const thirdExecution = await runStagingActivationGatewayApply(dryRunInput, executionDeps);
 deployedCandidate = false;
 currentCandidateBundle = openStagingGatewayArtifact(savedArtifacts.get(thirdExecution.bundle_ref),

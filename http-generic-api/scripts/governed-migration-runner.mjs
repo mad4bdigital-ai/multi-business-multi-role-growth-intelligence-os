@@ -283,6 +283,8 @@ const LEGACY_BOOTSTRAP_ALLOWED_MIGRATIONS = new Set([
   "20260702_dynamic_capability_readback_source_link_fix.sql",
   "20260721_repository_authority_capability_bindings_v2.sql",
   "20260813_virtual_tool_endpoint_scoped_capability_identity.sql",
+  "20261008_admin_local_connector_target_catalog_alignment.sql",
+  "20261009_hostinger_recovery_allowlist_discovery.sql",
 ]);
 
 const RUNNER_VERSION = "governed-migration-runner-v3";

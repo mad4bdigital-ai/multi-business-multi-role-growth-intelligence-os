@@ -4,6 +4,7 @@ param(
     [string]$Mode = "Status",
     [string]$RepositoryPath = "",
     [switch]$RepairTasks,
+    [switch]$RepairMissingSupervisor,
     [switch]$OpenLogFolder,
     [int]$Tail = 80
 )
@@ -58,8 +59,17 @@ function Test-CommandCheck([System.Collections.Generic.List[object]]$Checks, [st
 
 function Get-TaskCheck([System.Collections.Generic.List[object]]$Checks, [string]$Name) {
     $task = Get-ScheduledTask -TaskName $Name -ErrorAction SilentlyContinue
-    $detail = if ($task) { [string]$task.State } else { "missing" }
-    Add-Check $Checks "scheduled-task:$Name" ($null -ne $task) $detail $true
+    $continuous = $Name -in @("MAD4B Staging Auto Deploy", "MAD4B Staging Health Monitor", "MAD4B Staging Autonomous Supervisor")
+    $info = if ($null -ne $task) { Get-ScheduledTaskInfo -TaskName $Name -ErrorAction SilentlyContinue } else { $null }
+    $running = ($null -ne $task -and [string]$task.State -eq "Running")
+    $lastResult = if ($null -ne $info) { [int64]$info.LastTaskResult } else { $null }
+    # A registered task is not necessarily a running watcher; Ready/LastResult=1
+    # after reboot is a failure, not evidence that the supervisor is healthy.
+    $ok = $null -ne $task -and [string]$task.State -ne "Disabled" -and (
+        $running -or (-not $continuous -and $lastResult -eq 0)
+    )
+    $detail = if ($null -eq $task) { "missing" } else { "state=$($task.State); last_result=$lastResult; continuous=$continuous" }
+    Add-Check $Checks "scheduled-task:$Name" $ok $detail $true
 }
 
 function Invoke-Status {
@@ -69,12 +79,24 @@ function Invoke-Status {
     Test-CommandCheck $checks "gh"
     Test-CommandCheck $checks "wsl"
     Add-Check $checks "repository:path" (Test-Path (Join-Path $RepositoryPath ".git")) $RepositoryPath $false
+    $expectedBranch = [string]$Policy.ref
     $branch = "unknown"
+    $branchEligible = $false
     $gitCommand = Get-Command git -ErrorAction SilentlyContinue
     if ($null -ne $gitCommand -and (Test-Path (Join-Path $RepositoryPath ".git"))) {
         $branch = ((& git -C $RepositoryPath branch --show-current 2>$null | Out-String).Trim())
+        $branchEligible = ($LASTEXITCODE -eq 0) -and ($branch -eq $expectedBranch)
+        if (-not $branchEligible -and [string]::IsNullOrWhiteSpace($branch)) {
+            # Local remote-tracking equality is an observation only; deployment verifies live remote authority.
+            $localSha = ((& git -C $RepositoryPath rev-parse HEAD 2>$null | Out-String).Trim())
+            $localShaValid = ($LASTEXITCODE -eq 0) -and ($localSha -match '^[0-9a-fA-F]{40}$')
+            $remoteSha = ((& git -C $RepositoryPath rev-parse --verify "refs/remotes/origin/$expectedBranch" 2>$null | Out-String).Trim())
+            $remoteShaValid = ($LASTEXITCODE -eq 0) -and ($remoteSha -match '^[0-9a-fA-F]{40}$')
+            $branchEligible = $localShaValid -and $remoteShaValid -and ($localSha -eq $remoteSha)
+            $branch = if ($branchEligible) { "detached:exact-local-origin-$expectedBranch" } else { "detached:not-exact-local-origin-$expectedBranch" }
+        }
     }
-    Add-Check $checks "repository:branch" ($branch -eq "main") $branch $false
+    Add-Check $checks "repository:branch" $branchEligible $branch $false
     $dirty = @()
     if (Test-Path (Join-Path $RepositoryPath ".git")) { $dirty = @(git -C $RepositoryPath status --porcelain --untracked-files=all) }
     $cleanDetail = if ($dirty.Count -eq 0) { "clean" } else { "dirty_files=$($dirty.Count)" }
@@ -87,17 +109,19 @@ function Invoke-Status {
         $envDetail = if ($actual -eq $expected) { $expected } else { "drift_or_missing" }
         Add-Check $checks "env:$key" ($actual -eq $expected) $envDetail $false
     }
-    foreach ($host in $Policy.forbidden_hosts) {
+    foreach ($forbiddenHostname in $Policy.forbidden_hosts) {
         $found = $false
-        if (Test-Path $envFile) { $found = (Get-Content -Raw $envFile) -match [regex]::Escape($host) }
+        if (Test-Path $envFile) { $found = (Get-Content -Raw $envFile) -match [regex]::Escape($forbiddenHostname) }
         $hostDetail = if ($found) { "found" } else { "absent" }
-        Add-Check $checks "forbidden-host:$host" (-not $found) $hostDetail $false
+        Add-Check $checks "forbidden-host:$forbiddenHostname" (-not $found) $hostDetail $false
     }
     Add-Check $checks "logs:directory" (Test-Path $logRoot) $logRoot $true
     Add-Check $checks "logs:latest-status" (Test-Path (Join-Path $logRoot "latest-status.json")) "latest-status.json" $false
     Add-Check $checks "logs:health-snapshot" (Test-Path (Join-Path $logRoot "health-snapshot.json")) "health-snapshot.json" $false
     Get-TaskCheck $checks ([string]$Policy.tasks.auto_deploy)
     Get-TaskCheck $checks ([string]$Policy.tasks.health_monitor)
+    Get-TaskCheck $checks "MAD4B Staging Docker Bootstrap"
+    Get-TaskCheck $checks "MAD4B Staging Autonomous Supervisor"
     $healthScript = Join-Path $PSScriptRoot "Staging-HealthMonitor.ps1"
     if (Test-Path $healthScript) {
         & powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File $healthScript -RepositoryPath $RepositoryPath -Once
@@ -117,11 +141,19 @@ function Invoke-Repair {
     Write-StagingOperationBoundary -Component $LogComponent -Stage "repair" -Outcome "start" -Message "safe maintenance repair started"
     New-Item -ItemType Directory -Force -Path $logRoot | Out-Null
     Rotate-StagingOperationsLog
+    if ($RepairTasks -and $RepairMissingSupervisor) { Fail "Choose one repair mode; broad task replacement and additive supervisor must not combine" }
     if ($RepairTasks) {
         $installer = Join-Path $PSScriptRoot "Install-AutoDeployTask.ps1"
         if (-not (Test-Path $installer)) { Fail "task installer is missing" }
         & powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File $installer -RepositoryPath $RepositoryPath
         if ($LASTEXITCODE -ne 0) { Fail "scheduled task repair failed" }
+    }
+    if ($RepairMissingSupervisor) {
+        $installer = Join-Path $PSScriptRoot "Install-AutonomousSupervisorTask.ps1"
+        if (-not (Test-Path -LiteralPath $installer -PathType Leaf)) { Fail "additive supervisor installer missing" }
+        & powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File $installer -RepositoryPath $RepositoryPath -Activate
+        if ($LASTEXITCODE -ne 0) { Fail "governed additive supervisor repair failed" }
+        Write-StagingLog -Level info -Component $LogComponent -Stage "repair" -Message "additive existing-checkout supervisor repair read back" -Data @{ task = "MAD4B Staging Autonomous Supervisor"; production_mutation = $false }
     }
     $healthScript = Join-Path $PSScriptRoot "Staging-HealthMonitor.ps1"
     & powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File $healthScript -RepositoryPath $RepositoryPath -Once

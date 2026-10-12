@@ -58,6 +58,7 @@ import {
   validateRemoteRuntimeTarget,
   planRemoteRuntimeDispatchDryRun,
 } from "../remoteRuntime.js";
+import { discoverHostingerRecoveryCapabilities } from "../hostingerRecoveryCapabilityDiscovery.js";
 import {
   executeHostingerSshDeployRelease,
   executeHostingerSshTargetProbe,
@@ -464,6 +465,19 @@ export function buildPlatformPluginRoutes({ requireBackendApiKey, requireAdminPr
       });
       return res.status(200).json(result);
     } catch (err) { return errorResponse(res, err, "remote_runtime_dispatch_dry_run_failed"); }
+  });
+
+  // Discovery-only. This does not confer SSH, hPanel database, environment or SQL authority.
+  router.post("/platform/remote-runtime/hosting/recovery-allowlist/discover", ...requireAdmin, async (req, res) => {
+    try {
+      const input = req.body && typeof req.body === "object" ? req.body : {};
+      const result = await discoverHostingerRecoveryCapabilities({
+        targetId: input.target_id,
+        environment: input.environment || "production",
+      });
+      res.setHeader("Cache-Control", "no-store");
+      return res.status(200).json(result);
+    } catch (err) { return errorResponse(res, err, "hostinger_recovery_discovery_failed"); }
   });
 
   router.post("/platform/remote-runtime/hosting/ssh-probe", ...requireAdmin, async (req, res) => {

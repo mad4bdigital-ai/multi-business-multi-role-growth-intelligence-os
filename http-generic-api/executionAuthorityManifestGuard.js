@@ -162,15 +162,15 @@ export function enforceExecutionAuthorityManifestGuard({
   manifest = null,
 } = {}, deps = {}) {
   const requestOverride = requestBool(requestPayload, "execution_authority_manifest_enforce");
-  const enforce = requestOverride === null
-    ? policyBool(
-        policies,
-        "Execution Authority Manifest Governance",
-        "Enforce Manifest Before Dispatch",
-        "FALSE",
-        deps
-      )
-    : requestOverride;
+  // Request data can opt IN to stricter verification but can never downgrade
+  // a server-owned enforcement policy or a trusted caller's mandatory floor.
+  const enforce = policyBool(
+    policies,
+    "Execution Authority Manifest Governance",
+    "Enforce Manifest Before Dispatch",
+    "FALSE",
+    deps
+  ) || deps.mandatoryManifestEnforcement === true || requestOverride === true;
 
   const strictReadiness = policyBool(
     policies,
@@ -179,14 +179,13 @@ export function enforceExecutionAuthorityManifestGuard({
     "TRUE",
     deps
   );
-  const requirePluginConnection = requestBool(requestPayload, "execution_authority_require_plugin_connection") ??
-    policyBool(
-      policies,
-      "Execution Authority Manifest Governance",
-      "Require Plugin Connection Before Dispatch",
-      "FALSE",
-      deps
-    );
+  const requirePluginConnection = policyBool(
+    policies,
+    "Execution Authority Manifest Governance",
+    "Require Plugin Connection Before Dispatch",
+    "FALSE",
+    deps
+  ) || requestBool(requestPayload, "execution_authority_require_plugin_connection") === true;
 
   if (!enforce) {
     return {

@@ -261,7 +261,14 @@ assert.doesNotMatch(connectorRepair, /Stop-Service -Name \$StagingTunnelRuntime/
 assert.match(connectorWatchdog, /function Ensure-RuntimeRunning/);
 assert.match(connectorWatchdog, /function Restart-RuntimeSafe/);
 assert.match(connectorWatchdog, /GrowthIntelligence-LocalConnector/);
-assert.match(connectorWatchdog, /https:\/\/connector\.mad4b\.com\/health/);
+// Public health is now derived from a canonical device-owned host, not a
+// shared historical hostname. A transport-only success cannot certify identity.
+assert.match(connectorWatchdog, /function Test-PublicHealthBinding/);
+assert.match(connectorWatchdog, /CONNECTOR_PUBLIC_HEALTH_URL/);
+assert.match(connectorWatchdog, /Test-PublicHealthBinding \$PublicHealthUrl/);
+assert.match(connectorWatchdog, /\$configId\.Substring\(0,8\)/);
+assert.match(connectorWatchdog, /\.cfargotunnel\.com/);
+assert.doesNotMatch(connectorWatchdog, /https:\/\/connector\.mad4b\.com\/health/);
 assert.match(connectorWatchdog, /cloudflare_1033/);
 assert.match(connectorWatchdog, /action=restart_local_connector_tunnel/);
 assert.match(connectorInstaller, /GrowthIntelligence-ConnectorWatchdog/);

@@ -10,6 +10,8 @@ const NOW_MS = Date.parse("2026-08-04T00:00:00.000Z");
 const FUTURE = new Date("2030-01-01T00:00:00.000Z");
 const CALLBACK = "https://chatgpt.com/aip/g-test/oauth/callback";
 const CLIENT = "mad4b-tenant-gpt";
+const CORRELATION_REF = "11111111-1111-4111-8111-111111111111";
+const OTHER_CORRELATION_REF = "22222222-2222-4222-8222-222222222222";
 
 function createStoreQuery() {
   const rows = new Map();
@@ -26,8 +28,9 @@ function createStoreQuery() {
         tenant_id: params[2],
         client_id: params[3],
         redirect_uri_hash: params[4],
+        request_correlation_ref: params[5],
         status: "issued",
-        expires_at: params[5],
+        expires_at: params[6],
         consumed_at: null,
       });
       return [{ affectedRows: 1 }];
@@ -37,6 +40,7 @@ function createStoreQuery() {
       const eligible = row
         && row.client_id === params[1]
         && row.redirect_uri_hash === params[2]
+        && row.request_correlation_ref === params[3]
         && row.status === "issued"
         && !row.consumed_at
         && new Date(row.expires_at).getTime() > NOW_MS;
@@ -47,13 +51,15 @@ function createStoreQuery() {
       return [{ affectedRows: eligible ? 1 : 0 }];
     }
     if (sql.includes("SELECT status, expires_at, consumed_at")) {
-      const row = rows.get(params[2]);
+      const row = rows.get(params[3]);
       return [[row ? {
         status: row.status,
         expires_at: row.expires_at,
         consumed_at: row.consumed_at,
         client_matches: row.client_id === params[0] ? 1 : 0,
         redirect_matches: row.redirect_uri_hash === params[1] ? 1 : 0,
+        correlation_matches: row.request_correlation_ref === params[2] ? 1 : 0,
+        request_correlation_ref: row.request_correlation_ref,
         expired_by_store: new Date(row.expires_at).getTime() <= NOW_MS ? 1 : 0,
       } : undefined].filter(Boolean)];
     }
@@ -88,6 +94,7 @@ const persisted = await persistTenantGptOAuthAuthorizationCode({
   tenant_id: "tenant-1",
   client_id: CLIENT,
   redirect_uri: CALLBACK,
+  request_correlation_ref: CORRELATION_REF,
   expires_at: FUTURE,
 });
 assert.equal(persisted.stored, true);
@@ -97,6 +104,7 @@ assert.equal(store.calls[0].params[0].length, 64);
 assert.equal(store.calls[0].params[1], "user-1");
 assert.equal(store.calls[0].params[3], CLIENT);
 assert.equal(store.calls[0].params[4].length, 64);
+assert.equal(store.calls[0].params[5], CORRELATION_REF);
 assert.equal(store.calls[0].params.includes("code-jti"), false);
 
 const issuedReadback = await inspectTenantGptOAuthAuthorizationCode({
@@ -104,8 +112,10 @@ const issuedReadback = await inspectTenantGptOAuthAuthorizationCode({
   jti: "code-jti",
   client_id: CLIENT,
   redirect_uri: CALLBACK,
+  request_correlation_ref: CORRELATION_REF,
 });
 assert.equal(issuedReadback.outcome, "issued_not_consumed");
+assert.equal(issuedReadback.request_correlation_ref, CORRELATION_REF);
 assert.equal(issuedReadback.secrets_included, false);
 
 const firstConsume = await consumeTenantGptOAuthAuthorizationCode({
@@ -113,11 +123,13 @@ const firstConsume = await consumeTenantGptOAuthAuthorizationCode({
   jti: "code-jti",
   client_id: CLIENT,
   redirect_uri: CALLBACK,
+  request_correlation_ref: CORRELATION_REF,
 });
 assert.deepEqual(firstConsume, {
   consumed: true,
   outcome: "consumed",
   readback_outcome: "already_consumed",
+  request_correlation_ref: CORRELATION_REF,
   replay_allowed: false,
   store_error_code: null,
   table_recovered: false,
@@ -129,6 +141,7 @@ const replayConsume = await consumeTenantGptOAuthAuthorizationCode({
   jti: "code-jti",
   client_id: CLIENT,
   redirect_uri: CALLBACK,
+  request_correlation_ref: CORRELATION_REF,
 });
 assert.equal(replayConsume.consumed, false);
 assert.equal(replayConsume.outcome, "already_consumed");
@@ -143,6 +156,7 @@ await persistTenantGptOAuthAuthorizationCode({
   user_id: "user-1",
   client_id: CLIENT,
   redirect_uri: CALLBACK,
+  request_correlation_ref: CORRELATION_REF,
   expires_at: FUTURE,
 });
 const bindingMismatch = await consumeTenantGptOAuthAuthorizationCode({
@@ -150,9 +164,20 @@ const bindingMismatch = await consumeTenantGptOAuthAuthorizationCode({
   jti: "binding-code",
   client_id: "wrong-client",
   redirect_uri: CALLBACK,
+  request_correlation_ref: CORRELATION_REF,
 });
 assert.equal(bindingMismatch.outcome, "binding_mismatch");
 assert.equal(bindingMismatch.consumed, false);
+
+const correlationMismatch = await consumeTenantGptOAuthAuthorizationCode({
+  query: store.query,
+  jti: "binding-code",
+  client_id: CLIENT,
+  redirect_uri: CALLBACK,
+  request_correlation_ref: OTHER_CORRELATION_REF,
+});
+assert.equal(correlationMismatch.outcome, "binding_mismatch");
+assert.equal(correlationMismatch.consumed, false);
 
 await persistTenantGptOAuthAuthorizationCode({
   query: store.query,
@@ -160,6 +185,7 @@ await persistTenantGptOAuthAuthorizationCode({
   user_id: "user-1",
   client_id: CLIENT,
   redirect_uri: CALLBACK,
+  request_correlation_ref: CORRELATION_REF,
   expires_at: new Date("2020-01-01T00:00:00.000Z"),
 });
 const expired = await consumeTenantGptOAuthAuthorizationCode({
@@ -167,6 +193,7 @@ const expired = await consumeTenantGptOAuthAuthorizationCode({
   jti: "expired-code",
   client_id: CLIENT,
   redirect_uri: CALLBACK,
+  request_correlation_ref: CORRELATION_REF,
 });
 assert.equal(expired.outcome, "expired");
 assert.equal(expired.consumed, false);
@@ -177,11 +204,12 @@ await persistTenantGptOAuthAuthorizationCode({
   user_id: "user-1",
   client_id: CLIENT,
   redirect_uri: CALLBACK,
+  request_correlation_ref: CORRELATION_REF,
   expires_at: FUTURE,
 });
 const raceResults = await Promise.all([
-  consumeTenantGptOAuthAuthorizationCode({ query: store.query, jti: "race-code", client_id: CLIENT, redirect_uri: CALLBACK }),
-  consumeTenantGptOAuthAuthorizationCode({ query: store.query, jti: "race-code", client_id: CLIENT, redirect_uri: CALLBACK }),
+  consumeTenantGptOAuthAuthorizationCode({ query: store.query, jti: "race-code", client_id: CLIENT, redirect_uri: CALLBACK, request_correlation_ref: CORRELATION_REF }),
+  consumeTenantGptOAuthAuthorizationCode({ query: store.query, jti: "race-code", client_id: CLIENT, redirect_uri: CALLBACK, request_correlation_ref: CORRELATION_REF }),
 ]);
 assert.equal(raceResults.filter((result) => result.consumed).length, 1);
 assert.equal(raceResults.filter((result) => result.outcome === "already_consumed").length, 1);
@@ -201,6 +229,8 @@ const commitThenDisconnectQuery = async (sql, params = []) => {
       consumed_at: committedStatus === "consumed" ? new Date(NOW_MS) : null,
       client_matches: 1,
       redirect_matches: 1,
+      correlation_matches: 1,
+      request_correlation_ref: CORRELATION_REF,
       expired_by_store: 0,
     }]];
   }
@@ -212,6 +242,7 @@ const committedUnknown = await captureConsumptionFailure(
     jti: "ambiguous-code",
     client_id: CLIENT,
     redirect_uri: CALLBACK,
+    request_correlation_ref: CORRELATION_REF,
   }),
   "ECONNRESET",
 );
@@ -234,6 +265,8 @@ const disconnectBeforeCommitQuery = async (sql) => {
       consumed_at: null,
       client_matches: 1,
       redirect_matches: 1,
+      correlation_matches: 1,
+      request_correlation_ref: CORRELATION_REF,
       expired_by_store: 0,
     }]];
   }
@@ -245,6 +278,7 @@ const stillIssued = await captureConsumptionFailure(
     jti: "still-issued-code",
     client_id: CLIENT,
     redirect_uri: CALLBACK,
+    request_correlation_ref: CORRELATION_REF,
   }),
   "ETIMEDOUT",
 );
@@ -263,6 +297,7 @@ const unreadableOutcome = await captureConsumptionFailure(
     jti: "unreadable-code",
     client_id: CLIENT,
     redirect_uri: CALLBACK,
+    request_correlation_ref: CORRELATION_REF,
   }),
   "ECONNREFUSED",
 );
@@ -291,6 +326,7 @@ const recoveredPersist = await persistTenantGptOAuthAuthorizationCode({
   tenant_id: "tenant-1",
   client_id: CLIENT,
   redirect_uri: CALLBACK,
+  request_correlation_ref: CORRELATION_REF,
   expires_at: FUTURE,
 });
 assert.equal(recoveredPersist.stored, true);
@@ -298,6 +334,8 @@ assert.equal(recoveredPersist.table_recovered, true);
 assert.equal(recoveryCalls.filter((call) => call.sql.includes("INSERT INTO `tenant_gpt_oauth_authorization_codes`")).length, 2);
 assert.equal(recoveryCalls.filter((call) => call.sql.includes("CREATE TABLE IF NOT EXISTS `tenant_gpt_oauth_authorization_codes`")).length, 1);
 assert.equal(recoveryCalls.some((call) => String(call.sql).includes("PRIMARY KEY (`code_jti_hash`)")), true);
+assert.equal(recoveryCalls.some((call) => String(call.sql).includes("`request_correlation_ref` VARCHAR(36) NULL")), true);
+assert.equal(recoveryCalls.some((call) => String(call.sql).includes("idx_tenant_gpt_oauth_codes_correlation_ref")), true);
 
 let unexpectedCreate = false;
 await assert.rejects(
@@ -312,6 +350,7 @@ await assert.rejects(
     user_id: "user-1",
     client_id: CLIENT,
     redirect_uri: CALLBACK,
+    request_correlation_ref: CORRELATION_REF,
     expires_at: FUTURE,
   }),
   (error) => error?.code === "ECONNREFUSED",
@@ -319,7 +358,7 @@ await assert.rejects(
 assert.equal(unexpectedCreate, false);
 
 await assert.rejects(
-  () => persistTenantGptOAuthAuthorizationCode({ query: store.query, jti: "", user_id: "user-1", client_id: "client", redirect_uri: "https://example.com", expires_at: FUTURE }),
+  () => persistTenantGptOAuthAuthorizationCode({ query: store.query, jti: "", user_id: "user-1", client_id: "client", redirect_uri: "https://example.com", request_correlation_ref: CORRELATION_REF, expires_at: FUTURE }),
   /jti is required/,
 );
 
@@ -327,6 +366,7 @@ const serializedResults = JSON.stringify({
   firstConsume,
   replayConsume,
   bindingMismatch,
+  correlationMismatch,
   expired,
   raceResults,
   committedUnknown,

@@ -3,9 +3,12 @@ param(
     [string]$RepositoryPath = "",
     [string]$TaskName = "MAD4B Staging Auto Deploy",
     [string]$HealthTaskName = "MAD4B Staging Health Monitor",
+    [string]$SupervisorTaskName = "MAD4B Staging Autonomous Supervisor",
     [string]$DockerBootstrapTaskName = "MAD4B Staging Docker Bootstrap",
     [int]$PollSeconds = 300,
     [int]$HealthIntervalSeconds = 60,
+    [ValidateRange(30, 600)]
+    [int]$SupervisorIntervalSeconds = 60,
     [ValidateRange(0, 300)]
     [int]$LogonDelaySeconds = 25,
     [ValidateRange(60, 600)]
@@ -37,16 +40,19 @@ $RepositoryPath = [IO.Path]::GetFullPath($RepositoryPath)
 $autoDeployScript = Join-Path $scriptRoot "Auto-Deploy-Staging.ps1"
 $policyPath = Join-Path $scriptRoot "auto-deploy-policy.json"
 $healthScript = Join-Path $scriptRoot "Staging-HealthMonitor.ps1"
+$supervisorScript = Join-Path $scriptRoot "Staging-AutonomousSupervisor.ps1"
+$supervisorPolicy = Join-Path $scriptRoot "autonomous-operations-policy.json"
 $preflightScript = Join-Path $scriptRoot "Staging-Windows-Preflight.ps1"
 if (-not (Test-Path -LiteralPath $autoDeployScript)) { Fail "Auto-Deploy-Staging.ps1 is missing" }
 if (-not (Test-Path -LiteralPath $policyPath)) { Fail "auto-deploy-policy.json is missing" }
 if (-not (Test-Path -LiteralPath $healthScript)) { Fail "Staging-HealthMonitor.ps1 is missing" }
+if (-not (Test-Path -LiteralPath $supervisorScript -PathType Leaf) -or -not (Test-Path -LiteralPath $supervisorPolicy -PathType Leaf)) { Fail "Autonomous supervisor or policy is missing" }
 if (-not (Test-Path -LiteralPath $preflightScript)) { Fail "Staging-Windows-Preflight.ps1 is missing" }
 if (-not (Test-Path -LiteralPath (Join-Path $RepositoryPath ".git"))) { Fail "RepositoryPath is not a Git repository: $RepositoryPath" }
 
 $escapedScript = $autoDeployScript.Replace('"', '\"')
 $escapedRepo = $RepositoryPath.Replace('"', '\"')
-$arguments = "-NoLogo -NoProfile -ExecutionPolicy Bypass -File `"$escapedScript`" -RepositoryPath `"$escapedRepo`" -Watch -PollSeconds $PollSeconds -BuildMode $BuildMode -TunnelMode $TunnelMode"
+$arguments = "-NoLogo -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$escapedScript`" -RepositoryPath `"$escapedRepo`" -Watch -PollSeconds $PollSeconds -BuildMode $BuildMode -TunnelMode $TunnelMode"
 if ($EnableActivationGateway) { $arguments += " -EnableActivationGateway" }
 
 $principal = New-ScheduledTaskPrincipal -UserId "$env:USERDOMAIN\$env:USERNAME" -LogonType Interactive -RunLevel Highest
@@ -57,9 +63,10 @@ $settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -AllowStartIfOnBatt
 # runs Compose, mutates a database, or touches any provider. Auto Deploy remains
 # the sole authority for deployment/certification after its eligibility gate.
 $escapedPreflightLiteral = $preflightScript.Replace("'", "''")
-$dockerBootstrapCommand = ". '$escapedPreflightLiteral'; `$dockerReady = Ensure-StagingDockerDesktopReady -TimeoutSeconds $BootGraceSeconds -PollSeconds 3; if (`$dockerReady.ready -ne `$true) { throw 'STAGING_DOCKER_BOOTSTRAP_NOT_READY' }"
+$escapedLogLiteral = (Join-Path $scriptRoot "Staging-Operations-Log.ps1").Replace("'", "''")
+$dockerBootstrapCommand = ". '$escapedLogLiteral'; . '$escapedPreflightLiteral'; try { `$dockerReady = Ensure-StagingDockerDesktopReady -TimeoutSeconds $BootGraceSeconds -PollSeconds 3; if (`$dockerReady.ready -ne `$true) { throw 'STAGING_DOCKER_BOOTSTRAP_NOT_READY' }; Write-StagingLog -Level info -Component 'docker-bootstrap' -Stage 'engine' -Message 'Docker Desktop Engine ready' -Data @{} } catch { Write-StagingLog -Level error -Component 'docker-bootstrap' -Stage 'engine' -Message 'Docker Engine boot task blocked' -Data @{}; throw }"
 $encodedDockerBootstrapCommand = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($dockerBootstrapCommand))
-$dockerAction = New-ScheduledTaskAction -Execute (Join-Path $PSHOME "powershell.exe") -Argument "-NoLogo -NoProfile -ExecutionPolicy Bypass -EncodedCommand $encodedDockerBootstrapCommand" -WorkingDirectory $scriptRoot
+$dockerAction = New-ScheduledTaskAction -Execute (Join-Path $PSHOME "powershell.exe") -Argument "-NoLogo -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -EncodedCommand $encodedDockerBootstrapCommand" -WorkingDirectory $scriptRoot
 $dockerTrigger = New-ScheduledTaskTrigger -AtLogOn -User "$env:USERDOMAIN\$env:USERNAME"
 $dockerDelaySeconds = [Math]::Min(10, $LogonDelaySeconds)
 $dockerTrigger.Delay = "PT${dockerDelaySeconds}S"
@@ -72,12 +79,24 @@ Register-ScheduledTask -TaskName $TaskName -Action $action -Trigger $trigger -Se
 
 $healthEscapedScript = $healthScript.Replace('"', '\"')
 $healthEscapedRepo = $RepositoryPath.Replace('"', '\"')
-$healthArguments = "-NoLogo -NoProfile -ExecutionPolicy Bypass -File `"$healthEscapedScript`" -RepositoryPath `"$healthEscapedRepo`" -IntervalSeconds $HealthIntervalSeconds -BootGraceSeconds $BootGraceSeconds"
+$healthArguments = "-NoLogo -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$healthEscapedScript`" -RepositoryPath `"$healthEscapedRepo`" -IntervalSeconds $HealthIntervalSeconds -BootGraceSeconds $BootGraceSeconds"
 $healthAction = New-ScheduledTaskAction -Execute (Join-Path $PSHOME "powershell.exe") -Argument $healthArguments -WorkingDirectory $scriptRoot
 $healthTrigger = New-ScheduledTaskTrigger -AtLogOn -User "$env:USERDOMAIN\$env:USERNAME"
 $healthDelaySeconds = [Math]::Min(300, [Math]::Max($LogonDelaySeconds + 10, 35))
 $healthTrigger.Delay = "PT${healthDelaySeconds}S"
 Register-ScheduledTask -TaskName $HealthTaskName -Action $healthAction -Trigger $healthTrigger -Settings $settings -Principal $principal -Force | Out-Null
+
+# The independent supervisor cannot redeploy or change task definitions. It can
+# only start the exact existing watcher task under bounded, audited policy.
+$supervisorEscapedScript = $supervisorScript.Replace('"', '\"')
+$supervisorEscapedRepo = $RepositoryPath.Replace('"', '\"')
+$supervisorArguments = "-NoLogo -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$supervisorEscapedScript`" -RepositoryPath `"$supervisorEscapedRepo`" -IntervalSeconds $SupervisorIntervalSeconds"
+$supervisorAction = New-ScheduledTaskAction -Execute (Join-Path $PSHOME "powershell.exe") -Argument $supervisorArguments -WorkingDirectory $scriptRoot
+$supervisorTrigger = New-ScheduledTaskTrigger -AtLogOn -User "$env:USERDOMAIN\$env:USERNAME"
+$supervisorDelaySeconds = [Math]::Min(300, [Math]::Max($LogonDelaySeconds + 25, 60))
+$supervisorTrigger.Delay = "PT${supervisorDelaySeconds}S"
+Register-ScheduledTask -TaskName $SupervisorTaskName -Action $supervisorAction -Trigger $supervisorTrigger -Settings $settings -Principal $principal -Force | Out-Null
+Write-Host "STAGING_SUPERVISOR_TASK_INSTALLED: task=$SupervisorTaskName interval_seconds=$SupervisorIntervalSeconds logon_delay_seconds=$supervisorDelaySeconds watcher_restart_bound=3_per_24h"
 
 Write-Host "STAGING_DOCKER_BOOTSTRAP_TASK_INSTALLED: task=$DockerBootstrapTaskName user=$env:USERDOMAIN\$env:USERNAME logon_delay_seconds=$dockerDelaySeconds local_runtime_bootstrap_only=True deployment_authorized=False"
 Write-Host "AUTO_DEPLOY_TASK_INSTALLED: task=$TaskName user=$env:USERDOMAIN\$env:USERNAME poll_seconds=$PollSeconds tunnel_mode=$TunnelMode activation_gateway_desired=$([bool]$EnableActivationGateway) logon_delay_seconds=$LogonDelaySeconds multiple_instances=IgnoreNew provider_mutation_authorized=False"

@@ -2,7 +2,7 @@
   "schema_version": "frontend-operation-governance-v1",
   "generator": {
     "id": "frontend-operation-governance-generator-v6-root-workspace-brand-container",
-    "source_digest": "cd47e8e9b889fd3a4a718b653cf8039d83dc34170bf6f9b066f1bf27ba8ff888",
+    "source_digest": "ac944f3f50c43a59084d914b7d25093a4279bd7bb88e6ad680bb292c90573dc1",
     "fail_closed": true
   },
   "source_authority": [
@@ -13,7 +13,7 @@
     },
     {
       "file": "frontend-operation-governance-tests.json",
-      "sha256": "839c5a5d1446dd88b253fe2bb813ec0a281fbfb164fd28962f59d61db8afa2c0",
+      "sha256": "055a7c35f4035217ee95e35c44aa96976930c56edf110dae63a1467769075e16",
       "present": true
     },
     {
@@ -73,7 +73,7 @@
     },
     {
       "file": "scripts/test-manifest.mjs",
-      "sha256": "4b7355a3905a8a6359f913e8ce25e2ff8981a020438f0d46cca9cf9b9aadfc3a",
+      "sha256": "230404cd34a1bae73b52083229678596f3981acaa79b9b951d0073f4821990e2",
       "present": true
     },
     {
@@ -272,7 +272,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "dynamic-container-canary-closeout-transaction-v1",
-        "source_digest": "4516339f16e549d9d0ac504d582ad560eca556441630c6c6ca731129451cb5ab",
+        "source_digest": "b3b066f6a3f11fb0e680db77d216a22f8b2e8c87668dc631e33bbda1d8c38151",
         "fail_closed": true
       }
     },
@@ -316,7 +316,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "dynamic-container-canary-promotion-transaction-v1",
-        "source_digest": "4516339f16e549d9d0ac504d582ad560eca556441630c6c6ca731129451cb5ab",
+        "source_digest": "b3b066f6a3f11fb0e680db77d216a22f8b2e8c87668dc631e33bbda1d8c38151",
         "fail_closed": true
       }
     },
@@ -361,7 +361,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "dynamic-container-canary-rollback-transaction-v1",
-        "source_digest": "4516339f16e549d9d0ac504d582ad560eca556441630c6c6ca731129451cb5ab",
+        "source_digest": "b3b066f6a3f11fb0e680db77d216a22f8b2e8c87668dc631e33bbda1d8c38151",
         "fail_closed": true
       }
     },

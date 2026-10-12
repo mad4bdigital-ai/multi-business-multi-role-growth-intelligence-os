@@ -6,7 +6,7 @@ namespace Mad4B.LocalManager.Windows;
 
 internal sealed class DeviceIdentityStore
 {
-    private const string EntropyValue = "mad4b-local-manager-device-token-v1";
+    private const string EntropyValue = "mad4b-local-manager-device-token-v1" + LocalManagerEnvironment.Suffix;
 
     private readonly JsonSerializerOptions _json = new(JsonSerializerDefaults.Web)
     {
@@ -22,7 +22,7 @@ internal sealed class DeviceIdentityStore
         Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "Mad4B",
-            "LocalManager");
+            LocalManagerEnvironment.StorageFolder);
 
     internal string InstallRoot { get; }
 
@@ -41,7 +41,10 @@ internal sealed class DeviceIdentityStore
         File.WriteAllBytes(ProtectedTokenPath, protectedBytes);
         File.WriteAllText(LinkStatusPath, JsonSerializer.Serialize(new
         {
-            linked = true,
+            credential_stored = true,
+            session_verified = false,
+            environment = LocalManagerEnvironment.Name,
+            control_plane_origin = LocalManagerEnvironment.BaseUrl,
             linked_at = DateTimeOffset.UtcNow,
             device_id = deviceId,
             status,

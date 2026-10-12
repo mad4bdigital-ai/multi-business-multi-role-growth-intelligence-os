@@ -1,0 +1,81 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "pr8453-staging-gateway-expiry-second-precision",
+  "title": "Preserve exact Staging Gateway execution-plan expiry under MariaDB TIMESTAMP(0)",
+  "delivery_mode": "single_pr",
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/pr8453-staging-gateway-expiry-second-precision.json",
+      "http-generic-api/stagingActivationGatewayApplyAdapter.js",
+      "http-generic-api/stagingGatewayExecutionPlanStore.js",
+      "http-generic-api/test-staging-smart-gateway-convergence-contract.mjs",
+      ".github/derived-state-governance.json",
+      "http-generic-api/config/repository-governance-constitution.json"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Make the canonical plan-body expiry, SQL TIMESTAMP(0) binding, and persisted readback equal to the same UTC whole-second instant before Cloudflare certification writes.",
+      "e2e_journeys": [
+        {
+          "id": "pr8453-staging-gateway-second-precision-plan-persistence",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Governed Staging Activation Gateway transaction certification",
+          "entrypoint": "Generate dry-run and certification plans against the canonical Staging Gateway profile.",
+          "terminal_outcome": "Expiry instant is rounded up to a whole second before digest construction; SQL persistence rejects subsecond plans; simulated TIMESTAMP(0) readback matches the canonical plan body with no provider or Production mutation.",
+          "steps": [
+            "Build dry-run and independent transaction-certification plans for exact source SHA and Staging policy hash.",
+            "Assert canonical plan expiry is a whole-second UTC instant before SHA-256 digest construction.",
+            "Persist a certification plan through the governed SQL-binding path using a Date object.",
+            "Simulate MariaDB TIMESTAMP(0) fractional-second truncation and verify the persisted expiry matches plan_body_json.",
+            "Preserve the live non-Production certification requirement before merging; never treat synthetic test as Cloudflare certification."
+          ],
+          "assertions": [
+            "All plan expiry timestamps are aligned to MariaDB TIMESTAMP(0) precision.",
+            "The SQL binding preserves the digest-bound whole-second expiry with zero drift.",
+            "Invalid subsecond expiry is rejected before database persistence.",
+            "Provider/DNS/custom-domain/Production mutation remains forbidden in this synthetic test.",
+            "Live Staging Gateway certification remains a separate required follow-up with exact-source authority."
+          ],
+          "tests": [
+            {
+              "id": "pr8453-staging-gateway-precision-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-smart-gateway-convergence-contract.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/pr8453-staging-gateway-expiry-second-precision.json",
+            "http-generic-api/stagingActivationGatewayApplyAdapter.js",
+            "http-generic-api/stagingGatewayExecutionPlanStore.js",
+            "http-generic-api/test-staging-smart-gateway-convergence-contract.mjs",
+            "http-generic-api/migrations/20260912_staging_activation_gateway_transaction_hardening.sql",
+            ".github/derived-state-governance.json",
+            "http-generic-api/config/repository-governance-constitution.json"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}

@@ -6,6 +6,7 @@ const root = path.resolve(import.meta.dirname, "..");
 const workflowPath = path.join(root, ".github", "workflows", "production-runtime-parity-evidence.yml");
 const standalonePath = path.join(root, ".github", "workflows", "production-recovery-control-store-bootstrap.yml");
 const source = fs.readFileSync(workflowPath, "utf8");
+const bridgeSource = fs.readFileSync(path.join(root, ".github", "workflows", "governed-production-promotion-dispatch-bridge.yml"), "utf8");
 
 assert.equal(
   fs.existsSync(standalonePath),
@@ -58,3 +59,27 @@ assert.match(source, /control_store_bootstrap_unrelated_authority_denied/u);
 assert.match(source, /startsWith\(inputs\.bootstrap_mode, 'control_store_'\)/u);
 
 console.log("production recovery control-store bootstrap workflow integration tests passed");
+
+
+for (const required of [
+  "PLAN_PRODUCTION_RECOVERY_CONTROL_STORE:",
+  "APPLY_PRODUCTION_RECOVERY_CONTROL_STORE_SCHEMA:",
+  "production-recovery-control-store-plan",
+  "production-recovery-control-store-apply",
+  "https://auth.mad4b.com/admin/recovery-bootstrap",
+  "mad4b.production-recovery-control-store-bootstrap-plan.v1",
+  "same_cycle_readback_performed",
+  "automatic_replay_allowed",
+]) {
+  assert(bridgeSource.includes(required), `Governed issue bridge missing bounded Control Store contract: ${required}`);
+}
+
+assert.match(bridgeSource, /github\.event\.issue\.number == 6813/u);
+assert.match(bridgeSource, /\^PLAN_PRODUCTION_RECOVERY_CONTROL_STORE:\(\[0-9a-f\]\{40\}\)\$/u);
+assert.match(bridgeSource, /\^APPLY_PRODUCTION_RECOVERY_CONTROL_STORE_SCHEMA:\(\[0-9a-f\]\{40\}\):\(\[0-9a-f\]\{64\}\)\$/u);
+assert.match(bridgeSource, /APPLY_PRODUCTION_RECOVERY_CONTROL_STORE_SCHEMA/u);
+assert.match(bridgeSource, /target_database_mutation_performed/u);
+assert.match(bridgeSource, /provider_mutation_performed/u);
+assert.match(bridgeSource, /production_runtime_mutation_performed/u);
+assert.doesNotMatch(bridgeSource, /RECOVERY_CONTROL_DB_PASSWORD:/u);
+assert.doesNotMatch(bridgeSource, /control_store_raw_sql/u);

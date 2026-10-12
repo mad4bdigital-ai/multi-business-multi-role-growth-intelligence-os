@@ -16,6 +16,9 @@ jobs:
       (github.event.comment.body == 'AUTHORIZE_GITHUB_MAIN_REVIEW_POLICY_READINESS' ||
        github.event.comment.body == 'AUTHORIZE_GITHUB_PRODUCTION_POLICY_READINESS') &&
       contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
+    environment:
+      name: Production
+      deployment: false
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 35
     concurrency:
@@ -61,6 +64,9 @@ jobs:
       (github.event.comment.body == 'APPLY_GITHUB_MAIN_REVIEW_POLICY' ||
        github.event.comment.body == 'APPLY_GITHUB_PRODUCTION_POLICY') &&
       contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
+    environment:
+      name: Production
+      deployment: false
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 40
     concurrency:
@@ -106,6 +112,9 @@ jobs:
       (github.event.comment.body == 'VERIFY_GITHUB_MAIN_REVIEW_POLICY' ||
        github.event.comment.body == 'VERIFY_GITHUB_PRODUCTION_POLICY') &&
       contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
+    environment:
+      name: Production
+      deployment: false
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 35
     concurrency:

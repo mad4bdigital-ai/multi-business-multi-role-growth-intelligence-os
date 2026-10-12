@@ -20,6 +20,11 @@ const REMOTE_CATALOG_ROUTE_PATH = "/platform/remote-runtime/targets/catalog-read
 const REMOTE_CATALOG_PATH_REF = "./openapi/remote-runtime-target-catalog-readonly.yaml#/remoteRuntimeTargetCatalogReadonlyPath";
 const REMOTE_CATALOG_ROUTE_FILE = "routes/operationalConsoleRoutes.js";
 const REMOTE_CATALOG_OPERATION_ID = "getRemoteRuntimeTargetCatalogReadonly";
+const MANAGED_GOOGLE_REFRESH_SIGNATURE = "POST /v1/google/oauth/refresh";
+const MANAGED_GOOGLE_REFRESH_ROUTE_PATH = "/v1/google/oauth/refresh";
+const MANAGED_GOOGLE_REFRESH_PATH_REF = "./openapi/managed-google-oauth.yaml#/managedGoogleOAuthRefreshPath";
+const MANAGED_GOOGLE_ROUTE_FILE = "routes/managedGoogleOAuthRoutes.js";
+
 
 function legacyOperation(overrides = {}) {
   return {
@@ -257,6 +262,82 @@ async function assertRemoteCatalogTagPromotion() {
   }
 }
 
+async function createManagedGoogleRefreshFixture({ mutatePredecessor = null } = {}) {
+  const source = YAML.parse(await readFile(path.join(API_DIR, "openapi", "managed-google-oauth.yaml"), "utf8"));
+  const canonicalPathItem = structuredClone(source.managedGoogleOAuthRefreshPath);
+  const predecessor = structuredClone(canonicalPathItem.post);
+  const properties = predecessor.requestBody.content["application/json"].schema.properties;
+  assert(Object.hasOwn(properties, "current_granted_scope"), "Managed Google canonical refresh contract must expose current_granted_scope.");
+  delete properties.current_granted_scope;
+  if (typeof mutatePredecessor === "function") mutatePredecessor(predecessor);
+
+  const root = await mkdtemp(path.join(os.tmpdir(), "openapi-precise-managed-google-refresh-transition-"));
+  await mkdir(path.join(root, "routes"), { recursive: true });
+  await mkdir(path.join(root, "openapi"), { recursive: true });
+  await mkdir(path.join(root, "openapi-route-contracts.d"), { recursive: true });
+  await writeFile(path.join(root, MANAGED_GOOGLE_ROUTE_FILE), 'router.post("/v1/google/oauth/refresh", handler);\n', "utf8");
+  await writeFile(path.join(root, "openapi-route-contracts.yaml"), "version: 1\ncontracts: {}\n", "utf8");
+  await writeFile(path.join(root, "openapi-route-contracts.d", "managed-google-oauth.yaml"), YAML.stringify({
+    version: 1,
+    contracts: {
+      [MANAGED_GOOGLE_REFRESH_SIGNATURE]: {
+        path_item_ref: MANAGED_GOOGLE_REFRESH_PATH_REF,
+        route_file: MANAGED_GOOGLE_ROUTE_FILE,
+        composition_mode: "inline",
+      },
+    },
+  }), "utf8");
+  await writeFile(path.join(root, "openapi", "managed-google-oauth.yaml"), YAML.stringify({
+    managedGoogleOAuthRefreshPath: canonicalPathItem,
+  }), "utf8");
+  await writeFile(path.join(root, "openapi.yaml"), YAML.stringify({
+    openapi: "3.1.0",
+    info: { title: "Fixture", version: "1.0.0" },
+    paths: { [MANAGED_GOOGLE_REFRESH_ROUTE_PATH]: { post: predecessor } },
+  }), "utf8");
+  return { root, canonicalPathItem };
+}
+
+async function assertManagedGoogleRefreshProvenancePromotion() {
+  const { root, canonicalPathItem } = await createManagedGoogleRefreshFixture();
+  try {
+    const write = await runSync(root, ["--write"]);
+    assert.equal(write.ok, true, write.stderr || write.stdout);
+    const summary = JSON.parse(write.stdout);
+    assert.equal(summary.ok, true);
+    assert.equal(summary.changed, true);
+    assert.equal(summary.applied_registered_path_replacements.length, 1);
+    assert.equal(summary.applied_registered_path_replacements[0].path, MANAGED_GOOGLE_REFRESH_ROUTE_PATH);
+
+    const written = YAML.parse(await readFile(path.join(root, "openapi.yaml"), "utf8"));
+    assert.deepEqual(written.paths[MANAGED_GOOGLE_REFRESH_ROUTE_PATH], canonicalPathItem);
+    assert(Object.hasOwn(
+      written.paths[MANAGED_GOOGLE_REFRESH_ROUTE_PATH].post.requestBody.content["application/json"].schema.properties,
+      "current_granted_scope",
+    ));
+
+    const check = await runSync(root, ["--check"]);
+    assert.equal(check.ok, true, check.stderr || check.stdout);
+    assert.equal(JSON.parse(check.stdout).conflict_count, 0);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+
+  const malformed = await createManagedGoogleRefreshFixture({
+    mutatePredecessor(operation) {
+      operation.description = "unexpected managed refresh predecessor drift";
+    },
+  });
+  try {
+    const blocked = await runSync(malformed.root, ["--write"]);
+    assert.equal(blocked.ok, false, "Modified Managed Google refresh predecessor must remain fail-closed.");
+    assert.match(blocked.stderr, /openapi_precise_contract_path_conflict/);
+    assert.match(blocked.stderr, /registered_path_inline_contract_not_replaceable/);
+  } finally {
+    await rm(malformed.root, { recursive: true, force: true });
+  }
+}
+
 async function createFixture(operation = legacyOperation(), targetOperation = canonicalOperation()) {
   const root = await mkdtemp(path.join(os.tmpdir(), "openapi-precise-inline-transition-"));
   await mkdir(path.join(root, "routes"), { recursive: true });
@@ -351,6 +432,7 @@ await assertUpgradesToCanonical(legacyOperation());
 await assertUpgradesToCanonical(previousWorkspaceV2Operation());
 await assertUpgradesToCanonical(canonicalOperation(), rootScopedBrandOperation());
 await assertRemoteCatalogTagPromotion();
+await assertManagedGoogleRefreshProvenancePromotion();
 
 const previousWithBrand = previousWorkspaceV2Operation();
 previousWithBrand.responses["200"].content["application/json"].schema.properties.connection_ownership_resolution.properties.owner_scope_type.enum.push("brand");
@@ -403,6 +485,8 @@ console.log(JSON.stringify({
   malformed_variants_blocked: 8,
   remote_runtime_catalog_tag_promotion_passed: true,
   remote_runtime_catalog_malformed_predecessors_blocked: 2,
+  managed_google_refresh_provenance_promotion_passed: true,
+  managed_google_refresh_malformed_predecessors_blocked: 1,
   idempotency_passed: true,
   secrets_included: false,
 }, null, 2));

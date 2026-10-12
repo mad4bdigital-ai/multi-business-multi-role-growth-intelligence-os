@@ -23,7 +23,7 @@ function counts(tables = 0) {
   return { tables, views: 0, triggers: 0, routines: 0, events: 0, total: tables };
 }
 
-function inspectionEnvelope({ correlation = "staging-authority-test-001", tamperRole = null } = {}) {
+function inspectionEnvelope({ correlation = "staging-authority-test-001", tamperRole = null, tamperProofRole = null } = {}) {
   const roleCounts = {
     runtime: counts(782),
     governance: counts(0),
@@ -31,6 +31,20 @@ function inspectionEnvelope({ correlation = "staging-authority-test-001", tamper
   };
   const fingerprints = Object.fromEntries(Object.entries(roleCounts).map(([role, value]) => [role, _testingStagingRebuildEmptyAuthority.objectCountsFingerprint(value)]));
   if (tamperRole) fingerprints[tamperRole] = "e".repeat(64);
+  // These are synthetic fixtures, not live host-local physical census evidence.
+  // The test harness installs a separate verifier that binds this exact identity.
+  const roleProofs = Object.fromEntries(["governance", "runtime_persistence"].map((role) => [role, {
+    contract: "mad4b.role-physical-object-visibility.v1",
+    role,
+    expected_sha: SHA,
+    object_count_fingerprint: fingerprints[role],
+    database_identity_verified: true,
+    full_object_visibility_verified: true,
+    independent_privileged_census: true,
+    read_only: true,
+    test_only_provenance: `synthetic-role-census:${role}:${SHA}`,
+  }]));
+  if (tamperProofRole) roleProofs[tamperProofRole].test_only_provenance = "caller-forged-proof";
   return {
     expected_sha: SHA,
     target_key: "staging-runtime",
@@ -43,6 +57,7 @@ function inspectionEnvelope({ correlation = "staging-authority-test-001", tamper
       role_database_object_counts: roleCounts,
       role_database_object_classifications: { runtime: "nonempty_objects", governance: "zero_objects", runtime_persistence: "zero_objects" },
       role_database_object_count_fingerprints: fingerprints,
+      role_full_object_inventory_proofs: roleProofs,
       read_only_probe: true,
       database_connection_performed: true,
       database_mutation_performed: false,
@@ -62,7 +77,7 @@ function inspectionEnvelope({ correlation = "staging-authority-test-001", tamper
   };
 }
 
-function harness() {
+function harness({ withTrustedVerifier = true } = {}) {
   const runs = new Map();
   const findings = new Map();
   const plans = new Map();
@@ -117,6 +132,16 @@ function harness() {
 
   const graph = {
     recoveryStore: store,
+    ...(withTrustedVerifier ? {
+      // Test-only: independently injected server-side verifier, never sent in
+      // recordInspection input and not installed by live Staging composition.
+      trustedRoleInventoryVerifier: ({ role, proof, expectedSha, roleFingerprint, roleObjectCounts }) =>
+        ["governance", "runtime_persistence"].includes(role)
+        && expectedSha === SHA
+        && roleObjectCounts.total === 0
+        && roleFingerprint === _testingStagingRebuildEmptyAuthority.objectCountsFingerprint(counts(0))
+        && proof.test_only_provenance === `synthetic-role-census:${role}:${SHA}`,
+    } : {}),
     deploymentIdentityProvider: {
       async readAttestation() {
         return {
@@ -141,6 +166,7 @@ function harness() {
     authority: createStagingRebuildEmptyAuthority({ authorityGraph: graph }),
     store,
     setControlTarget(value) { controlTarget = value; },
+    persistedRunCount() { return runs.size; },
   };
 }
 
@@ -159,6 +185,24 @@ test("mixed topology selects only empty roles through canonical Recovery Kernel 
   const proof = await h.authority.resolveProof({ expected_sha: SHA, target_key: "staging-runtime", inspection_run_id: recorded.inspection_run_id });
   assert.equal(proof.composite_target_fingerprint, DB_TARGET);
   assert.deepEqual(proof.selected_roles, ["governance", "runtime_persistence"]);
+});
+
+test("zero visible objects never authorize rebuild without an independently installed verifier", async () => {
+  const h = harness({ withTrustedVerifier: false });
+  await assert.rejects(
+    () => h.authority.recordInspection(inspectionEnvelope({ correlation: "staging-no-trusted-verifier" })),
+    (error) => error?.code === "RECOVERY_CANONICAL_INSPECTION_CLASSIFICATION_MISMATCH",
+  );
+  assert.equal(h.persistedRunCount(), 0);
+});
+
+test("forged inspection proof does not bypass the separate trusted verifier", async () => {
+  const h = harness();
+  await assert.rejects(
+    () => h.authority.recordInspection(inspectionEnvelope({ correlation: "staging-forged-physical-proof", tamperProofRole: "governance" })),
+    (error) => error?.code === "RECOVERY_CANONICAL_INSPECTION_CLASSIFICATION_MISMATCH",
+  );
+  assert.equal(h.persistedRunCount(), 0);
 });
 
 test("server rejects a structurally valid but non-canonical object-count fingerprint before durable planning", async () => {

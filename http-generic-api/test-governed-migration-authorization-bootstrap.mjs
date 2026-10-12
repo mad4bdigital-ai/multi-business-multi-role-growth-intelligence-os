@@ -242,17 +242,20 @@ async function main() {
   assert.equal(candidate.secrets_included, false);
 
   const pool = createFakePool();
-  const readPool = {
+  const envelopeReadPool = {
     async query() {
-      throw new Error("Unexpected direct governance query on runtime readPool");
+      throw new Error("Unexpected direct query in injected Governance envelope read sentinel");
     },
   };
   const referenced = [];
   const deps = {
-    readPool,
+    envelopeReadPool,
     writerPool: pool,
     auth: { tenant_id: "00000000-0000-0000-0000-000000000000", user_id: "0e76b224-7671-47dd-ad68-014fb042df80" },
-    resolveEnvelope: resolvedEnvelope,
+    resolveEnvelope: async (request = {}) => {
+      assert.equal(request.pool, envelopeReadPool, "migration authorization must resolve the persisted envelope from Governance");
+      return resolvedEnvelope(request);
+    },
     markReferenced: async (value) => { referenced.push(value); return { ok: true }; },
   };
   const created = await bootstrapGovernedMigrationAuthorization(baseInput(), deps);
@@ -426,10 +429,11 @@ async function main() {
   assert.ok(routeSource.includes("bootstrapGovernedMigrationAuthorization"));
   assert.ok(routeSource.includes("previous_checksum_sha256"));
   assert.ok(manifestSource.includes("test-governed-migration-authorization-bootstrap.mjs"));
-  assert.match(wrapperSource, /readPool/);
+  assert.match(wrapperSource, /envelopeReadPool/);
   assert.match(wrapperSource, /writerPool/);
   assert.match(wrapperSource, /pool: writerPool/);
-  assert.match(wrapperSource, /pool: readPool/);
+  assert.match(wrapperSource, /pool: envelopeReadPool/);
+  assert.doesNotMatch(wrapperSource, /getPool\(\)/);
 
   console.log("governed migration authorization bootstrap tests passed");
 }

@@ -17,7 +17,7 @@ VALUES
  'activation_gateway.staging_apply',
  'activation_gateway_dark_deploy',
  'active',
- 1, 0, 1,
+ 1, 1, 0,
  1, 1, 1, 1, 1, 1, 1,
  JSON_ARRAY('platform_managed_fallback'),
  JSON_OBJECT(
@@ -29,7 +29,13 @@ VALUES
    'expected_policy_hash', 'dd5f152c4a226d07c75cf33dae3ab3a0cbf6e9913b623724429a96b2d4f96a96',
    'public_host', 'activation-dev.mad4b.com',
    'runtime_surface', 'activation_gateway_dark_deploy',
-   'feature_flag', 'STAGING_ACTIVATION_GATEWAY_APPLY_ENABLED',
+   'managed_credential_binding_required', TRUE,
+   'managed_credential_target_key', 'staging_activation_gateway_cloudflare',
+   'managed_credential_role', 'cloudflare_api_token',
+   'managed_runtime_config_required', TRUE,
+   'managed_runtime_config_key', 'staging_activation_gateway_apply',
+   'legacy_feature_flag', 'STAGING_ACTIVATION_GATEWAY_APPLY_ENABLED',
+   'legacy_feature_flag_execution_authority', FALSE,
    'server_resolved_target_required', TRUE,
    'caller_target_override_allowed', FALSE,
    'public_trust_bundle_required', TRUE,
@@ -43,7 +49,7 @@ VALUES
    'execution_nonce_required', TRUE,
    'secrets_included', FALSE
  ),
- 'Apply policy for the exact Staging Activation Gateway Worker. Account and script are read from the profile-owned authority binding; caller values are assertions only.')
+ 'Apply policy for the exact Staging Activation Gateway Worker. Managed credential binding and managed Runtime config are mandatory execution gates; legacy env state is diagnostic only. Account and script are read from the profile-owned authority binding; caller values are assertions only.')
 ON DUPLICATE KEY UPDATE
  app_key=VALUES(app_key),
  capability_key=VALUES(capability_key),

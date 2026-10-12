@@ -1,0 +1,101 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "pr8319-staging-host-breakglass-compose-db-transport",
+  "title": "PR8319 Staging Host Breakglass Compose database transport",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/pr8319-staging-host-breakglass-compose-db-transport.json",
+      ".github/derived-state-governance.json",
+      ".github/governance/test-authority-registry.json",
+      "http-generic-api/config/host-breakglass-staging-contract.json",
+      "http-generic-api/config/repository-governance-constitution.json",
+      "http-generic-api/package.json",
+      "http-generic-api/scripts/host-breakglass-local.mjs",
+      "http-generic-api/scripts/staging-bootstrap-db-bridge.mjs",
+      "http-generic-api/stagingComposeBootstrapConnectionFactory.js",
+      "http-generic-api/test-staging-compose-bootstrap-connection-factory.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Route Staging Host Breakglass database access through the existing Docker Compose app network while retaining Windows as the governed authority surface and preserving all Production and mutation boundaries.",
+      "e2e_journeys": [
+        {
+          "id": "staging-host-breakglass-compose-db-transport",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Staging Host Breakglass operator",
+          "entrypoint": "Run an exact-SHA Staging Host Breakglass database repair dry-run through the verified local request path on Windows.",
+          "terminal_outcome": "The Windows-controlled Host Breakglass runner can reach Compose-internal database service DNS through the bounded app-service bridge without exposing database ports or credentials in Docker argv; dry-run remains non-mutating and Production authority remains denied.",
+          "steps": [
+            "Keep staging_local_windows_docker and the Windows platform guard as the execution authority boundary.",
+            "Resolve the repository-owned Compose files, Staging env file, and bounded app bridge service from the Staging Host Breakglass contract.",
+            "Spawn docker compose exec without a shell and exchange database protocol requests over bounded stdio.",
+            "Pass the injected connectionFactory through runBootstrap and selective-rebuild readback without altering execution-ticket or confirmation semantics.",
+            "Keep database credentials out of Docker argv and public error envelopes.",
+            "Require live Staging certification for the shared-runtime change before relying on the transport operationally.",
+            "Keep Production mutation, migration apply, grants apply, provider mutation, deployment, and credential mutation outside this PR."
+          ],
+          "assertions": [
+            "The Compose bridge service is repository-configured and service names are syntax-bounded.",
+            "Database credentials are sent over stdin protocol rather than Docker argv.",
+            "The existing Windows Host Breakglass platform guard remains enforced.",
+            "The same Compose connection factory is preserved for post-selective-rebuild readback.",
+            "A Staging dry-run may connect to the database but reports database_mutation_performed=false and migration_apply_performed=false.",
+            "Production mutation is not authorized by this transport repair.",
+            "Live Staging certification remains required.",
+            "secrets_included is false."
+          ],
+          "tests": [
+            {
+              "id": "staging-compose-bootstrap-connection-factory",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-compose-bootstrap-connection-factory.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/pr8319-staging-host-breakglass-compose-db-transport.json",
+            ".github/derived-state-governance.json",
+            ".github/governance/test-authority-registry.json",
+            "http-generic-api/config/host-breakglass-staging-contract.json",
+            "http-generic-api/config/repository-governance-constitution.json",
+            "http-generic-api/scripts/host-breakglass-local.mjs",
+            "http-generic-api/scripts/staging-bootstrap-db-bridge.mjs",
+            "http-generic-api/stagingComposeBootstrapConnectionFactory.js",
+            "http-generic-api/test-staging-compose-bootstrap-connection-factory.mjs"
+          ]
+        }
+      ],
+      "tests": [
+        {
+          "id": "staging-compose-bootstrap-connection-factory",
+          "runner": "node",
+          "working_directory": "http-generic-api",
+          "path": "test-staging-compose-bootstrap-connection-factory.mjs",
+          "args": []
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}

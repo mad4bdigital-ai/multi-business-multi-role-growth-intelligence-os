@@ -208,7 +208,7 @@ function requirementKey(input = {}, effective = {}, appKey = "", authType = "") 
 }
 
 async function appExists(pool, appKey) {
-  const [rows] = await pool.query("SELECT app_key FROM `app_integrations` WHERE app_key = ? LIMIT 1", [appKey]).catch(() => [[]]);
+  const [rows] = await pool.query("SELECT app_key FROM `app_integrations` WHERE app_key = ? LIMIT 1", [appKey]);
   return Boolean(rows?.[0]);
 }
 
@@ -222,7 +222,7 @@ async function findPendingSession(pool, key) {
       ORDER BY expires_at DESC
       LIMIT 1`,
     [key]
-  ).catch(() => [[]]);
+  );
   return rows?.[0] || null;
 }
 

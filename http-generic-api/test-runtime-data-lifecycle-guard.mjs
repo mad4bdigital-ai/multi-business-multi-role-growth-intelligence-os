@@ -68,5 +68,20 @@ assert.equal(report.fresh_rebuild_semantic_complete, true);
 assert.deepEqual(report.known_replay_gaps, []);
 assert.deepEqual(report.known_replay_gap_datasets, []);
 assert.deepEqual(report.known_replay_gap_families, []);
+for (const table of ["actions","endpoints"]) {
+  assert.equal(contract.datasets[table].class, "canonical_registry");
+  assert.equal(contract.datasets[table].rebuild_from_git, true);
+  assert.equal(contract.datasets[table].replay_strategy, "disposable_git_registry_reconciliation_snapshot");
+  assert.equal(contract.datasets[table].artifact_keys.includes("runtime_registry_reconciliation_snapshot"), true);
+  assert.equal(contract.datasets[table].in_place_reconciliation, "insert_missing_fail_closed_on_drift");
+}
+for (const table of ["admin_platform_endpoint_tools","tenant_platform_endpoint_tools","platform_endpoint_tool_exports"]) {
+  assert.equal(contract.datasets[table].artifact_keys.includes("runtime_registry_reconciliation_snapshot"), true);
+  assert.equal(contract.datasets[table].in_place_reconciliation, "insert_missing_fail_closed_on_drift");
+}
+assert.equal(contract.enforcement.registry_reconciliation_insert_only, true);
+assert.equal(contract.enforcement.registry_reconciliation_existing_row_drift_fail_closed, true);
+assert.equal(contract.enforcement.registry_reconciliation_extra_live_rows_preserved, true);
+assert.equal(contract.enforcement.registry_reconciliation_production_source_forbidden, true);
 
 console.log("runtime data lifecycle guard tests passed");

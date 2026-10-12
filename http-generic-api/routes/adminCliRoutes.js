@@ -14,6 +14,7 @@ import { createContinuationCheckpoint, planContinuationResume } from "../sharedR
 import { closeGithubPullRequest, deleteGithubBranchRef, githubBranchDeleteConfirmation } from "../githubRepositoryLifecycle.js";
 import { classifyLocalConnectorCompositeHealth, probeLocalConnectorAuthenticatedHealth, probeLocalConnectorPublicHealthWithRetry } from "../localConnectorCompositeHealth.js";
 import { connectorLocalApiKeySelectFragment } from "../connectorSchemaCompatibility.js";
+import { adminConnectorScope, adminConnectorInventory, resolveAdminConnectorTarget, validateAdminRecoveryEndpoint, classifyAdminRecoveryReadback } from "../adminLocalConnectorTarget.js";
 
 const DEFAULT_COMMAND_TIMEOUT_MS = 120000;
 const MAX_COMMAND_TIMEOUT_MS = 600000;
@@ -786,16 +787,6 @@ export function buildLocalConnectorDeviceAliasCandidates(deviceId = "") {
   if (withoutPcSuffix && withoutPcSuffix !== normalized) candidates.add(withoutPcSuffix);
   if (withoutPcSuffix && !normalized.endsWith("-pc")) candidates.add(`${withoutPcSuffix}-pc`);
   return Array.from(candidates).filter(Boolean);
-}
-
-function localConnectorDeviceAliasLikePatterns(deviceId = "") {
-  return buildLocalConnectorDeviceAliasCandidates(deviceId)
-    .map((candidate) => `${candidate}%`)
-    .filter(Boolean);
-}
-
-function localConnectorConfigHasUsableToken(row = {}) {
-  return Boolean(String(row?.cf_token || "").trim());
 }
 
 export function buildLocalConnectorDeviceIdentityResolution({ requestedUserId = "", requestedDeviceId = "", row = null, matchSource = "direct" } = {}) {
@@ -2716,207 +2707,103 @@ export function buildAdminCliRoutes(deps) {
     }
   });
 
+  // Read-only current inventory; never supplies credentials or silently rebinds aliases.
+  router.get("/local-connector/devices", requireBackendApiKey, requireAdminPrincipal, async (req, res) => {
+    try {
+      const scope = adminConnectorScope(req, req.query);
+      return res.status(200).json(await adminConnectorInventory({pool: getPool(), scope}));
+    } catch (err) {
+      return res.status(err.status || 503).json({
+        ok: false, secrets_included: false,
+        error: {code: err.code || "device_inventory_unavailable",
+          message: err.code ? err.message : "Unable to verify current connector inventory."},
+      });
+    }
+  });
+
   // ── GET /admin/cli/local-connector/install-bundle ─────────────────────────
   // Generates a pre-filled Windows .bat installer.
   // Credential resolution order:
   //   1. DB: local_connector_user_configs for the given user_id + device_id
-  //   2. Env fallback: CLOUDFLARE_TUNNEL_TOKEN (for backward compat / admin own device)
+  //   2. No global credential fallback is permitted.
   // ?user_id=X   → resolve config for this user (admin only; defaults to platform admin)
-  // ?device_id=Y → resolve config for this device (defaults to "mohammedlap")
+  // ?device_id=Y → exact canonical device, or one unique fresh active scoped device.
   // ?format=bat  → returns the file directly as an attachment (for curl)
   router.get("/local-connector/install-bundle", requireBackendApiKey, requireAdminPrincipal, async (req, res) => {
+    res.setHeader("Cache-Control", "no-store, max-age=0");
     try {
-      const format   = String(req.query.format || "json").toLowerCase();
-      const userId   = String(req.query.user_id   || "").trim() || "00000000-0000-4000-a000-000000000002";
-      const deviceId = String(req.query.device_id || "").trim() || "mohammedlap";
-
-      if (format !== "bat") {
-        return res.status(200).json({
-          ok: true,
-          artifact_delivery: "authenticated_direct_download_only",
-          script_content_omitted: true,
-          script_content_reason: "installer contains live tunnel and backend credentials",
-          credential_materialized: false,
-          public_storage_allowed: false,
-          secure_download: {
-            method: "GET",
-            path: "/admin/cli/local-connector/install-bundle",
-            query: { user_id: userId, device_id: deviceId, format: "bat" },
-            requires_backend_api_key: true,
-            requires_admin_principal: true
-          },
-          secrets_included: false
+      const format = String(req.query.format || "json").toLowerCase();
+      if (format === "bat") {
+        return res.status(410).json({
+          ok: false, secrets_included: false,
+          error: { code: "legacy_admin_installer_disabled",
+            message: "Direct BAT generation no longer bypasses signed, expiring, device-scoped installer authorization." },
+          recovery: { method: "POST", path: "/local-connector/install/download-link",
+            requires_authenticated_principal: true, requires_canonical_device_id: true,
+            signed_installer_capability_required: true }
         });
       }
-
-      // 1. Look up device config from DB
-      let tunnelToken    = "";
-      let backendKey     = "";
-      let configSource   = "env";
-      let resolvedDevice = deviceId;
-      try {
-        const pool = getPool();
-        const [[row]] = await pool.query(
-          "SELECT cf_token, connector_secret, device_id FROM `local_connector_user_configs` WHERE user_id = ? AND device_id = ? AND is_enabled = 1 LIMIT 1",
-          [userId, deviceId]
-        );
-        if (row?.cf_token) {
-          tunnelToken    = row.cf_token;
-          backendKey     = row.connector_secret || "";
-          configSource   = "db";
-          resolvedDevice = row.device_id;
-        }
-      } catch (dbErr) {
-        console.warn("[install-bundle] DB lookup failed, trying env fallback:", dbErr.message);
-      }
-
-      // 2. Env fallback — also persist to DB so subsequent calls use DB
-      if (!tunnelToken) {
-        tunnelToken = process.env.CLOUDFLARE_TUNNEL_TOKEN || "";
-        backendKey  = process.env.BACKEND_API_KEY || "";
-        configSource = "env";
-        if (tunnelToken) {
-          try {
-            const pool = getPool();
-            await pool.query(
-              `UPDATE \`local_connector_user_configs\`
-               SET cf_token = COALESCE(NULLIF(cf_token,''), ?),
-                   connector_secret = COALESCE(NULLIF(connector_secret,''), ?)
-               WHERE user_id = ? AND device_id = ?`,
-              [tunnelToken, backendKey || null, userId, deviceId]
-            );
-          } catch {}
-        }
-      }
-
-      if (!tunnelToken) {
-        return res.status(404).json({
-          ok: false,
-          error: {
-            code: "config_not_found",
-            message: `No connector config found in DB for user_id=${userId} device_id=${deviceId}, and CLOUDFLARE_TUNNEL_TOKEN is not set. Run POST /local-connector/install first to provision the device.`,
-          }
-        });
-      }
-
-      const batContent = generateConnectorInstallerBat(tunnelToken, backendKey);
-      const filename   = `install-connector-${new Date().toISOString().slice(0,10)}.bat`;
-
-      writeAuditLogAsync({
-        action: "admin_cli.local_connector_install_bundle",
-        resource_type: "install_bundle",
-        resource_id: filename,
-        payload: {
-          delivery_mode: "authenticated_direct_download",
-          public_storage_allowed: false,
-          config_source: configSource,
-          device_id: resolvedDevice,
-          user_id: userId,
-          secrets_included: false
-        },
+      if (format !== "json") return res.status(400).json({
+        ok: false, secrets_included: false, error: {code:"unsupported_format",message:"Only JSON diagnosis is available."}
       });
-
-      res.setHeader("Content-Type", "application/octet-stream");
-      res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
-      return res.send(batContent);
+      const scope = adminConnectorScope(req, req.query);
+      const target = await resolveAdminConnectorTarget({
+        pool: getPool(), scope, requestedDeviceId: req.query.device_id,
+        includeCredentials: false, intent: "diagnosis",
+      });
+      return res.status(200).json({
+        ok: true, user_id: scope.user_id, tenant_id: scope.tenant_id,
+        device_id: target.row.device_id, config_id: target.row.config_id,
+        device_state: target.state, credential_materialized: false,
+        script_content_omitted: true, public_storage_allowed: false,
+        signed_installer: {
+          method: "POST", path: "/local-connector/install/download-link",
+          format: "ps1", requires_authenticated_principal: true,
+          requires_explicit_canonical_target: true, direct_admin_bat_disabled: true
+        },
+        secrets_included: false,
+      });
     } catch (err) {
-      return res.status(err.status || 500).json({
-        ok: false,
-        error: { code: "install_bundle_failed", message: err.message },
+      return res.status(err.status || 503).json({
+        ok: false, secrets_included: false,
+        error: { code: err.code || "install_bundle_unavailable",
+          message: err.code ? err.message : "Unable to validate canonical installer target." },
       });
     }
   });
 
   // ── POST /admin/cli/local-connector/self-repair ───────────────────────────
   // Single-shot self-repair for the admin's local connector.
-  // 1. Reads device config from DB (user_id + device_id, defaults to admin / mohammedlap).
+  // 1. Reads device config from DB (user_id + device_id, selects a fresh canonical user/tenant/device).
   // 2. Checks CF tunnel health via Cloudflare API.
   // 3. Retries transient Cloudflare 1033/HTTP 530 health failures up to three total attempts and returns retry evidence.
   // 4. After retry exhaustion, returns diagnosis and an authenticated admin-only download handoff.
   // 5. Never generates installer content in this JSON route or uploads the secret-bearing installer to shared or public storage.
   router.post("/local-connector/self-repair", requireBackendApiKey, requireAdminPrincipal, async (req, res) => {
     try {
-      const userId   = String(req.body?.user_id   || "").trim() || "00000000-0000-4000-a000-000000000002";
-      const deviceId = String(req.body?.device_id || "").trim() || "mohammedlap";
-
-      // 1. Load config from DB
-      let tunnelToken  = "";
-      let backendKey   = "";
-      let connectorLocalApiKey = "";
-      let cfTunnelId   = null;
-      let cfTunnelName = null;
-      let tunnelUrl    = null;
-      let configSource = "env";
-      let resolvedUserId = userId;
-      let resolvedDeviceId = deviceId;
-      let deviceIdentityResolution = null;
-      try {
-        const pool = getPool();
-        const connectorLocalApiKeySelect = await connectorLocalApiKeySelectFragment(pool);
-        const [[row]] = await pool.query(
-          `SELECT config_id, user_id, device_id, cf_token, connector_secret, ${connectorLocalApiKeySelect}, cf_tunnel_id, cf_tunnel_name, tunnel_url FROM \`local_connector_user_configs\` WHERE user_id = ? AND device_id = ? AND is_enabled = 1 LIMIT 1`,
-          [userId, deviceId]
-        );
-        let selectedRow = row || null;
-        let matchSource = "direct";
-        if (!localConnectorConfigHasUsableToken(selectedRow)) {
-          const aliasPatterns = localConnectorDeviceAliasLikePatterns(deviceId);
-          if (aliasPatterns.length) {
-            const aliasWhere = aliasPatterns.map(() => "LOWER(device_id) LIKE ?").join(" OR ");
-            const [aliasRows] = await pool.query(
-              `SELECT config_id, user_id, device_id, cf_token, connector_secret, ${connectorLocalApiKeySelect}, cf_tunnel_id, cf_tunnel_name, tunnel_url, last_health_at, updated_at
-                 FROM \`local_connector_user_configs\`
-                WHERE is_enabled = 1
-                  AND COALESCE(NULLIF(cf_token,''),'') <> ''
-                  AND (${aliasWhere})
-                ORDER BY
-                  CASE WHEN user_id = ? THEN 0 ELSE 1 END,
-                  CASE WHEN last_health_at IS NULL THEN 1 ELSE 0 END,
-                  last_health_at DESC,
-                  updated_at DESC
-                LIMIT 5`,
-              [...aliasPatterns, userId]
-            );
-            if (aliasRows.length === 1) {
-              selectedRow = aliasRows[0];
-              matchSource = "db_alias";
-            }
-          }
-        }
-        if (selectedRow) {
-          tunnelToken  = selectedRow.cf_token || "";
-          backendKey   = selectedRow.connector_secret || "";
-          connectorLocalApiKey = selectedRow.connector_local_api_key || "";
-          cfTunnelId   = selectedRow.cf_tunnel_id || null;
-          cfTunnelName = selectedRow.cf_tunnel_name || null;
-          tunnelUrl    = selectedRow.tunnel_url || null;
-          resolvedUserId = selectedRow.user_id || userId;
-          resolvedDeviceId = selectedRow.device_id || deviceId;
-          configSource = tunnelToken ? matchSource === "db_alias" ? "db_alias" : "db" : "env_fallback";
-          deviceIdentityResolution = buildLocalConnectorDeviceIdentityResolution({ requestedUserId: userId, requestedDeviceId: deviceId, row: selectedRow, matchSource });
-        }
-      } catch (dbErr) {
-        console.warn("[self-repair] DB lookup failed:", dbErr.message);
-      }
-      if (!tunnelToken) {
-        tunnelToken  = process.env.CLOUDFLARE_TUNNEL_TOKEN || "";
-        backendKey   = backendKey || process.env.BACKEND_API_KEY || "";
-        // connectorLocalApiKey remains DB-owned; do not introduce a second secret env authority in this route.
-        configSource = deviceIdentityResolution ? "db_with_env_tunnel_fallback" : "env";
-        // Persist to DB so future calls resolve from DB
-        if (tunnelToken) {
-          try {
-            const pool = getPool();
-            await pool.query(
-              `UPDATE \`local_connector_user_configs\`
-               SET cf_token = COALESCE(NULLIF(cf_token,''), ?),
-                   connector_secret = COALESCE(NULLIF(connector_secret,''), ?)
-               WHERE user_id = ? AND device_id = ?`,
-              [tunnelToken, backendKey || null, userId, deviceId]
-            );
-          } catch {}
-        }
-      }
+      const scope = adminConnectorScope(req, req.body || {});
+      const target = await resolveAdminConnectorTarget({
+        pool: getPool(), scope, requestedDeviceId: req.body?.device_id,
+        includeCredentials: true, intent: "diagnosis", allowMissingCredentials: true,
+        localApiKeySql: await connectorLocalApiKeySelectFragment(getPool()),
+      });
+      const userId = scope.user_id;
+      const tenantId = scope.tenant_id;
+      const deviceId = target.row.device_id;
+      const tunnelToken = target.credentials.cf_token;
+      const backendKey = target.credentials.connector_secret;
+      const connectorLocalApiKey = target.credentials.connector_local_api_key;
+      const cfTunnelId = target.credentials.cf_tunnel_id;
+      const cfTunnelName = target.credentials.cf_tunnel_name;
+      const tunnelUrl = target.credentials.tunnel_url;
+      const configSource = "scoped_db";
+      const routeUrl = tunnelUrl ? validateAdminRecoveryEndpoint(tunnelUrl, cfTunnelId, target.row.config_id) : null;
+      const resolvedUserId = userId;
+      const resolvedDeviceId = deviceId;
+      const deviceIdentityResolution = buildLocalConnectorDeviceIdentityResolution({
+        requestedUserId: userId, requestedDeviceId: req.body?.device_id,
+        row: {...target.row, ...target.credentials}, matchSource: target.selection_source,
+      });
 
       // 2. Check CF tunnel status via API (best-effort, non-blocking)
       let tunnelStatus = null;
@@ -2938,16 +2825,25 @@ export function buildAdminCliRoutes(deps) {
       }
 
       const publicHealthProbe = await probeLocalConnectorPublicHealthWithRetry({
-        tunnelUrl: tunnelUrl || "https://connector.mad4b.com",
+        tunnelUrl: routeUrl,
         timeoutMs: 8000,
       });
       const authenticatedCommandHealth = await probeLocalConnectorAuthenticatedHealth({
-        tunnelUrl: tunnelUrl || "https://connector.mad4b.com",
+        tunnelUrl: routeUrl,
         credentialCandidates: [
           { source: "connector_secret", token: backendKey },
           { source: "connector_local_api_key", token: connectorLocalApiKey },
         ],
         timeoutMs: 8000,
+      });
+      const recoveryReadback = classifyAdminRecoveryReadback({
+        deviceState: target.state,
+        publicStatus: publicHealthProbe.status,
+        authenticatedStatus: authenticatedCommandHealth.status,
+        observedDeviceId: authenticatedCommandHealth.device_id || null,
+        expectedDeviceId: deviceId,
+        observedConfigId: authenticatedCommandHealth.config_id || null,
+        expectedConfigId: target.row.config_id,
       });
       const compositeHealth = classifyLocalConnectorCompositeHealth({
         tunnelStatus,
@@ -2957,7 +2853,9 @@ export function buildAdminCliRoutes(deps) {
       });
       if (compositeHealth.status === "active") {
         writeAuditLogAsync({
-          action: "admin_cli.local_connector_self_repair.not_required",
+          action: recoveryReadback.recovered
+            ? "admin_cli.local_connector_self_repair.verified_no_repair"
+            : "admin_cli.local_connector_self_repair.verification_pending",
           resource_type: "local_connector_health",
           resource_id: resolvedDeviceId,
           payload: {
@@ -2970,9 +2868,10 @@ export function buildAdminCliRoutes(deps) {
             authenticated_command_status: authenticatedCommandHealth.status,
             retry_evidence: publicHealthProbe.retry_evidence || null,
             composite_status: compositeHealth.status,
-            repair_required: false,
+            repair_required: !recoveryReadback.operational_verified,
+            recovery_readback: recoveryReadback,
             config_source: configSource,
-            alias_resolution_applied: configSource === "db_alias",
+            alias_resolution_applied: false,
             secrets_included: false,
           },
         });
@@ -2985,7 +2884,7 @@ export function buildAdminCliRoutes(deps) {
             resolved_user_id: resolvedUserId,
             resolved_device_id: resolvedDeviceId,
             device_identity_resolution: deviceIdentityResolution,
-            tunnel_url: tunnelUrl || "https://connector.mad4b.com",
+            tunnel_url: tunnelUrl,
             cf_tunnel_id: cfTunnelId,
             cf_tunnel_name: cfTunnelName,
             cf_tunnel_status: tunnelStatus,
@@ -2995,12 +2894,18 @@ export function buildAdminCliRoutes(deps) {
             composite_health: compositeHealth,
             config_source: configSource,
             likely_cause: compositeHealth.likely_cause,
-            repair_required: false,
+            repair_required: !recoveryReadback.operational_verified,
+            recovery_readback: recoveryReadback,
             secrets_included: false,
           },
           repair: {
-            required: false,
-            action: compositeHealth.status === "authorization_gated"
+            required: !recoveryReadback.operational_verified,
+            verification_pending: !recoveryReadback.recovered,
+            action: recoveryReadback.operational_verified && !recoveryReadback.recovered
+              ? "No service reinstall is required. Complete independent device-generation attestation to close recovery acceptance."
+              : !recoveryReadback.recovered
+              ? "Transport is reachable, but same-cycle identity or heartbeat remains unverified; diagnose before repair."
+              : compositeHealth.status === "authorization_gated"
               ? "Connector transport is reachable. Validate the connector authorization binding before reinstalling services."
               : "No repair action is required; same-cycle public connector health passed.",
             installer_generated: false,
@@ -3033,7 +2938,7 @@ export function buildAdminCliRoutes(deps) {
             resolved_user_id: resolvedUserId,
             resolved_device_id: resolvedDeviceId,
             device_identity_resolution: deviceIdentityResolution,
-            tunnel_url: tunnelUrl || "https://connector.mad4b.com",
+            tunnel_url: tunnelUrl,
             cf_tunnel_id: cfTunnelId,
             cf_tunnel_name: cfTunnelName,
             cf_tunnel_status: tunnelStatus,
@@ -3052,6 +2957,41 @@ export function buildAdminCliRoutes(deps) {
             installer_generated: false,
             secrets_included: false,
           },
+        });
+      }
+
+      // Inconclusive or host-level failure is never evidence that installing
+      // a new device service will help. Preserve diagnosis without installer advice.
+      if (["validating", "degraded_tunnel", "authorization_gated"].includes(compositeHealth.status)) {
+        writeAuditLogAsync({
+          action: "admin_cli.local_connector_self_repair.diagnostics_required",
+          resource_type: "local_connector_health",
+          resource_id: resolvedDeviceId,
+          payload: { user_id: userId, tenant_id: tenantId, device_id: resolvedDeviceId,
+            composite_status: compositeHealth.status,
+            recovery_readback: recoveryReadback, secrets_included: false },
+        });
+        return res.status(200).json({
+          ok: true,
+          diagnosis: { device_id: resolvedDeviceId, user_id: userId, tenant_id: tenantId,
+            composite_health: compositeHealth, recovery_readback: recoveryReadback,
+            transport_health: publicHealthProbe,
+            authenticated_command_health: authenticatedCommandHealth,
+            secrets_included: false },
+          recovery_plan: {
+            status: "diagnostics_required",
+            installer_eligible: false,
+            next_action: compositeHealth.status === "degraded_tunnel"
+              ? "inspect_cloudflare_tunnel_and_host_separately"
+              : compositeHealth.status === "authorization_gated"
+                ? "verify_authorization_binding"
+                : "collect_independent_route_and_device_evidence",
+            requires_independent_verification: true,
+            secrets_included: false,
+          },
+          repair: { required: compositeHealth.status !== "authorization_gated",
+            installer_generated: false, action: "Do not reinstall until the failing boundary is identified.",
+            secrets_included: false },
         });
       }
 
@@ -3100,7 +3040,7 @@ export function buildAdminCliRoutes(deps) {
           continuation,
           error: {
             code: "connector_tunnel_provisioning_required",
-            message: `No cf_token in DB for user=${userId} device=${deviceId} and CLOUDFLARE_TUNNEL_TOKEN env not set. Provision the tunnel token, then retry POST /admin/cli/local-connector/self-repair.`,
+            message: "Device-owned tunnel credential not provisioned. Use governed provisioning before retrying.",
           },
           secrets_included: false,
         });
@@ -3127,7 +3067,7 @@ export function buildAdminCliRoutes(deps) {
           composite_status: compositeHealth.status,
           repair_required: compositeHealth.repair_required,
           config_source: configSource,
-          alias_resolution_applied: configSource === "db_alias",
+          alias_resolution_applied: false,
           drive_uploaded: !!driveResult,
           drive_upload_status: driveUploadStatus,
           secrets_included: false
@@ -3143,12 +3083,12 @@ export function buildAdminCliRoutes(deps) {
           resolved_user_id: resolvedUserId,
           resolved_device_id: resolvedDeviceId,
           device_identity_resolution: deviceIdentityResolution,
-          tunnel_url: tunnelUrl || "https://connector.mad4b.com",
+          tunnel_url: tunnelUrl,
           cf_tunnel_id: cfTunnelId,
           cf_tunnel_name: cfTunnelName,
           cf_tunnel_status: tunnelStatus,
           config_source: configSource,
-          alias_resolution_applied: configSource === "db_alias",
+          alias_resolution_applied: false,
           transport_health: publicHealthProbe,
           authenticated_command_health: authenticatedCommandHealth,
           public_health_probe: publicHealthProbe,
@@ -3161,6 +3101,7 @@ export function buildAdminCliRoutes(deps) {
           required: true,
           installer_generated: false,
           artifact_delivery: "authenticated_direct_download_only",
+          preview_only: true,
           action: "Use the authenticated admin-only download endpoint, then run the installer as Administrator on the Windows device.",
           filename,
           public_storage_allowed: false,
@@ -3170,15 +3111,15 @@ export function buildAdminCliRoutes(deps) {
           script_content_omitted: true,
           script_content_reason: "installer contains live tunnel and backend credentials",
           secure_download: {
-            method: "GET",
-            path: "/admin/cli/local-connector/install-bundle",
-            query: {
-              user_id: resolvedUserId,
-              device_id: resolvedDeviceId,
-              format: "bat"
+            method: "POST",
+            path: "/local-connector/install/download-link",
+            body: {
+              user_id: resolvedUserId, tenant_id: tenantId,
+              device_id: resolvedDeviceId, format: "ps1",
             },
-            requires_backend_api_key: true,
-            requires_admin_principal: true
+            requires_authenticated_principal: true,
+            requires_signed_expiring_capability: true,
+            direct_admin_bat_disabled: true
           },
           secrets_included: false
         },
@@ -3186,7 +3127,8 @@ export function buildAdminCliRoutes(deps) {
     } catch (err) {
       return res.status(err.status || 500).json({
         ok: false,
-        error: { code: "self_repair_failed", message: err.message },
+        error: { code: err.code || "self_repair_failed", message: err.code ? err.message : "Connector diagnostics failed closed." },
+        secrets_included: false,
       });
     }
   });

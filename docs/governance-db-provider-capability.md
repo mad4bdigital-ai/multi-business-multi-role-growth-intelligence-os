@@ -24,13 +24,23 @@ Both failures are no-secret and occur before a database connection or SQL execut
 
 ## Current Production capability
 
-The current Production policy identifies the managed database surface as `hostinger_web_cloud_mysql` / `managed_hpanel_mysql` and marks the following required control-plane capabilities unavailable:
+As of the repository policy reviewed on 2026-10-08, `http-generic-api/config/governance-db-provider-capabilities.json` declares
+`provider_key=hostinger_web_cloud_mysql`, `provider_mode=managed_hpanel_two_database_mysql`, and **all three** Governance writer capabilities `true`:
 
-- a second principal for the same database through the managed control plane;
-- exact direct table-scoped grants through the managed control plane;
-- the complete dedicated Governance writer contract.
+- `independent_governance_database_via_managed_control_plane`;
+- `exact_direct_table_grants_on_governance_database_via_managed_control_plane`;
+- `dedicated_governance_writer_contract_v1`.
 
-Therefore current Production must not be treated as awaiting only `GOVERNANCE_DB_USER` / `GOVERNANCE_DB_PASSWORD` configuration. Credential prompting, copying the ordinary runtime identity, broadening `DB_USER`, or repeated privilege probes cannot repair a provider capability mismatch.
+The policy evidence is `user_confirmed_manual_hostinger_provisioning` (reviewed `2026-08-13`).
+**Declared provider support is not live operational readiness.**
+It does not prove the actual Production deployment SHA, dedicated DB/principal creation, schema inventory, current
+`information_schema.TABLE_PRIVILEGES` grants, or runtime credential availability.
+
+Use `Governance DB Privilege Readiness` and the exact Production `/deployment-info?include_governance_db_readiness=1`
+readback to distinguish: provider-capability declaration, production identity, database connectivity, physical
+schema readiness, and exact direct table privileges. Unavailable/unverified evidence is `UNKNOWN/BLOCKED`, never
+`READY` and never authority to mutate. A genuine provider limitation must still fail closed with
+`GOVERNANCE_DB_PROVIDER_CAPABILITY_UNSUPPORTED` after the policy is corrected to reflect observed limitations.
 
 ## Same-identity prohibition
 
@@ -58,9 +68,9 @@ Do not:
 - point `GOVERNANCE_DB_NAME` at a second database without a separately reviewed read/write and transaction redesign;
 - retry Migration readiness while the provider capability gate is unsupported.
 
-## Closure sequence after a future remediation
+## Closure sequence after live readiness evidence
 
-Only after a separately governed provider migration or datastore redesign is completed and the repository provider policy is truthfully updated to supported may #6813 resume the existing closure sequence:
+Only after the provider claim is independently corroborated by actual Production database/principal/schema/grant evidence and exact runtime identity may #6813 resume its existing closure sequence. If capability is actually unsupported, perform a separately governed provider migration or datastore redesign and update the policy first:
 
 1. prove the provider-capability policy and Production environment authority;
 2. configure a distinct Governance DB identity without secret disclosure;

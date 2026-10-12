@@ -325,6 +325,12 @@ function Test-LocalDeploymentHealthy([string]$Sha, $Runtime) {
         $health = (& docker inspect --format "{{.State.Health.Status}}" $id 2>$null | Out-String).Trim()
         $running = (& docker inspect --format "{{.State.Running}}" $id 2>$null | Out-String).Trim().ToLowerInvariant()
         if ($health -ne "healthy" -or $running -ne "true") { return $false }
+        if ($service -eq "app") {
+            # The previous runtime receipt is only a candidate. Verify that
+            # the *current container* still runs the exact certified image ID.
+            $liveImageId = (& docker inspect --format "{{.Image}}" $id 2>$null | Out-String).Trim().ToLowerInvariant()
+            if ($LASTEXITCODE -ne 0 -or $liveImageId -ne $imageDigest.ToLowerInvariant()) { return $false }
+        }
     }
     return $true
 }
@@ -474,10 +480,42 @@ $previous = Read-State $statePath
 $iteration = 0
 while ($true) {
     $iteration++
-    $sha = Get-RemoteMainSha $RepositoryPath $Ref
+    # Boot networking, DNS and GitHub transport can become ready after logon.
+    # A watch must remain alive but MUST NOT reuse an old SHA or stale eligibility.
+    # A one-shot invocation retains its fail-closed nonzero outcome.
+    try {
+        $sha = Get-RemoteMainSha $RepositoryPath $Ref
+        $eligibility = Get-LatestEligibility $Policy $ExpectedRepository $sha
+    } catch {
+        if (-not $Watch) { throw }
+        $failureClass = if ($_.Exception.Message -match '(?i)resolve|dns|network|transport|connect|timed out') { "network_unready" } else { "remote_authority_unavailable" }
+        $script:CurrentSha = ""
+        $script:CurrentEligibility = $null
+        Write-StagingAtomicJson (Join-Path (Get-StagingLogRoot) "auto-deploy-transport.json") ([ordered]@{
+            contract = "mad4b.staging-auto-deploy-transport.v1"
+            status = "retry_later"
+            failure_class = $failureClass
+            desired_sha_verified = $false
+            eligibility_verified = $false
+            deployment_authorized = $false
+            checked_at = ([DateTimeOffset]::UtcNow.ToString("o"))
+            secrets_included = $false
+        }) 5
+        Write-StagingLog -Level warning -Component $LogComponent -Stage "transport-unavailable" -Message "remote source or eligibility unavailable; no deployment performed; watcher will retry" -Data @{ failure_class = $failureClass; retry_seconds = $PollSeconds; deployment_authorized = $false }
+        Write-StagingLog -Level info -Component $LogComponent -Stage "sleep" -Message "watcher sleeping after unavailable remote authority" -Data @{ seconds = $PollSeconds }
+        Start-Sleep -Seconds $PollSeconds
+        continue
+    }
     $script:CurrentSha = $sha
-    $eligibility = Get-LatestEligibility $Policy $ExpectedRepository $sha
     $script:CurrentEligibility = $eligibility
+    Write-StagingAtomicJson (Join-Path (Get-StagingLogRoot) "auto-deploy-transport.json") ([ordered]@{
+        contract = "mad4b.staging-auto-deploy-transport.v1"
+        status = "verified"
+        verified_sha = $sha
+        eligibility_state = [string]$eligibility.state
+        checked_at = ([DateTimeOffset]::UtcNow.ToString("o"))
+        secrets_included = $false
+    }) 5
     $phaseState = New-PhaseState $(if ($eligibility.state -eq "eligible") { "passed" } else { [string]$eligibility.state })
     $script:PhaseState = $phaseState
 
@@ -500,6 +538,13 @@ while ($true) {
         }
     }
 
+    # A pre-reboot certification receipt must never certify stopped Compose
+    # containers. Recheck exact-sha local service health after Docker is ready.
+    $localRuntimeHealthy = $false
+    if ($sameDeployedCommit -and $eligibility.state -eq "eligible") {
+        $localRuntimeHealthy = Test-LocalDeploymentHealthy $sha (Read-State $runtimeStatePath)
+    }
+    $alreadyCertified = $alreadyCertified -and $localRuntimeHealthy
     if ($alreadyCertified) {
         $phaseState.docker = "ready"
         $phaseState.build = "succeeded"
@@ -511,7 +556,7 @@ while ($true) {
         Write-AutoDeployState $sha $eligibility (Read-State $runtimeStatePath) $false $phaseState "ready"
         Exit-DeploymentLease
         if (-not $Watch) { Release-AutoPilotRunLock; return }
-    } elseif ($sameDeployedCommit -and -not $ValidateOnly -and $eligibility.state -eq "eligible") {
+    } elseif ($sameDeployedCommit -and $localRuntimeHealthy -and -not $ValidateOnly -and $eligibility.state -eq "eligible") {
         $runtimeBefore = Read-State $runtimeStatePath
         if (Test-LocalDeploymentHealthy $sha $runtimeBefore) {
             $phaseState.build = "succeeded"

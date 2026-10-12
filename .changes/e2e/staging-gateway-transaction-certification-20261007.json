@@ -1,0 +1,92 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-gateway-transaction-certification-20261007",
+  "title": "Close the Staging Gateway transaction certification authority loop",
+  "delivery_mode": "single_pr",
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-gateway-transaction-certification-20261007.json",
+      ".github/derived-state-governance.json",
+      "docs/governance/configuration-drift-baseline-extensions.json",
+      "docs/governance/platform-configuration-entry-registry.json",
+      "http-generic-api/config/repository-governance-constitution.json",
+      "http-generic-api/migrations/20260912_staging_activation_gateway_transaction_hardening.sql",
+      "http-generic-api/scripts/staging-gateway-transaction-certification.mjs",
+      "http-generic-api/stagingActivationGatewayApplyAdapter.js",
+      "http-generic-api/stagingGatewayExecutionPlanStore.js",
+      "http-generic-api/test-staging-smart-gateway-convergence-contract.mjs"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Provide the missing independent Staging Gateway transaction-certification path without weakening the existing apply gate or allowing caller-selected provider authority.",
+      "e2e_journeys": [
+        {
+          "id": "staging-gateway-independent-transaction-certification",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Server-governed Staging Gateway certification authority",
+          "entrypoint": "Prepare an exact-build certification-purpose plan while the dispatch certification row is pending.",
+          "terminal_outcome": "A synthetic provider candidate is deployed and read back, the previous deployment and public identity are restored in the same cycle, certification is atomically promoted with the execution-plan success state, and a subsequent normal apply plan becomes ready only for the exact certified commit and policy.",
+          "steps": [
+            "Create a certification-purpose plan bound to the exact source commit, policy hash, convergence-plan hash, server-owned resource binding and canonical Platform Admin Workspace.",
+            "Prove that a certification-purpose plan cannot be replayed through the normal Gateway apply path.",
+            "Perform a synthetic candidate Version upload and 100% deployment readback through the existing provider transaction contract.",
+            "Force rollback to the previous deployment and prove deployment, health and trusted-ingress restoration before issuing certification.",
+            "Persist exact-build evidence and atomically promote the dispatch certification and execution-plan success state.",
+            "Build a subsequent normal apply plan and require the exact-build certification evidence before apply readiness."
+          ],
+          "assertions": [
+            "The certification CLI accepts no caller-selected account, script, provider target or credential value.",
+            "The managed Cloudflare credential and feature gate remain server-resolved.",
+            "Certification evidence is bound to exact source commit, policy hash and a SHA-256 evidence digest.",
+            "Certification has a bounded high-risk expiry and stale-build evidence cannot satisfy a later apply.",
+            "The candidate certification deployment is never retained after a successful certification cycle.",
+            "Certification cannot be issued unless rollback and public-state restoration are verified in the same cycle.",
+            "The certification row and execution-plan success transition are committed atomically in the Governance DB.",
+            "No DNS, custom-domain or Production mutation is permitted.",
+            "Synthetic tests perform no live provider mutation and secrets_included remains false."
+          ],
+          "tests": [
+            {
+              "id": "staging-gateway-transaction-certification-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-smart-gateway-convergence-contract.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/staging-gateway-transaction-certification-20261007.json",
+            ".github/derived-state-governance.json",
+            "docs/governance/configuration-drift-baseline-extensions.json",
+            "docs/governance/platform-configuration-entry-registry.json",
+            "http-generic-api/config/repository-governance-constitution.json",
+            "http-generic-api/migrations/20260912_staging_activation_gateway_transaction_hardening.sql",
+            "http-generic-api/scripts/staging-gateway-transaction-certification.mjs",
+            "http-generic-api/stagingActivationGatewayApplyAdapter.js",
+            "http-generic-api/stagingGatewayExecutionPlanStore.js",
+            "http-generic-api/test-staging-smart-gateway-convergence-contract.mjs"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}

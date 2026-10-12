@@ -6,7 +6,11 @@
   "required_platform": "win32",
   "required_runtime": "docker_compose",
   "shell_service": "api",
-  "compose_files": ["docker-compose.yml", "docker-compose.staging.yml"],
+  "database_bridge_service": "app",
+  "compose_files": [
+    "docker-compose.yml",
+    "docker-compose.staging.yml"
+  ],
   "compose_env_file": ".env.staging",
   "source_branch": "main",
   "target_environment": "staging",
@@ -44,14 +48,295 @@
         "sha256": "6ca8879ec300b5970f6ddc3d9eeded38eda8dee12abd6bdeb7ba7d2ffa53ee2c",
         "statement_count": 1,
         "role": "runtime",
-        "requires_tables": ["actions"],
-        "allowed_modes": ["dry_run", "apply_migration"],
+        "requires_tables": [
+          "actions"
+        ],
+        "allowed_modes": [
+          "dry_run",
+          "apply_migration"
+        ],
         "postconditions": [
-          {"type": "column", "table": "actions", "column": "allowed_actor_roles"},
-          {"type": "column", "table": "actions", "column": "allowed_governance_levels"},
-          {"type": "column", "table": "actions", "column": "oauth_secret_storage_type"},
-          {"type": "column", "table": "actions", "column": "oauth_last_validated_at"}
+          {
+            "type": "column",
+            "table": "actions",
+            "column": "allowed_actor_roles"
+          },
+          {
+            "type": "column",
+            "table": "actions",
+            "column": "allowed_governance_levels"
+          },
+          {
+            "type": "column",
+            "table": "actions",
+            "column": "oauth_secret_storage_type"
+          },
+          {
+            "type": "column",
+            "table": "actions",
+            "column": "oauth_last_validated_at"
+          }
         ]
+      },
+      {
+        "file": "20260815_custom_gpt_mcp_catalog_levels.sql",
+        "sha256": "528143808adac23eb457058c4c34dd95c4c5d462bca9ac4b170b1f19b2006681",
+        "statement_count": 7,
+        "role": "runtime",
+        "requires_tables": [
+          "admin_platform_endpoint_tools",
+          "tenant_platform_endpoint_tools"
+        ],
+        "allowed_modes": [
+          "dry_run",
+          "apply_migration"
+        ],
+        "postconditions": [
+          {
+            "type": "column",
+            "table": "admin_platform_endpoint_tools",
+            "column": "mcp_catalog_level"
+          },
+          {
+            "type": "column",
+            "table": "tenant_platform_endpoint_tools",
+            "column": "mcp_catalog_level"
+          },
+          {
+            "type": "index",
+            "table": "admin_platform_endpoint_tools",
+            "index": "idx_enabled_mcp_level_sort"
+          },
+          {
+            "type": "index",
+            "table": "tenant_platform_endpoint_tools",
+            "index": "idx_enabled_mcp_level_sort"
+          }
+        ]
+      },
+      {
+        "file": "1048_transport_response_chunk_schema_recovery.sql",
+        "sha256": "aecfbd9d87dca6eba11677cd992637f55ecf3c0743f704df4bbea48c57d8d788",
+        "statement_count": 34,
+        "role": "runtime_persistence",
+        "requires_tables": [],
+        "allowed_modes": [
+          "dry_run",
+          "apply_migration"
+        ],
+        "postconditions": [
+          {
+            "type": "column",
+            "table": "governed_tool_response_chunks",
+            "column": "chunk_id"
+          },
+          {
+            "type": "column",
+            "table": "governed_tool_response_chunks",
+            "column": "source_tool_key"
+          },
+          {
+            "type": "column",
+            "table": "governed_tool_response_chunks",
+            "column": "response_sha256"
+          },
+          {
+            "type": "column",
+            "table": "governed_tool_response_chunks",
+            "column": "response_bytes"
+          },
+          {
+            "type": "column",
+            "table": "governed_tool_response_chunks",
+            "column": "response_json"
+          },
+          {
+            "type": "column",
+            "table": "governed_tool_response_chunks",
+            "column": "cursor_policy"
+          },
+          {
+            "type": "column",
+            "table": "governed_tool_response_chunks",
+            "column": "redaction_status"
+          },
+          {
+            "type": "column",
+            "table": "governed_tool_response_chunks",
+            "column": "secrets_included"
+          },
+          {
+            "type": "column",
+            "table": "governed_tool_response_chunks",
+            "column": "owner_tenant_id"
+          },
+          {
+            "type": "column",
+            "table": "governed_tool_response_chunks",
+            "column": "owner_user_id"
+          },
+          {
+            "type": "column",
+            "table": "governed_tool_response_chunks",
+            "column": "owner_workspace_id"
+          },
+          {
+            "type": "column",
+            "table": "governed_tool_response_chunks",
+            "column": "owner_principal_type"
+          },
+          {
+            "type": "column",
+            "table": "governed_tool_response_chunks",
+            "column": "owner_principal_id"
+          },
+          {
+            "type": "column",
+            "table": "governed_tool_response_chunks",
+            "column": "source_surface"
+          },
+          {
+            "type": "column",
+            "table": "governed_tool_response_chunks",
+            "column": "created_at"
+          },
+          {
+            "type": "column",
+            "table": "governed_tool_response_chunks",
+            "column": "expires_at"
+          },
+          {
+            "type": "index",
+            "table": "governed_tool_response_chunks",
+            "index": "idx_governed_tool_response_chunks_expires_at"
+          },
+          {
+            "type": "index",
+            "table": "governed_tool_response_chunks",
+            "index": "idx_governed_chunk_owner_user_expiry"
+          },
+          {
+            "type": "index",
+            "table": "governed_tool_response_chunks",
+            "index": "idx_governed_chunk_principal_expiry"
+          },
+          {
+            "type": "view_row",
+            "view": "v_governed_response_chunk_transport_schema_readiness",
+            "key_column": "contract_key",
+            "key_value": "governed_response_chunk_transport_schema_v1",
+            "value_column": "readiness_status",
+            "expected_value": "ready"
+          }
+        ]
+      },
+      {
+        "file": "20261003_staging_remote_mcp_runtime_foundation_reconciliation.sql",
+        "sha256": "352414ac3c1adbd7bccd3a339760c3506ae2f8e9a223ae669a012183eeabfecc",
+        "statement_count": 4,
+        "role": "runtime",
+        "requires_tables": [],
+        "allowed_modes": [
+          "dry_run",
+          "apply_migration"
+        ],
+        "postconditions": [
+          {
+            "type": "column",
+            "table": "platform_runtime_config",
+            "column": "config_key"
+          },
+          {
+            "type": "index",
+            "table": "platform_runtime_config",
+            "index": "idx_prc_status"
+          },
+          {
+            "type": "column",
+            "table": "remote_mcp_oauth_clients",
+            "column": "client_profile_key"
+          },
+          {
+            "type": "index",
+            "table": "remote_mcp_oauth_clients",
+            "index": "idx_remote_mcp_oauth_clients_status"
+          },
+          {
+            "type": "column",
+            "table": "remote_mcp_oauth_authorization_codes",
+            "column": "code_challenge"
+          },
+          {
+            "type": "index",
+            "table": "remote_mcp_oauth_authorization_codes",
+            "index": "idx_remote_mcp_oauth_codes_client_status"
+          },
+          {
+            "type": "column",
+            "table": "remote_mcp_oauth_grants",
+            "column": "access_jti"
+          },
+          {
+            "type": "index",
+            "table": "remote_mcp_oauth_grants",
+            "index": "uq_remote_mcp_oauth_grants_access_jti"
+          }
+        ],
+        "artifact_scope": "staging_recovery_only"
+      },
+      {
+        "file": "20261003_staging_activation_registry_schema_reconciliation.sql",
+        "sha256": "6729297dea3b7d601035c129cf912b12b3f09fd56a3319df7a20bd9ccab31b62",
+        "statement_count": 8,
+        "role": "runtime",
+        "requires_tables": [],
+        "allowed_modes": [
+          "dry_run",
+          "apply_migration"
+        ],
+        "postconditions": [
+          {
+            "type": "column",
+            "table": "activation_dynamic_tab_registry",
+            "column": "tab_key"
+          },
+          {
+            "type": "column",
+            "table": "activation_dynamic_tab_section_registry",
+            "column": "section_key"
+          },
+          {
+            "type": "column",
+            "table": "activation_dynamic_tab_discovery_rule_registry",
+            "column": "rule_key"
+          },
+          {
+            "type": "column",
+            "table": "activation_section_action_registry",
+            "column": "action_ref_key"
+          },
+          {
+            "type": "column",
+            "table": "activation_attention_rule_registry",
+            "column": "rule_key"
+          },
+          {
+            "type": "column",
+            "table": "activation_freshness_policy_registry",
+            "column": "policy_key"
+          },
+          {
+            "type": "column",
+            "table": "activation_signal_subscription_registry",
+            "column": "subscription_key"
+          },
+          {
+            "type": "column",
+            "table": "activation_connector_pack_registry",
+            "column": "pack_key"
+          }
+        ],
+        "artifact_scope": "staging_recovery_only"
       }
     ],
     "surface_authority_compatibility": {
@@ -83,9 +368,23 @@
   },
   "empty_database_reconstruction": {
     "scope": "existing_zero_object_set_only",
-    "object_kinds": ["tables", "views", "triggers", "routines", "events"],
-    "required_roles": ["runtime", "governance", "runtime_persistence"],
-    "selected_role_enum": ["runtime", "governance", "runtime_persistence"],
+    "object_kinds": [
+      "tables",
+      "views",
+      "triggers",
+      "routines",
+      "events"
+    ],
+    "required_roles": [
+      "runtime",
+      "governance",
+      "runtime_persistence"
+    ],
+    "selected_role_enum": [
+      "runtime",
+      "governance",
+      "runtime_persistence"
+    ],
     "selection_source": "durable_full_inspection_record_or_plan_bound_proof",
     "all_roles_must_be_zero_objects": false,
     "partial_role_rebuild_allowed": true,
@@ -94,11 +393,36 @@
     "sequential_role_execution": true,
     "stop_on_role_verification_failure": true,
     "standalone_migration_first_allowed": false,
-    "execution_order": ["full_inspection_durable_record", "selected_zero_object_role_recheck", "selected_role_bundle_baseline", "selected_role_seeds", "selected_role_postconditions", "next_selected_role_or_stop", "separate_least_privilege_grants_approval", "behavioral_probes"],
+    "execution_order": [
+      "full_inspection_durable_record",
+      "selected_zero_object_role_recheck",
+      "selected_role_bundle_baseline",
+      "selected_role_seeds",
+      "selected_role_postconditions",
+      "next_selected_role_or_stop",
+      "separate_least_privilege_grants_approval",
+      "behavioral_probes"
+    ],
     "behavioral_probes": [
-      {"probe": "governance_catalog_readiness", "role": "governance", "mutation": false, "provider_accessed": false},
-      {"probe": "runtime_persistence_response_chunk_readiness", "role": "runtime_persistence", "migration": "1048_transport_response_chunk_schema_recovery.sql", "mutation": false, "provider_accessed": false},
-      {"probe": "runtime_full_inspection_readiness", "role": "runtime", "mutation": false, "provider_accessed": false}
+      {
+        "probe": "governance_catalog_readiness",
+        "role": "governance",
+        "mutation": false,
+        "provider_accessed": false
+      },
+      {
+        "probe": "runtime_persistence_response_chunk_readiness",
+        "role": "runtime_persistence",
+        "migration": "1048_transport_response_chunk_schema_recovery.sql",
+        "mutation": false,
+        "provider_accessed": false
+      },
+      {
+        "probe": "runtime_full_inspection_readiness",
+        "role": "runtime",
+        "mutation": false,
+        "provider_accessed": false
+      }
     ]
   },
   "credential_mapping": {

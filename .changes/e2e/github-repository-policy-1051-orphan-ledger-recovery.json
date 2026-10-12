@@ -52,7 +52,8 @@
             "Prove the new ledger is record_only, checksum-bound, preflight pass/0, produced by governed_migration_runner_backfill, and records sql_applied_by_this_run=false.",
             "Require a different typed confirmation before any Migration 1051 SQL Apply.",
             "Recheck Governance writer readiness and exact record-only proof immediately before the reconciled Apply.",
-            "Leave APPLY_GITHUB_MAIN_REVIEW_POLICY and all GitHub Ruleset mutation outside this recovery authority."
+            "Leave APPLY_GITHUB_MAIN_REVIEW_POLICY and all GitHub Ruleset mutation outside this recovery authority.",
+            "Bind only the existing read-only Migration 1051 Verify job to the GitHub Production Environment secret scope with deployment disabled; preserve independent authorization for readiness, record-only and Apply jobs."
           ],
           "assertions": [
             "The recovery E2E declaration and governance document are registered in both canonical control-plane path lists.",
@@ -63,7 +64,8 @@
             "A record-only ledger is never mislabeled as an apply ledger.",
             "The reconciled Apply requires a separate exact confirmation and an exact record-only proof.",
             "The normal Migration 1051 Apply path and its replay guard remain unchanged.",
-            "No GitHub provider call, Ruleset mutation, Production deployment, force push, protected-ref mutation, credential payload read, or freeform SQL is authorized by this source change."
+            "No GitHub provider call, Ruleset mutation, Production deployment, force push, protected-ref mutation, credential payload read, or freeform SQL is authorized by this source change.",
+            "Production-scoped BACKEND_API_KEY is visible only to the Verify job in this source change; no deployment, database write, rule mutation, credential copy, or authorization expansion occurs."
           ],
           "tests": [
             {

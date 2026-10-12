@@ -9,6 +9,10 @@ import {
   normalizeTenantGptOAuthResource,
   resolveTenantGptOAuthIssuer,
 } from "./tenantGptOAuthResourceProfile.js";
+import {
+  tenantGptOAuthOperationCorrelationClaim,
+  verifyTenantGptOAuthOperationCorrelation,
+} from "./tenantGptOAuthOperationCorrelation.js";
 
 const REQUIRED_CODE_BINDING_CLAIMS = Object.freeze([
   "jti",
@@ -102,7 +106,27 @@ export function validateTenantGptOAuthAuthorizationCodeBindings(payload) {
     throw invalidCodeClaim("oauth_code_resource_invalid", "OAuth authorization-code resource is invalid.");
   }
 
-  return payload;
+  let correlation;
+  try {
+    correlation = verifyTenantGptOAuthOperationCorrelation(payload.oauth_correlation, {
+      expected_stage: "oauth_code_issue",
+      expected_resource: claims.resource,
+      expected_client_id: claims.client_id,
+      expected_user_id: claims.user_id,
+      expected_tenant_id: claims.tenant_id,
+      expected_oauth_code_jti: claims.jti,
+    });
+  } catch (error) {
+    throw invalidCodeClaim(
+      error?.code || "oauth_code_correlation_invalid",
+      "OAuth authorization-code correlation claim is invalid.",
+    );
+  }
+
+  return Object.freeze({
+    ...payload,
+    oauth_correlation: tenantGptOAuthOperationCorrelationClaim(correlation),
+  });
 }
 
 function issueTenantGptAccessToken(payload, {
@@ -112,6 +136,7 @@ function issueTenantGptAccessToken(payload, {
   expiresIn,
   jwtSecret,
   scope,
+  oauthCorrelation = null,
 } = {}) {
   const userId = text(payload?.user_id, BINDING_LIMITS.user_id);
   const tenantId = text(payload?.tenant_id, BINDING_LIMITS.tenant_id);
@@ -128,6 +153,21 @@ function issueTenantGptAccessToken(payload, {
     error.code = "oauth_issuer_unavailable";
     throw error;
   }
+
+  let correlationClaim = null;
+  if (oauthCorrelation) {
+    correlationClaim = tenantGptOAuthOperationCorrelationClaim(
+      verifyTenantGptOAuthOperationCorrelation(oauthCorrelation, {
+        expected_stage: "oauth_token_exchange",
+        expected_resource: normalizedResource,
+        expected_client_id: normalizedClientId,
+        expected_user_id: userId,
+        expected_tenant_id: tenantId,
+        expected_access_token_jti: jwtid,
+      }),
+    );
+  }
+
   return jwt.sign(
     {
       iss: issuer,
@@ -140,6 +180,7 @@ function issueTenantGptAccessToken(payload, {
       tenant_id: tenantId,
       scope: normalizeEffectiveScope(scope === undefined ? payload?.scope : scope),
       purpose: "tenant_gpt_access",
+      ...(correlationClaim ? { oauth_correlation: correlationClaim } : {}),
     },
     jwtSecret,
     { expiresIn, jwtid },

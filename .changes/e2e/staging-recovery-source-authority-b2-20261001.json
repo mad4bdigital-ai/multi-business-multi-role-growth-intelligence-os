@@ -1,0 +1,141 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-recovery-source-authority-b2-20261001",
+  "title": "Persist bounded server-owned OAuth Recovery evidence while external source authority remains fail-closed",
+  "delivery_mode": "single_pr",
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-recovery-source-authority-b2-20261001.json",
+      ".github/derived-state-governance.json",
+      ".github/governance/test-authority-registry.json",
+      "http-generic-api/config/repository-governance-constitution.json",
+      "http-generic-api/routes/activationHostGatewayRoutes.js",
+      "http-generic-api/routes/authRoutes.js",
+      "http-generic-api/routes/tenantGptOAuthTokenExchangeRoutes.js",
+      "http-generic-api/scripts/manifests/test-manifest-spec012.mjs",
+      "http-generic-api/tenantGptAccessTokenVerifier.js",
+      "http-generic-api/tenantGptOAuthRecoveryEvidenceSink.js",
+      "http-generic-api/test-auth-oauth-routes.mjs",
+      "http-generic-api/test-staging-activation-gateway.mjs",
+      "http-generic-api/test-tenant-gpt-oauth-recovery-evidence-sink.mjs",
+      "http-generic-api/test-tenant-gpt-oauth-token-exchange-routes.mjs"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Persist the five server-owned OAuth Recovery observations in the existing execution_log with exact operation, correlation and deployment binding, without claiming external callback or registration authority.",
+      "e2e_journeys": [
+        {
+          "id": "staging-recovery-oauth-server-evidence-sink",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Staging Tenant GPT OAuth authorization server and Activation protected-resource gateway",
+          "entrypoint": "GET /auth/oauth/authorize",
+          "terminal_outcome": "Five bounded server-owned Recovery observations can be read back for one exact OAuth operation/correlation/deployment while callback_received remains absent and external Recovery source authority remains unavailable.",
+          "steps": [
+            "Record authorize_received after server correlation creation.",
+            "Record login_consent_completed only after identity verification.",
+            "Record authorization_code_issued only after durable code storage and successful code signing.",
+            "Record token_exchange_completed only after access-token creation and successful activation-context persistence.",
+            "Record resource_request_verified in the Activation Gateway and await persistence before downstream dispatch.",
+            "Derive timestamps from verified correlation and deployment SHA from the canonical deployment manifest.",
+            "Persist bounded no-secret integrity evidence to execution_log with normalized correlation_id plus runtime_evidence_json, under a bounded write deadline.",
+            "Read back candidates through indexed correlation identity under an independent bounded read deadline, then verify every returned row and observed transition in-process.",
+            "Keep callback_received and Registration source attestation outside this server-owned scope."
+          ],
+          "assertions": [
+            "Exactly five server-owned events are accepted and callback_received is rejected.",
+            "Explicit local_windows_docker Staging is required; ambiguous staging, staging_hosted, Production, cross-repository manifests, non-main manifests, or mismatched deployment SHA fail closed.",
+            "Caller-supplied deployment SHA or timestamps are rejected.",
+            "Canonical digest represents integrity only and source_authenticity remains not_established.",
+            "Stage-specific request identity, envelope ancestry, subject, code and access-token bindings are mandatory.",
+            "Readback has an independent database-query deadline plus time-window, row, event-candidate, and chain-state bounds.",
+            "Recovery evidence persistence has a bounded write deadline so database queue or query stalls cannot indefinitely block OAuth or protected-resource request paths.",
+            "Recovery readback selects candidates only through action_key plus normalized indexed execution_log.correlation_id, then rejects cross-operation, cross-correlation, cross-deployment or canonical-evidence drift instead of hiding it in SQL pre-filtering.",
+            "Correlation continuity is hash-linked integrity derived from verified OAuth correlation envelopes; the evidence row itself does not claim a digital signature or external source authenticity.",
+            "Distinct non-terminal observations for one correlation are rejected as forks; exact canonical duplicates remain idempotent observations.",
+            "Every observed adjacent transition is validated even for partial chains, and every terminal resource observation must descend from the one observed token-exchange stage when that stage is present.",
+            "Production or ambiguous Staging performs no Recovery evidence DB mutation.",
+            "authorization_code_issued follows successful signing.",
+            "token_exchange_completed is absent when activation-context persistence is not stored, while the valid OAuth response remains non-fatal and Recovery certification stays incomplete.",
+            "resource_request_verified is awaited by the Gateway before downstream dispatch; persistence failure stays non-fatal to the valid request.",
+            "Gateway de-duplication is in-flight-only; successful observations are released so later verified resource requests are not suppressed.",
+            "No live handler writes callback_received.",
+            "External OAuth/Registration authority and acquisition receipt remain blocked.",
+            "Control-plane self-amendment remains manual-merge-only."
+          ],
+          "tests": [
+            {
+              "id": "oauth-recovery-server-evidence-sink",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-tenant-gpt-oauth-recovery-evidence-sink.mjs",
+              "args": []
+            },
+            {
+              "id": "oauth-recovery-auth-route-wiring",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-auth-oauth-routes.mjs",
+              "args": []
+            },
+            {
+              "id": "oauth-recovery-token-route-wiring",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-tenant-gpt-oauth-token-exchange-routes.mjs",
+              "args": []
+            },
+            {
+              "id": "oauth-recovery-gateway-await",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-activation-gateway.mjs",
+              "args": []
+            },
+            {
+              "id": "oauth-recovery-verifier-purity",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-tenant-gpt-access-token-verifier.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/derived-state-governance.json",
+            ".github/governance/test-authority-registry.json",
+            "http-generic-api/config/repository-governance-constitution.json",
+            "http-generic-api/routes/activationHostGatewayRoutes.js",
+            "http-generic-api/routes/authRoutes.js",
+            "http-generic-api/routes/tenantGptOAuthTokenExchangeRoutes.js",
+            "http-generic-api/scripts/manifests/test-manifest-spec012.mjs",
+            "http-generic-api/tenantGptAccessTokenVerifier.js",
+            "http-generic-api/tenantGptOAuthRecoveryEvidenceSink.js",
+            "http-generic-api/test-tenant-gpt-oauth-recovery-evidence-sink.mjs",
+            "http-generic-api/test-auth-oauth-routes.mjs",
+            "http-generic-api/test-tenant-gpt-oauth-token-exchange-routes.mjs",
+            "http-generic-api/test-staging-activation-gateway.mjs",
+            "http-generic-api/test-tenant-gpt-access-token-verifier.mjs"
+          ]
+        }
+      ]
+    }
+  ]
+}

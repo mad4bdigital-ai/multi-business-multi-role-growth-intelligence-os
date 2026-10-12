@@ -103,6 +103,95 @@ try {
     await new Promise((resolve, reject) => localServer.close((error) => error ? reject(error) : resolve()));
   }
 
+  const recoveryOrder = [];
+  const recoveryInputs = [];
+  const recoveryApp = express();
+  recoveryApp.use(buildActivationHostGatewayRoutes({
+    env: localDockerEnv,
+    enabled: true,
+    tenantGptAccessTokenVerifier: (req, _res, next) => {
+      recoveryOrder.push("verify");
+      req.auth = {
+        mode: "user_jwt",
+        oauth_correlation: {
+          operation_id: "11111111-1111-4111-8111-111111111111",
+          correlation_id: "22222222-2222-4222-8222-222222222222",
+          stage: "gateway_verify",
+        },
+      };
+      return next();
+    },
+    oauthRecoveryEvidenceRecorder: async (input) => {
+      recoveryOrder.push("record:start");
+      await Promise.resolve();
+      recoveryInputs.push(structuredClone(input));
+      recoveryOrder.push("record:end");
+      return { recorded: true, secrets_included: false };
+    },
+  }));
+  recoveryApp.get("/tenant/activation/recovery-order", (_req, res) => {
+    recoveryOrder.push("downstream");
+    res.status(200).json({ ok: true });
+  });
+  const recoveryServer = recoveryApp.listen(0, "127.0.0.1");
+  await new Promise((resolve) => recoveryServer.once("listening", resolve));
+  try {
+    const recoveryPort = recoveryServer.address().port;
+    const recoveryResponse = await fetch(
+      `http://127.0.0.1:${recoveryPort}/tenant/activation/recovery-order`,
+      { headers: { "x-forwarded-host": "activation-dev.mad4b.com" } },
+    );
+    assert.equal(recoveryResponse.status, 200);
+    assert.deepEqual(recoveryOrder, ["verify", "record:start", "record:end", "downstream"]);
+    assert.deepEqual(recoveryInputs.map((input) => input.event), ["resource_request_verified"]);
+    assert.equal(recoveryInputs[0]?.correlation?.stage, "gateway_verify");
+  } finally {
+    await new Promise((resolve, reject) => recoveryServer.close((error) => error ? reject(error) : resolve()));
+  }
+
+  const nonFatalOrder = [];
+  const nonFatalApp = express();
+  nonFatalApp.use(buildActivationHostGatewayRoutes({
+    env: localDockerEnv,
+    enabled: true,
+    tenantGptAccessTokenVerifier: (req, _res, next) => {
+      req.auth = {
+        oauth_correlation: {
+          operation_id: "33333333-3333-4333-8333-333333333333",
+          correlation_id: "44444444-4444-4444-8444-444444444444",
+          stage: "gateway_verify",
+        },
+      };
+      return next();
+    },
+    oauthRecoveryEvidenceRecorder: async () => {
+      nonFatalOrder.push("record");
+      const error = new Error("bounded test failure");
+      error.code = "test_recovery_store_unavailable";
+      throw error;
+    },
+  }));
+  nonFatalApp.get("/tenant/activation/recovery-nonfatal", (_req, res) => {
+    nonFatalOrder.push("downstream");
+    res.status(200).json({ ok: true });
+  });
+  const nonFatalServer = nonFatalApp.listen(0, "127.0.0.1");
+  await new Promise((resolve) => nonFatalServer.once("listening", resolve));
+  const originalWarn = console.warn;
+  console.warn = () => {};
+  try {
+    const nonFatalPort = nonFatalServer.address().port;
+    const nonFatalResponse = await fetch(
+      `http://127.0.0.1:${nonFatalPort}/tenant/activation/recovery-nonfatal`,
+      { headers: { "x-forwarded-host": "activation-dev.mad4b.com" } },
+    );
+    assert.equal(nonFatalResponse.status, 200);
+    assert.deepEqual(nonFatalOrder, ["record", "downstream"]);
+  } finally {
+    console.warn = originalWarn;
+    await new Promise((resolve, reject) => nonFatalServer.close((error) => error ? reject(error) : resolve()));
+  }
+
   const conflictingEnv = { ...localDockerEnv, DEPLOYMENT_ENVIRONMENT: "production" };
   const conflictingPolicy = activationHostGatewayAllowedPaths({ env: conflictingEnv });
   assert.equal(conflictingPolicy.environment_key, null);

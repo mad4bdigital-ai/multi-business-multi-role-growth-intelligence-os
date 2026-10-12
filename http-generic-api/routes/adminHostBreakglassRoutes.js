@@ -43,12 +43,17 @@ function stagingRebuildRecoverySurfaceRequired() {
 }
 
 function attachVerifiedStagingLocalRequest(plan, receipt, input = {}) {
+  const verifiedRunbookNames = Object.freeze({
+    "database.access_repair": "access-repair",
+    "database.schema_repair": "schema-repair",
+  });
+  const verifiedRunbookName = verifiedRunbookNames[plan?.runbook_key] || null;
   if (receipt?.status !== "local_execution_required"
     || plan?.environment_key !== "staging_local_windows_docker"
     || plan?.operation_key !== "database.repair"
-    || plan?.runbook_key !== "database.access_repair") return receipt;
+    || !verifiedRunbookName) return receipt;
   const verifiedRequest = buildVerifiedHostBreakglassLocalRequest({ ...plan, authority_plan_hash: input.authority_plan_hash || null });
-  const requestFileName = `verified-staging-access-repair-${plan.plan_sha256.slice(0, 16)}.json`;
+  const requestFileName = `verified-staging-${verifiedRunbookName}-${plan.plan_sha256.slice(0, 16)}.json`;
   return {
     ...receipt,
     command: `node scripts/host-breakglass-local-verified.mjs --request-file .\\${requestFileName}`,

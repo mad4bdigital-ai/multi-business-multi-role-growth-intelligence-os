@@ -1,9 +1,14 @@
 process.env.JWT_SECRET = process.env.JWT_SECRET || "oauth_route_test_secret";
 
 import jwt from "jsonwebtoken";
+import {
+  advanceTenantGptOAuthOperationCorrelation,
+  createTenantGptOAuthOperationCorrelation,
+} from "./tenantGptOAuthOperationCorrelation.js";
 
 const {
   JWT_SECRET_MAX_LENGTH,
+  requireActivationTenantGptAccessToken,
   verifyTenantGptAccessToken,
 } = await import("./tenantGptAccessTokenVerifier.js");
 
@@ -17,6 +22,39 @@ const TEST_NOW_MS = Date.parse("2026-08-01T00:01:00.000Z");
 const BASE_IAT = Math.floor(Date.parse("2026-08-01T00:00:00.000Z") / 1000);
 const STRICT_TTL_SECONDS = 60 * 60;
 const LEGACY_TTL_SECONDS = 7 * 24 * 60 * 60;
+const OAUTH_CLIENT_ID = "mad4b-tenant-gpt";
+const CODE_JTI = "oauth-code-jti-verifier";
+const ACCESS_JTI = "oauth-access-jti-verifier";
+const AUTHORIZE_CORRELATION = createTenantGptOAuthOperationCorrelation({
+  protected_resource: ACTIVATION_RESOURCE,
+  client_id: OAUTH_CLIENT_ID,
+  request_id: "verifier-authorize-request",
+});
+const IDENTITY_CORRELATION = advanceTenantGptOAuthOperationCorrelation(
+  AUTHORIZE_CORRELATION,
+  {
+    stage: "identity_verify",
+    user_id: "user-1",
+    tenant_id: "tenant-1",
+    request_id: "verifier-identity-request",
+  },
+);
+const CODE_CORRELATION = advanceTenantGptOAuthOperationCorrelation(
+  IDENTITY_CORRELATION,
+  {
+    stage: "oauth_code_issue",
+    oauth_code_jti: CODE_JTI,
+    request_id: "verifier-code-request",
+  },
+);
+const TOKEN_CORRELATION = advanceTenantGptOAuthOperationCorrelation(
+  CODE_CORRELATION,
+  {
+    stage: "oauth_token_exchange",
+    access_token_jti: ACCESS_JTI,
+    request_id: "verifier-token-request",
+  },
+);
 
 let failed = 0;
 
@@ -93,6 +131,73 @@ assert("strict bearer lifetime is one hour", strict.verification.lifetime_second
 assert("strict subject binding is verified", strict.verification.subject_verified === true);
 assert("strict verification emits exactly one compatibility metric decision", strictEvidence.length === 1);
 assert("strict compatibility decision contains no secrets", strictEvidence[0]?.secrets_included === false);
+
+const correlatedToken = signToken({
+  jti: ACCESS_JTI,
+  client_id: OAUTH_CLIENT_ID,
+  azp: OAUTH_CLIENT_ID,
+  oauth_correlation: TOKEN_CORRELATION,
+});
+const correlated = verifyTenantGptAccessToken(correlatedToken, { nowMs: TEST_NOW_MS });
+assert("verified OAuth access token exposes only verified token-exchange correlation",
+  correlated.oauth_correlation?.stage === "oauth_token_exchange");
+assert("verified OAuth correlation preserves operation identity",
+  correlated.oauth_correlation?.operation_id === AUTHORIZE_CORRELATION.operation_id);
+assert(
+  "tampered OAuth correlation claim is rejected",
+  failureCode(signToken({
+    jti: ACCESS_JTI,
+    client_id: OAUTH_CLIENT_ID,
+    azp: OAUTH_CLIENT_ID,
+    oauth_correlation: {
+      ...TOKEN_CORRELATION,
+      operation_id: TOKEN_CORRELATION.correlation_id,
+    },
+  })) === "tenant_gpt_token_oauth_correlation_invalid",
+);
+assert(
+  "cross-access-JTI OAuth correlation is rejected",
+  failureCode(signToken({
+    jti: "different-access-jti",
+    client_id: OAUTH_CLIENT_ID,
+    azp: OAUTH_CLIENT_ID,
+    oauth_correlation: TOKEN_CORRELATION,
+  })) === "tenant_gpt_token_oauth_correlation_invalid",
+);
+
+let middlewareNextCalls = 0;
+const middlewareIssuedAt = Math.floor(Date.now() / 1000) - 60;
+const middlewareToken = signToken({
+  iat: middlewareIssuedAt,
+  exp: middlewareIssuedAt + STRICT_TTL_SECONDS,
+  jti: ACCESS_JTI,
+  client_id: OAUTH_CLIENT_ID,
+  azp: OAUTH_CLIENT_ID,
+  oauth_correlation: TOKEN_CORRELATION,
+});
+const middlewareReq = {
+  headers: { authorization: `Bearer ${middlewareToken}` },
+  auth: { caller_override: true, oauth_operation_id: "caller-controlled" },
+};
+const middlewareRes = {
+  locals: {},
+  statusCode: null,
+  body: null,
+  status(value) { this.statusCode = value; return this; },
+  json(value) { this.body = value; return value; },
+};
+requireActivationTenantGptAccessToken(middlewareReq, middlewareRes, () => {
+  middlewareNextCalls += 1;
+});
+assert("correlated bearer reaches protected-resource dispatch", middlewareNextCalls === 1);
+assert("gateway middleware advances verified OAuth correlation exactly one stage",
+  middlewareReq.auth?.oauth_correlation?.stage === "gateway_verify");
+assert("gateway middleware preserves server-owned operation id",
+  middlewareReq.auth?.oauth_operation_id === AUTHORIZE_CORRELATION.operation_id);
+assert("gateway middleware removes caller auth overrides",
+  middlewareReq.auth?.caller_override === undefined);
+assert("gateway middleware exposes safe correlation evidence",
+  middlewareReq.auth?.oauth_correlation_evidence?.secrets_included === false);
 
 const coreToken = signToken({
   iss: CORE_ISSUER,

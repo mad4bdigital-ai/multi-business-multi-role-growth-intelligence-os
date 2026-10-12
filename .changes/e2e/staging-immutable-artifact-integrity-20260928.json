@@ -1,0 +1,86 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-immutable-artifact-integrity-20260928",
+  "title": "Staging immutable artifact integrity certification",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-immutable-artifact-integrity-20260928.json",
+      ".github/governance/test-authority-registry.json",
+      "http-generic-api/scripts/staging-live-certification.mjs",
+      "http-generic-api/scripts/test-manifest.mjs",
+      "http-generic-api/stagingImmutableArtifactIntegrity.js",
+      "http-generic-api/test-staging-immutable-artifact-integrity.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Permit Staging live certification to accept a narrowly defined immutable portable artifact integrity proof when no tracked checkout exists, while preserving the generic runtime integrity classifier's fail-closed degraded state and requiring exact commit, tree, context-file-set, image, provenance, read-only and no-mutation evidence.",
+      "e2e_journeys": [
+        {
+          "id": "immutable-staging-artifact-integrity",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Staging release certification controller",
+          "entrypoint": "http-generic-api/scripts/staging-live-certification.mjs",
+          "terminal_outcome": "The Staging certifier accepts either a fully verified tracked checkout or the exact immutable portable-artifact proof, and rejects extra runtime integrity reasons, image drift, tracked mutation, missing provenance, missing identity, unexpected checkout state, or secret-bearing manifests without changing generic runtimeIntegrity behavior.",
+          "steps": [
+            "Read the existing runtime_integrity and immutable application deployment manifest from the Staging deployment-info response.",
+            "Evaluate the bounded immutable-artifact proof only when generic runtime integrity is degraded solely because artifact content cannot be verified without a checkout.",
+            "Require exact expected commit, tree, context-file-set SHA-256 and image digest together with portable Staging build and git-archive provenance markers.",
+            "Require provenance_verified=true, identity_verified=true, content_verified=false, no checkout/readback, no tracked mutation, read_only_check=true and exactly one reason code: runtime_artifact_content_unverified.",
+            "Treat runtime_integrity_verified as satisfied only by the existing tracked-checkout verified state or the complete immutable-artifact proof.",
+            "Report verification_mode and the individual immutable-artifact checks without exposing credentials or secret material."
+          ],
+          "assertions": [
+            "runtimeIntegrity.js remains unchanged and generic artifact-only runtimes remain degraded and fail closed.",
+            "An immutable artifact cannot satisfy certification without an exact expected sha256 image digest.",
+            "Any additional reason code or tracked-file mutation fails the immutable-artifact proof.",
+            "The application manifest must be secret-free and identify portable_staging_docker_build with git_archive_exact_commit tree and context sources.",
+            "No database, provider, Production, migration, grant, replay-store or credential mutation is introduced."
+          ],
+          "tests": [
+            {
+              "id": "staging-immutable-artifact-integrity",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-immutable-artifact-integrity.mjs",
+              "args": []
+            },
+            {
+              "id": "generic-runtime-integrity-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-runtime-integrity.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/staging-immutable-artifact-integrity-20260928.json",
+            "http-generic-api/scripts/staging-live-certification.mjs",
+            "http-generic-api/stagingImmutableArtifactIntegrity.js",
+            "http-generic-api/test-staging-immutable-artifact-integrity.mjs",
+            "http-generic-api/test-runtime-integrity.mjs"
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -463,6 +463,40 @@ runCheck("maintenance-tool-registration", () => {
   assert.equal(registration?.report_contract, "mad4b.governed-generated-artifact-refresh.v1");
 });
 
+
+runCheck("frontend-derived-state-output-parity", () => {
+  const derivedState = JSON.parse(fs.readFileSync("../.github/derived-state-governance.json", "utf8"));
+  const frontendArtifact = (derivedState.artifacts || []).find((entry) => entry.artifact_id === "frontend_openapi_projection");
+  assert.ok(frontendArtifact, "frontend_openapi_projection derived artifact must exist");
+  const outputs = new Set(frontendArtifact.outputs || []);
+  for (const output of [
+    "http-generic-api/frontend-surface-dispatch.generated.json",
+    "http-generic-api/openapi/openapi-mutation-policy.generated.json",
+    "http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.yaml",
+    "http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.staging.yaml",
+    "http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.production.yaml",
+    "http-generic-api/openapi/openapi.custom-gpt.activation-admin.yaml",
+    "http-generic-api/openapi/openapi.custom-gpt.activation-admin.staging.yaml",
+    "http-generic-api/openapi/openapi.custom-gpt.activation-admin.production.yaml",
+    "http-generic-api/openapi/openapi.custom-gpt.recovery-admin.staging.yaml",
+    "http-generic-api/openapi/openapi.custom-gpt.recovery-admin.production.yaml",
+    "http-generic-api/openapi/openapi.custom-gpt.staging-admin.yaml",
+    "http-generic-api/openapi/openapi.tenant-gpt.auth.yaml",
+    "http-generic-api/openapi/openapi.tenant-gpt.auth.staging.yaml",
+    "http-generic-api/openapi/openapi.tenant-gpt.auth.production.yaml",
+    "http-generic-api/openapi/openapi.tenant-gpt.activation.yaml",
+    "http-generic-api/openapi/openapi.tenant-gpt.activation.staging.yaml",
+    "http-generic-api/openapi/openapi.tenant-gpt.activation.production.yaml",
+    "http-generic-api/openapi/generated/custom-admin-schema-index.json",
+    "http-generic-api/openapi/generated/custom-gpt-registration-manifest.json",
+    "specs/020-platform-resource-identity-brand-governance/openapi-detail-gap-classification.json",
+    "specs/020-platform-resource-identity-brand-governance/openapi-gap-closure-plan.json",
+    "specs/020-platform-resource-identity-brand-governance/openapi-detail-closure-batch-full.json",
+  ]) {
+    assert.equal(outputs.has(output), true, `frontend derived-state registry missing generated output: ${output}`);
+  }
+});
+
 console.log(JSON.stringify({
   contract: CONTRACT,
   ok: true,

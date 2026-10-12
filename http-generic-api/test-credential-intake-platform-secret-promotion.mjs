@@ -14,6 +14,7 @@ assert(promotionBlock.includes("normalizePromotionMappings"), "manual promotion 
 assert(promotionBlock.includes("promoteCredentialIntakePlatformSecrets"), "manual promotion must delegate to the shared atomic service");
 assert(promotionBlock.includes("createMissingReference: true"), "manual promotion must explicitly allow transaction-bound missing reference creation");
 assert(promotionBlock.includes('metadataSource: "credential_intake_platform_secret_promotion"'), "manual promotion must preserve its monitoring source");
+assert(promotionBlock.includes("environmentKey: requestedEnvironment || null"), "manual promotion must forward an explicitly declared environment");
 assert(promotionBlock.includes('auditAction: "credential_intake.platform_secrets_promoted"'), "manual promotion must emit a distinct governed audit action");
 assert(promotionBlock.includes("promoted_count: promoted.length"), "manual promotion must preserve the existing response contract");
 assert(promotionBlock.includes("secrets_included: false"), "manual promotion must never return raw secrets");
@@ -27,6 +28,8 @@ assert(serviceSource.includes("createMissingReference = false"), "missing refere
 assert(serviceSource.includes("if (!referenceRows.length && createMissingReference)"), "shared service must create missing references only when explicitly requested");
 assert(serviceSource.includes("rotation_status"), "new references must enter a governed rotation state");
 assert(serviceSource.includes("provisioned_pending_validation"), "new and updated references must be pending validation");
+assert(serviceSource.includes("environmentKey = null"), "shared promotion service must accept bounded environment provenance");
+assert(serviceSource.includes('environment: String(environmentKey || "").trim().toLowerCase()'), "shared promotion service must persist environment provenance without inventing it");
 assert(serviceSource.includes("platform_secret_promotion_invariant_failed"), "shared service must enforce post-write invariants");
 assert(serviceSource.includes("rollback()"), "shared service must roll back failures");
 assert(serviceSource.includes("connection_id = ? AND user_id = ? AND tenant_id = ?"), "source connection update must be user and tenant scoped");

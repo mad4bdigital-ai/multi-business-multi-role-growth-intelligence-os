@@ -52,6 +52,7 @@ const pool = {
         storage_backend: "db_encrypted",
         value_sha256: params[1],
         value_ciphertext: params[2],
+        metadata_json: params[3],
         status: "active",
       };
       return [{ affectedRows: 1 }];
@@ -80,6 +81,7 @@ assert.equal(runtimeConfig.client_secret, undefined, "runtime config must not re
 assert.equal(runtimeConfig.client_secret_ref, TENANT_GPT_OAUTH_CLIENT_SECRET_REF);
 assert.equal(platformSecret.secret_key, "TENANT_GPT_OAUTH_CLIENT_SECRET");
 assert.equal(decryptToken(platformSecret.value_ciphertext), legacySecret);
+assert.ok(["staging", "production"].includes(JSON.parse(platformSecret.metadata_json).environment), "Tenant GPT encrypted secret must persist an explicit environment");
 
 const resolved = await readTenantGptOAuthClientConfig({
   query: (sql, params) => pool.query(sql, params),

@@ -1,0 +1,7 @@
+{
+  "surface_key": "platform_capability_catalog_consumed_nonces",
+  "source_table": "platform_capability_catalog_consumed_nonces",
+  "reason": "Excluded because Internal global one-use nonce anti-replay ledger containing hashed scope identifiers. It is not an Activation/CRUD surface. Reads or writes must be restricted to server-managed atomic consume authority; exposing records would undermine signed-receipt integrity and tenant isolation. Any future public surface requires separately governed audited API and independent acceptance.",
+  "owner": "platform-governance",
+  "review_after": "2026-12-31"
+}

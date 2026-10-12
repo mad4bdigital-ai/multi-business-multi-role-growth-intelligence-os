@@ -53,6 +53,10 @@ async function main() {
   assert.match(gptToolsRoutes, /mcp_catalog_level/);
   assert.match(gptToolsRoutes, /assertMcpCatalogLevelColumn/);
   assert.match(gptToolsRoutes, /readGptToolsCatalogSchemaReadiness/);
+  assert.match(gptToolsRoutes, /readMcpCatalogSchemaReadinessSafe/);
+  assert.match(gptToolsRoutes, /return readMcpCatalogSchemaReadinessSafe\(\{ pool: getPool\(\), env: process\.env \}\)/,
+    "GPT tool catalog readiness must never infer permission from another Runtime database");
+
   assert.match(mcpCatalogGuard, /mcp_catalog_schema_migration_required/);
   assert.match(mcpCatalogGuard, /migration_apply_required: true/);
   assert.match(gptToolsRoutes, /catalogLevel/);

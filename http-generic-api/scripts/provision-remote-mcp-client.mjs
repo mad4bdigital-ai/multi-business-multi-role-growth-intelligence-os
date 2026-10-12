@@ -2,13 +2,7 @@
 import { readFileSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { getPool } from "../db.js";
 import { listRemoteMcpClientProfiles } from "../remoteMcpClientProfileRegistry.js";
-import {
-  provisionRemoteMcpOAuthClient,
-  readRemoteMcpOAuthClientProvisioningStatus,
-  listRemoteMcpOAuthClientProvisioningStatus,
-} from "../remoteMcpOAuthClientProvisioning.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const apiRoot = resolve(__dirname, "..");
@@ -64,6 +58,15 @@ if (listProfiles) {
   console.log(JSON.stringify(listRemoteMcpClientProfiles(), null, 2));
   process.exit(0);
 }
+
+const [{ getPool }, {
+  provisionRemoteMcpOAuthClient,
+  readRemoteMcpOAuthClientProvisioningStatus,
+  listRemoteMcpOAuthClientProvisioningStatus,
+}] = await Promise.all([
+  import("../db.js"),
+  import("../remoteMcpOAuthClientProvisioning.js"),
+]);
 
 const environment = String(argValue("environment") || process.env.REMOTE_MCP_ENVIRONMENT || "").trim().toLowerCase();
 if (!environment || !["staging", "production"].includes(environment)) {

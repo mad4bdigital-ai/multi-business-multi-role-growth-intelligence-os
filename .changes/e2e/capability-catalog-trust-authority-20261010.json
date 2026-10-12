@@ -1,0 +1,120 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "capability-catalog-trust-authority-20261010",
+  "title": "Central Capability Catalog Trust — governed source-only staging readiness",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/capability-catalog-trust-authority-20261010.json",
+      ".github/governance/test-authority-registry.json",
+      "docs/governance/capability-catalog-trust-authority-v1.md",
+      "docs/work-maps/README.md",
+      "docs/work-maps/data-model-domain-map.md",
+      "docs/work-maps/platform-resource-graph-map.md",
+      "docs/work-maps/work-map-coverage-matrix.md",
+      "http-generic-api/activation-surfaces/exclusions/platform_capability_catalog_consumed_nonces.json",
+      "http-generic-api/activation-surfaces/exclusions/platform_capability_catalog_keys.json",
+      "http-generic-api/capabilityCatalogAuthority.js",
+      "http-generic-api/capabilityCatalogPersistence.js",
+      "http-generic-api/capabilityCatalogToolCollector.js",
+      "http-generic-api/config/repository-governance-constitution.json",
+      "http-generic-api/migrations/966_capability_catalog_trust_authority.sql",
+      "http-generic-api/scripts/manifests/test-manifest-spec011.mjs",
+      "http-generic-api/scripts/manifests/test-manifest-upstream-main.mjs",
+      "http-generic-api/test-capability-catalog-authority.mjs",
+      "http-generic-api/test-capability-catalog-persistence.mjs",
+      "http-generic-api/test-capability-catalog-tool-collector.mjs",
+      "http-generic-api/test-staging-schema-bundle-builder.mjs",
+      "specs/004-tenant-asset-federation/work-map-integration.json",
+      "specs/008-governed-pr-delivery-orchestration/work-map-integration.json",
+      "specs/009-local-connector-reachability-recovery/work-map-integration.json",
+      "specs/011-tenant-gpt-effective-capability-envelope/work-map-integration.json",
+      "specs/014-gemini-evidence-intake-automation/work-map-integration.json",
+      "specs/014-governed-hostinger-storage-orchestration/work-map-integration.json",
+      "specs/014-retail-commerce-operations-growth-os/work-map-integration.json",
+      "specs/015-tenant-operating-system-studio/work-map-integration.json",
+      "specs/016-chatgpt-plugin-mcp-integration/work-map-integration.json",
+      "specs/017-remote-mcp-host-isolation-oauth-readiness/work-map-integration.json",
+      "specs/018-environment-promotion-runtime-integrity/work-map-integration.json",
+      "specs/019-governed-database-lifecycle-pressure-relief/work-map-integration.json",
+      "specs/020-platform-resource-identity-brand-governance/work-map-integration.json",
+      "specs/021-portable-staging-autopilot/work-map-integration.json",
+      "specs/021-production-recovery-closure/work-map-integration.json"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Certify the repository-only source contracts for tenant/site/principal-bound read-only capability catalog signatures, key enrollment and nonce reuse while refusing any claim of deployed Staging acceptance or Production authority.",
+      "e2e_journeys": [
+        {
+          "id": "capability-catalog-trust-source-exact-scope",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "MAD4B staging source reviewer",
+          "entrypoint": "A repository pull request adds a read-only Catalog Trust issuer, an additive migration and native Node source fixtures",
+          "terminal_outcome": "Tenant/site/issuer signing parity and one-time ledger enforcement pass synthetic native tests; any source/effect or identity mismatch is denied. The source remains non-authorizing and staging certification still requires an independent deployed verifier, database-readback, enrolled KMS signing key and real WordPress verifier proof.",
+          "steps": [
+            "Resolve the Exact GitHub HEAD and inspect all catalog issuer, read-only collector, key-reader, nonce-store and additive migration sources.",
+            "Execute the tracked signer, tenancy, source authorization and replay regression suites in the existing CI test registry rather than adding a new GitHub workflow.",
+            "Require a registered signed receipt and matching authorized server-owned principal/site/environment/runtime generation; prevent source metadata from granting write or mutation.",
+            "Keep the two proposed SQL tables unapplied; require independent staging validation of schemas, key lifecycle, global nonce ledger and WordPress verifier parity before any operational acceptance."
+          ],
+          "assertions": [
+            "All native source tests fail closed for unauthorized sites, sources, forged signing keys, stale/replayed nonces and partial catalog coverage.",
+            "A source-only passing result never constitutes Staging/Production deployment, migration Apply, KMS enrollment, live trust-service readiness or release authorization.",
+            "No standalone workflow addition, Production promotion, database write, OAuth mutation, signer key disclosure, force-push or protected branch change is authorized."
+          ],
+          "tests": [
+            {
+              "id": "catalog-trust-issuer-and-key-negative",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-capability-catalog-authority.mjs",
+              "args": []
+            },
+            {
+              "id": "catalog-trust-nonce-ledger-negative",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-capability-catalog-persistence.mjs",
+              "args": []
+            },
+            {
+              "id": "catalog-trust-tool-collector-negative",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-capability-catalog-tool-collector.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/capabilityCatalogAuthority.js",
+            "http-generic-api/capabilityCatalogPersistence.js",
+            "http-generic-api/capabilityCatalogToolCollector.js",
+            "http-generic-api/migrations/966_capability_catalog_trust_authority.sql",
+            ".github/governance/test-authority-registry.json",
+            "docs/governance/capability-catalog-trust-authority-v1.md"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}

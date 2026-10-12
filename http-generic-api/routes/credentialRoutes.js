@@ -27,6 +27,7 @@ function metadataJson(input = {}) {
     provider_family: str(input.provider_family),
     connector_family: str(input.connector_family),
     credential_type: str(input.credential_type || input.secret_type),
+    environment: str(input.environment || input.environment_key || input.environmentKey),
     source: "credential_routes.upsert"
   });
 }
@@ -53,6 +54,19 @@ function roleCandidateField(role = "", authType = "") {
 
 function candidateEligibility(candidate = {}, context = {}) {
   const reasons = [];
+  const ownerType = str(candidate.owner_type).toLowerCase();
+  const ownerId = str(candidate.owner_id);
+  if (ownerType === "user") {
+    if (!str(context.userId)) reasons.push("user_owner_context_required");
+    else if (ownerId && ownerId !== str(context.userId)) reasons.push("user_owner_context_mismatch");
+  }
+  if (ownerType === "connection") {
+    if (!str(context.connectionId)) reasons.push("connection_owner_context_required");
+    else if (ownerId && ownerId !== str(context.connectionId)) reasons.push("connection_owner_context_mismatch");
+  }
+  if (ownerType === "tenant" && ownerId && ownerId !== str(context.tenantId)) {
+    reasons.push("tenant_owner_context_mismatch");
+  }
   for (const [field, contextField, label] of [
     ["user_id", "userId", "user_context_required"],
     ["connection_id", "connectionId", "connection_context_required"],
@@ -107,6 +121,7 @@ async function buildCredentialResolutionPlan(input = {}) {
   const actionKey = str(input.action_key || input.actionKey);
   const targetKey = str(input.target_key || input.targetKey);
   const credentialRole = str(input.credential_role || input.credentialRole || input.role);
+  const allowPlatformBinding = input.allow_platform_binding !== false && input.allowPlatformBinding !== false;
   const allowPlatformFallback = input.allow_platform_fallback !== false && input.allowPlatformFallback !== false;
   const requestContext = { tenantId, userId, connectionId, actionKey, targetKey, credentialRole };
   if (!tenantId) {
@@ -129,7 +144,7 @@ async function buildCredentialResolutionPlan(input = {}) {
       WHERE tenant_id = ? AND status = 'active'
       ORDER BY app_key ASC`,
     [tenantId]
-  ).catch(() => [[]]);
+  );
 
   const [bindings] = await pool.query(
     `SELECT binding_id, tenant_id, owner_type, owner_id, user_id, system_id, installation_id,
@@ -145,12 +160,20 @@ async function buildCredentialResolutionPlan(input = {}) {
     [tenantId, credentialRole]
   );
 
-  const matchingBindings = bindings.filter((row) =>
-    (!row.user_id || !userId || row.user_id === userId) &&
-    (!row.connection_id || !connectionId || row.connection_id === connectionId) &&
-    (!row.action_key || !actionKey || row.action_key === actionKey) &&
-    (!row.target_key || !targetKey || row.target_key === targetKey)
-  );
+  const matchingBindings = bindings.filter((row) => {
+    const ownerType = str(row.owner_type).toLowerCase();
+    const ownerId = str(row.owner_id);
+    if (ownerType === "user" && (!userId || ownerId !== userId)) return false;
+    if (ownerType === "connection" && (!connectionId || ownerId !== connectionId)) return false;
+    if (ownerType === "tenant" && ownerId && ownerId !== tenantId) return false;
+    return (
+      (!row.user_id || !userId || row.user_id === userId) &&
+      (!row.connection_id || !connectionId || row.connection_id === connectionId) &&
+      (!row.action_key || !actionKey || row.action_key === actionKey) &&
+      (!row.target_key || !targetKey || row.target_key === targetKey) &&
+      (allowPlatformBinding || ownerType !== "platform")
+    );
+  });
 
   const fallbackCandidates = [];
   if (connectionId) {
@@ -160,8 +183,14 @@ async function buildCredentialResolutionPlan(input = {}) {
         WHERE connection_id = ? AND tenant_id = ?
         LIMIT 1`,
       [connectionId, tenantId]
-    ).catch(() => [[]]);
+    );
     const connection = connections[0];
+    if (connection && userId && str(connection.user_id) !== userId) {
+      const err = new Error("Requested connection is not owned by the supplied user context.");
+      err.status = 409;
+      err.code = "credential_connection_user_scope_mismatch";
+      throw err;
+    }
     if (connection?.status === "active") {
       fallbackCandidates.push({
         source: "user_app_connections_fallback",
@@ -183,7 +212,7 @@ async function buildCredentialResolutionPlan(input = {}) {
         WHERE action_key = ?
         LIMIT 1`,
       [actionKey]
-    ).catch(() => [[]]);
+    );
     const action = actions[0];
     if (action?.secret_store_ref) {
       fallbackCandidates.push({
@@ -223,6 +252,7 @@ async function buildCredentialResolutionPlan(input = {}) {
     action_key: actionKey,
     target_key: targetKey,
     credential_role: credentialRole,
+    allow_platform_binding: allowPlatformBinding,
     allow_platform_fallback: allowPlatformFallback,
   });
 
@@ -235,10 +265,12 @@ async function buildCredentialResolutionPlan(input = {}) {
       action_key: actionKey || null,
       target_key: targetKey || null,
       credential_role: credentialRole,
+      allow_platform_binding: allowPlatformBinding,
       allow_platform_fallback: allowPlatformFallback,
     },
     policy: {
       tenant_integration_policies: policies,
+      platform_binding_allowed_by_request: allowPlatformBinding,
       platform_fallback_allowed_by_request: allowPlatformFallback,
       credential_values_returned: false,
       secret_values_returned: false,
@@ -471,6 +503,7 @@ export function buildCredentialRoutes(deps) {
       const requestedProviderFamily = str(body.provider_family || body.providerFamily);
       const requestedConnectorFamily = str(body.connector_family || body.connectorFamily);
       const requestedTargetKey = str(body.target_key || body.targetKey);
+      const requestedEnvironment = str(body.environment || body.environment_key || body.environmentKey).toLowerCase();
       const approved = body.promotion_approved === true || body.promotionApproved === true;
       const promotionReason = str(body.promotion_reason || body.promotionReason);
       const createdBy = str(body.created_by || body.createdBy || "credential_intake_platform_secret_promotion");
@@ -557,6 +590,7 @@ export function buildCredentialRoutes(deps) {
           providerFamily,
           connectorFamily,
           targetKey,
+          environmentKey: requestedEnvironment || null,
           promotionReason,
           createMissingReference: true,
           referenceTenantId: connection.tenant_id || "f2795a7f-8d06-4053-8bee-35ca9af8b460",

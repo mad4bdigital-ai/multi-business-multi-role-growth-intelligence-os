@@ -26,7 +26,7 @@ $EnvPath = Join-Path $Root ".env"
 $ServerPath = Join-Path $Root "server.mjs"
 $StablePath = Join-Path $Root "server.mjs.stable"
 $LastGoodPath = Join-Path $Root "server.mjs.lastgood"
-$PublicHealthUrl = "https://connector.mad4b.com/health"
+$PublicHealthUrl = "" # bound to the device-owned runtime at startup
 
 function Write-WatchdogLog($Message) {
   $line = "{0} {1}" -f (Get-Date).ToUniversalTime().ToString("s"), $Message
@@ -99,6 +99,21 @@ function Test-HeartbeatBinding([string]$HeartbeatUrl) {
   }
 }
 
+function Test-PublicHealthBinding([string]$HealthUrl) {
+  $configId = Get-DotEnvValue "CONNECTOR_CONFIG_ID"
+  $tunnelId = (Get-DotEnvValue "CONNECTOR_TUNNEL_ID").ToLowerInvariant()
+  if ($configId.Length -lt 8 -or -not $HealthUrl) { return $false }
+  try {
+    $uri = [Uri]$HealthUrl
+    $deviceHost = ("lc-" + $configId.Substring(0,8) + ".mad4b.com").ToLowerInvariant()
+    $tunnelHost = if ($tunnelId -match '^[0-9a-f-]{36}$') { $tunnelId + ".cfargotunnel.com" } else { "" }
+    return ($uri.Scheme -eq "https" -and
+      ($uri.Host.ToLowerInvariant() -eq $deviceHost -or ($tunnelHost -and $uri.Host.ToLowerInvariant() -eq $tunnelHost)) -and
+      $uri.AbsolutePath -eq "/health" -and
+      $uri.IsDefaultPort -and -not $uri.UserInfo -and -not $uri.Query -and -not $uri.Fragment)
+  } catch { return $false }
+}
+
 function Test-TransportOwnershipBinding([string]$ServiceName, [string]$TaskName) {
   return (
     $ServiceName -eq $CanonicalCloudflaredRuntime -and
@@ -148,11 +163,27 @@ function Publish-Heartbeat(
   [string]$ErrorMessage = ""
 ) {
   try {
-    $secret = Get-DotEnvValue "CONNECTOR_SECRET"
     $heartbeatUrl = Get-DotEnvValue "CONNECTOR_HEARTBEAT_URL"
     $binding = Get-ConnectorEnvironmentBinding
+    $deviceId = Get-DotEnvValue "CONNECTOR_DEVICE_ID"
+    $configId = Get-DotEnvValue "CONNECTOR_CONFIG_ID"
+    if ($deviceId -notmatch '^[a-zA-Z0-9_-]{2,128}$' -or $configId -notmatch '^[a-zA-Z0-9-]{16,64}$') {
+      Write-WatchdogLog "heartbeat_skipped reason=canonical_identity_missing"
+      return $false
+    }
+    $secretFile = Get-DotEnvValue "CONNECTOR_SECRET_FILE"
+    $secret = ""
+    try {
+      $safeRoot = [IO.Path]::GetFullPath((Join-Path $Root "secrets")).TrimEnd([IO.Path]::DirectorySeparatorChar) + [IO.Path]::DirectorySeparatorChar
+      if ($secretFile) {
+        $safeFile = [IO.Path]::GetFullPath($secretFile)
+        if ($safeFile.StartsWith($safeRoot, [StringComparison]::OrdinalIgnoreCase) -and [IO.File]::Exists($safeFile)) {
+          $secret = [IO.File]::ReadAllText($safeFile).Trim()
+        }
+      }
+    } catch { Write-WatchdogLog "heartbeat_secret_file_unavailable" }
     if (-not $secret) {
-      Write-WatchdogLog "heartbeat_skipped reason=connector_secret_missing"
+      Write-WatchdogLog "heartbeat_skipped reason=connector_scoped_secret_file_missing"
       return $false
     }
     if (-not (Test-HeartbeatBinding $heartbeatUrl)) {
@@ -161,7 +192,8 @@ function Publish-Heartbeat(
     }
 
     $payload = [ordered]@{
-      device_id = [Environment]::MachineName
+      config_id = $configId
+      device_id = $deviceId
       event_type = $EventType
       status = $Status
       source = "watchdog"
@@ -189,7 +221,7 @@ function Publish-Heartbeat(
     $headers = @{ Authorization = "Bearer $secret" }
     $body = $payload | ConvertTo-Json -Depth 5 -Compress
     $response = Invoke-RestMethod -Uri $heartbeatUrl -Method Post -Headers $headers -ContentType "application/json" -Body $body -TimeoutSec 20
-    $eventId = [string]$response.heartbeat.event_id
+    $eventId = [string]$response.event.event_id
     Write-WatchdogLog "heartbeat_sent event_type=$EventType status=$Status environment=$($binding.environment) event_id=$eventId"
     return $true
   } catch {
@@ -236,7 +268,7 @@ function Test-PublicConnectorHealth {
     return [pscustomobject]@{ ok = $false; http_status = $null; error = "dns_resolution_failed"; tunnel_restart_allowed = $false }
   }
   try {
-    $res = Invoke-WebRequest -Uri $PublicHealthUrl -UseBasicParsing -TimeoutSec 15 -ErrorAction Stop
+    $res = Invoke-WebRequest -Uri $PublicHealthUrl -UseBasicParsing -MaximumRedirection 0 -TimeoutSec 15 -ErrorAction Stop
     return [pscustomobject]@{ ok = ([int]$res.StatusCode -eq 200); http_status = [int]$res.StatusCode; error = $null; tunnel_restart_allowed = $false }
   } catch {
     $statusCode = $null
@@ -381,6 +413,13 @@ try {
     exit 5
   }
 
+  $PublicHealthUrl = Get-DotEnvValue "CONNECTOR_PUBLIC_HEALTH_URL"
+  if (-not (Test-PublicHealthBinding $PublicHealthUrl)) {
+    Write-WatchdogLog "public_route_binding_rejected reason=canonical_device_runtime_invalid"
+    Write-RuntimeState "public_route_binding_invalid" $false "Public health route does not match enrolled connector"
+    exit 5
+  }
+
   Write-WatchdogLog "watchdog_tick root=$Root port=$Port environment=$($binding.environment) cloudflared_service=$CloudflaredService cloudflared_task=$CloudflaredTask connector_task=$ConnectorTask"
 
   $cloudflaredReady = Ensure-RuntimeRunning $CloudflaredService $CloudflaredTask
@@ -408,7 +447,7 @@ try {
         exit 4
       }
       $errorCode = if ($publicHealth.error -eq 'cloudflare_1033') { 'cloudflare_1033' } else { 'connector_public_tunnel_unavailable' }
-      $heartbeatSent = Publish-Heartbeat "failed" "health_failed" $true $errorCode "connector.mad4b.com public tunnel is unavailable."
+      $heartbeatSent = Publish-Heartbeat "failed" "health_failed" $true $errorCode "Enrolled device runtime public tunnel is unavailable."
       Write-WatchdogLog "public_tunnel_unavailable error=$($publicHealth.error) heartbeat_sent=$heartbeatSent"
       Write-RuntimeState "public_tunnel_unavailable" $true "error=$($publicHealth.error)" $heartbeatSent $publicHealth
       exit 3
@@ -435,7 +474,7 @@ try {
     $status = if ($publicReady) { "ok" } else { "failed" }
     $errorCode = if ($publicReady) { "" } elseif ($null -ne $publicHealth -and $publicHealth.error -eq 'cloudflare_1033') { "cloudflare_1033" } else { "cloudflared_unavailable" }
     $errorMessage = if ($publicReady) { "" } else { "Connector public tunnel is not ready." }
-    $heartbeatSent = Publish-Heartbeat $status "service_restart" $true $errorCode $errorMessage
+    $heartbeatSent = Publish-Heartbeat $status $(if ($publicReady) { "health_ok" } else { "service_restart" }) $true $errorCode $errorMessage
     Write-WatchdogLog "health_ok after_restart=true public_tunnel=$publicReady heartbeat_sent=$heartbeatSent"
     Write-RuntimeState "healthy_after_restart" $true "public_tunnel=$publicReady" $heartbeatSent $publicHealth
     if ($publicReady -and $heartbeatSent) { exit 0 }
@@ -454,7 +493,7 @@ try {
       $status = if ($publicReady) { "ok" } else { "failed" }
       $errorCode = if ($publicReady) { "" } elseif ($null -ne $publicHealth) { [string]$publicHealth.error } else { "cloudflared_unavailable" }
       $errorMessage = if ($publicReady) { "" } else { "Connector public tunnel is not ready." }
-      $heartbeatSent = Publish-Heartbeat $status "rollback" $true $errorCode $errorMessage
+      $heartbeatSent = Publish-Heartbeat $status $(if ($publicReady) { "health_ok" } else { "rollback" }) $true $errorCode $errorMessage
       Write-WatchdogLog "health_ok after_rollback=true public_tunnel=$publicReady heartbeat_sent=$heartbeatSent"
       Write-RuntimeState "healthy_after_rollback" $true "public_tunnel=$publicReady" $heartbeatSent $publicHealth
       if ($publicReady -and $heartbeatSent) { exit 0 }

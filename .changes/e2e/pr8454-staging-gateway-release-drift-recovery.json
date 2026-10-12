@@ -1,0 +1,80 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "pr8454-staging-gateway-release-drift-recovery",
+  "title": "Certify Staging Gateway exact-release drift with bound degraded baseline and verified rollback",
+  "delivery_mode": "single_pr",
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/pr8454-staging-gateway-release-drift-recovery.json",
+      ".github/derived-state-governance.json",
+      "http-generic-api/config/repository-governance-constitution.json",
+      "http-generic-api/stagingActivationGatewayApplyAdapter.js",
+      "http-generic-api/test-staging-smart-gateway-convergence-contract.mjs"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Close the Staging Gateway exact-commit drift certification deadlock without weakening fail-closed /ready or permitting provider changes before exact-bound authority.",
+      "e2e_journeys": [
+        {
+          "id": "pr8454-staging-gateway-drift-certified-rollback",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Server-governed Staging Gateway transaction certification",
+          "entrypoint": "Prepare an exact SHA and policy-bound certification plan when the live Worker is healthy but /ready is 503 due to source identity drift.",
+          "terminal_outcome": "Only release identity mismatch is eligible, a publicly ready exact-build candidate is certified, and the prior degraded Worker baseline is restored with provider inventory and public identity evidence; live Staging certification remains mandatory.",
+          "steps": [
+            "Observe exact canonical Staging source and policy plus healthy Worker /health identity.",
+            "Classify the narrowly allowed 503 upstream source-commit mismatch and reject stale, policy mismatch and unrelated 503 errors.",
+            "Bind the original Worker source and baseline mode to encrypted plan digest.",
+            "Deploy a synthetic candidate with exact public /health and /ready proof.",
+            "Roll back to the old Worker deployment and prove its exact original degraded state including 503 reason, without falsely claiming trust readiness.",
+            "Require independent live Staging certification and new exact-bound operator authority before any provider execution."
+          ],
+          "assertions": [
+            "Healthy exact baseline and drift-only baseline are both supported.",
+            "Every non-release-identity failure is rejected; normal Gateway /ready remains fail-closed.",
+            "Source, policy and baseline mode must be unchanged from plan to apply.",
+            "The candidate must attain exact public healthy/ready identity before rollback.",
+            "Provider inventory, public health and original degraded readiness are verified after rollback.",
+            "The resulting certification evidence distinguishes restored degraded baseline from public trust restoration.",
+            "No live Cloudflare, DNS, custom-domain, database or Production mutation occurs in synthetic test."
+          ],
+          "tests": [
+            {
+              "id": "pr8454-staging-gateway-release-drift-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-smart-gateway-convergence-contract.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/pr8454-staging-gateway-release-drift-recovery.json",
+            ".github/derived-state-governance.json",
+            "http-generic-api/config/repository-governance-constitution.json",
+            "http-generic-api/stagingActivationGatewayApplyAdapter.js",
+            "http-generic-api/test-staging-smart-gateway-convergence-contract.mjs"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}

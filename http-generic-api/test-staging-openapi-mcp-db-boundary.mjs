@@ -13,6 +13,7 @@ const cloneEntrypointScript = read("autopilot-portable-staging/Clone-StagingData
 const cloneLegacyScript = read("autopilot-portable-staging/Clone-StagingDatabases.Legacy.ps1");
 const cloneScript = `${cloneEntrypointScript}\n${cloneLegacyScript}`;
 const autopilotScript = read("autopilot-portable-staging/Start-AutoPilot.ps1");
+const stagingEnvironment = read("autopilot-portable-staging/Staging-Environment.ps1");
 const windowsPreflight = read("autopilot-portable-staging/Staging-Windows-Preflight.ps1");
 const runtimeOAuthTest = read("http-generic-api/test-staging-runtime-oauth-profile.mjs");
 const openapi = read("http-generic-api/openapi/openapi.tenant-gpt.staging.yaml");
@@ -105,13 +106,16 @@ assert.match(cloneScript, /sanitized_data/);
 assert.match(cloneScript, /Production\/provider paths are forbidden/);
 assert.match(cloneScript, /STAGING_DB_COPY_APPROVED=true/);
 assert.match(autopilotScript, /Assert-UniqueEnvKeys/);
-assert.match(autopilotScript, /JWT_SECRET/);
-assert.match(autopilotScript, /LOCAL_MANAGER_DEVICE_JWT_SECRET/);
-assert.match(autopilotScript, /TENANT_GPT_SSO_SIGNING_SECRET/);
-assert.match(autopilotScript, /TOKEN_ENCRYPTION_KEY/);
-assert.match(autopilotScript, /REMOTE_MCP_OAUTH_SIGNING_SECRET/);
-assert.match(autopilotScript, /generatedLocalSecrets/);
-assert.match(autopilotScript, /GOVERNANCE_DB_ROOT_PASSWORD/);
+assert.match(autopilotScript, /Initialize-StagingEnvironment/);
+assert.doesNotMatch(autopilotScript, /generatedLocalSecrets/);
+for (const key of [
+  "JWT_SECRET",
+  "LOCAL_MANAGER_DEVICE_JWT_SECRET",
+  "TENANT_GPT_SSO_SIGNING_SECRET",
+  "TOKEN_ENCRYPTION_KEY",
+  "REMOTE_MCP_OAUTH_SIGNING_SECRET",
+  "GOVERNANCE_DB_ROOT_PASSWORD",
+]) assert.ok(stagingEnvironment.includes(`'${key}'`), `canonical Staging environment helper must own ${key}`);
 assert.match(autopilotScript, /TunnelMode requires TENANT_GPT_STAGING_OAUTH_CLIENT_SECRET/);
 assert.match(autopilotScript, /TunnelMode requires REMOTE_MCP_OAUTH_SIGNING_SECRET/);
 assert.match(autopilotScript, /tunnel loglevel must remain info/);

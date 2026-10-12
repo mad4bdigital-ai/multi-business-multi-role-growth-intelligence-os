@@ -16,6 +16,7 @@ const activationPolicyGenerator = read("http-generic-api/scripts/generate-activa
 const promotionGates = JSON.parse(read(".github/contracts/production-promotion-supporting-gates.v1.json"));
 const deployScript = read("autopilot-portable-staging/Auto-Deploy-Staging.ps1");
 const pilotScript = read("autopilot-portable-staging/Start-AutoPilot.ps1");
+const stagingEnvironment = read("autopilot-portable-staging/Staging-Environment.ps1");
 const certificationHelper = read("autopilot-portable-staging/Invoke-StagingCertification.ps1");
 const oneClickScript = read("autopilot-portable-staging/One-Click-Staging.ps1");
 const installer = read("autopilot-portable-staging/Install-AutoDeployTask.ps1");
@@ -48,6 +49,9 @@ assert.deepEqual(policy.canonical_seed_lifecycle.seed_files, [
   "20260920_platform_admin_workspace_canonical_seed.sql",
   "20260920_wordpress_staging_plugin_deploy_v2_canonical_seed.sql",
   "20260922_local_manager_control_templates_registry.sql",
+  "20261007_credential_platform_binding_policy.sql",
+  "20261008_admin_local_connector_target_catalog_alignment.sql",
+  "20261009_hostinger_recovery_allowlist_discovery.sql",
 ]);
 assert.equal(policy.canonical_seed_lifecycle.explicit_apply_only, true);
 assert.equal(policy.canonical_seed_lifecycle.readback_required, true);
@@ -206,6 +210,12 @@ assert.match(certificationHelper, /database_readiness/);
 assert.match(certificationHelper, /STAGING_CERT_EXPECTED_TREE/);
 assert.match(certificationHelper, /STAGING_CERT_EXPECTED_CONTEXT_FILE_SET_SHA256/);
 assert.match(certificationHelper, /STAGING_CERT_APP_IMAGE_ID/);
+assert.match(certificationHelper, /Live certification observed commit does not match ExpectedCommit/);
+assert.match(certificationHelper, /Live certification observed branch does not match requested Ref/);
+assert.match(certificationHelper, /\$state\["commit"\] = \$observedCommit/);
+assert.match(certificationHelper, /\$state\["ref"\] = \$observedBranch/);
+assert.match(certificationHelper, /runtime_state_commit_source/);
+assert.match(certificationHelper, /runtime_state_commit_reconciled/);
 assert.match(oneClickScript, /ACTIVATION_STAGING_GATEWAY_ENABLED/);
 assert.match(oneClickScript, /EligibilityNoRunGraceSeconds/);
 assert.match(oneClickScript, /No Staging Main Deploy Eligibility workflow run was found/);
@@ -251,8 +261,9 @@ assert.match(installer, /if \(\$EnableActivationGateway\) \{ \$arguments \+= " -
 assert.match(deployScript, /\[switch\]\$EnableActivationGateway/);
 assert.match(deployScript, /if \(\$EnableActivationGateway\) \{ \$pilotArgs \+= "-EnableActivationGateway" \}/);
 assert.match(pilotScript, /\[switch\]\$EnableActivationGateway/);
-assert.match(pilotScript, /\$activationGatewayDesired = if \(\$EnableActivationGateway\) \{ "true" \} else \{ "false" \}/);
-assert.match(pilotScript, /Set-EnvValue \$EnvFile "ACTIVATION_STAGING_GATEWAY_ENABLED" \$activationGatewayDesired/);
+assert.match(pilotScript, /Initialize-StagingEnvironment[\s\S]*?-EnableActivationGateway:\$EnableActivationGateway/);
+assert.match(stagingEnvironment, /function Initialize-StagingEnvironment[\s\S]*?Set-StagingEnvValue \$envFile 'ACTIVATION_STAGING_GATEWAY_ENABLED'/);
+
 assert.match(pilotScript, /if \(\$EnableActivationGateway\) \{ \$childArgs \+= "-EnableActivationGateway" \}/);
 assert.match(oneClickScript, /if \(\$EnableActivationGateway\) \{ \$args \+= "-EnableActivationGateway" \}/);
 assert.match(installer, /LogonType Interactive/);

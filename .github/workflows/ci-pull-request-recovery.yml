@@ -34,7 +34,9 @@ concurrency:
 
 jobs:
   syntax:
-    name: Syntax Check
+    # Use a distinct recovery-only check context; main ruleset requires the primary CI "Syntax Check".
+    # Reusing that context leaves merges blocked when an independent recovery run stays queued.
+    name: PR Recovery Syntax Check
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     outputs:

@@ -365,6 +365,7 @@ function createPrHeadReadinessAuthorities(context, authority) {
     keyId: null,
     issuer: null,
     env: process.env,
+    externalAcquisitionAuthority: phaseAInternals.externalAcquisitionAuthority(process.env),
     adapterProvenanceReader: async () => phaseAInternals.provenance((await deployment.readAttestation()).sha),
   });
 }
@@ -410,6 +411,7 @@ export function createRecoveryReadinessAuthorities(context = {}) {
     keyId: trust.keyId,
     issuer: trust.issuer,
     env: process.env,
+    externalAcquisitionAuthority: base.adapters.externalEvidenceAcquisitionAuthority,
     adapterProvenanceReader: async () => phaseAInternals.provenance((await base.deployment.readAttestation()).sha),
   });
 }

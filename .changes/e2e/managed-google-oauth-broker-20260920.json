@@ -13,7 +13,10 @@
       "docs/runbooks/managed-google-oauth-broker.md",
       "http-generic-api/.env.example",
       "http-generic-api/.env.staging.example",
+      "http-generic-api/frontend-surface-dispatch.generated.json",
+      "http-generic-api/generate-google-refresh-token.mjs",
       "http-generic-api/managedGoogleOAuthBroker.js",
+      "http-generic-api/managedGoogleOAuthCapabilityRegistry.js",
       "http-generic-api/managedGoogleOAuthEnrollment.js",
       "http-generic-api/managedGoogleOAuthProtocolPolicy.js",
       "http-generic-api/managedGoogleOAuthSiteRequestAuth.js",
@@ -26,7 +29,8 @@
       "http-generic-api/scripts/prepare-managed-google-site-enrollment.mjs",
       "http-generic-api/test-managed-google-oauth-broker.mjs",
       "http-generic-api/test-managed-google-site-enrollment.mjs",
-      "http-generic-api/test-production-config-preflight.mjs"
+      "http-generic-api/test-production-config-preflight.mjs",
+      "http-generic-api/scripts/openapi-precise-contract-registry-sync.mjs"
     ]
   },
   "merge_contract": {
@@ -56,13 +60,15 @@
           "entrypoint": "POST /v1/google/oauth/session",
           "terminal_outcome": "An allowlisted non-production WordPress Site Profile can obtain a verifier-bound one-time Google OAuth handoff without receiving the broker Google Client Secret, while Production mutation remains unauthorized and live Staging certification remains required.",
           "steps": [
-            "Classify the exact base-to-head broker source changes against canonical environment-impact policy.",
+            "Classify the exact base-to-head broker and capability-registry changes against canonical environment-impact policy.",
+            "Resolve the requested Google capability profile into a governed, deduplicated scope set while requiring the Drive baseline for the selected access mode.",
             "Require exact server-owned site_uuid + canonical origin + callback binding before creating an OAuth session.",
+            "Preserve previously granted Google scopes with incremental authorization while refusing unregistered scope escalation.",
             "Exchange the Google authorization code only at the broker-owned HTTPS callback using broker-only Google credentials.",
             "Return only a one-time handoff code to WordPress and redeem it server-to-server with the original verifier.",
             "Erase the encrypted transient token envelope atomically on successful redemption and reject replay.",
-            "Route refresh through the broker without exposing its Google Client Secret to WordPress.",
-            "Verify shared-runtime changes declare both Staging and Production impact while Production mutation remains disabled."
+            "Route refresh through the broker without exposing its Google Client Secret to WordPress and preserve bounded provider failure metadata.",
+            "Verify shared-runtime changes declare both Staging and Production impact while Production mutation remains unauthorized."
           ],
           "assertions": [
             "Environment impact authority is http-generic-api/config/deployment-branch-policy.json.",
@@ -72,10 +78,13 @@
             "Google OAuth Client Secret remains broker-owned and is never returned to WordPress.",
             "Site binding is server-owned and exact; caller-only site_uuid/origin claims are insufficient.",
             "Handoff redemption is verifier-bound, one-time, transactional, and replay fails closed.",
-            "Only the exact read_only->drive.readonly and read_write->drive scope mappings are accepted.",
             "No Breakglass, Production deployment, Production database apply, provider mutation, or WordPress write authority is granted by this declaration.",
             "secrets_included is false.",
-            "Per-site broker HMAC enrollment is dry-run by default, preserves existing registries, never prints the secret value, and materializes private fragments only outside the repository tree."
+            "Per-site broker HMAC enrollment is dry-run by default, preserves existing registries, never prints the secret value, and materializes private fragments only outside the repository tree.",
+            "The selected access mode must include its exact governed Drive baseline; every additional requested scope resolves through the capability registry and unknown scopes fail closed.",
+            "Incremental Google consent preserves previously granted allowed scopes; partial granular consent is reported explicitly through missing_scopes and complete_scope_grant.",
+            "Read-only mode cannot request or retain the Drive write scope; narrowing an existing grant remains a separate revoke/re-consent responsibility at the WordPress control plane.",
+            "The full_owner profile is derived from registered capabilities rather than a hardcoded OAuth scope list."
           ],
           "tests": [
             {
@@ -114,14 +123,16 @@
           ],
           "evidence_paths": [
             ".changes/e2e/managed-google-oauth-broker-20260920.json",
-            "http-generic-api/config/deployment-branch-policy.json",
+            ".github/governance/test-authority-registry.json",
             "docs/runbooks/managed-google-oauth-broker.md",
+            "http-generic-api/config/deployment-branch-policy.json",
+            "http-generic-api/frontend-surface-dispatch.generated.json",
             "http-generic-api/managedGoogleOAuthBroker.js",
+            "http-generic-api/managedGoogleOAuthCapabilityRegistry.js",
+            "http-generic-api/managedGoogleOAuthEnrollment.js",
             "http-generic-api/managedGoogleOAuthSiteRequestAuth.js",
             "http-generic-api/migrations/20260920_managed_google_oauth_broker_v1.sql",
             "http-generic-api/openapi/managed-google-oauth.yaml",
-            ".github/governance/test-authority-registry.json",
-            "http-generic-api/managedGoogleOAuthEnrollment.js",
             "http-generic-api/test-managed-google-site-enrollment.mjs"
           ]
         }

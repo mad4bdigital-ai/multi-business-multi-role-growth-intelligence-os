@@ -35,10 +35,15 @@
       "bundle_file": "runtime.schema.sql.gz",
       "required_tables": [
         "connected_systems",
+        "user_app_connections",
         "platform_contract_surfaces",
         "platform_endpoint_tool_exports",
         "tenant_secrets",
         "platform_secrets",
+        "remote_mcp_oauth_grants",
+        "remote_mcp_oauth_authorization_codes",
+        "remote_mcp_oauth_clients",
+        "platform_runtime_config",
         "secret_references",
         "credential_bindings",
         "brands",
@@ -155,7 +160,10 @@
       "20260815_custom_gpt_mcp_catalog_levels.sql",
       "20260920_platform_admin_workspace_canonical_seed.sql",
       "20260920_wordpress_staging_plugin_deploy_v2_canonical_seed.sql",
-      "20260922_local_manager_control_templates_registry.sql"
+      "20260922_local_manager_control_templates_registry.sql",
+      "20261007_credential_platform_binding_policy.sql",
+      "20261008_admin_local_connector_target_catalog_alignment.sql",
+      "20261009_hostinger_recovery_allowlist_discovery.sql"
     ],
     "readback_required": true,
     "mcp_catalog_required_columns": [
@@ -214,10 +222,15 @@
     ],
     "required_runtime_support_tables": [
       "connected_systems",
+      "user_app_connections",
       "platform_contract_surfaces",
       "platform_endpoint_tool_exports",
       "tenant_secrets",
       "platform_secrets",
+      "remote_mcp_oauth_grants",
+      "remote_mcp_oauth_authorization_codes",
+      "remote_mcp_oauth_clients",
+      "platform_runtime_config",
       "secret_references",
       "credential_bindings",
       "admin_platform_endpoint_tools",
@@ -510,6 +523,9 @@
     },
     "required_semantic_bundle_files": [
       "runtime.canonical-semantic.sql.gz"
+    ],
+    "required_registry_reconciliation_bundle_files": [
+      "runtime.registry-reconciliation.sql.gz"
     ]
   },
   "canonical_semantic_snapshot": {
@@ -578,6 +594,129 @@
       "activation_callback_registry",
       "activation_response_profile_registry",
       "activation_delivery_policy_registry"
+    ]
+  },
+  "canonical_registry_reconciliation_snapshot": {
+    "contract": "mad4b.staging.runtime-registry-reconciliation-snapshot.v1",
+    "target_role": "runtime",
+    "source_kind": "disposable_git_migration_projection",
+    "bundle_file": "runtime.registry-reconciliation.sql.gz",
+    "replay_mode": "in_place_insert_only",
+    "exact_source_commit_required": true,
+    "same_cycle_sha256_manifest_required": true,
+    "live_environment_data_copy_forbidden": true,
+    "production_access_forbidden": true,
+    "provider_access_forbidden": true,
+    "secrets_included": false,
+    "tables": [
+      "actions",
+      "endpoints",
+      "admin_platform_endpoint_tools",
+      "tenant_platform_endpoint_tools",
+      "platform_endpoint_tool_exports"
+    ],
+    "required_nonempty_tables": [
+      "actions",
+      "endpoints",
+      "admin_platform_endpoint_tools",
+      "tenant_platform_endpoint_tools"
+    ],
+    "identity_columns_by_table": {
+      "actions": [
+        "action_key"
+      ],
+      "endpoints": [
+        "parent_action_key",
+        "endpoint_key"
+      ],
+      "admin_platform_endpoint_tools": [
+        "tool_key"
+      ],
+      "tenant_platform_endpoint_tools": [
+        "tool_key"
+      ],
+      "platform_endpoint_tool_exports": [
+        "export_key"
+      ]
+    },
+    "excluded_columns_by_table": {
+      "actions": [
+        "api_key_value",
+        "secret_store_ref",
+        "openai_schema_file_id",
+        "oauth_config_file_id",
+        "oauth_config_ref",
+        "oauth_client_id_ref",
+        "oauth_client_secret_ref",
+        "oauth_binding_status",
+        "oauth_last_validated_at",
+        "import_job_id",
+        "schema_imported_at"
+      ],
+      "endpoints": [
+        "child_openai_schema_file_id"
+      ],
+      "platform_endpoint_tool_exports": [
+        "source_endpoint_id"
+      ]
+    }
+  },
+  "canonical_catalog_readback": {
+    "contract": "mad4b.staging.canonical-catalog-readback.v1",
+    "target_role": "runtime",
+    "read_only": true,
+    "requires_exactly_one_per_row": true,
+    "production_access_forbidden": true,
+    "provider_access_forbidden": true,
+    "secrets_included": false,
+    "rows": [
+      {
+        "table": "remote_runtime_command_allowlists",
+        "plugin_key": "remote_ssh_runtime",
+        "command_key": "hostinger_recovery_database_inventory",
+        "status": "planned"
+      },
+      {
+        "table": "remote_runtime_command_allowlists",
+        "plugin_key": "remote_ssh_runtime",
+        "command_key": "hostinger_recovery_control_store_plan",
+        "status": "planned"
+      },
+      {
+        "table": "remote_runtime_command_allowlists",
+        "plugin_key": "remote_ssh_runtime",
+        "command_key": "hostinger_recovery_database_create",
+        "status": "planned"
+      },
+      {
+        "table": "remote_runtime_command_allowlists",
+        "plugin_key": "remote_ssh_runtime",
+        "command_key": "hostinger_recovery_environment_binding_plan",
+        "status": "planned"
+      },
+      {
+        "table": "remote_runtime_command_allowlists",
+        "plugin_key": "remote_ssh_runtime",
+        "command_key": "hostinger_recovery_environment_binding_apply",
+        "status": "planned"
+      },
+      {
+        "table": "remote_runtime_command_allowlists",
+        "plugin_key": "remote_ssh_runtime",
+        "command_key": "hostinger_recovery_grants_plan",
+        "status": "planned"
+      },
+      {
+        "table": "remote_runtime_command_allowlists",
+        "plugin_key": "remote_ssh_runtime",
+        "command_key": "hostinger_recovery_grants_apply",
+        "status": "planned"
+      },
+      {
+        "table": "admin_platform_endpoint_tools",
+        "tool_key": "remote_runtime_hostinger_recovery_allowlist_discover",
+        "is_enabled": 0
+      }
     ]
   }
 }
