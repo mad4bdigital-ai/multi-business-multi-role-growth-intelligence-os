@@ -403,9 +403,13 @@ export async function reconcileRemoteMcpChatGPTCallback({
   }
 }
 
-// Backward-compatible alias; existing Staging callers preserve their contract.
+// Keep the existing Staging API contract while sharing the strict
+// environment-aware implementation with Production read-only planning.
 export async function reconcileStagingChatGPTCallback(args = {}) {
-  return reconcileRemoteMcpChatGPTCallback({ ...args, environment: "staging" });
+  const result = await reconcileRemoteMcpChatGPTCallback({
+    ...args, environment: "staging",
+  });
+  return { ...result, contract: "mad4b.staging.chatgpt.callback-reconcile.v1" };
 }
 
 export async function provisionRemoteMcpOAuthClient(args = {}) {
