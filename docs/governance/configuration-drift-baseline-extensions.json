@@ -70,6 +70,28 @@
       "grants_production_activation": false
     },
     {
+      "fingerprint": ".github/ops/github-followup-automerge-readiness.mjs|expectedHeadAttestorStatusId|environment_reference|expected.head.attestor.status.id",
+      "owner": "repository-governance",
+      "reason": "Non-secret exact HEAD status ID emitted by the trusted GitHub App after the separate merge-candidate attestation; the finalizer readback rejects stale, foreign or overwritten HEAD statuses. This is only a fail-closed CI identity binding and cannot grant status publishing, merge bypass, runtime/database mutation or Production activation.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": ".github/ops/github-followup-automerge-readiness.mjs|expectedHeadStatusCreatorId|environment_reference|expected.head.status.creator.id",
+      "owner": "repository-governance",
+      "reason": "Non-secret GitHub App status creator ID read back for the required HEAD status. It must match both the new HEAD status and the independently validated candidate publisher, granting no token, bypass, protected-ref mutation or Production activation.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
       "fingerprint": ".github/ops/github-followup-automerge-readiness.mjs|expectedPrHead|environment_reference|expected.pr.head.sha",
       "owner": "repository-governance",
       "reason": "Expected PR-head SHA is a read-only exact-head binding used to reject stale finalizer evidence when the pull-request source changes; it grants no mutation authority.",
