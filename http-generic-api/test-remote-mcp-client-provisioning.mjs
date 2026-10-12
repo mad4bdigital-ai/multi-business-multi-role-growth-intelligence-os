@@ -16,7 +16,7 @@ const state = {
 };
 
 let failCasOnce = false;
-let failConfigCasOnce = false;
+let rejectSecondConfigCasOnce = false;
 
 function result(affectedRows = 1) {
   return [{ affectedRows }, []];
@@ -94,7 +94,7 @@ function createConnection() {
       if (sql.startsWith("UPDATE platform_runtime_config SET config_json")) {
         const [newJson, key, oldJson] = params;
         const config = state.configs.get(key);
-        if (failConfigCasOnce) { failConfigCasOnce = false; return result(0); }
+        if (rejectSecondConfigCasOnce) { rejectSecondConfigCasOnce = false; return result(0); }
         if (!config || JSON.stringify(config.config) !== oldJson) return result(0);
         config.config = JSON.parse(newJson);
         return result();
@@ -329,7 +329,7 @@ await assert.rejects(
 assert.equal(JSON.parse(state.clients.get(stagingChatGPT.client_id).redirect_uris_json).length, 1);
 // Simulate a stale runtime-config write after the client row was updated.
 // A real SQL transaction must restore BOTH rows on a CAS conflict.
-failConfigCasOnce = true;
+rejectSecondConfigCasOnce = true;
 await assert.rejects(
   reconcileStagingChatGPTCallback({
     env: callbackEnv, pool, callback_uri: callback,
