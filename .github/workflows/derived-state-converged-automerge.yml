@@ -301,6 +301,12 @@ jobs:
 
   direct_attest:
     name: Independent exact-head App attestation
+    permissions:
+      contents: read
+      actions: read
+      checks: read
+      pull-requests: read
+      statuses: read
     if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && (inputs.confirmation == 'PLAN_DIRECT' || inputs.confirmation == 'DIRECT_ATTEST_EXACT_HEAD' || inputs.confirmation == 'DIRECT_ATTEST_AND_MERGE')
     environment:
       name: Governance-Direct
@@ -390,6 +396,10 @@ jobs:
 
   direct_merge:
     name: Server-enforced exact-head governed merge
+    permissions:
+      contents: read
+      pull-requests: read
+      statuses: read
     needs: direct_attest
     if: inputs.action == 'attest_and_merge' && needs.direct_attest.result == 'success'
     environment:
