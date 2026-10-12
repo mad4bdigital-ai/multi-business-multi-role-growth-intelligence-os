@@ -268,7 +268,8 @@ export async function listRemoteMcpOAuthClientProvisioningStatus({ env = process
  * Defaults to a read-only plan; the explicit apply uses a transactional CAS.
  * In particular, this operation never passes or rotates client secrets.
  */
-export async function reconcileStagingChatGPTCallback({
+export async function reconcileRemoteMcpChatGPTCallback({
+  environment = "staging",
   env = process.env,
   pool = getPool(),
   callback_uri,
@@ -281,17 +282,35 @@ export async function reconcileStagingChatGPTCallback({
     error.code = code;
     return error;
   }
+  // Production is supported only for exact-identity READ-ONLY planning until an
+  // independently verified, durable Production approval/execution adapter exists.
+  const targets = {
+    staging: {
+      deployment: "staging_local_windows_docker",
+      resource: "https://mcp-dev.mad4b.com",
+      issuer: "https://dev.mad4b.com/auth/mcp",
+      prefix: "mcp_stg_",
+    },
+    production: {
+      deployment: "production_hostinger_autodeploy",
+      resource: "https://mcp.mad4b.com",
+      issuer: "https://auth.mad4b.com/auth/mcp",
+      prefix: "mcp_prd_",
+    },
+  };
+  const target = targets[environment];
+  if (!target) throw denied("REMOTE_MCP_CALLBACK_ENVIRONMENT_INVALID");
   if (
-    String(env.DEPLOYMENT_ENVIRONMENT || "") !== "staging_local_windows_docker" ||
-    String(env.REMOTE_MCP_ENVIRONMENT || "") !== "staging"
-  ) throw denied("STAGING_CALLBACK_ENVIRONMENT_NOT_PROVEN");
+    String(env.DEPLOYMENT_ENVIRONMENT || "") !== target.deployment ||
+    String(env.REMOTE_MCP_ENVIRONMENT || "") !== environment
+  ) throw denied("REMOTE_MCP_CALLBACK_ENVIRONMENT_NOT_PROVEN");
   const normalized = normalizeProvisioningInput({
-    env, environment: "staging", profile_key: "openai_chatgpt",
+    env, environment, profile_key: "openai_chatgpt",
   });
   if (
-    normalized.profile.resource !== "https://mcp-dev.mad4b.com" ||
-    normalized.profile.authorization_server !== "https://dev.mad4b.com/auth/mcp"
-  ) throw denied("STAGING_CALLBACK_RESOURCE_OR_ISSUER_MISMATCH");
+    normalized.profile.resource !== target.resource ||
+    normalized.profile.authorization_server !== target.issuer
+  ) throw denied("REMOTE_MCP_CALLBACK_RESOURCE_OR_ISSUER_MISMATCH");
   const requested = normalizeRemoteMcpProfileRedirectUris(
     [callback_uri], "openai_chatgpt", env,
   )[0];
@@ -299,8 +318,14 @@ export async function reconcileStagingChatGPTCallback({
   if (!/^https:\/\/chatgpt\.com\/connector\/oauth\/[A-Za-z0-9_-]{6,160}$/u.test(requested)) {
     throw denied("STAGING_CALLBACK_PATH_UNSUPPORTED");
   }
-  if (!/^mcp_stg_[A-Za-z0-9_-]{16,128}$/u.test(String(expected_client_id || ""))) {
-    throw denied("STAGING_CALLBACK_EXPECTED_CLIENT_ID_REQUIRED");
+  if (!new RegExp("^" + target.prefix + "[A-Za-z0-9_-]{16,128}$", "u").test(String(expected_client_id || ""))) {
+    throw denied("REMOTE_MCP_CALLBACK_EXPECTED_CLIENT_ID_REQUIRED");
+  }
+  if (apply && environment === "production") {
+    // NEVER treat a CLI confirmation string as Production execution authority.
+    // The separate Production governance and approval store must issue a durable,
+    // exact-client/exact-callback execution ticket before enabling writes.
+    throw denied("PRODUCTION_CALLBACK_GOVERNED_APPROVAL_NOT_AVAILABLE");
   }
   if (apply && confirmation !== "APPEND_STAGING_CHATGPT_CALLBACK") {
     throw denied("STAGING_CALLBACK_EXPLICIT_CONFIRMATION_REQUIRED");
@@ -313,7 +338,7 @@ export async function reconcileStagingChatGPTCallback({
     const config = current.config;
     if (!client || !config || client.status !== "active" ||
         client.client_profile_key !== "openai_chatgpt" ||
-        !String(client.client_id || "").startsWith("mcp_stg_") ||
+        !String(client.client_id || "").startsWith(target.prefix) ||
         client.client_id !== config.client_id ||
         client.client_id !== expected_client_id) {
       throw denied("STAGING_CALLBACK_CLIENT_IDENTITY_MISMATCH");
@@ -353,8 +378,8 @@ export async function reconcileStagingChatGPTCallback({
     else await connection.commit();
     return {
       ok: true,
-      contract: "mad4b.staging.chatgpt.callback-reconcile.v1",
-      environment: "staging",
+      contract: "mad4b.remote-mcp.chatgpt.callback-reconcile.v2",
+      environment,
       profile_key: "openai_chatgpt",
       client_id: client.client_id,
       callback_sha256: sha256(requested),
@@ -364,6 +389,10 @@ export async function reconcileStagingChatGPTCallback({
       mutation_performed: Boolean(apply && !alreadyPresent),
       client_secret_rotated: false,
       production_mutation: false,
+      production_apply_blocked: environment === "production",
+      authority_status: environment === "production"
+        ? "production_governed_approval_and_execution_adapter_required"
+        : "staging_operator_confirmation_required",
       secrets_included: false,
     };
   } catch (error) {
@@ -372,6 +401,11 @@ export async function reconcileStagingChatGPTCallback({
   } finally {
     connection.release();
   }
+}
+
+// Backward-compatible alias; existing Staging callers preserve their contract.
+export async function reconcileStagingChatGPTCallback(args = {}) {
+  return reconcileRemoteMcpChatGPTCallback({ ...args, environment: "staging" });
 }
 
 export async function provisionRemoteMcpOAuthClient(args = {}) {
