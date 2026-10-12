@@ -639,6 +639,7 @@
     ".github/ops/test-production-runtime-recovery-policy.mjs",
     ".github/ops/test-production-runtime-recovery.mjs",
     ".github/repository-maintenance-tool-governance.json",
+    ".github/scripts/github-direct-attestor.mjs",
     ".github/scripts/production-promotion-identity.mjs",
     ".github/scripts/production-promotion-operation-state.mjs",
     ".github/scripts/production-promotion-rehearsal.mjs",
