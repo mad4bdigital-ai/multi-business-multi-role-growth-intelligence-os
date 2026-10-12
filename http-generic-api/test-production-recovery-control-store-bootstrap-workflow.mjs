@@ -83,3 +83,58 @@ assert.match(bridgeSource, /provider_mutation_performed/u);
 assert.match(bridgeSource, /production_runtime_mutation_performed/u);
 assert.doesNotMatch(bridgeSource, /RECOVERY_CONTROL_DB_PASSWORD:/u);
 assert.doesNotMatch(bridgeSource, /control_store_raw_sql/u);
+
+// Regression: GET-only Control Store plan has "secrets_included":false.
+// Extract the real jq expressions; never waive checks for credential fields.
+import { spawnSync } from "node:child_process";
+
+const planValidation = bridgeSource.match(/jq -e --arg sha "\$\{expected_sha\}" '([\s\S]*?)' "\$\{plan_file\}" >\/dev\/null/u);
+assert.ok(planValidation, "Missing exact Control Store plan jq validator");
+const resultEnd = bridgeSource.indexOf("' \"" + "$" + "{result_file}\" >/dev/null");
+const resultStart = bridgeSource.lastIndexOf("jq -e '", resultEnd);
+assert.ok(resultEnd > 0 && resultStart >= 0, "Missing exact Control Store apply-receipt jq validator");
+const validators = [
+  { name: "plan", expression: planValidation[1], args: ["--arg", "sha", "e0c07f6fba431650b87d7a6f3dde76a364be6223"] },
+  { name: "apply receipt", expression: bridgeSource.slice(resultStart + "jq -e '".length, resultEnd), args: [] },
+];
+for (const { name, expression } of validators) {
+  assert.match(expression, /\.secrets_included\? \| select\(\. != null\)/u, name + " must inspect nested flags");
+  assert.match(expression, /select\(\. != "secrets_included" and test\(/u, name + " must exclude only the harmless boolean flag");
+}
+
+const jqAvailable = spawnSync("jq", ["--version"], { encoding: "utf8" });
+if (!jqAvailable.error && jqAvailable.status === 0) {
+  const exactSha = "e0c07f6fba431650b87d7a6f3dde76a364be6223";
+  const goodPlan = {
+    contract: "mad4b.production-recovery-control-store-bootstrap-plan.v1",
+    expected_sha: exactSha,
+    secrets_included: false,
+    execution_allowed: false,
+    action: "blocked_control_store_configuration",
+    control_store: { ready: false },
+  };
+  const goodReceipt = { secrets_included: false, status: "control_store_schema_ready" };
+  for (const { name, expression, args } of validators) {
+    const fixture = name === "plan" ? goodPlan : goodReceipt;
+    const run = (data) => spawnSync("jq", ["-e", ...args, expression], {
+      input: JSON.stringify(data), encoding: "utf8",
+    });
+    const good = run(fixture);
+    assert.equal(good.status, 0, name + " should accept a safe false flag: " + good.stderr);
+    for (const [reason, changes] of [
+      ["actual credential field", { credential_value: "must-reject" }],
+      ["private key field", { private_key: "must-reject" }],
+      ["positive flag", { secrets_included: true }],
+      ["nested positive flag", { control_store: { secrets_included: true } }],
+    ]) {
+      assert.notEqual(run({ ...fixture, ...changes }).status, 0, name + " accepted unsafe " + reason);
+    }
+  }
+  const wrongSha = spawnSync("jq", ["-e", ...validators[0].args, validators[0].expression], {
+    input: JSON.stringify({ ...goodPlan, expected_sha: "f".repeat(40) }), encoding: "utf8",
+  });
+  assert.notEqual(wrongSha.status, 0, "Control Store plan must reject unexpected Production SHA");
+} else {
+  console.log("jq not found: static validator guards tested (runtime jq fixtures skipped)");
+}
+
