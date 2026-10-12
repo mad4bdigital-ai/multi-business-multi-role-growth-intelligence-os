@@ -299,6 +299,9 @@ export async function reconcileStagingChatGPTCallback({
   if (!/^https:\/\/chatgpt\.com\/connector\/oauth\/[A-Za-z0-9_-]{6,160}$/u.test(requested)) {
     throw denied("STAGING_CALLBACK_PATH_UNSUPPORTED");
   }
+  if (!/^mcp_stg_[A-Za-z0-9_-]{16,128}$/u.test(String(expected_client_id || ""))) {
+    throw denied("STAGING_CALLBACK_EXPECTED_CLIENT_ID_REQUIRED");
+  }
   if (apply && confirmation !== "APPEND_STAGING_CHATGPT_CALLBACK") {
     throw denied("STAGING_CALLBACK_EXPLICIT_CONFIRMATION_REQUIRED");
   }
@@ -312,7 +315,7 @@ export async function reconcileStagingChatGPTCallback({
         client.client_profile_key !== "openai_chatgpt" ||
         !String(client.client_id || "").startsWith("mcp_stg_") ||
         client.client_id !== config.client_id ||
-        (expected_client_id && client.client_id !== expected_client_id)) {
+        client.client_id !== expected_client_id) {
       throw denied("STAGING_CALLBACK_CLIENT_IDENTITY_MISMATCH");
     }
     if (!client.client_secret_hash || !current.secret ||
