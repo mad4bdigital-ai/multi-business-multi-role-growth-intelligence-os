@@ -26,6 +26,17 @@
       "grants_production_activation": false
     },
     {
+      "fingerprint": ".github/ops/github-followup-automerge-readiness.mjs|expectedAttestorStatusId|environment_reference|expected.attestor.status.id",
+      "owner": "repository-governance",
+      "reason": "Non-secret exact same-cycle GitHub Commit Status identity carried from the trusted backend attestor to the finalizer; rejects an older or foreign status for the same context. Cannot grant repository bypass, token access, database mutation or Production activation.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
       "fingerprint": ".github/ops/github-followup-automerge-readiness.mjs|expectedBaseHead|environment_reference|expected.head.sha",
       "owner": "repository-governance",
       "reason": "Expected base-head SHA is a read-only freshness binding used to reject a finalizer decision if the governed main base moved after candidate construction; it grants no mutation authority.",
@@ -1261,6 +1272,17 @@
       "fingerprint": "http-generic-api/recoveryOrchestrator.js|PLAN_TTL_MS|literal_declaration|plan.ttl.ms",
       "owner": "recovery-governance",
       "reason": "Fixed, five-minute, code-owned bound for staging-only recovery plan expiry; not request-controlled or dynamically writable. Catalog entry is SHADOW metadata only, and no Runtime, database, Hostinger or Production grant is provided.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/remoteMcpOAuthClientProvisioning.js|migration_seed:line|migration_seed|migration.seed:line",
+      "owner": "repository-governance",
+      "reason": "Exact existing governed OAuth client config row update, guarded by Staging-only immutable client/environment identity, explicit operator confirmation, a transactional CAS and prior live secret-presence check. This scanner candidate is an SQL DML statement for one existing named client, not a new configuration key or migration seed; this metadata registration does not authorize execution or production mutation.",
       "lifecycle": "permanent",
       "configuration_class": "ci_governance_input",
       "sensitivity": "non_secret_reference",
@@ -2600,6 +2622,17 @@
       "grants_production_activation": false
     },
     {
+      "fingerprint": "http-generic-api/test-remote-mcp-client-provisioning.mjs|migration_seed:line|migration_seed|migration.seed:line",
+      "owner": "repository-governance",
+      "reason": "Exact in-memory fake database SQL update fixture for the governed Staging callback CAS rollback regression. This scanner candidate is test scaffolding only, not a new runtime configuration key or an executable migration; it provides no runtime/database/Production execution capability.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
       "fingerprint": "http-generic-api/test-semantic-data-completeness-report.mjs|report|literal_declaration|report",
       "owner": "test-governance",
       "reason": "Test-only semantic completeness report fixture variable; it contains no environment value, credential, runtime target, or mutation authority.",
@@ -2823,17 +2856,6 @@
       "fingerprint": "local-connector/server.mjs|CONNECTOR_DEVICE_ID|environment_reference|connector.device.id",
       "owner": "local-connector",
       "reason": "Non-secret, exact canonical connector.device.id enrolled identity used to reject cross-device connector policy and heartbeat calls. Metadata-only baseline; cannot grant connection, execution, token reuse or Production authority. The baseline entry is only a code-scanner CI governance declaration; the live runtime setting is separately classified in platform-configuration-entry-registry.json.",
-      "lifecycle": "permanent",
-      "configuration_class": "ci_governance_input",
-      "sensitivity": "non_secret_reference",
-      "contains_secret_value": false,
-      "grants_runtime_mutation": false,
-      "grants_production_activation": false
-    },
-    {
-      "fingerprint": ".github/ops/github-followup-automerge-readiness.mjs|expectedAttestorStatusId|environment_reference|expected.attestor.status.id",
-      "owner": "repository-governance",
-      "reason": "Non-secret exact same-cycle GitHub Commit Status identity carried from the trusted backend attestor to the finalizer; rejects an older or foreign status for the same context. Cannot grant repository bypass, token access, database mutation or Production activation.",
       "lifecycle": "permanent",
       "configuration_class": "ci_governance_input",
       "sensitivity": "non_secret_reference",
