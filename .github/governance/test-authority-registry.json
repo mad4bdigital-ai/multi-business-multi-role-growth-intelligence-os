@@ -368,6 +368,7 @@
         ".github/workflows/derived-state-converged-automerge.yml",
         ".github/workflows/openapi-auto-sync.yml",
         ".github/workflows/surface-contract-auto-remediation.yml",
+        "http-generic-api/test-ci-guard-operational-alert-contract.mjs",
         "http-generic-api/test-derived-state-converged-automerge-source-event.mjs",
         "http-generic-api/test-github-finalizer-any-source-guard.mjs",
         "http-generic-api/test-github-repository-governance-attestation.mjs",

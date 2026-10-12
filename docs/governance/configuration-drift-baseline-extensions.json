@@ -2633,6 +2633,17 @@
       "grants_production_activation": false
     },
     {
+      "fingerprint": "http-generic-api/test-remote-mcp-client-provisioning.mjs|rejectSecondConfigCasOnce|literal_declaration|rejectsecondconfigcasonce",
+      "owner": "remote-mcp-oauth-test-maintainers",
+      "reason": "Non-secret, test-only boolean flag used in the in-memory OAuth client provisioning mock to simulate the second platform_runtime_config compare-and-swap write rejecting a stale update. Verifies transactional rollback of both rows; does not configure or grant actual database access, OAuth authorization, credentials, runtime mutation, or Production activation.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
       "fingerprint": "http-generic-api/test-semantic-data-completeness-report.mjs|report|literal_declaration|report",
       "owner": "test-governance",
       "reason": "Test-only semantic completeness report fixture variable; it contains no environment value, credential, runtime target, or mutation authority.",
