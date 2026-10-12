@@ -61,7 +61,7 @@ if (listProfiles) {
 
 const [{ getPool }, {
   provisionRemoteMcpOAuthClient,
-  reconcileStagingChatGPTCallback,
+  reconcileRemoteMcpChatGPTCallback,
   readRemoteMcpOAuthClientProvisioningStatus,
   listRemoteMcpOAuthClientProvisioningStatus,
 }] = await Promise.all([
@@ -109,7 +109,8 @@ try {
     console.log(JSON.stringify(result, null, 2));
     process.exitCode = result.ok ? 0 : 1;
   } else if (process.argv.includes("--reconcile-chatgpt-callback")) {
-    const result = await reconcileStagingChatGPTCallback({
+    const result = await reconcileRemoteMcpChatGPTCallback({
+      environment,
       env: process.env,
       pool,
       callback_uri: argValue("redirect-uri"),
