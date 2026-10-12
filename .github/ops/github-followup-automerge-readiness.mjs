@@ -14,6 +14,8 @@ const managedRulesetName = String(process.env.MANAGED_RULESET_NAME || "MAD4B mai
 const expectedAttestorAppId = Number(process.env.EXPECTED_ATTESTOR_APP_ID || 0);
 const expectedStatusCreatorId = Number(process.env.EXPECTED_STATUS_CREATOR_ID || 0);
 const expectedAttestorStatusId = Number(process.env.EXPECTED_ATTESTOR_STATUS_ID || 0);
+const expectedHeadAttestorStatusId = Number(process.env.EXPECTED_HEAD_ATTESTOR_STATUS_ID || 0);
+const expectedHeadStatusCreatorId = Number(process.env.EXPECTED_HEAD_STATUS_CREATOR_ID || 0);
 const governanceConstitution = JSON.parse(readFileSync(new URL("../../http-generic-api/config/repository-governance-constitution.json", import.meta.url), "utf8"));
 const mainSourcePolicy = governanceConstitution?.branches?.main || {};
 const anySourceEnabled = isAuthorizedMainAnySource(mainSourcePolicy);
@@ -33,6 +35,9 @@ assert.ok(managedRulesetName, "MANAGED_RULESET_NAME is required.");
 assert.ok(Number.isInteger(expectedAttestorAppId) && expectedAttestorAppId > 0, "EXPECTED_ATTESTOR_APP_ID must be a positive GitHub App id.");
 assert.ok(Number.isInteger(expectedStatusCreatorId) && expectedStatusCreatorId > 0, "EXPECTED_STATUS_CREATOR_ID must be a positive GitHub status creator id.");
 assert.ok(Number.isSafeInteger(expectedAttestorStatusId) && expectedAttestorStatusId > 0, "EXPECTED_ATTESTOR_STATUS_ID must prove the exact same-cycle published status.");
+assert.ok(Number.isSafeInteger(expectedHeadAttestorStatusId) && expectedHeadAttestorStatusId > 0, "EXPECTED_HEAD_ATTESTOR_STATUS_ID must prove the exact same-cycle required HEAD status.");
+assert.ok(Number.isInteger(expectedHeadStatusCreatorId) && expectedHeadStatusCreatorId > 0 && expectedHeadStatusCreatorId === expectedStatusCreatorId, "HEAD and candidate status creator IDs must identify the same App.");
+assert.notEqual(expectedHeadAttestorStatusId, expectedAttestorStatusId, "Candidate and HEAD publications must have distinct status IDs.");
 assert.match(prNumber, /^[1-9][0-9]*$/, "PR_NUMBER must be numeric.");
 
 async function github(pathname) {
@@ -230,6 +235,21 @@ if (!latestIsTrusted) {
   });
 }
 
+// GitHub enforces the required context on the PR head; checking the candidate
+// status alone is insufficient even when candidate governance attestation passes.
+const headStatuses = await github(`commits/${expectedPrHead}/statuses?per_page=100`);
+const latestHeadIsTrusted = latestSameCycleAttestorStatus(headStatuses, {
+  context: requiredContext, statusId: expectedHeadAttestorStatusId,
+  creatorId: expectedHeadStatusCreatorId,
+});
+if (!latestHeadIsTrusted) {
+  fail("blocked_exact_head_attestor_status_missing", "PR HEAD does not expose the same-cycle trusted required status.", {
+    observed_base_sha: observedBaseHead,
+    source_head_sha: expectedPrHead,
+    status_context: requiredContext,
+  });
+}
+
 const receipt = {
   contract: "github-followup-finalizer-merge-readiness.v2",
   repository,
@@ -254,6 +274,9 @@ const receipt = {
   expected_attestor_app_id: expectedAttestorAppId,
   expected_status_creator_id: expectedStatusCreatorId,
   exact_attestor_status_proven: latestIsTrusted,
+  required_head_status_id: expectedHeadAttestorStatusId,
+  required_head_status_creator_id: expectedHeadStatusCreatorId,
+  exact_head_attestor_status_proven: latestHeadIsTrusted,
   followup_pr: Number(prNumber),
   manual_objection_present: false,
   safe_to_register_auto_merge: false,
