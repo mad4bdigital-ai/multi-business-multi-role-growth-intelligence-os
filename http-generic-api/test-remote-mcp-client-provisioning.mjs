@@ -260,6 +260,7 @@ const before = await reconcileStagingChatGPTCallback({
   env: callbackEnv, pool, callback_uri: callback,
   expected_client_id: stagingChatGPT.client_id,
 });
+assert.equal(before.contract, "mad4b.staging.chatgpt.callback-reconcile.v1");
 assert.equal(before.mutation_performed, false);
 assert.equal(before.registered_redirect_uri_count, 2);
 assert.equal(JSON.parse(state.clients.get(stagingChatGPT.client_id).redirect_uris_json).length, 1);
@@ -348,6 +349,7 @@ const productionPreview = await reconcileRemoteMcpChatGPTCallback({
   env: productionChatGPTEnv,
   pool, callback_uri: callback, expected_client_id: productionChatGPT.client_id,
 });
+assert.equal(productionPreview.contract, "mad4b.remote-mcp.chatgpt.callback-reconcile.v2");
 assert.equal(productionPreview.ok, true);
 assert.equal(productionPreview.environment, "production");
 assert.equal(productionPreview.registered_redirect_uri_count, 2);
