@@ -17,7 +17,7 @@ Keep the existing Hostinger Backend Finalizer unchanged, but offer a separately 
 4. Optionally provide dedicated REPO_AUTOSYNC_TOKEN for the merge step, separately approved. Never fall back to default GITHUB_TOKEN for merging.
 
 ## Dispatch
-Run workflow github-direct-attestor.yml on ref main with pr_number, expected_head_sha, source_run_id, action and confirmation. Allowed pairs: plan/PLAN_DIRECT, attest/DIRECT_ATTEST_EXACT_HEAD, attest_and_merge/DIRECT_ATTEST_AND_MERGE.
+Run existing workflow derived-state-converged-automerge.yml on ref main with source_run_id, pr_number, expected_head_sha, action and confirmation. Direct mode uses separate direct_attest and direct_merge jobs; the unchanged Backend attest/merge jobs remain reserved for FINALIZE_GOVERNANCE_ATTESTATION. Allowed pairs: plan/PLAN_DIRECT, attest/DIRECT_ATTEST_EXACT_HEAD, attest_and_merge/DIRECT_ATTEST_AND_MERGE.
 
 The source_run_id must refer to a successful Derived State Closure with event pull_request or workflow_dispatch; the older pull_request_review event is not sufficient for provenance. Its downloaded artifact must contain detector-identity.json, report.json, environment-impact.json, policy-objections.json, manual-authorization.json and evidence-finalizer.json. All must match the same current PR base/head/candidate/run with no remaining manual/blocking objection.
 
@@ -28,4 +28,4 @@ The source_run_id must refer to a successful Derived State Closure with event pu
 - A newly reviewed bootstrap/controller is still needed to activate Direct mode; simply committing this PR does not evade circular deployment dependencies.
 - Hostinger Production/OAuth/Trusted Ingress and Staging operational acceptance are separate and are not claimed repaired by this feature.
 
-Tests: node http-generic-api/test-github-direct-attestor.mjs, in exact-head Node 22 checkout. Re-check all CI, Governance Fixed Point and Work Map acceptances after changes.
+Tests: node http-generic-api/test-github-repository-governance-attestation.mjs, in exact-head Node 22 checkout. Re-check all CI, Governance Fixed Point and Work Map acceptances after changes.
