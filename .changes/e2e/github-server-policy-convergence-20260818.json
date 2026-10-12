@@ -35,6 +35,7 @@
       ".github/workflows/policy-objection-ci.yml",
       ".specify/schemas/e2e-phases.schema.json",
       ".specify/spec-kit-work-map-integration-policy.json",
+      "docs/governance/configuration-drift-baseline-extensions.json",
       "docs/governance/configuration-drift-policy.json",
       "docs/repository-ci-surface-policy.json",
       "docs/runbooks/github-any-source-main-trusted-finalizer-20261009.md",

@@ -92,6 +92,10 @@ jobs:
             '.state=="open" and .draft==false and .base.ref=="main" and
               .head.sha==$head and .head.repo.full_name==$repo' \
             "$RUNNER_TEMP/direct-pr.json" >/dev/null
+          head_branch="$(jq -r '.head.ref' "$RUNNER_TEMP/direct-pr.json")"
+          if [[ "$head_branch" == main || "$head_branch" == Production ]]; then
+            echo "::error::Protected source branch rejected"; exit 1
+          fi
           base="$(jq -r '.base.sha' "$RUNNER_TEMP/direct-pr.json")"
           candidate="$(jq -r '.merge_commit_sha' "$RUNNER_TEMP/direct-pr.json")"
           [[ "$base" =~ ^[a-f0-9]{40}$ ]]

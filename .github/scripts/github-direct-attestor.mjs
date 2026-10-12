@@ -90,7 +90,8 @@ async function api(token, path, method = "GET", body) {
 function ensurePr(pr, x, repo) {
   requireValid(pr?.state === "open" && pr?.draft === false &&
     pr?.base?.ref === "main" && pr?.base?.sha === x.base &&
-    pr?.head?.sha === x.head && pr?.head?.repo?.full_name === repo &&
+    pr?.head?.sha === x.head && pr?.head?.ref !== "main" && pr?.head?.ref !== "Production" &&
+    pr?.head?.repo?.full_name === repo &&
     pr?.merge_commit_sha === x.candidate, "pr_identity_drift");
 }
 function readEvidence(dir) {
