@@ -224,5 +224,21 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     outputDir: args.output_dir || DEFAULT_OUTPUT_DIR,
     failOnDrift: Boolean(args.fail_on_drift),
   });
-  process.stdout.write(`${JSON.stringify({ contract: result.contract, ok: result.ok, findings: result.findings.length, new_candidate_count: result.new_candidate_count, baseline_extension_count: result.baseline_extension_count, secrets_included: false }, null, 2)}\n`);
+  // A bounded, fingerprint-only diagnostic makes failed CI actionable without
+  // printing configuration values, full files, tokens or environment variables.
+  const findingCodes = result.findings.map((finding) => ({
+    code: String(finding.code || "unknown").slice(0, 128),
+    severity: String(finding.severity || "unknown").slice(0, 40),
+    path: String(finding.details?.path || finding.path || "").slice(0, 240),
+    fingerprint: String(finding.details?.fingerprint || finding.fingerprint || "").slice(0, 320),
+  }));
+  process.stdout.write(`${JSON.stringify({
+    contract: result.contract,
+    ok: result.ok,
+    findings: result.findings.length,
+    finding_codes_and_fingerprints: findingCodes,
+    new_candidate_count: result.new_candidate_count,
+    baseline_extension_count: result.baseline_extension_count,
+    secrets_included: false,
+  }, null, 2)}\n`);
 }
