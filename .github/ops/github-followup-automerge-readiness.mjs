@@ -242,10 +242,10 @@ if (JSON.stringify(contexts) !== JSON.stringify(managedContexts) || !contexts.in
 }
 const checkRuns = [];
 for (let page = 1; page <= 20; page++) {
-  const batch = await github(`commits/${expectedPrHead}/check-runs?per_page=100&page=${page}`);
-  if (!Array.isArray(batch?.check_runs) || !Number.isInteger(Number(batch.total_count))) fail("blocked_check_runs_unreadable", "HEAD Check Runs could not be enumerated.");
-  checkRuns.push(...batch.check_runs);
-  if (checkRuns.length >= Number(batch.total_count)) break;
+  const checkRunPage = await github(`commits/${expectedPrHead}/check-runs?per_page=100&page=${page}`);
+  if (!Array.isArray(checkRunPage?.check_runs) || !Number.isInteger(Number(checkRunPage.total_count))) fail("blocked_check_runs_unreadable", "HEAD Check Runs could not be enumerated.");
+  checkRuns.push(...checkRunPage.check_runs);
+  if (checkRuns.length >= Number(checkRunPage.total_count)) break;
   if (page === 20) fail("blocked_check_runs_truncated", "HEAD Check Runs exceed pagination safety budget.");
 }
 const requiredHeadEvidence = evaluateRequiredHeadChecks(activeBindings, { checkRuns, statuses, attestorContext: requiredContext });
