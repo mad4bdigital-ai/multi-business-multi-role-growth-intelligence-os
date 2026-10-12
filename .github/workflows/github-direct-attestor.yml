@@ -1,0 +1,186 @@
+name: MAD4B GitHub Direct Attestor
+run-name: "Direct attestor PR #${{ inputs.pr_number }}"
+
+on:
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: Exact PR number
+        required: true
+        type: string
+      expected_head_sha:
+        description: Exact source HEAD SHA
+        required: true
+        type: string
+      source_run_id:
+        description: Successful Derived State Closure run ID
+        required: true
+        type: string
+      action:
+        description: Operation
+        type: choice
+        default: plan
+        options: [plan, attest, attest_and_merge]
+      confirmation:
+        description: PLAN_DIRECT or DIRECT_ATTEST_EXACT_HEAD or DIRECT_ATTEST_AND_MERGE
+        type: string
+        required: true
+
+permissions:
+  contents: read
+  actions: read
+  checks: read
+  pull-requests: read
+  statuses: read
+
+concurrency:
+  group: github-direct-attestor-${{ inputs.pr_number }}
+  cancel-in-progress: false
+
+jobs:
+  attest:
+    name: Independent exact-head App attestation
+    if: github.ref == 'refs/heads/main'
+    environment:
+      name: Governance-Direct
+      deployment: false
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    outputs:
+      pr_number: ${{ steps.direct.outputs.pr_number }}
+      source_head_sha: ${{ steps.direct.outputs.source_head_sha }}
+      base_sha: ${{ steps.direct.outputs.base_sha }}
+      candidate_sha: ${{ steps.direct.outputs.candidate_sha }}
+      attestor_app_id: ${{ steps.direct.outputs.attestor_app_id }}
+      status_creator_id: ${{ steps.direct.outputs.status_creator_id }}
+      attestor_status_id: ${{ steps.direct.outputs.attestor_status_id }}
+    steps:
+      - name: Bind exact input and explicit owner confirmation
+        env:
+          MODE: ${{ inputs.action }}
+          CONFIRM: ${{ inputs.confirmation }}
+          HEAD: ${{ inputs.expected_head_sha }}
+          PR: ${{ inputs.pr_number }}
+          RUN: ${{ inputs.source_run_id }}
+        run: |
+          set -euo pipefail
+          test "$GITHUB_ACTOR" = "${{ github.repository_owner }}"
+          [[ "$HEAD" =~ ^[a-f0-9]{40}$ ]]
+          [[ "$PR" =~ ^[1-9][0-9]*$ ]]
+          [[ "$RUN" =~ ^[1-9][0-9]*$ ]]
+          case "$MODE:$CONFIRM" in
+            plan:PLAN_DIRECT|attest:DIRECT_ATTEST_EXACT_HEAD|attest_and_merge:DIRECT_ATTEST_AND_MERGE) ;;
+            *) echo "::error::Explicit matching confirmation required"; exit 1 ;;
+          esac
+
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Read current PR identity and canonical source artifact
+        id: source
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ inputs.pr_number }}
+          HEAD: ${{ inputs.expected_head_sha }}
+          RUN: ${{ inputs.source_run_id }}
+        run: |
+          set -euo pipefail
+          gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR}" > "$RUNNER_TEMP/direct-pr.json"
+          jq -e --arg head "$HEAD" --arg repo "$GITHUB_REPOSITORY" \
+            '.state=="open" and .draft==false and .base.ref=="main" and
+              .head.sha==$head and .head.repo.full_name==$repo' \
+            "$RUNNER_TEMP/direct-pr.json" >/dev/null
+          base="$(jq -r '.base.sha' "$RUNNER_TEMP/direct-pr.json")"
+          candidate="$(jq -r '.merge_commit_sha' "$RUNNER_TEMP/direct-pr.json")"
+          [[ "$base" =~ ^[a-f0-9]{40}$ ]]
+          [[ "$candidate" =~ ^[a-f0-9]{40}$ ]]
+          mkdir -p "$RUNNER_TEMP/direct-evidence"
+          gh run download "$RUN" --repo "$GITHUB_REPOSITORY" \
+            -n "derived-state-closure-${RUN}" -D "$RUNNER_TEMP/direct-evidence"
+          echo "base=$base" >> "$GITHUB_OUTPUT"
+          echo "candidate=$candidate" >> "$GITHUB_OUTPUT"
+
+      - name: Verify and issue trusted status without Hostinger
+        id: direct
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          DIRECT_ATTESTOR_ENABLED: ${{ vars.DIRECT_GITHUB_ATTESTOR_ENABLED }}
+          DIRECT_GITHUB_APP_ID: ${{ secrets.DIRECT_GITHUB_APP_ID }}
+          DIRECT_GITHUB_APP_PRIVATE_KEY: ${{ secrets.DIRECT_GITHUB_APP_PRIVATE_KEY }}
+          MODE: ${{ inputs.action }}
+          PR: ${{ inputs.pr_number }}
+          HEAD: ${{ inputs.expected_head_sha }}
+          RUN: ${{ inputs.source_run_id }}
+          BASE: ${{ steps.source.outputs.base }}
+          CANDIDATE: ${{ steps.source.outputs.candidate }}
+        run: |
+          set -euo pipefail
+          if [[ "$MODE" == "plan" ]]; then operation=plan; else operation=attest; fi
+          node .github/scripts/github-direct-attestor.mjs \
+            "--pr=$PR" "--head=$HEAD" "--run=$RUN" \
+            "--base=$BASE" "--candidate=$CANDIDATE" \
+            "--evidence-dir=$RUNNER_TEMP/direct-evidence" "--mode=$operation"
+
+  merge:
+    name: Server-enforced exact-head governed merge
+    needs: attest
+    if: inputs.action == 'attest_and_merge' && needs.attest.result == 'success'
+    environment:
+      name: Governance-Direct
+      deployment: false
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Verify same-cycle status, no bypass, merge and readback
+        env:
+          GH_TOKEN: ${{ secrets.REPO_AUTOSYNC_TOKEN }}
+          PR: ${{ needs.attest.outputs.pr_number }}
+          HEAD: ${{ needs.attest.outputs.source_head_sha }}
+          BASE: ${{ needs.attest.outputs.base_sha }}
+          CANDIDATE: ${{ needs.attest.outputs.candidate_sha }}
+          APP_ID: ${{ needs.attest.outputs.attestor_app_id }}
+          CREATOR: ${{ needs.attest.outputs.status_creator_id }}
+          STATUS_ID: ${{ needs.attest.outputs.attestor_status_id }}
+        run: |
+          set -euo pipefail
+          test -n "$GH_TOKEN"
+          for v in "$HEAD" "$BASE" "$CANDIDATE"; do [[ "$v" =~ ^[a-f0-9]{40}$ ]]; done
+          for v in "$APP_ID" "$CREATOR" "$STATUS_ID"; do [[ "$v" =~ ^[1-9][0-9]*$ ]]; done
+          pr="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR}")"
+          jq -e --arg head "$HEAD" --arg base "$BASE" --arg candidate "$CANDIDATE" \
+            '.state=="open" and .draft==false and .base.ref=="main" and
+             .head.sha==$head and .base.sha==$base and .merge_commit_sha==$candidate' <<<"$pr" >/dev/null
+          labels="$(gh api "repos/${GITHUB_REPOSITORY}/issues/${PR}" --jq '[.labels[].name]')"
+          jq -e 'index("do-not-auto-merge")==null and index("manual-merge")==null and
+            index("manual-review")==null and index("security-review")==null' <<<"$labels" >/dev/null
+          rules="$(gh api "repos/${GITHUB_REPOSITORY}/rulesets?includes_parents=true&per_page=100")"
+          rule_id="$(jq -r '[.[] | select(.enforcement=="active" and .name=="MAD4B main review policy") | .id] |
+            if length==1 then .[0] else empty end' <<<"$rules")"
+          [[ "$rule_id" =~ ^[1-9][0-9]*$ ]]
+          rule="$(gh api "repos/${GITHUB_REPOSITORY}/rulesets/${rule_id}")"
+          jq -e '.enforcement=="active" and (.bypass_actors|length)==0 and
+            any(.rules[]; .type=="required_status_checks" and
+              any(.parameters.required_status_checks[]; .context=="Derived State Closure"))' <<<"$rule" >/dev/null
+          statuses="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${HEAD}/statuses?per_page=100")"
+          jq -e --argjson id "$STATUS_ID" --argjson creator "$CREATOR" \
+            '([.[] | select(.context=="Derived State Closure")][0] |
+              .id==$id and .state=="success" and .creator.id==$creator)' <<<"$statuses" >/dev/null
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/commits/${CANDIDATE}/statuses?per_page=100" --jq length)" = 0
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/commits/${CANDIDATE}/check-runs?per_page=100" --jq .total_count)" = 0
+          set +e
+          gh pr merge "$PR" --squash --match-head-commit "$HEAD"
+          rc=$?
+          set -e
+          result="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR}")"
+          jq -e --arg head "$HEAD" '.merged==true and .head.sha==$head and
+             .base.ref=="main" and (.merged_at|length)>0 and
+             (.merge_commit_sha|test("^[a-f0-9]{40}$"))' <<<"$result" >/dev/null
+          sha="$(jq -r '.merge_commit_sha' <<<"$result")"
+          gh api "repos/${GITHUB_REPOSITORY}/commits/${sha}" >/dev/null
+          echo "DIRECT_ATTESTOR_MERGED pr=$PR head=$HEAD commit=$sha command_rc=$rc"

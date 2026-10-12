@@ -381,6 +381,7 @@ export const testCommands = [
   "node test-repo-maintenance-sync.mjs",
   "node test-derived-state-converged-automerge-source-event.mjs",
   "node test-github-finalizer-any-source-guard.mjs",
+  "node test-github-direct-attestor.mjs",
   "node test-repo-maintenance-coordination.mjs",
   "node test-surface-contract-discovery.mjs",
   "node test-surface-contract-auto-remediation.mjs",
