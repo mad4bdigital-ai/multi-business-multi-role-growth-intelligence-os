@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { readStagingStartupMutationPolicy } from "./stagingStartupMutationPolicy.js";
 import { readFile } from "node:fs/promises";
 import { getControlPlaneWritePool } from "./controlPlaneWriteAuthority.js";
 import {
@@ -884,6 +885,18 @@ export async function runDynamicAuditCycle(options = {}, dependencies = {}) {
 }
 
 export async function startDynamicAuditScheduler(options = {}) {
+  // Stop before acquiring a DB pool or even reading runtime configuration.
+  const startupPolicy = readStagingStartupMutationPolicy(process.env);
+  if (startupPolicy.quiescent) {
+    return {
+      started: false,
+      status: "disabled_by_staging_startup_mutation_policy",
+      reason: "quiescent_staging_startup",
+      database_connection_performed: false,
+      database_mutation_performed: false,
+      secrets_included: false,
+    };
+  }
   if (process.env.NODE_ENV === "test" || schedulerHandle || startupHandle) {
     return { started: false, reason: "disabled_or_already_started", secrets_included: false };
   }
