@@ -44,3 +44,21 @@ export function requireDedicatedStagingControlPlaneWriteIdentity(env = process.e
     throw error;
   }
 }
+
+/**
+ * Prevent accidental use of a remote/Production database as the Staging
+ * control-plane writer target. The database name is shared, the principal
+ * and credentials must be distinct.
+ */
+export function requireLocalStagingControlPlaneTarget(env = process.env) {
+  if (!isLocalWindowsStaging(env)) return;
+  const host = String(env.CONTROL_PLANE_WRITE_DB_HOST || "").trim().toLowerCase();
+  const runtimeHost = String(env.DB_HOST || "").trim().toLowerCase();
+  const database = String(env.CONTROL_PLANE_WRITE_DB_NAME || "").trim();
+  const runtimeDatabase = String(env.DB_NAME || "").trim();
+  if (host !== "runtime-db" || runtimeHost !== "runtime-db" || !database || database !== runtimeDatabase) {
+    const error = new Error("Windows Staging control-plane writer must target the local runtime-db service and exact Runtime database.");
+    error.code = "STAGING_CONTROL_PLANE_WRITE_TARGET_MISMATCH";
+    throw error;
+  }
+}
