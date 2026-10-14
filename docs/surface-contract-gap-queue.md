@@ -16,7 +16,7 @@
 ### 1. `20260808_github_issue_comment_dispatch_parity.sql`
 
 - Queue class: critical_review
-- Score: 908
+- Score: 907
 - Gap severity: high
 - Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
 - Missing OpenAPI routes: `/repos/{owner}/{repo}/issues/{issue_number}/comments`
@@ -60,7 +60,7 @@
 ### 4. `20260815_custom_gpt_mcp_catalog_levels.sql`
 
 - Queue class: critical_review
-- Score: 850
+- Score: 849
 - Gap severity: high
 - Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
 - Missing OpenAPI routes: none
