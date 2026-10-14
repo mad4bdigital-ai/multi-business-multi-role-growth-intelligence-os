@@ -1,6 +1,6 @@
 import mysql from "mysql2/promise";
 import { getPool } from "./db.js";
-import { requireDedicatedStagingControlPlaneWriteIdentity } from "./stagingStartupMutationPolicy.js";
+import { requireDedicatedStagingControlPlaneWriteIdentity, requireLocalStagingControlPlaneTarget } from "./stagingStartupMutationPolicy.js";
 
 export const CONTROL_PLANE_WRITE_IDENTITY_CONTRACT = Object.freeze({
   enabled_env: "CONTROL_PLANE_WRITE_AUTHORITY_ENABLED",
@@ -49,6 +49,7 @@ export function resolveControlPlaneWriteDbConfig(env = process.env) {
     };
   }
 
+  requireLocalStagingControlPlaneTarget(env);
   const missing = missingKeys(env);
   if (missing.length) {
     const error = new Error(`Missing required control-plane write DB environment variables: ${missing.join(", ")}`);
