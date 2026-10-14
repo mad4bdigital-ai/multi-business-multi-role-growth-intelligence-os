@@ -294,6 +294,34 @@ for (const name of [
   assert.equal(migration.coverage.route_coverage.missing_count, 0, name + ": registered provider path should not appear as missing local OpenAPI route");
 }
 
+const documentedMigrationNames = [
+  "20260808_github_issue_comment_dispatch_parity.sql",
+  "20260810_github_issue_comment_exact_response_parity.sql",
+  "20260812_repository_reconciliation_admin_apply_activation.sql",
+  "20260815_custom_gpt_mcp_catalog_levels.sql",
+  "1038_sprint69_github_actions_workflow_control_dispatch.sql",
+  "1030_sprint69_default_blocker_recovery_governance_seed.sql",
+  "20260810_platform_runtime_registry_drift_reconciliation.sql",
+  "1042_sprint69_support_ticket_lifecycle_sla_dedupe.sql",
+  "1047_sprint69_tenant_request_inbox_and_chunk_store_hardening.sql",
+  "20260728_governed_response_chunk_ownership.sql",
+];
+for (const name of documentedMigrationNames) {
+  const migration = report.all_migrations.find((entry) => entry.migration_file === name);
+  assert(migration, name + ": reviewed migration identity must exist");
+  assert.equal(migration.documentation_complete, true, name + ": all five canonical documentation targets must cite the migration");
+}
+for (const name of [
+  "20260812_repository_reconciliation_admin_apply_activation.sql",
+  "20260815_custom_gpt_mcp_catalog_levels.sql",
+]) {
+  const migration = report.all_migrations.find((entry) => entry.migration_file === name);
+  assert(Object.values(migration.surfaces.safety).some((value) => value !== true),
+    name + ": adding documentation must not manufacture SQL safety assertions");
+  assert(report.gap_queue.top_items.some((entry) => entry.migration_file === name),
+    name + ": unresolved source safety review must remain actionable after documentation closure");
+}
+
 const markdown = renderSurfaceContractMarkdown(report);
 assert(markdown.includes("Surface Contract Discovery Status"), "markdown must render status title");
 assert(markdown.includes("Coverage Summary"), "markdown must render deep coverage summary");
