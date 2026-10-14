@@ -20,6 +20,16 @@ const discoverySource = fs.readFileSync(scriptPath, "utf8");
 assert(discoverySource.includes("fileURLToPath(importMetaUrl)"), "CLI entrypoint detection must use fileURLToPath for cross-platform paths");
 assert(!discoverySource.includes("file://${process.argv[1]}"), "CLI entrypoint detection must not concatenate file URLs manually");
 
+const commentAssignments = detectSafetyMarkers([
+  "-- Migration execution safety: no_provider_call=true; no_credential_payload_read=true;",
+  "-- no_raw_secrets=true; no_external_send=true; no_external_write=true; secrets_included=false.",
+].join("\n"));
+assert(Object.values(commentAssignments).every(Boolean),
+  "explicit true safety assignments in SQL comments, including semicolon-separated declarations, must be recognized");
+const untrustedExecutable = detectSafetyMarkers("SELECT 'no_provider_call=true', 'no_external_send=true', 'no_raw_secrets=true';");
+assert.equal(untrustedExecutable.no_provider_call, false, "SQL string data is not independent comment safety proof");
+assert.equal(untrustedExecutable.no_external_send, false, "SQL string data must not mint safety proof");
+
 const standaloneMarkers = detectSafetyMarkers(`
 -- no_provider_call
 -- no_credential_payload_read
