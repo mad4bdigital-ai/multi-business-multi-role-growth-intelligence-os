@@ -222,7 +222,7 @@ export function classifyRoute(route, source = "", fileName = "") {
   if (routeEvidence?.classification === "external_provider_endpoint_registry_path"
     && routeEvidence.provider_key === "github_rest"
     && route === "/repos/{owner}/{repo}/issues/{issue_number}/comments"
-    && /\\bUPDATE\\s+`?endpoints`?\\b/i.test(source)
+    && /\bUPDATE\s+`?endpoints`?(?:\s|$)/i.test(source)
     && source.includes("endpoint_path_or_function")) {
     return {
       route,
