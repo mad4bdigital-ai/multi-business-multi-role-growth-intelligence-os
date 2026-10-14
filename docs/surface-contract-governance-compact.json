@@ -1,11 +1,11 @@
 {
   "ok": false,
   "schema_version": "surface-contract-governance-compact-v1",
-  "docs_completion_percent": 97.93,
+  "docs_completion_percent": 97.73,
   "docs_complete_count": 473,
-  "docs_gap_count": 10,
-  "queue_items": 10,
-  "blocking_new_item_count": 7,
+  "docs_gap_count": 11,
+  "queue_items": 11,
+  "blocking_new_item_count": 8,
   "gate_ok": false,
   "top_actionable": [
     {
@@ -24,6 +24,12 @@
       "migration_file": "20260812_repository_reconciliation_admin_apply_activation.sql",
       "queue_class": "critical_review",
       "score": 861,
+      "next_step": "add targeted patch-index, parity, and governance documentation"
+    },
+    {
+      "migration_file": "20261007_credential_platform_binding_policy.sql",
+      "queue_class": "critical_review",
+      "score": 851,
       "next_step": "add targeted patch-index, parity, and governance documentation"
     },
     {
@@ -47,14 +53,14 @@
   ],
   "openapi_missing_sql_route_count": 2,
   "openapi_exempt_sql_route_count": 678,
-  "total_sql_route_like_count": 712,
-  "safety_marker_gap_migrations": 3,
+  "total_sql_route_like_count": 713,
+  "safety_marker_gap_migrations": 4,
   "trend_quality_gate": {
     "ok": false,
     "schema_version": "surface-contract-trend-quality-gate-v1",
     "rule": "any unbaselined future queue item blocks promotion; legacy baseline backlog remains visible but non-blocking",
-    "blocking_new_item_count": 7,
-    "warning_new_item_count": 7
+    "blocking_new_item_count": 8,
+    "warning_new_item_count": 8
   },
   "safety": {
     "executes_provider_calls": false,
