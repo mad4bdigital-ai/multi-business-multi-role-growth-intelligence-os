@@ -21,6 +21,13 @@ test("Windows Staging is detected only by exact runtime identity", () => {
   assert.equal(isLocalWindowsStaging({ ...staging, DEPLOYMENT_ENVIRONMENT: "production" }), false);
 });
 
+test("Staging deployment class must not impersonate a Production NODE_ENV", () => {
+  assert.throws(
+    () => readStagingStartupMutationPolicy({ ...staging, NODE_ENV: "production" }),
+    (error) => error.code === "STAGING_RUNTIME_IDENTITY_MISMATCH",
+  );
+});
+
 test("Windows Staging defaults to quiescent startup, even if legacy feature flags request writes", () => {
   const policy = readStagingStartupMutationPolicy({
     ...staging,
