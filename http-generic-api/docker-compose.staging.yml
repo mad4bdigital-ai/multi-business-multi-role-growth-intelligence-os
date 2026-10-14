@@ -91,6 +91,10 @@ services:
         target: staging_cloudflare_api_token
     environment:
       NODE_ENV: staging
+      # Reviewed, immutable Staging startup freeze. Never inherit an unapproved
+      # background-write enablement from .env.staging.
+      STAGING_STARTUP_BACKGROUND_MUTATIONS_MODE: "quiescent"
+      OPENAPI_ENDPOINT_INVENTORY_SYNC_DISABLED: "true"
       # Deployment class is pinned in Compose as well as .env.staging so an
       # accidental env-file edit cannot silently reclassify the Staging runtime.
       DEPLOYMENT_ENVIRONMENT: staging_local_windows_docker
