@@ -14,6 +14,13 @@ export function isLocalWindowsStaging(env = process.env) {
 }
 
 export function readStagingStartupMutationPolicy(env = process.env) {
+  const nodeEnv = String(env.NODE_ENV || "").trim().toLowerCase();
+  const deploymentClass = String(env.DEPLOYMENT_ENVIRONMENT || "").trim().toLowerCase();
+  if (deploymentClass === localWindowsStagingDeploymentClass && nodeEnv !== "staging") {
+    const error = new Error("Windows Staging deployment class requires NODE_ENV=staging; refusing ambiguous startup authority.");
+    error.code = "STAGING_RUNTIME_IDENTITY_MISMATCH";
+    throw error;
+  }
   if (!isLocalWindowsStaging(env)) {
     return Object.freeze({ active: false, quiescent: false, mode: "not_applicable", secrets_included: false });
   }
