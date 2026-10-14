@@ -210,8 +210,7 @@ jobs:
             echo "Skipping stale surface remediation before branch creation: expected=${EXPECTED_HEAD_SHA}, current_main=${current_main_sha}."
             exit 0
           fi
-          # Stage first so the complete candidate Git tree can be compared before
-          # creating a branch. Run-level branch names are not content identities.
+          # Stage before publishing: Git tree is the candidate content identity.
           git add -- \
             "Updating Registry Patch Index.md" \
             "deployment_parity_checklist.md" \
@@ -222,43 +221,15 @@ jobs:
             docs/surface-contract-*.md
           candidate_tree_sha="$(git write-tree)"
           source_marker="<!-- surface-contract-remediation-source:${EXPECTED_HEAD_SHA} -->"
-          # GitHub lists open PRs in reverse creation order. Paginate and compare
-          # exact source + complete tree rather than titles or run IDs alone.
+          # All pages are required. Do not confuse an older source with this one.
           matching_prs="$(gh api --paginate "repos/${GITHUB_REPOSITORY}/pulls?state=open&base=main&per_page=100" |
-            jq -r --arg source_marker "$source_marker" '
-              .[] | select(.title == "Surface contract agent: automated remediation"
-                and ((.body // "") | contains($source_marker)))
-              | [.number, .head.sha] | @tsv
-            ')"
+            jq -c --arg source_marker "$source_marker" '.[] | select(.title == "Surface contract agent: automated remediation" and ((.body // "") | contains($source_marker))) | {number: .number, head: .head.sha}')"
           if [[ -n "$matching_prs" ]]; then
-            while IFS=
-          git push origin "$BRANCH"
-          PR_URL=$(gh pr create \
-            --base main \
-            --head "$BRANCH" \
-            --title "Surface contract agent: automated remediation" \
-            --body "<!-- surface-contract-remediation-source:${EXPECTED_HEAD_SHA} -->
-
-          Automated, checksum-bound surface-contract remediation from exact main ${EXPECTED_HEAD_SHA}. Scope is registered documentation and generated evidence only. Spec manifests are intentionally excluded because their environment impact is not uniformly repository-only. No migration SQL, runtime code, database state, credentials, provider calls, external sends, or deployment actions are changed. Governance-finalizer eligible: ${AUTO_MERGE_ELIGIBLE}. New-gap gate blocking: ${NEW_GAP_BLOCKING}. Manual-review items: ${MANUAL_REVIEW_COUNT}. Remaining queue items: ${REMAINING_QUEUE_ITEMS}. Native GitHub auto-merge is intentionally not registered; Derived State Closure and the Governance Finalizer own any automated merge decision.")
-          echo "url=$PR_URL" >> "$GITHUB_OUTPUT"
-          PR_NUMBER="$(gh pr view "$PR_URL" --json number --jq '.number')"
-          echo "number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
-
-          if [ "$AUTO_MERGE_ELIGIBLE" = "true" ] && [ "$NEW_GAP_BLOCKING" = "false" ]; then
-            current_main_sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
-            if [[ "$current_main_sha" != "$EXPECTED_HEAD_SHA" ]]; then
-              gh pr close "$PR_URL" --comment "Closing stale surface remediation PR: main moved from ${EXPECTED_HEAD_SHA} to ${current_main_sha}. A newer exact-head run owns regeneration."
-              exit 0
-            fi
-            pr_head_sha="$(gh pr view "$PR_URL" --json headRefOid --jq '.headRefOid')"
-            [[ "$pr_head_sha" =~ ^[0-9a-f]{40}$ ]]
-            echo "Surface remediation PR ${PR_NUMBER} head ${pr_head_sha} is eligible for governance finalization after Derived State Closure; native auto-merge remains disabled."
-          else
-            echo "PR remains open because manual review or new-gap review is required."
-          fi
-\t' read -r existing_pr existing_head; do
-              if [[ ! "$existing_head" =~ ^[0-9a-f]{40}$ ]]; then
-                echo "Invalid head SHA for existing Surface Contract PR #${existing_pr}." >&2
+            while IFS= read -r existing_row; do
+              existing_pr="$(jq -r '.number' <<< "$existing_row")"
+              existing_head="$(jq -r '.head' <<< "$existing_row")"
+              if [[ ! "$existing_pr" =~ ^[1-9][0-9]*$ || ! "$existing_head" =~ ^[0-9a-f]{40}$ ]]; then
+                echo "Invalid existing remediation PR identity." >&2
                 exit 1
               fi
               existing_tree_sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/commits/${existing_head}" --jq '.tree.sha')"
@@ -270,8 +241,7 @@ jobs:
               fi
             done <<< "$matching_prs"
           fi
-          # Existing review candidates with different trees must not be treated
-          # as duplicates, since that would silently drop real remediation changes.
+          # Different trees remain distinct and require review.
           git config user.name "surface-contract-agent[bot]"
           git config user.email "surface-contract-agent[bot]@users.noreply.github.com"
           git checkout -b "$BRANCH"
