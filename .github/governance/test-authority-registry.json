@@ -88,8 +88,9 @@
     {
       "id": "staging_environment_secret_generation",
       "test_paths": [
+        "http-generic-api/scripts/staging-dual-mode-one-click-contract.mjs",
         "http-generic-api/test-staging-environment-secret-governance.mjs",
-        "http-generic-api/scripts/staging-dual-mode-one-click-contract.mjs"
+        "http-generic-api/test-staging-startup-mutation-policy.mjs"
       ]
     },
     {
@@ -683,6 +684,7 @@
         "http-generic-api/test-staging-runtime-registry-reconciliation-ledger.mjs",
         "http-generic-api/test-staging-runtime-registry-reconciliation-surface.mjs",
         "http-generic-api/test-staging-runtime-registry-reconciliation.mjs",
+        "http-generic-api/test-staging-startup-mutation-policy.mjs",
         "http-generic-api/test-staging-three-db-privilege-drift-audit.mjs"
       ]
     },
