@@ -5,12 +5,12 @@
  * startup mutations requires an explicit governed change to "allow_governed".
  * Production and other runtime classes are not changed by this policy.
  */
-const STAGING_ENVIRONMENT = "staging_local_windows_docker";
+const localWindowsStagingDeploymentClass = "staging_local_windows_docker";
 const ALLOWED_MODES = new Set(["quiescent", "allow_governed"]);
 
 export function isLocalWindowsStaging(env = process.env) {
   return String(env.NODE_ENV || "").trim().toLowerCase() === "staging"
-    && String(env.DEPLOYMENT_ENVIRONMENT || "").trim().toLowerCase() === STAGING_ENVIRONMENT;
+    && String(env.DEPLOYMENT_ENVIRONMENT || "").trim().toLowerCase() === localWindowsStagingDeploymentClass;
 }
 
 export function readStagingStartupMutationPolicy(env = process.env) {
