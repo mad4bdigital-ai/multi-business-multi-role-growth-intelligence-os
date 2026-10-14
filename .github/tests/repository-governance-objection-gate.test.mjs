@@ -61,6 +61,16 @@ assert.ok(constitution.control_plane_paths.includes(criticalPath));
 assert.ok(constitution.control_plane_paths.includes(".changes/e2e/staging-production-access-repair-execution-20260909.json"));
 assert.ok(constitution.control_plane_paths.includes(".changes/e2e/critical-declaration-registration-closure-20260910.json"));
 assert.ok(constitution.control_plane_paths.includes(".changes/e2e/production-promotion-staging-resume-20260930.json"));
+const pr8509CriticalPaths = [
+  ".changes/e2e/pr8509-staging-startup-write-safety.json",
+  "docs/governance/staging-startup-mutation-safety.md"
+];
+for (const criticalPath of pr8509CriticalPaths) {
+  assert.ok(constitution.control_plane_paths.includes(criticalPath), `PR8509 Constitution critical path missing: ${criticalPath}`);
+  assert.ok(derivedStateGovernance.convergence.automation_control_paths.includes(criticalPath), `PR8509 convergence control path missing: ${criticalPath}`);
+}
+const policyProducerWorkflow = fs.readFileSync(path.join(root, ".github/workflows/policy-objection-ci.yml"), "utf8");
+assert.ok(policyProducerWorkflow.includes('--source-head-sha "$SOURCE_HEAD_SHA"'), "Policy Objection CI must bind its source head to the objection report");
 const pr8440Declaration = ".changes/e2e/pr8440-managed-credential-authority-closure.json";
 assert.ok(constitution.control_plane_paths.includes(pr8440Declaration));
 assert.ok(derivedStateGovernance.convergence.automation_control_paths.includes(pr8440Declaration));
@@ -110,6 +120,28 @@ assert.ok(criticalReport.objections.some((entry) =>
   && entry.resolved === false
   && entry.evidence?.critical_paths?.includes(criticalPath)
 ));
+
+// The producer must record the PR source head even when evaluating a merge-candidate commit.
+const sourceBoundReport = path.join(dir, "critical-source-bound.json");
+const sourceBound = spawnSync(process.execPath, [
+  "scripts/repository-governance-objection-gate.mjs",
+  "--mode", "source",
+  "--governance-report", criticalGovernanceReport,
+  "--source-head-sha", sha,
+  "--report-file", sourceBoundReport,
+], { cwd: root, encoding: "utf8", maxBuffer: 32 * 1024 * 1024 });
+assert.equal(sourceBound.status, 0, `${sourceBound.stdout}\n${sourceBound.stderr}`);
+assert.equal(JSON.parse(fs.readFileSync(sourceBoundReport, "utf8")).source_head_sha, sha);
+for (const conflictingSha of ["b".repeat(40), "invalid-source-head"]) {
+  const conflictingResult = spawnSync(process.execPath, [
+    "scripts/repository-governance-objection-gate.mjs",
+    "--mode", "source",
+    "--governance-report", criticalGovernanceReport,
+    "--source-head-sha", conflictingSha,
+    "--report-file", path.join(dir, "critical-source-conflicting.json"),
+  ], { cwd: root, encoding: "utf8", maxBuffer: 32 * 1024 * 1024 });
+  assert.notEqual(conflictingResult.status, 0, "invalid or inconsistent source head must fail closed");
+}
 
 const authorizationReport = path.join(dir, "manual-authorization.json");
 fs.writeFileSync(authorizationReport, `${JSON.stringify({
