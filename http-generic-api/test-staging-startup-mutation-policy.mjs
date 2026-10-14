@@ -5,6 +5,7 @@ import {
   isLocalWindowsStaging,
   readStagingStartupMutationPolicy,
   requireDedicatedStagingControlPlaneWriteIdentity,
+  requireLocalStagingControlPlaneTarget,
 } from "./stagingStartupMutationPolicy.js";
 
 const staging = Object.freeze({
@@ -104,6 +105,28 @@ test("Staging Compose pins quiescent mode and disables OpenAPI startup apply", (
   assert.match(compose, /STAGING_STARTUP_BACKGROUND_MUTATIONS_MODE: "quiescent"/);
   assert.match(compose, /OPENAPI_ENDPOINT_INVENTORY_SYNC_DISABLED: "true"/);
   assert.match(compose, /DEPLOYMENT_ENVIRONMENT: staging_local_windows_docker/);
+});
+
+test("Dedicated Staging writer must target the local runtime-db and same database", () => {
+  const valid = {
+    ...staging,
+    DB_HOST: "runtime-db",
+    DB_NAME: "staging_runtime",
+    CONTROL_PLANE_WRITE_DB_HOST: "runtime-db",
+    CONTROL_PLANE_WRITE_DB_NAME: "staging_runtime",
+  };
+  assert.doesNotThrow(() => requireLocalStagingControlPlaneTarget(valid));
+  for (const change of [
+    { CONTROL_PLANE_WRITE_DB_HOST: "prod-db.example.net" },
+    { DB_HOST: "external-service" },
+    { CONTROL_PLANE_WRITE_DB_NAME: "production_runtime" },
+  ]) {
+    assert.throws(
+      () => requireLocalStagingControlPlaneTarget({ ...valid, ...change }),
+      (error) => error.code === "STAGING_CONTROL_PLANE_WRITE_TARGET_MISMATCH",
+    );
+  }
+  assert.doesNotThrow(() => requireLocalStagingControlPlaneTarget({ NODE_ENV: "production" }));
 });
 
 test("Server validates dedicated writer before manifest generation and listener", () => {
