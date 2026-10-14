@@ -21,6 +21,7 @@ const upstreamCommands = [
   "node test-growth-control-provider-approval-holds.mjs",
   "node test-production-config-preflight.mjs",
   "node test-control-plane-write-authority.mjs",
+  "node test-staging-startup-mutation-policy.mjs",
   "node test-mcp-catalog-schema-guard.mjs",
   "node test-mcp-catalog-schema-preflight.mjs",
   "node test-hostinger-recovery-capability-discovery.mjs",

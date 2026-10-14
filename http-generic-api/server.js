@@ -1,5 +1,7 @@
 import * as authService from './authService.js';
 import { generateDeploymentManifest } from "./scripts/generate-deployment-manifest.mjs";
+import { readStagingStartupMutationPolicy } from "./stagingStartupMutationPolicy.js";
+import { resolveControlPlaneWriteDbConfig } from "./controlPlaneWriteAuthority.js";
 import { reconcileRuntimeParityOnStartup } from "./runtimeParityStartupReconciler.js";
 import { startDynamicAuditScheduler } from "./dynamicAuditRuntime.js";
 import { startOpenApiEndpointInventorySync } from "./openApiEndpointInventorySync.js";
@@ -351,6 +353,19 @@ import {
 } from "./services/intentMaturationResolver.js";
 
 const { isOAuthConfigured, inferAuthMode, normalizeAuthContract, findHostingAccountByKey, resolveAccountKeyFromBrand, resolveAccountKey, resolveSecretFromReference, isGoogleApiHost, getAdditionalStaticAuthHeaders, enforceSupportedAuthMode, pathTemplateToRegex, ensureMethodAndPathMatchEndpoint, fetchSchemaContract, resolveSchemaOperation, validateByJsonSchema, validateParameters, validateRequestBody, classifySchemaDrift, buildResolvedAuthHeaders, injectAuthIntoQuery, injectAuthIntoHeaders, injectAuthForSchemaValidation, ensureWritePermissions } = authService;
+
+// Fail before opening the HTTP listener if this Staging instance is missing
+// dedicated, non-root control-plane write credentials. No fallback to DB_USER.
+const startupMutationPolicy = readStagingStartupMutationPolicy(process.env);
+if (startupMutationPolicy.active) {
+  resolveControlPlaneWriteDbConfig(process.env);
+  console.log(JSON.stringify({
+    event: "staging_startup_mutation_policy",
+    mode: startupMutationPolicy.mode,
+    dedicated_control_plane_writer_required: true,
+    secrets_included: false,
+  }));
+}
 
 try {
   generateDeploymentManifest();

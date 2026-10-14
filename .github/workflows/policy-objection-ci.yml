@@ -132,6 +132,7 @@ jobs:
           node scripts/repository-governance-objection-gate.mjs \
             --mode source \
             --governance-report "$OUT/repository-governance.json" \
+            --source-head-sha "$SOURCE_HEAD_SHA" \
             --report-file "$OUT/policy-objections.json"
       - name: Upload canonical exact-candidate evidence
         if: always()

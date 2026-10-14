@@ -1,0 +1,93 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "pr8509-staging-startup-write-safety",
+  "title": "PR8509 quiescent Windows Staging startup with dedicated Control Plane writer",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/pr8509-staging-startup-write-safety.json",
+      ".github/governance/test-authority-registry.json",
+      "docs/governance/staging-startup-mutation-safety.md",
+      "http-generic-api/controlPlaneWriteAuthority.js",
+      "http-generic-api/docker-compose.staging.yml",
+      "http-generic-api/dynamicAuditRuntime.js",
+      "http-generic-api/openApiEndpointInventorySync.js",
+      "http-generic-api/package.json",
+      "http-generic-api/scripts/test-manifest.mjs",
+      "http-generic-api/server.js",
+      "http-generic-api/stagingStartupMutationPolicy.js",
+      "http-generic-api/test-staging-startup-mutation-policy.mjs",
+      "http-generic-api/.env.staging.example"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Ensure the local Windows Staging runtime cannot start audit or OpenAPI background DB writers, never falls back to Runtime DB for privileged Control Plane writes, and requires local dedicated DB identity while Production retains existing behavior.",
+      "e2e_journeys": [
+        {
+          "id": "staging-quiescent-startup-writer-identity",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Governed CI and local Windows Docker Staging operator",
+          "entrypoint": "Start the Staging runtime in quiescent mode and verify startup task policy and database writer identity before app listener acceptance.",
+          "terminal_outcome": "Quiescent Staging suppresses both identified startup background writers before DB access and fails closed on missing or remote Control Plane write authority; production runtime behavior is unaffected. Live Staging deployment remains separately gated.",
+          "steps": [
+            "Resolve exact NODE_ENV and DEPLOYMENT_ENVIRONMENT; reject conflicting Staging deployment identities and invalid background mutation policy modes.",
+            "Verify quiescent policy short-circuits audit and OpenAPI startup paths before acquiring a database pool.",
+            "Resolve dedicated Control Plane writer identity, reject Runtime DB fallback, root or equivalent Runtime principal, and reject remote or cross-database targets.",
+            "Validate Staging Compose and its untracked env-file example; fail closed until distinct local Control Plane writer credentials are provisioned, and keep OpenAPI startup apply disabled.",
+            "Require exact-head CI and live Staging database identity readback and postdeploy acceptance before any App-Only deployment."
+          ],
+          "assertions": [
+            "The local Windows Staging startup policy defaults to quiescent and unknown modes fail closed.",
+            "Audit scheduler and OpenAPI startup sync return disabled in quiescent mode without DB connection or mutation.",
+            "Control Plane writes never use Runtime credentials or any remote/non-Staging database on local Windows Staging.",
+            "Production runtime is unchanged and Production mutation is not authorized.",
+            "Staging app-only release requires new immutable exact-head provenance, dedicated writer and live operational certification before merge or deploy.",
+            "Regression tests are registered in canonical CI Test Manifest and Test Authority Registry.",
+            "secrets_included is false."
+          ],
+          "tests": [
+            {
+              "id": "staging-startup-mutation-policy",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-startup-mutation-policy.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/pr8509-staging-startup-write-safety.json",
+            ".github/governance/test-authority-registry.json",
+            "http-generic-api/stagingStartupMutationPolicy.js",
+            "http-generic-api/controlPlaneWriteAuthority.js",
+            "http-generic-api/dynamicAuditRuntime.js",
+            "http-generic-api/openApiEndpointInventorySync.js",
+            "http-generic-api/docker-compose.staging.yml",
+            "http-generic-api/test-staging-startup-mutation-policy.mjs",
+            "http-generic-api/config/deployment-branch-policy.json",
+            "http-generic-api/.env.staging.example"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}
