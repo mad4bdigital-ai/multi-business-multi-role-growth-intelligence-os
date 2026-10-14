@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import { buildPersistedDiscoveryReport, detectSafetyMarkers, discoverSurfaces, isDirectExecution, renderGapQueueMarkdown, renderSurfaceContractMarkdown } from "./scripts/surface-contract-discovery.mjs";
+import { buildPersistedDiscoveryReport, classifyRoute, detectSafetyMarkers, discoverSurfaces, isDirectExecution, renderGapQueueMarkdown, renderSurfaceContractMarkdown } from "./scripts/surface-contract-discovery.mjs";
 import { extractRegistryToolKeys } from "./scripts/surface-contract-sql-registry-extractor.mjs";
 
 const scriptPath = path.resolve("scripts/surface-contract-discovery.mjs");
@@ -262,6 +262,27 @@ const migration286 = report.all_migrations.find((entry) => entry.migration_file 
 assert(migration286, "migration 286 must be discoverable for synthetic endpoint schema route classification");
 assert.equal(migration286.coverage.route_coverage.missing_count, 0, "synthetic endpoint-native schema routes in migration 286 must not be treated as OpenAPI gaps");
 assert(migration286.coverage.route_coverage.route_classifications.every((entry) => entry.route_class === "registry_only_surface"), "migration 286 route literals must be registry_only_surface classifications");
+
+
+const issueCommentProviderRoute = "/repos/{owner}/{repo}/issues/{issue_number}/comments";
+for (const name of [
+  "20260808_github_issue_comment_dispatch_parity.sql",
+  "20260810_github_issue_comment_exact_response_parity.sql",
+]) {
+  const source = fs.readFileSync(path.join("migrations", name), "utf8");
+  const verified = classifyRoute(issueCommentProviderRoute, source, name);
+  assert.equal(verified.route_class, "registry_only_surface", name + ": registered provider path must not be inferred as a local Express handler");
+  assert.equal(verified.openapi_required, false, name + ": provider endpoint path must not require platform-local OpenAPI");
+  assert.equal(verified.evidence_status, "verified_checksum_bound_provider_endpoint_reference", name + ": require exact blob-bound classification");
+  const tampered = classifyRoute(issueCommentProviderRoute, "-- invalidates source blob identity\\n" + source, name);
+  assert.equal(tampered.evidence_status, undefined, name + ": source mutation must invalidate classification evidence");
+  assert.equal(tampered.openapi_required, true, name + ": stale evidence must fail closed to normal OpenAPI review");
+  const unrelated = classifyRoute("/other/provider/route", source, name);
+  assert.equal(unrelated.openapi_required, true, name + ": unrelated route must not borrow a provider exemption");
+  const migration = report.all_migrations.find((entry) => entry.migration_file === name);
+  assert(migration, name + ": migration must remain discoverable");
+  assert.equal(migration.coverage.route_coverage.missing_count, 0, name + ": registered provider path should not appear as missing local OpenAPI route");
+}
 
 const markdown = renderSurfaceContractMarkdown(report);
 assert(markdown.includes("Surface Contract Discovery Status"), "markdown must render status title");
