@@ -6,29 +6,29 @@
   "triage_schema": "surface-contract-gap-triage-v1",
   "gate_schema": "surface-contract-new-gap-gate-v1",
   "coverage": {
-    "migrations_with_surfaces": 483,
-    "docs_complete_count": 473,
+    "migrations_with_surfaces": 484,
+    "docs_complete_count": 474,
     "docs_gap_count": 10,
     "docs_completion_percent": 97.93,
     "gap_severity_counts": {
       "high": 5,
       "medium": 1,
       "low": 4,
-      "none": 473
+      "none": 474
     },
     "surface_totals": {
       "plugins": 16,
-      "tools": 754,
+      "tools": 755,
       "views": 536,
       "policies": 199,
-      "routes": 712
+      "routes": 713
     },
     "migrations_by_surface_type": {
       "plugins": 13,
-      "tools": 275,
+      "tools": 276,
       "views": 219,
       "policies": 138,
-      "routes": 297
+      "routes": 298
     },
     "missing_doc_target_counts": {
       "Updating Registry Patch Index.md": 9,
@@ -38,23 +38,23 @@
       "docs/change-documentation-governance.md": 9
     },
     "safety_marker_counts": {
-      "no_provider_call": 476,
-      "no_credential_payload_read": 474,
-      "no_raw_secrets": 475,
-      "no_external_send": 474,
-      "no_external_write": 476,
-      "secrets_included_false": 480
+      "no_provider_call": 477,
+      "no_credential_payload_read": 475,
+      "no_raw_secrets": 476,
+      "no_external_send": 475,
+      "no_external_write": 477,
+      "secrets_included_false": 481
     },
     "safety_marker_gap_migrations": 3,
     "route_coverage": {
-      "sql_route_count": 34,
-      "total_sql_route_like_count": 712,
+      "sql_route_count": 35,
+      "total_sql_route_like_count": 713,
       "openapi_exempt_sql_route_count": 678,
-      "openapi_documented_sql_route_count": 32,
+      "openapi_documented_sql_route_count": 33,
       "openapi_missing_sql_route_count": 2,
-      "openapi_sql_route_coverage_percent": 94.12,
+      "openapi_sql_route_coverage_percent": 94.29,
       "route_class_counts": {
-        "http_route": 34,
+        "http_route": 35,
         "admin_tool_registry_route": 219,
         "tenant_tool_registry_route": 42,
         "system_tool_dispatch_route": 15,
