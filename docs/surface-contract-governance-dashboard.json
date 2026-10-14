@@ -6,29 +6,29 @@
   "triage_schema": "surface-contract-gap-triage-v1",
   "gate_schema": "surface-contract-new-gap-gate-v1",
   "coverage": {
-    "migrations_with_surfaces": 483,
-    "docs_complete_count": 473,
+    "migrations_with_surfaces": 486,
+    "docs_complete_count": 476,
     "docs_gap_count": 10,
-    "docs_completion_percent": 97.93,
+    "docs_completion_percent": 97.94,
     "gap_severity_counts": {
       "high": 5,
       "medium": 1,
       "low": 4,
-      "none": 473
+      "none": 476
     },
     "surface_totals": {
       "plugins": 16,
-      "tools": 754,
+      "tools": 757,
       "views": 536,
       "policies": 199,
-      "routes": 712
+      "routes": 715
     },
     "migrations_by_surface_type": {
       "plugins": 13,
-      "tools": 275,
+      "tools": 278,
       "views": 219,
       "policies": 138,
-      "routes": 297
+      "routes": 300
     },
     "missing_doc_target_counts": {
       "Updating Registry Patch Index.md": 9,
@@ -38,24 +38,24 @@
       "docs/change-documentation-governance.md": 9
     },
     "safety_marker_counts": {
-      "no_provider_call": 476,
-      "no_credential_payload_read": 474,
-      "no_raw_secrets": 475,
-      "no_external_send": 474,
-      "no_external_write": 476,
-      "secrets_included_false": 480
+      "no_provider_call": 479,
+      "no_credential_payload_read": 477,
+      "no_raw_secrets": 478,
+      "no_external_send": 477,
+      "no_external_write": 479,
+      "secrets_included_false": 483
     },
     "safety_marker_gap_migrations": 3,
     "route_coverage": {
-      "sql_route_count": 34,
-      "total_sql_route_like_count": 712,
-      "openapi_exempt_sql_route_count": 678,
-      "openapi_documented_sql_route_count": 32,
+      "sql_route_count": 35,
+      "total_sql_route_like_count": 715,
+      "openapi_exempt_sql_route_count": 680,
+      "openapi_documented_sql_route_count": 33,
       "openapi_missing_sql_route_count": 2,
-      "openapi_sql_route_coverage_percent": 94.12,
+      "openapi_sql_route_coverage_percent": 94.29,
       "route_class_counts": {
-        "http_route": 34,
-        "admin_tool_registry_route": 219,
+        "http_route": 35,
+        "admin_tool_registry_route": 221,
         "tenant_tool_registry_route": 42,
         "system_tool_dispatch_route": 15,
         "registry_only_surface": 8,
@@ -92,7 +92,7 @@
   "top_immediate_items": [
     {
       "migration_file": "20260808_github_issue_comment_dispatch_parity.sql",
-      "score": 908,
+      "score": 907,
       "queue_class": "critical_review",
       "triage_class": "new_surface_immediate_review",
       "gate_scope": "new_gap_gate_candidate",
@@ -229,7 +229,7 @@
     },
     {
       "migration_file": "20260815_custom_gpt_mcp_catalog_levels.sql",
-      "score": 850,
+      "score": 849,
       "queue_class": "critical_review",
       "triage_class": "new_surface_immediate_review",
       "gate_scope": "new_gap_gate_candidate",
