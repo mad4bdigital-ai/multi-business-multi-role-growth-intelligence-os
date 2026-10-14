@@ -18,7 +18,8 @@
       "http-generic-api/scripts/test-manifest.mjs",
       "http-generic-api/server.js",
       "http-generic-api/stagingStartupMutationPolicy.js",
-      "http-generic-api/test-staging-startup-mutation-policy.mjs"
+      "http-generic-api/test-staging-startup-mutation-policy.mjs",
+      "http-generic-api/.env.staging.example"
     ]
   },
   "merge_contract": {
@@ -51,7 +52,7 @@
             "Resolve exact NODE_ENV and DEPLOYMENT_ENVIRONMENT; reject conflicting Staging deployment identities and invalid background mutation policy modes.",
             "Verify quiescent policy short-circuits audit and OpenAPI startup paths before acquiring a database pool.",
             "Resolve dedicated Control Plane writer identity, reject Runtime DB fallback, root or equivalent Runtime principal, and reject remote or cross-database targets.",
-            "Validate the three-file Staging Compose policy pins quiescent mode and disables automatic OpenAPI inventory apply; assert Production Compose is unchanged.",
+            "Validate Staging Compose and its untracked env-file example; fail closed until distinct local Control Plane writer credentials are provisioned, and keep OpenAPI startup apply disabled.",
             "Require exact-head CI and live Staging database identity readback and postdeploy acceptance before any App-Only deployment."
           ],
           "assertions": [
@@ -81,7 +82,8 @@
             "http-generic-api/openApiEndpointInventorySync.js",
             "http-generic-api/docker-compose.staging.yml",
             "http-generic-api/test-staging-startup-mutation-policy.mjs",
-            "http-generic-api/config/deployment-branch-policy.json"
+            "http-generic-api/config/deployment-branch-policy.json",
+            "http-generic-api/.env.staging.example"
           ]
         }
       ]
