@@ -214,6 +214,16 @@ assert(workflow.includes('GH_TOKEN: ${{ secrets.REPO_AUTOSYNC_TOKEN }}'), "surfa
 assert(workflow.includes('token: ${{ secrets.REPO_AUTOSYNC_TOKEN }}'), "surface remediation checkout must use the trusted identity");
 assert(!workflow.includes("REPO_AUTOSYNC_TOKEN || github.token"), "surface remediation must never fall back to GITHUB_TOKEN for writes");
 assert(workflow.includes("Skipping stale surface remediation before branch creation"), "surface remediation must reject stale main before branch mutation");
+assert(workflow.includes('candidate_tree_sha="$(git write-tree)"'), "candidate content must be identified by the complete staged Git tree");
+assert(workflow.includes('source_marker="<!-- surface-contract-remediation-source:${EXPECTED_HEAD_SHA} -->"'), "candidate lookup must be bound to the exact input source");
+assert(workflow.includes('gh api --paginate "repos/${GITHUB_REPOSITORY}/pulls?state=open&base=main&per_page=100"'), "all open main-targeting PRs must be searched, not just first page");
+assert(workflow.includes("contains($source_marker)"), "only remediation PRs for the exact source may be deduplicated");
+assert(workflow.includes('git/commits/${existing_head}'), "deduplication must compare actual remote head Git trees");
+assert(workflow.includes('if [[ "$candidate_tree_sha" == "$existing_tree_sha" ]]'), "different candidate trees may not be discarded as duplicates");
+assert(workflow.includes("Reuse existing exact-source, exact-tree Surface Contract PR"), "existing PR must be reused without creating a new branch");
+assert(workflow.indexOf('candidate_tree_sha="$(git write-tree)"') < workflow.indexOf('git checkout -b "$BRANCH"'), "deduplication must happen before creating a branch");
+assert(workflow.indexOf('existing_tree_sha="$(gh api') < workflow.indexOf('git push origin "$BRANCH"'), "deduplication must happen before any remote write");
+
 assert(workflow.includes("Closing stale surface remediation PR"), "surface remediation must close an exact-head PR if main advances before finalization");
 assert(workflow.includes("Governance-finalizer eligible:"), "surface remediation PR body must record finalizer eligibility rather than native auto-merge authority");
 assert(workflow.includes("Native GitHub auto-merge is intentionally not registered"), "surface remediation must explicitly defer merge to Derived State Closure and the Governance Finalizer");
