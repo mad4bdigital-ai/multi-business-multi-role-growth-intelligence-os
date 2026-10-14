@@ -1,5 +1,24 @@
 # Updating Registry Patch Index
 
+<!-- surface-contract-sql-review-index:20261015 -->
+## SQL surface-review register (2026-10-15)
+
+Patch-index traceability: connect each SQL identity to the existing registry/surface and its governed verification owner; this documentation is not a migration apply record. The detailed [SQL review ledger](docs/surface-contract-20261015-sql-review-ledger.md) (relative link interpreted from repository root) records evidence boundaries and outstanding acceptance checks. Entries below name the actual source migration, not a completed safety approval.
+
+- `20260808_github_issue_comment_dispatch_parity.sql` — GitHub Issue Comments provider registry and governed export
+- `20260810_github_issue_comment_exact_response_parity.sql` — GitHub Issue Comments 201-response registry reconciliation
+- `20260812_repository_reconciliation_admin_apply_activation.sql` — Guarded repository reconciliation activation and readiness
+- `20260815_custom_gpt_mcp_catalog_levels.sql` — Bounded Custom GPT tool catalog registry
+- `1038_sprint69_github_actions_workflow_control_dispatch.sql` — GitHub Actions workflow-control provider metadata
+- `1030_sprint69_default_blocker_recovery_governance_seed.sql` — Fail-closed recovery policy and taxonomy seed
+- `20260810_platform_runtime_registry_drift_reconciliation.sql` — Internal canonical capability and WordPress registry reconciliation
+- `1042_sprint69_support_ticket_lifecycle_sla_dedupe.sql` — Ticket SLA, deduplication and trigger/readback integrity
+- `1047_sprint69_tenant_request_inbox_and_chunk_store_hardening.sql` — Tenant request inbox and chunk ownership schema
+- `20260728_governed_response_chunk_ownership.sql` — Governed response-chunk ownership with separate apply approval
+
+**Status:** documentation inventory only; OpenAPI/proxy classification, SQL safety and governed migration readbacks remain independently enforced. Do not treat a document mention as a CI waiver.
+
+
 > Brand-scoped user skill activation governance closure: `20260728_brand_scoped_user_skill_activation.sql` additively creates `brand_skill_policies`, `user_brand_skill_grants`, and readback view `v_effective_user_brand_skill_grants`. Runtime authority remains the signed User JWT plus membership, workspace/resource grants, and existing baseline `agent_skill_grants`; configured brand policy enforcement fails closed, while no policy preserves legacy behavior. The migration seeds no policies, activates no skills, performs no provider call, credential payload read, raw-secret access, external send/write, deployment, or runtime mutation, and declares `secrets_included=false`. Merge and documentation are not migration-apply authority.
 
 > Hostinger Production deploy-branch allowlist closure: `20260727_remote_runtime_hostinger_production_branch_allowlist.sql` updates existing command, Admin tool, execution-policy, and certification registry rows so the governed executor accepts only `main` or `Production` with an exact pinned commit SHA. The migration performs no provider call, credential payload read, external send, or external write, and includes no secrets: `no_provider_call`, `no_credential_payload_read`, `no_external_send`, `no_external_write`, `secrets_included_false`. Merge and documentation do not apply the migration or authorize deployment.

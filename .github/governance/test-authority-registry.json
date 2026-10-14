@@ -363,6 +363,7 @@
         "http-generic-api/test-repo-maintenance-sync.mjs",
         "http-generic-api/test-supervisor-runtime-assurance-automation.mjs",
         "http-generic-api/test-surface-contract-auto-remediation.mjs",
+        "http-generic-api/test-surface-contract-discovery.mjs",
         "http-generic-api/test-github-finalizer-any-source-guard.mjs"
       ]
     },

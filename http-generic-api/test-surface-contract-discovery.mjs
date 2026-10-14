@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import { buildPersistedDiscoveryReport, detectSafetyMarkers, discoverSurfaces, isDirectExecution, renderGapQueueMarkdown, renderSurfaceContractMarkdown } from "./scripts/surface-contract-discovery.mjs";
+import { buildPersistedDiscoveryReport, classifyRoute, detectSafetyMarkers, discoverSurfaces, isDirectExecution, renderGapQueueMarkdown, renderSurfaceContractMarkdown } from "./scripts/surface-contract-discovery.mjs";
 import { extractRegistryToolKeys } from "./scripts/surface-contract-sql-registry-extractor.mjs";
 
 const scriptPath = path.resolve("scripts/surface-contract-discovery.mjs");
@@ -19,6 +19,16 @@ assert.equal(
 const discoverySource = fs.readFileSync(scriptPath, "utf8");
 assert(discoverySource.includes("fileURLToPath(importMetaUrl)"), "CLI entrypoint detection must use fileURLToPath for cross-platform paths");
 assert(!discoverySource.includes("file://${process.argv[1]}"), "CLI entrypoint detection must not concatenate file URLs manually");
+
+const commentAssignments = detectSafetyMarkers([
+  "-- Migration execution safety: no_provider_call=true; no_credential_payload_read=true;",
+  "-- no_raw_secrets=true; no_external_send=true; no_external_write=true; secrets_included=false.",
+].join("\n"));
+assert(Object.values(commentAssignments).every(Boolean),
+  "explicit true safety assignments in SQL comments, including semicolon-separated declarations, must be recognized");
+const untrustedExecutable = detectSafetyMarkers("SELECT 'no_provider_call=true', 'no_external_send=true', 'no_raw_secrets=true';");
+assert.equal(untrustedExecutable.no_provider_call, false, "SQL string data is not independent comment safety proof");
+assert.equal(untrustedExecutable.no_external_send, false, "SQL string data must not mint safety proof");
 
 const standaloneMarkers = detectSafetyMarkers(`
 -- no_provider_call
@@ -262,6 +272,55 @@ const migration286 = report.all_migrations.find((entry) => entry.migration_file 
 assert(migration286, "migration 286 must be discoverable for synthetic endpoint schema route classification");
 assert.equal(migration286.coverage.route_coverage.missing_count, 0, "synthetic endpoint-native schema routes in migration 286 must not be treated as OpenAPI gaps");
 assert(migration286.coverage.route_coverage.route_classifications.every((entry) => entry.route_class === "registry_only_surface"), "migration 286 route literals must be registry_only_surface classifications");
+
+
+const issueCommentProviderRoute = "/repos/{owner}/{repo}/issues/{issue_number}/comments";
+for (const name of [
+  "20260808_github_issue_comment_dispatch_parity.sql",
+  "20260810_github_issue_comment_exact_response_parity.sql",
+]) {
+  const source = fs.readFileSync(path.join("migrations", name), "utf8");
+  const verified = classifyRoute(issueCommentProviderRoute, source, name);
+  assert.equal(verified.route_class, "registry_only_surface", name + ": registered provider path must not be inferred as a local Express handler");
+  assert.equal(verified.openapi_required, false, name + ": provider endpoint path must not require platform-local OpenAPI");
+  assert.equal(verified.evidence_status, "verified_checksum_bound_provider_endpoint_reference", name + ": require exact blob-bound classification");
+  const tampered = classifyRoute(issueCommentProviderRoute, "-- invalidates source blob identity\\n" + source, name);
+  assert.equal(tampered.evidence_status, undefined, name + ": source mutation must invalidate classification evidence");
+  assert.equal(tampered.openapi_required, true, name + ": stale evidence must fail closed to normal OpenAPI review");
+  const unrelated = classifyRoute("/other/provider/route", source, name);
+  assert.equal(unrelated.openapi_required, true, name + ": unrelated route must not borrow a provider exemption");
+  const migration = report.all_migrations.find((entry) => entry.migration_file === name);
+  assert(migration, name + ": migration must remain discoverable");
+  assert.equal(migration.coverage.route_coverage.missing_count, 0, name + ": registered provider path should not appear as missing local OpenAPI route");
+}
+
+const documentedMigrationNames = [
+  "20260808_github_issue_comment_dispatch_parity.sql",
+  "20260810_github_issue_comment_exact_response_parity.sql",
+  "20260812_repository_reconciliation_admin_apply_activation.sql",
+  "20260815_custom_gpt_mcp_catalog_levels.sql",
+  "1038_sprint69_github_actions_workflow_control_dispatch.sql",
+  "1030_sprint69_default_blocker_recovery_governance_seed.sql",
+  "20260810_platform_runtime_registry_drift_reconciliation.sql",
+  "1042_sprint69_support_ticket_lifecycle_sla_dedupe.sql",
+  "1047_sprint69_tenant_request_inbox_and_chunk_store_hardening.sql",
+  "20260728_governed_response_chunk_ownership.sql",
+];
+for (const name of documentedMigrationNames) {
+  const migration = report.all_migrations.find((entry) => entry.migration_file === name);
+  assert(migration, name + ": reviewed migration identity must exist");
+  assert.equal(migration.documentation_complete, true, name + ": all five canonical documentation targets must cite the migration");
+}
+for (const name of [
+  "20260812_repository_reconciliation_admin_apply_activation.sql",
+  "20260815_custom_gpt_mcp_catalog_levels.sql",
+]) {
+  const migration = report.all_migrations.find((entry) => entry.migration_file === name);
+  assert(Object.values(migration.surfaces.safety).some((value) => value !== true),
+    name + ": adding documentation must not manufacture SQL safety assertions");
+  assert(report.gap_queue.top_items.some((entry) => entry.migration_file === name),
+    name + ": unresolved source safety review must remain actionable after documentation closure");
+}
 
 const markdown = renderSurfaceContractMarkdown(report);
 assert(markdown.includes("Surface Contract Discovery Status"), "markdown must render status title");

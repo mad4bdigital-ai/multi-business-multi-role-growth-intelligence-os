@@ -1,5 +1,24 @@
 # Automated Docs Agent Notes
 
+<!-- surface-contract-sql-review-index:20261015 -->
+## SQL surface-review register (2026-10-15)
+
+Docs Agent handoff: verify migration names, checksum-bound source classification and canonical dashboard consistency; never copy historical generator outputs into a newer branch. The detailed [SQL review ledger](../surface-contract-20261015-sql-review-ledger.md) records evidence boundaries and outstanding acceptance checks. Entries below name the actual source migration, not a completed safety approval.
+
+- `20260808_github_issue_comment_dispatch_parity.sql` — GitHub Issue Comments provider registry and governed export
+- `20260810_github_issue_comment_exact_response_parity.sql` — GitHub Issue Comments 201-response registry reconciliation
+- `20260812_repository_reconciliation_admin_apply_activation.sql` — Guarded repository reconciliation activation and readiness
+- `20260815_custom_gpt_mcp_catalog_levels.sql` — Bounded Custom GPT tool catalog registry
+- `1038_sprint69_github_actions_workflow_control_dispatch.sql` — GitHub Actions workflow-control provider metadata
+- `1030_sprint69_default_blocker_recovery_governance_seed.sql` — Fail-closed recovery policy and taxonomy seed
+- `20260810_platform_runtime_registry_drift_reconciliation.sql` — Internal canonical capability and WordPress registry reconciliation
+- `1042_sprint69_support_ticket_lifecycle_sla_dedupe.sql` — Ticket SLA, deduplication and trigger/readback integrity
+- `1047_sprint69_tenant_request_inbox_and_chunk_store_hardening.sql` — Tenant request inbox and chunk ownership schema
+- `20260728_governed_response_chunk_ownership.sql` — Governed response-chunk ownership with separate apply approval
+
+**Status:** documentation inventory only; OpenAPI/proxy classification, SQL safety and governed migration readbacks remain independently enforced. Do not treat a document mention as a CI waiver.
+
+
 > Auto-doc coverage for `20260728_brand_scoped_user_skill_activation.sql` must include `brand_skill_policies`, `user_brand_skill_grants`, generated active-scope uniqueness, and `v_effective_user_brand_skill_grants`; preserve signed-user membership/resource authority plus existing baseline `agent_skill_grants`; and state that configured policy enforcement fails closed, no policy preserves legacy behavior, no policies are seeded, and no skills are auto-activated. Generated output must preserve `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, and `secrets_included=false`, and must not claim migration apply, deployment, provider execution, or live grant activation from static repository evidence.
 
 > Auto-doc coverage for `20260727_remote_runtime_hostinger_production_branch_allowlist.sql` must include the exact allowed branches `main` and `Production`, the pinned-SHA requirement, the unchanged approval/path/bounded-output/readback controls, and the fact that only existing registry contracts and policies are updated. Generated output must preserve `no_provider_call`, `no_credential_payload_read`, `no_external_send`, `no_external_write`, and `secrets_included_false`, and must never infer migration apply or deployment authorization from merge or documentation.
