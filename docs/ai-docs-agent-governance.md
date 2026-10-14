@@ -3,7 +3,7 @@
 <!-- surface-contract-sql-review-index:20261015 -->
 ## SQL surface-review register (2026-10-15)
 
-AI Docs Agent governance: keep SQL source facts separate from generated reports and human-reviewed safety attestations; no algorithmic no-side-effect approval. The detailed [SQL review ledger](docs/surface-contract-20261015-sql-review-ledger.md) (relative link interpreted from repository root) records evidence boundaries and outstanding acceptance checks. Entries below name the actual source migration, not a completed safety approval.
+AI Docs Agent governance: keep SQL source facts separate from generated reports and human-reviewed safety attestations; no algorithmic no-side-effect approval. The detailed [SQL review ledger](surface-contract-20261015-sql-review-ledger.md) records evidence boundaries and outstanding acceptance checks. Entries below name the actual source migration, not a completed safety approval.
 
 - `20260808_github_issue_comment_dispatch_parity.sql` — GitHub Issue Comments provider registry and governed export
 - `20260810_github_issue_comment_exact_response_parity.sql` — GitHub Issue Comments 201-response registry reconciliation
