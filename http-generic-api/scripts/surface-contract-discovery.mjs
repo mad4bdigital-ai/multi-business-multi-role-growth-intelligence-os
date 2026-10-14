@@ -213,9 +213,26 @@ function collectOpenapiPaths() {
   return { operations: unique(operations), paths: unique(paths) };
 }
 
-function classifyRoute(route, source = "", fileName = "") {
+export function classifyRoute(route, source = "", fileName = "") {
   const classificationEvidence = resolveClassificationEvidence(fileName, source);
   const routeEvidence = classificationEvidence?.route_literals?.find((item) => item.route === route) || null;
+  // A checksum-bound provider endpoint registry path is not a new local Express handler.
+  // Require positive SQL endpoint-reference evidence. This classification never grants
+  // callability or provider-write authority, and unmatched/mutated SQL still needs OpenAPI review.
+  if (routeEvidence?.classification === "external_provider_endpoint_registry_path"
+    && routeEvidence.provider_key === "github_rest"
+    && route === "/repos/{owner}/{repo}/issues/{issue_number}/comments"
+    && /\\bUPDATE\\s+`?endpoints`?\\b/i.test(source)
+    && source.includes("endpoint_path_or_function")) {
+    return {
+      route,
+      route_class: "registry_only_surface",
+      openapi_required: false,
+      callability_evidence_required: false,
+      evidence_status: "verified_checksum_bound_provider_endpoint_reference",
+      reason: routeEvidence.reason,
+    };
+  }
   if (routeEvidence?.classification === "evidence_only_external_readback") {
     return {
       route,
