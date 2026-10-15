@@ -421,6 +421,72 @@ function createPool(queryHandler) {
 }
 
 {
+  // One user may be a member of Tenant A and B, but an OAuth grant that is
+  // explicitly tenant:A must not enumerate or access Tenant B.
+  const verifiedTenantA = () => ({
+    ok: true,
+    claims: {
+      user_id: "user-1",
+      tenant_id: "workspace-1",
+      auth_mode: "remote_mcp_oauth_2_1",
+      client_id: "mcp_stg_client-a",
+    },
+  });
+  const tenantOnlyPool = createPool((sql, params) => {
+    assert(sql.includes("FROM memberships m"));
+    assert(sql.includes("AND m.tenant_id = ?"));
+    assert.deepEqual(params, ["user-1", "workspace-1", 25]);
+    return [[{
+      workspace_id: "workspace-1",
+      display_name: "Tenant A",
+      role: "member",
+      membership_status: "active",
+      workspace_status: "active",
+    }], []];
+  });
+  const workspaces = await handleChatGptMcpRequest({
+    body: {
+      jsonrpc: "2.0", id: 62, method: "tools/call",
+      params: { name: "list_accessible_workspaces", arguments: {} },
+    },
+    headers: {
+      ...transportHeaders,
+      authorization: "Bearer test-tenant-a-oauth",
+      "mcp-protocol-version": CHATGPT_MCP_PROTOCOL_VERSION,
+    },
+    env: enabledEnv,
+    pool: tenantOnlyPool,
+    verifyAuthorization: verifiedTenantA,
+    requestId: "request-oauth-tenant-a-workspace-list",
+  });
+  assert.equal(workspaces.body.result.structuredContent.ok, true);
+  assert.deepEqual(workspaces.body.result.structuredContent.workspaces.map((x) => x.workspace_id), ["workspace-1"]);
+
+  // Deny before any DB access to the other workspace, including when
+  // the same user has a separate active membership in Tenant B.
+  let dbCalls = 0;
+  const denied = await handleChatGptMcpRequest({
+    body: {
+      jsonrpc: "2.0", id: 63, method: "tools/call",
+      params: { name: "list_accessible_brands", arguments: { workspace_id: "workspace-2" } },
+    },
+    headers: {
+      ...transportHeaders,
+      authorization: "Bearer test-tenant-a-oauth",
+      "mcp-protocol-version": CHATGPT_MCP_PROTOCOL_VERSION,
+    },
+    env: enabledEnv,
+    pool: createPool(() => { dbCalls += 1; throw new Error("Tenant B query must be denied"); }),
+    verifyAuthorization: verifiedTenantA,
+    requestId: "request-oauth-tenant-a-cross-tenant-denial",
+  });
+  assert.equal(dbCalls, 0);
+  assert.equal(denied.body.result.isError, true);
+  assert.equal(denied.body.result.structuredContent.error.code, "MCP_CONTEXT_DENIED");
+  assert(!JSON.stringify(denied.body).includes("workspace-2"));
+}
+
+{
   const result = await handleChatGptMcpRequest({
     body: { jsonrpc: "2.0", id: 7, method: "tools/list", params: {} },
     headers: {
