@@ -9,6 +9,7 @@
     "include": [
       ".changes/e2e/staging-oa-mc-live-multi-principal-prerequisite-gate-20261015.json",
       ".github/governance/test-authority-registry.json",
+      "docs/governance/configuration-drift-baseline-extensions.json",
       "http-generic-api/stagingMultiPrincipalAcceptanceGate.js",
       "http-generic-api/scripts/staging-multi-principal-acceptance-preflight.mjs",
       "http-generic-api/test-staging-multi-principal-acceptance-preflight.mjs"
@@ -64,6 +65,7 @@
           "evidence_paths": [
             ".changes/e2e/staging-oa-mc-live-multi-principal-prerequisite-gate-20261015.json",
             ".github/governance/test-authority-registry.json",
+      "docs/governance/configuration-drift-baseline-extensions.json",
             "http-generic-api/stagingMultiPrincipalAcceptanceGate.js",
             "http-generic-api/scripts/staging-multi-principal-acceptance-preflight.mjs",
             "http-generic-api/test-staging-multi-principal-acceptance-preflight.mjs"
