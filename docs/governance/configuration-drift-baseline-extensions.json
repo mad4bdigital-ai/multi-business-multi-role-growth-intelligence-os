@@ -2985,6 +2985,17 @@
       "grants_production_activation": false
     },
     {
+      "fingerprint": "http-generic-api/scripts/staging-backup-restore-readiness.mjs|env|environment_reference|deployment.environment",
+      "owner": "platform-team",
+      "reason": "Issue #8534: non-secret exact Staging identity check for the read-only backup policy inventory. The script never activates a policy, exports user data, creates QA identities, or grants Production mutations.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
       "fingerprint": "http-generic-api/scripts/staging-multi-principal-acceptance-preflight.mjs|env|environment_reference|deployment.environment",
       "owner": "platform-team",
       "reason": "Reviewed in PR #8532: DEPLOYMENT_ENVIRONMENT is a non-secret Staging-only precondition for a read-only OA/MC aggregate census. Non-Staging runtimes fail closed before database access; this does not create QA identities, issue OAuth grants, authorize Production, or grant database/provider/runtime mutation. Registration is a permanent governed configuration-drift baseline extension, not a suppression or activation.",
