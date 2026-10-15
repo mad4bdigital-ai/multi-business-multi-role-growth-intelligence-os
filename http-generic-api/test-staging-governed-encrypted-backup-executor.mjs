@@ -46,6 +46,10 @@ function makeInput() {
       expires_at:new Date(now+900000).toISOString()}
   };
 }
+const constitution = JSON.parse(await fs.readFile(new URL("./config/repository-governance-constitution.json",import.meta.url),"utf8"));
+const convergence = JSON.parse(await fs.readFile(new URL("../.github/derived-state-governance.json",import.meta.url),"utf8"));
+test(constitution.control_plane_paths.includes(".changes/e2e/staging-p1-governed-backup-executor-20261015.json"),"P1 declaration registered in Constitution");
+test(convergence.convergence.automation_control_paths.includes(".changes/e2e/staging-p1-governed-backup-executor-20261015.json"),"P1 declaration registered in protected convergence paths");
 const valid = makeInput();
 test(assessGovernedStagingBackup(valid,pinnedTrust).ok,"correct signed staging authority");
 test(assessGovernedStagingBackup(valid).ok===false,"request-controlled owner key never trusted");

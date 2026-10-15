@@ -144,9 +144,11 @@ export async function executeGovernedStagingBackup(input, adapters = {}) {
   const gate = assessGovernedStagingBackup({...input, now_ms:Date.now()},
     {owner_public_key_pem: adapters.trusted_owner_public_key_pem});
   if (!gate.ok) return gate;
-  const root = await assertPrivateDestination(adapters.destination_dir || "");
-  if (path.resolve(root) !== path.resolve(input.destination.path_or_ref))
+  // Reject a wrong approved target before touching its filesystem or inspecting ACLs.
+  // On POSIX this must precede the private-directory check: /tmp itself is public.
+  if (path.resolve(adapters.destination_dir || "") !== path.resolve(input.destination.path_or_ref))
     fail("DESTINATION_PATH_NOT_POLICY_BOUND");
+  const root = await assertPrivateDestination(adapters.destination_dir || "");
   if (process.platform === "win32" &&
       (typeof adapters.assert_private_acl !== "function" ||
        await adapters.assert_private_acl(root) !== true))

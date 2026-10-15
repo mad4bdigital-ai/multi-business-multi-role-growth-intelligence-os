@@ -13,7 +13,9 @@
       "http-generic-api/stagingGovernedEncryptedBackup.mjs",
       "http-generic-api/test-staging-governed-encrypted-backup-executor.mjs",
       "docs/runbooks/staging-p1-governed-backup-executor-20261015.md",
-      "docs/governance/configuration-drift-baseline-extensions.json"
+      "docs/governance/configuration-drift-baseline-extensions.json",
+      "http-generic-api/config/repository-governance-constitution.json",
+      ".github/derived-state-governance.json"
     ]
   },
   "environment_impact": {
@@ -70,7 +72,9 @@
             "http-generic-api/stagingGovernedEncryptedBackup.mjs",
             "http-generic-api/test-staging-governed-encrypted-backup-executor.mjs",
             "docs/runbooks/staging-p1-governed-backup-executor-20261015.md",
-            "docs/governance/configuration-drift-baseline-extensions.json"
+            "docs/governance/configuration-drift-baseline-extensions.json",
+            "http-generic-api/config/repository-governance-constitution.json",
+            ".github/derived-state-governance.json"
           ]
         }
       ]
