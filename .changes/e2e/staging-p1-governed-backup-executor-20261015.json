@@ -12,7 +12,8 @@
       "autopilot-portable-staging/manifest.json",
       "http-generic-api/stagingGovernedEncryptedBackup.mjs",
       "http-generic-api/test-staging-governed-encrypted-backup-executor.mjs",
-      "docs/runbooks/staging-p1-governed-backup-executor-20261015.md"
+      "docs/runbooks/staging-p1-governed-backup-executor-20261015.md",
+      "docs/governance/configuration-drift-baseline-extensions.json"
     ]
   },
   "environment_impact": {
@@ -68,7 +69,8 @@
             "autopilot-portable-staging/manifest.json",
             "http-generic-api/stagingGovernedEncryptedBackup.mjs",
             "http-generic-api/test-staging-governed-encrypted-backup-executor.mjs",
-            "docs/runbooks/staging-p1-governed-backup-executor-20261015.md"
+            "docs/runbooks/staging-p1-governed-backup-executor-20261015.md",
+            "docs/governance/configuration-drift-baseline-extensions.json"
           ]
         }
       ]

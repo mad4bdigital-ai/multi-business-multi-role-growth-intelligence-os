@@ -3027,6 +3027,28 @@
       "contains_secret_value": false,
       "grants_runtime_mutation": false,
       "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/stagingGovernedEncryptedBackup.mjs|MAX_TTL_MS|literal_declaration|max.ttl.ms",
+      "owner": "platform-team",
+      "reason": "A fail-closed hard maximum lease window (30 minutes) for signed Staging-only backup approval. This cap is checked before synthetic/encrypted export and grants no fixture, runtime database, repository or Production authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/stagingGovernedEncryptedBackup.mjs|STAGING_QA_POLICY_KEY|literal_declaration|staging.qa.policy.key",
+      "owner": "platform-team",
+      "reason": "Single non-secret QA database policy allowlist key, preventing arbitrary or Production policy selection in the staging-only signer/streaming core. This does not activate a policy or permit a live database export.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
     }
   ],
   "safety": {
