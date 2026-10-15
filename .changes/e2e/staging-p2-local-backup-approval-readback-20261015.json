@@ -14,7 +14,8 @@
       ".github/derived-state-governance.json",
       "http-generic-api/stagingBackupLocalAuthorityAdapter.mjs",
       "http-generic-api/test-staging-backup-local-authority-adapter.mjs",
-      "docs/runbooks/staging-p2-local-backup-authority-readback-20261015.md"
+      "docs/runbooks/staging-p2-local-backup-authority-readback-20261015.md",
+      "docs/governance/configuration-drift-baseline-extensions.json"
     ]
   },
   "environment_impact": {
@@ -72,7 +73,8 @@
             ".github/derived-state-governance.json",
             "http-generic-api/stagingBackupLocalAuthorityAdapter.mjs",
             "http-generic-api/test-staging-backup-local-authority-adapter.mjs",
-            "docs/runbooks/staging-p2-local-backup-authority-readback-20261015.md"
+            "docs/runbooks/staging-p2-local-backup-authority-readback-20261015.md",
+            "docs/governance/configuration-drift-baseline-extensions.json"
           ]
         }
       ]

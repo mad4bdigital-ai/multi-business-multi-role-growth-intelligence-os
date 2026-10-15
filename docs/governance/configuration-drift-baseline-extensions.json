@@ -3049,6 +3049,17 @@
       "contains_secret_value": false,
       "grants_runtime_mutation": false,
       "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/test-staging-backup-local-authority-adapter.mjs|policyRows|literal_declaration|policyrows",
+      "owner": "platform-team",
+      "reason": "Synthetic-only in-memory backup policy records for testing uniqueness, active/revoked state and fail-closed SQL readback. This is not a live policy, credential or runtime configuration.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
     }
   ],
   "safety": {

@@ -6,7 +6,13 @@ import {assessGovernedStagingBackup,executeGovernedStagingBackup,STAGING_QA_POLI
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const SHA=/^[0-9a-f]{40}$/i;
 function fail(code){const e=new Error(code);e.code=code;throw e;}
-function one(rows,missing,ambiguous){if(!Array.isArray(rows)||!rows.length)fail(missing);if(rows.length!==1)fail(ambiguous);return rows[0];}
+function one(rows,missing,ambiguous){
+  if(!Array.isArray(rows)||rows.length===0)fail(missing);
+  if(rows.length!==1)fail(ambiguous);
+  // Uniqueness is enforced before destructuring; no arbitrary-first selection.
+  const [uniqueRow]=rows;
+  return uniqueRow;
+}
 function resultRows(value){if(!Array.isArray(value)||!Array.isArray(value[0]))fail("LOCAL_AUTHORITY_QUERY_INVALID");return value[0];}
 function jsonOps(value){try{const a=typeof value==="string"?JSON.parse(value):value;if(!Array.isArray(a)||a.some(x=>typeof x!=="string"))throw 0;return a;}catch{fail("DESTINATION_OPERATION_POLICY_INVALID");}}
 function iso(value){if(value instanceof Date)return value.toISOString();if(typeof value==="string"&&/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(value))return value.replace(" ","T")+"Z";return String(value??"");}
