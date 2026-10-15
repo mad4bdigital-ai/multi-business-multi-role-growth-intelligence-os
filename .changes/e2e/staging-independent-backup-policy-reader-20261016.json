@@ -1,0 +1,94 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-independent-backup-policy-reader-20261016",
+  "title": "Staging dedicated SELECT-only backup policy reader and fail-closed preflight",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-independent-backup-policy-reader-20261016.json",
+      ".github/governance/test-authority-registry.json",
+      ".github/derived-state-governance.json",
+      "http-generic-api/config/repository-governance-constitution.json",
+      "docs/governance/configuration-drift-baseline-extensions.json",
+      "docs/runbooks/staging-backup-independent-policy-reader-20261016.md",
+      "http-generic-api/package.json",
+      "http-generic-api/scripts/staging-backup-restore-readiness.mjs",
+      "http-generic-api/stagingBackupPolicyReader.mjs",
+      "http-generic-api/test-staging-backup-independent-policy-reader.mjs"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Isolate Staging backup policy inventory from runtime_app by requiring one explicitly configured four-table SELECT-only reader, strict local environment identity, and no policy/approval/QA/Production mutation.",
+      "e2e_journeys": [
+        {
+          "id": "staging-independent-backup-policy-reader-fail-closed",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Governed Windows Staging Local Connector",
+          "entrypoint": "One-shot backup policy reader preflight using injected fixed local database identity",
+          "terminal_outcome": "A dedicated Staging table-scoped SELECT reader is accepted only with exact measured identity and narrow grants; unavailable readers and unauthorized identities are rejected without runtime_app fallback or execution authority.",
+          "steps": [
+            "Require the exact Staging environment, runtime-db endpoint, expected source SHA and independent dedicated policy reader credentials.",
+            "Reject schema-wide SELECT, missing table grants and all write, administrative or cross-database privileges before attempting a policy census.",
+            "Verify live DATABASE() and CURRENT_USER() match the expected local schema and dedicated reader.",
+            "Fail closed with exit status 2 when the reader or an exact policy is unavailable, without performing a real backup, grant, restore, or QA fixture.",
+            "Preserve the existing P1 and P2 authority and backup executor regressions, and require separate live Staging certification before operational acceptance."
+          ],
+          "assertions": [
+            "Runtime application credentials are never used as an implicit backup registry fallback.",
+            "Only the four approved backup metadata tables can be read under the dedicated identity.",
+            "No Production endpoint, approval activation, GRANT, database export, restore or QA principal mutation is performed.",
+            "Synthetic reader tests are not represented as real Staging backup/restore acceptance."
+          ],
+          "tests": [
+            {
+              "id": "staging-independent-reader-identity-grants",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-backup-independent-policy-reader.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-backup-authority-preflight",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-backup-restore-authority.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/staging-independent-backup-policy-reader-20261016.json",
+            ".github/governance/test-authority-registry.json",
+            ".github/derived-state-governance.json",
+            "http-generic-api/config/repository-governance-constitution.json",
+            "docs/governance/configuration-drift-baseline-extensions.json",
+            "docs/runbooks/staging-backup-independent-policy-reader-20261016.md",
+            "http-generic-api/package.json",
+            "http-generic-api/scripts/staging-backup-restore-readiness.mjs",
+            "http-generic-api/stagingBackupPolicyReader.mjs",
+            "http-generic-api/test-staging-backup-independent-policy-reader.mjs"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}

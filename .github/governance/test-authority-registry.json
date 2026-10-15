@@ -808,7 +808,8 @@
         "http-generic-api/test-staging-backup-restore-authority.mjs",
         "http-generic-api/test-staging-governed-encrypted-backup-executor.mjs",
         "http-generic-api/test-staging-synthetic-db-isolated-restore.mjs",
-        "http-generic-api/test-staging-backup-local-authority-adapter.mjs"
+        "http-generic-api/test-staging-backup-local-authority-adapter.mjs",
+        "http-generic-api/test-staging-backup-independent-policy-reader.mjs"
       ]
     },
     {

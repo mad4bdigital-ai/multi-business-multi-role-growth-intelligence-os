@@ -3060,6 +3060,17 @@
       "contains_secret_value": false,
       "grants_runtime_mutation": false,
       "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/scripts/staging-backup-restore-readiness.mjs|DEPLOY_COMMIT|environment_reference|deploy.commit",
+      "owner": "staging-backup-governance",
+      "reason": "The non-secret exact Staging deployment SHA is compared to the read-only policy-census expected source; mismatches block querying. This grants no database access, backup execution, policy approval, QA fixture or Production authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
     }
   ],
   "safety": {
