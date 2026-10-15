@@ -21,7 +21,7 @@ Use four identities: `platform_admin`, `tenant_A_owner`, `tenant_A_member`, `ten
 | OA-03 | Tenant B independent connection | Separate active membership, tenant-bound grants and readback; A's token cannot be reused as B's |
 | OA-04 | Cross-environment replay | Staging client ID, token and callback denied in Production and vice versa; no cross-issuer audience fallback |
 | OA-05 | OAuth refresh rotation | Old refresh rejected, new refresh active, access grants JTI-specific; expired codes and expired tokens rejected |
-| OA-06 | OAuth revocation | Revoked access/refresh grant rejected **before** offering incremental scope consent |
+| OA-06 | OAuth revocation | Revoked access/refresh grant rejected **before** offering incremental scope consent; database persistence outage returns 503 (not false-success 200), safe retry returns 200, unknown token remains idempotent 200 |
 | OA-07 | Deactivated user/tenant/membership | Validly signed but inactive subject rejected, including with an insufficient requested scope |
 | OA-08 | Client registration | Unknown client, forged redirect, forbidden Origin, non-S256 verifier and missing consent fail closed |
 | MC-01 | MCP initialize / tools/list | Correct Streamable HTTP protocol/canonical host, no assumption that public discovery grants data authority |
@@ -37,7 +37,7 @@ Use four identities: `platform_admin`, `tenant_A_owner`, `tenant_A_member`, `ten
 
 ## Repository regression evidence
 
-- `http-generic-api/test-remote-mcp-oauth21-routes.mjs`: consent, PKCE code exchange/replay, incremental scope, refresh rotation and revoke.
+- `http-generic-api/test-remote-mcp-oauth21-routes.mjs`: consent, PKCE code exchange/replay, incremental scope, refresh rotation and revoke, including storage outage and retry.
 - `http-generic-api/test-remote-mcp-access-token-verifier.mjs`: exact client, JWT issuer/audience, resource, JTI, live membership, grant status and new revoked/inactive-versus-insufficient-scope tests.
 - `http-generic-api/test-chatgpt-mcp-readonly-runtime.mjs`: active workspace/member grants and newly added duplicate cross-Tenant Brand alias metadata regression.
 - `http-generic-api/test-remote-mcp-host-isolation.mjs`, `http-generic-api/test-remote-mcp-multi-client-profiles.mjs`, `http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs`: host/origin/client separation and Tenant-GPT token binding.
@@ -47,5 +47,6 @@ Use four identities: `platform_admin`, `tenant_A_owner`, `tenant_A_member`, `ten
 
 1. Before source fix, `chatgptMcpRuntime.js` enriched workspace-scoped Brand grants from global `brands` aliases with last-row-wins and no collision check. The change rejects ambiguous enrichment and gives exact canonical `brand_id` precedence. Verify against real Global Brand relationship data on Staging before claiming complete tenant isolation.
 2. Before source fix, `remoteMcpAccessTokenVerifier.js` checked missing OAuth scopes **before** DB-backed revocation and subject membership; this could offer incremental consent on revoked/inactive sessions. Now grant/membership must be valid first. Run negative tests using actual Staging access grants and verify HTTP 401/403 behavior.
-3. Live Staging: **unverified**, current Windows Docker device unavailable through remote connector. Database migrations, flags, OAuth client registration, host routing, secrets and provider integration are not remotely attested. Run the canonical host Staging certificate from `docs/runbooks/staging-to-production-two-gate-acceptance-20261015.md`, then the entire matrix above.
-4. **No Production promotion** until all applicable OA/MC tests pass on the exact live deployed Staging SHA, with confirmed DB migrations/grants, rollback, issuer/resource separation, no cross-Tenant metadata and owner authorization bound to the Production candidate. Any failing case blocks production.
+3. Before source fix, `routes/remoteMcpOAuthRoutes.js` returned HTTP 200 even when persistence of OAuth revocation failed, falsely implying that a grant was disconnected. The route now returns HTTP 503 for storage failures while preserving RFC-style HTTP 200 for invalid/unknown tokens; an actual Staging database failure/retry drill is still needed.
+4. Live Staging: **unverified**, current Windows Docker device unavailable through remote connector. Database migrations, flags, OAuth client registration, host routing, secrets and provider integration are not remotely attested. Run the canonical host Staging certificate from `docs/runbooks/staging-to-production-two-gate-acceptance-20261015.md`, then the entire matrix above.
+5. **No Production promotion** until all applicable OA/MC tests pass on the exact live deployed Staging SHA, with confirmed DB migrations/grants, rollback, issuer/resource separation, no cross-Tenant metadata and owner authorization bound to the Production candidate. Any failing case blocks production.
