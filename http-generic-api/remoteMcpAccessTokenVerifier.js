@@ -108,23 +108,6 @@ export async function verifyRemoteMcpBearerAuthorization(authorization, options 
   }
 
   const grantedScopes = scopeSet(claims.scope);
-  const missingScopes = requiredScopes
-    .map((scope) => String(scope || "").trim())
-    .filter(Boolean)
-    .filter((scope) => !grantedScopes.has(scope));
-  if (missingScopes.length) {
-    return {
-      ...failure(403, "MCP_SCOPE_INSUFFICIENT", "OAuth access token does not include the required scope."),
-      claims: {
-        ...claims,
-        user_id: userId,
-        tenant_id: tenantId,
-        client_id: clientId,
-        auth_mode: "remote_mcp_oauth_2_1_scope_insufficient",
-        missing_scopes: missingScopes,
-      },
-    };
-  }
 
   let pool;
   let grant;
@@ -153,6 +136,27 @@ export async function verifyRemoteMcpBearerAuthorization(authorization, options 
     }
   } catch {
     return failure(503, "MCP_AUTH_UNAVAILABLE", "OAuth subject authorization state is temporarily unavailable.");
+  }
+
+  // Revocation and live membership take precedence over scope upgrade offers.
+  // Otherwise a revoked or removed tenant token can still produce an
+  // incremental-consent challenge that appears to be a valid user session.
+  const missingScopes = requiredScopes
+    .map((scope) => String(scope || "").trim())
+    .filter(Boolean)
+    .filter((scope) => !grantedScopes.has(scope));
+  if (missingScopes.length) {
+    return {
+      ...failure(403, "MCP_SCOPE_INSUFFICIENT", "OAuth access token does not include the required scope."),
+      claims: {
+        ...claims,
+        user_id: userId,
+        tenant_id: tenantId,
+        client_id: clientId,
+        auth_mode: "remote_mcp_oauth_2_1_scope_insufficient",
+        missing_scopes: missingScopes,
+      },
+    };
   }
 
   return {
