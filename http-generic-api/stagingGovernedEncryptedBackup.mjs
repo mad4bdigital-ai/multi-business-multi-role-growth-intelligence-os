@@ -10,19 +10,18 @@ import { createGzip } from "node:zlib";
 
 export const STAGING_QA_POLICY_KEY = "policy:staging-qa-db:approved";
 const SHA40 = /^[0-9a-f]{40}$/i;
-const SHA64 = /^[0-9a-f]{64}$/i;
 const IDENTIFIER = /^[a-z][a-z0-9_]{0,62}$/i;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const MAX_TTL_MS = 30 * 60 * 1000;
 const MAX_SQL_BYTES = 2 * 1024 * 1024 * 1024;
 const MAX_ENCRYPTED_BYTES = 2 * 1024 * 1024 * 1024;
-const sha256 = (value) => createHash("sha256").update(value).digest("hex");
 
 // The signed content uses an allowlisted, fixed-order serialization. No attacker-
 // controlled JSON ordering or incidental extra properties can modify authority.
 export function approvalPayload(envelope) {
   const keys = ["contract", "run_id", "policy_key", "approval_id", "source_sha",
-    "source_database", "device_id", "destination_id", "issued_at", "expires_at"];
+    "policy_id", "source_database", "source_endpoint_family", "device_id",
+    "destination_id", "destination_ref", "key_ref", "issued_at", "expires_at"];
   return Buffer.from(JSON.stringify(Object.fromEntries(keys.map(k => [k, envelope?.[k] ?? null]))));
 }
 export function manifestPayload(manifest) {
@@ -45,7 +44,7 @@ function notProd(value) {
 function safeKeyRef(ref) {
   return /^local-custody:[a-z0-9][a-z0-9_-]{2,127}$/i.test(String(ref || ""));
 }
-export function assessGovernedStagingBackup(input = {}) {
+export function assessGovernedStagingBackup(input = {}, trust = {}) {
   const blockers = [];
   const add = x => blockers.push(x);
   const p = input.policy || {};
@@ -64,7 +63,8 @@ export function assessGovernedStagingBackup(input = {}) {
       r.source_sha !== input.expected_source_sha || e.source_sha !== input.expected_source_sha)
     add("EXACT_STAGING_SOURCE_SHA_REQUIRED");
   if (!IDENTIFIER.test(String(s.database_name || "")) ||
-      s.database_name !== e.source_database || !notProd(s.database_name) ||
+      s.database_name !== e.source_database || s.endpoint_family !== e.source_endpoint_family ||
+      !notProd(s.database_name) ||
       !notProd(s.endpoint_family) || s.environment !== "staging")
     add("STAGING_DB_IDENTITY_MISMATCH");
   if (p.policy_key !== STAGING_QA_POLICY_KEY || p.backup_kind !== "database" ||
@@ -74,6 +74,7 @@ export function assessGovernedStagingBackup(input = {}) {
       p.approval_required !== true || Number(p.restore_test_required) !== 1 ||
       p.source_status !== "active" || p.destination_status !== "active")
     add("ACTIVE_GOVERNED_STAGING_POLICY_REQUIRED");
+  if (!p.policy_id || p.policy_id !== e.policy_id) add("SIGNED_POLICY_IDENTITY_MISMATCH");
   if (a.approval_id !== e.approval_id || a.policy_id !== p.policy_id ||
       a.approval_type !== "backup_apply" || a.status !== "approved" ||
       !["admin_session","external_ticket"].includes(a.decision_source) ||
@@ -82,6 +83,7 @@ export function assessGovernedStagingBackup(input = {}) {
     add("TIME_BOUND_OWNER_BACKUP_APPLY_APPROVAL_REQUIRED");
   if (e.contract !== "mad4b.staging-db-backup-apply.v1" ||
       e.policy_key !== STAGING_QA_POLICY_KEY || !UUID.test(String(e.run_id || "")) ||
+      e.destination_ref !== d.path_or_ref || e.key_ref !== input.key_ref ||
       !e.approval_id || e.destination_id !== d.location_id ||
       !d.location_id || d.status !== "active" ||
       d.location_type !== "local_device_path" || d.provider !== "local_connector" ||
@@ -93,12 +95,12 @@ export function assessGovernedStagingBackup(input = {}) {
       validDate(e.expires_at) - validDate(e.issued_at) > MAX_TTL_MS ||
       validDate(e.expires_at) > validDate(a.expires_at))
     add("SIGNED_BACKUP_LEASE_EXPIRED_OR_UNBOUNDED");
-  if (!input.public_key_pem || !/^[A-Za-z0-9+/]+={0,2}$/.test(String(input.signature_b64 || ""))) {
+  if (!trust.owner_public_key_pem || !/^[A-Za-z0-9+/]+={0,2}$/.test(String(input.signature_b64 || ""))) {
     add("OWNER_SIGNATURE_MISSING");
   } else {
     try {
       const key = Buffer.from(input.signature_b64, "base64");
-      if (!cryptoVerify(null, approvalPayload(e), input.public_key_pem, key)) add("OWNER_SIGNATURE_INVALID");
+      if (!cryptoVerify(null, approvalPayload(e), trust.owner_public_key_pem, key)) add("OWNER_SIGNATURE_INVALID");
     } catch { add("OWNER_SIGNATURE_INVALID"); }
   }
   if (!safeKeyRef(input.key_ref)) add("RECOVERY_KEY_CUSTODY_REF_INVALID");
@@ -132,11 +134,15 @@ async function assertPrivateDestination(dir) {
   const real = await fs.realpath(dir);
   if (path.resolve(real) !== path.resolve(dir)) fail("BACKUP_DESTINATION_SYMLINK_FORBIDDEN");
   const stat = await fs.lstat(dir);
-  if (!stat.isDirectory() || stat.isSymbolicLink()) fail("PRIVATE_BACKUP_DIRECTORY_REQUIRED");
+  if (!stat.isDirectory() || stat.isSymbolicLink() ||
+      (process.platform !== "win32" && (stat.mode & 0o077) !== 0))
+    fail("PRIVATE_BACKUP_DIRECTORY_REQUIRED");
   return real;
 }
 export async function executeGovernedStagingBackup(input, adapters = {}) {
-  const gate = assessGovernedStagingBackup(input);
+  // The trust key must be supplied by the authenticated local connector, never request input.
+  const gate = assessGovernedStagingBackup({...input, now_ms:Date.now()},
+    {owner_public_key_pem: adapters.trusted_owner_public_key_pem});
   if (!gate.ok) return gate;
   const root = await assertPrivateDestination(adapters.destination_dir || "");
   if (path.resolve(root) !== path.resolve(input.destination.path_or_ref))
@@ -147,14 +153,42 @@ export async function executeGovernedStagingBackup(input, adapters = {}) {
     fail("PRIVATE_WINDOWS_ACL_ATTESTATION_REQUIRED");
   if (typeof adapters.open_dump !== "function" ||
       typeof adapters.read_key !== "function" ||
-      typeof adapters.sign_manifest !== "function")
+      typeof adapters.sign_manifest !== "function" ||
+      typeof adapters.verify_authority_snapshot !== "function" ||
+      !adapters.trusted_owner_public_key_pem)
     fail("TRUSTED_LOCAL_CONNECTOR_ADAPTERS_REQUIRED");
+  const ledgerRoot = await assertPrivateDestination(adapters.ledger_dir || "");
+  if (path.resolve(ledgerRoot) === path.resolve(root)) fail("SEPARATE_REPLAY_LEDGER_REQUIRED");
+  if (process.platform === "win32" &&
+      (typeof adapters.assert_private_acl !== "function" ||
+       await adapters.assert_private_acl(ledgerRoot) !== true))
+    fail("PRIVATE_LEDGER_ACL_ATTESTATION_REQUIRED");
+  const freshAuthority = await adapters.verify_authority_snapshot(input);
+  if (freshAuthority !== true) fail("LIVE_OWNER_APPROVAL_SNAPSHOT_REQUIRED");
+  // Reserve the UUID before any DB read. An immutable exclusive ledger survives errors
+  // and process crashes; a failed run requires a new independently signed run UUID.
+  const runId = input.envelope.run_id;
+  const reservation = path.join(ledgerRoot, "staging-backup-" + runId + ".json");
+  let ledgerHandle;
+  try {
+    ledgerHandle = await fs.open(reservation, "wx", 0o600);
+    await ledgerHandle.writeFile(JSON.stringify({contract:"mad4b.staging-backup-nonce.v1",
+      run_id:runId, approval_id:input.approval.approval_id,
+      source_sha:input.expected_source_sha, reserved_at:new Date().toISOString()})+"\n");
+    await ledgerHandle.sync();
+  } catch (error) {
+    if (error.code === "EEXIST") fail("BACKUP_APPLY_NONCE_REPLAY");
+    fail("BACKUP_APPLY_LEDGER_UNAVAILABLE");
+  } finally {
+    await ledgerHandle?.close();
+  }
   const keyMaterial = await adapters.read_key(input.key_ref);
   const key = keyMaterial?.key;
   if (!Buffer.isBuffer(key) || key.length !== 32 ||
-      keyMaterial?.ref !== input.key_ref || !safeKeyRef(keyMaterial.ref))
+      keyMaterial?.ref !== input.key_ref || !safeKeyRef(keyMaterial.ref)) {
+    if (Buffer.isBuffer(key)) key.fill(0);
     fail("INDEPENDENT_AES256_KEY_CUSTODY_REQUIRED");
-  const runId = input.envelope.run_id;
+  }
   const folder = path.join(root, "staging-qa-" + runId);
   // wx directory creation + exclusive artifact creation prevent overwrite/replay.
   const artifactName = "staging-qa-" + runId + ".sql.gz.aes256gcm";

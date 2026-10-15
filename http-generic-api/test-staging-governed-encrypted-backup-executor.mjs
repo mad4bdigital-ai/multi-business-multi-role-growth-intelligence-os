@@ -13,6 +13,8 @@ const sourceSha = "a".repeat(40);
 const now = Date.now();
 const sql = Buffer.from("CREATE TABLE qa_fixture(id INT PRIMARY KEY,label VARCHAR(32));\nINSERT INTO qa_fixture VALUES (1,'synthetic-a'),(2,'synthetic-b');\n");
 const root = await fs.mkdtemp(path.join(os.tmpdir(),"p1-staging-encrypted-backup-"));
+const ledger = await fs.mkdtemp(path.join(os.tmpdir(),"p1-staging-run-ledger-"));
+const pinnedTrust = {owner_public_key_pem:ownerPublic};
 const key = randomBytes(32);
 const keyRef = "local-custody:qa_backup_key_1";
 let cases = 0;
@@ -21,13 +23,14 @@ function makeInput() {
   const runId = randomUUID(), policyId = randomUUID(), approvalId = randomUUID();
   const envelope = {contract:"mad4b.staging-db-backup-apply.v1",run_id:runId,
     policy_key:STAGING_QA_POLICY_KEY,approval_id:approvalId,source_sha:sourceSha,
+    policy_id:policyId,key_ref:keyRef,destination_ref:root,source_endpoint_family:"dev.mad4b.com",
     source_database:"qa_staging_data",device_id:"DESKTOP-91FDEFP",
     destination_id:"staging-local-encrypted-backups",issued_at:new Date(now-1000).toISOString(),
     expires_at:new Date(now+600000).toISOString()};
   return {
     now_ms:now,expected_source_sha:sourceSha, envelope,
     signature_b64:sign(null,approvalPayload(envelope),privateKey).toString("base64"),
-    public_key_pem:ownerPublic,key_ref:keyRef,
+    key_ref:keyRef,
     runtime:{deployment_environment:"staging_local_windows_docker",runtime_class:"local_windows_docker",
       executor:"local_connector",local_connector_verified:true,device_id:"DESKTOP-91FDEFP",source_sha:sourceSha},
     source:{environment:"staging",database_name:"qa_staging_data",endpoint_family:"dev.mad4b.com"},
@@ -44,7 +47,8 @@ function makeInput() {
   };
 }
 const valid = makeInput();
-test(assessGovernedStagingBackup(valid).ok,"correct signed staging authority");
+test(assessGovernedStagingBackup(valid,pinnedTrust).ok,"correct signed staging authority");
+test(assessGovernedStagingBackup(valid).ok===false,"request-controlled owner key never trusted");
 const changes = [
   [{signature_b64:"Z".repeat(88)},"OWNER_SIGNATURE_INVALID"],
   [{expected_source_sha:"b".repeat(40)},"EXACT_STAGING_SOURCE_SHA_REQUIRED"],
@@ -61,15 +65,21 @@ const changes = [
   [{destination:{...valid.destination,provider:"hostinger"}},"APPROVED_LOCAL_BACKUP_DESTINATION_REQUIRED"],
   [{destination:{...valid.destination,allowed_operations:[]}},"APPROVED_LOCAL_BACKUP_DESTINATION_REQUIRED"],
   [{key_ref:"../../../secrets"},"RECOVERY_KEY_CUSTODY_REF_INVALID"],
+  [{key_ref:"local-custody:swapped_key"},"APPROVED_LOCAL_BACKUP_DESTINATION_REQUIRED"],
+  [{policy:{...valid.policy,policy_id:randomUUID()}},"SIGNED_POLICY_IDENTITY_MISMATCH"],
+  [{destination:{...valid.destination,path_or_ref:path.dirname(root)}},"APPROVED_LOCAL_BACKUP_DESTINATION_REQUIRED"],
+  [{source:{...valid.source,endpoint_family:"other.staging.com"}},"STAGING_DB_IDENTITY_MISMATCH"],
   [{now_ms:now+3600000},"SIGNED_BACKUP_LEASE_EXPIRED_OR_UNBOUNDED"]
 ];
 for (const [patch,code] of changes) {
-  const result = assessGovernedStagingBackup({...valid,...patch});
+  const result = assessGovernedStagingBackup({...valid,...patch},pinnedTrust);
   test(result.blockers.includes(code),"expected blocker "+code);
   test(result.qa_fixture_write_authorized===false && result.production_promotion_authorized===false,"negative case authorizes no mutations");
 }
 const adapters = {
-  destination_dir:root,manifest_public_key_pem:ownerPublic,
+  destination_dir:root, ledger_dir:ledger,
+  trusted_owner_public_key_pem:ownerPublic, manifest_public_key_pem:ownerPublic,
+  verify_authority_snapshot:async()=>true,
   assert_private_acl:async()=>true,
   expected_table_count:1,expected_row_count:2,
   open_dump:async()=>Readable.from([sql]),
@@ -80,6 +90,11 @@ const adapters = {
 try {
   const result = await executeGovernedStagingBackup(valid,adapters);
   test(result.ok && result.status==="artifact_created_restore_not_attested","synthetic stream encrypted");
+  test((await fs.readdir(ledger)).length===1,"durable one-time run ledger reserved");
+  let blockedReplay=false;
+  try {await executeGovernedStagingBackup(valid,adapters)}
+  catch(e){blockedReplay=e.code==="BACKUP_APPLY_NONCE_REPLAY"}
+  test(blockedReplay,"same signed apply nonce rejected after completed run");
   test(result.production_mutation===false && result.qa_fixture_write_authorized===false,"no runtime authority");
   const manifest = JSON.parse(await fs.readFile(result.manifest_file,"utf8"));
   test(verify(null,manifestPayload(manifest),publicKey,Buffer.from(manifest.signature.signature_b64,"base64")),"signed manifest");
@@ -98,6 +113,7 @@ try {
   })())}); } catch(e){failed=e.code==="GOVERNED_BACKUP_EXECUTION_FAILED"; }
   test(failed,"injected streaming failure rejects apply");
   test((await fs.readdir(root)).length===1,"failed execution leaves no artifact");
+  test((await fs.readdir(ledger)).length===2,"failed streaming run stays consumed in ledger");
   failed=false;
   try { await executeGovernedStagingBackup(makeInput(),{...adapters,
     sign_manifest:async()=>({algorithm:"ed25519",key_id:"bad",signature_b64:Buffer.alloc(64).toString("base64")})}); }
@@ -110,10 +126,34 @@ try {
   test(failed,"destination mismatch rejected");
   const blocked=await executeGovernedStagingBackup({...makeInput(),signature_b64:"broken"},adapters);
   test(blocked.ok===false && blocked.backup_executed===false,"invalid approval is fail-closed before adapter");
+  const forged=makeInput();const attacker=generateKeyPairSync("ed25519");
+  const forgedInput={...forged,public_key_pem:attacker.publicKey.export({type:"spki",format:"pem"}),
+    signature_b64:sign(null,approvalPayload(forged.envelope),attacker.privateKey).toString("base64")};
+  test(assessGovernedStagingBackup(forgedInput,pinnedTrust).blockers.includes("OWNER_SIGNATURE_INVALID"),"attacker supplied public key cannot impersonate owner");
+  let noAuthority=false;
+  try{await executeGovernedStagingBackup(makeInput(),{...adapters,verify_authority_snapshot:async()=>false})}
+  catch(e){noAuthority=e.code==="LIVE_OWNER_APPROVAL_SNAPSHOT_REQUIRED"}
+  test(noAuthority,"independent live authority readback required before reservation");
+  let noLedger=false;
+  try{await executeGovernedStagingBackup(makeInput(),{...adapters,ledger_dir:path.join(root,"missing")})}
+  catch(e){noLedger=true}
+  test(noLedger,"durable replay ledger required before backup");
+  const stale=makeInput();
+  const artificiallyEarlier=now-2*60*60*1000;
+  stale.now_ms=artificiallyEarlier;
+  stale.envelope.issued_at=new Date(artificiallyEarlier-60000).toISOString();
+  stale.envelope.expires_at=new Date(artificiallyEarlier+600000).toISOString();
+  stale.approval.decided_at=new Date(artificiallyEarlier-120000).toISOString();
+  stale.approval.expires_at=new Date(artificiallyEarlier+900000).toISOString();
+  stale.signature_b64=sign(null,approvalPayload(stale.envelope),privateKey).toString("base64");
+  test(assessGovernedStagingBackup(stale,pinnedTrust).ok===true,"pure assessment permits deterministic test clock");
+  const expiredApply=await executeGovernedStagingBackup(stale,adapters);
+  test(expiredApply.ok===false && expiredApply.blockers.includes("SIGNED_BACKUP_LEASE_EXPIRED_OR_UNBOUNDED"),
+    "execution ignores caller-controlled clock and rejects expired lease");
   const before=artifact[0];artifact[0]^=0xff;
   test(createHash("sha256").update(artifact).digest("hex")!==manifest.checksum_value && artifact[0]!==before,"ciphertext tampering detected");
   console.log(JSON.stringify({contract:"mad4b.staging-governed-encrypted-backup.test.v1",pass:true,cases,
     source_kind:"synthetic_only",source_rows:2,encrypted_sha256:true,independent_key_custody:true,
     signed_manifest:true,streamed_without_plaintext_file:true,cleanup_failure_test:true,
     qa_fixture_write_authorized:false,production_mutation:false,secrets_included:false}));
-} finally { await fs.rm(root,{force:true,recursive:true}); }
+} finally { await fs.rm(root,{force:true,recursive:true}); await fs.rm(ledger,{force:true,recursive:true}); }
