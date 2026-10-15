@@ -3005,6 +3005,28 @@
       "contains_secret_value": false,
       "grants_runtime_mutation": false,
       "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/scripts/staging-backup-restore-readiness.mjs|runtime|environment_reference|deployment.environment",
+      "owner": "platform-team",
+      "reason": "Exact Staging runtime environment value is a non-secret fail-closed precondition for read-only backup inventory; missing/Production context forbids DB access and cannot grant fixture or provider mutation.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/test-staging-synthetic-db-isolated-restore.mjs|RUN_ISOLATED_RESTORE_INTEGRATION|environment_reference|run.isolated.restore.integration",
+      "owner": "platform-team",
+      "reason": "Explicit CI/manual opt-in for synthetic-only isolated MariaDB Docker restoration; uses local image, no real database, no network, no published ports and no Production authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
     }
   ],
   "safety": {

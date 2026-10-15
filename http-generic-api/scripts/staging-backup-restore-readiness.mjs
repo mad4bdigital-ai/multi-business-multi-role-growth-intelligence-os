@@ -4,7 +4,7 @@ import { getPool } from "../db.js";
 import { assessStagingBackupAuthority } from "../stagingBackupRestoreAuthority.js";
 
 const argv=new Map(process.argv.slice(2).map(a=>{const [key,...value]=a.split("=");return [key,value.join("=")]}));
-const runtime=String(process.env.DEPLOYMENT_ENVIRONMENT||process.env.APP_ENV||"").toLowerCase();
+const runtime=String(process.env.DEPLOYMENT_ENVIRONMENT||"").toLowerCase();
 const expected=String(argv.get("--expected-source-sha")||"");
 let result=assessStagingBackupAuthority({environment:runtime,expected_source_sha:expected,policy_count:0});
 if (!result.environment_valid) {
@@ -17,7 +17,7 @@ if (!result.environment_valid) {
     // Restrict to the current MariaDB schema; never query cross-schema policy
     // or attempt account GRANTs. Do not read policy_json or credentials.
     const [rows]=await pool.query(`SELECT
-      p.backup_kind,p.status,p.activation_gate_status,p.allowed_executor,
+      p.policy_key,p.backup_kind,p.status,p.activation_gate_status,p.allowed_executor,
       p.artifact_format,p.encryption_scheme,p.checksum_algorithm,p.approval_required,
       p.restore_test_required,
       s.status AS source_status,d.status AS destination_status,
@@ -29,9 +29,14 @@ if (!result.environment_valid) {
       LEFT JOIN platform_copy_locations d ON d.location_id=p.destination_location_id
       WHERE p.backup_kind='database' AND p.policy_key='policy:staging-qa-db:approved'
       LIMIT 2`);
+    // An exact, named policy is required. A duplicate database policy is a
+    // hard blocker; no arbitrary first-row selection is permitted.
+    const matchingEntry = rows.length===1
+      ? rows.find(row=>row.policy_key==="policy:staging-qa-db:approved" && row.backup_kind==="database")
+      : null;
     result=assessStagingBackupAuthority({
       environment:runtime,expected_source_sha:expected,policy_count:rows.length,
-      policy:rows.length===1?rows[0]:null,
+      policy:matchingEntry||null,
     });
     if (rows.length>1) result.blockers.push("AMBIGUOUS_BACKUP_POLICY");
   } catch (error) {
