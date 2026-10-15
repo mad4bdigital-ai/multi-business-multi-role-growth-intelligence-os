@@ -4,18 +4,15 @@
 
 ## Summary
 
-- Triaged items: 8
-- Gate candidates: 3
+- Triaged items: 5
+- Gate candidates: 0
 - New-gap gate: fail
-- Blocking new items: 6
+- Blocking new items: 3
 
 ## Class counts
 
-- new_surface_immediate_review: 3
 - safety_marker_review: 5
 
 ## Immediate review candidates
 
-- `20261007_credential_platform_binding_policy.sql` — critical_review, score 850; next: add targeted patch-index, parity, and governance documentation
-- `20261008_admin_local_connector_target_catalog_alignment.sql` — critical_review, score 751; next: add targeted patch-index, parity, and governance documentation
-- `20261009_hostinger_recovery_allowlist_discovery.sql` — critical_review, score 751; next: add targeted patch-index, parity, and governance documentation
+- none
