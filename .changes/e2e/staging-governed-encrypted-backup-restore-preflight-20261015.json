@@ -1,0 +1,105 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-governed-encrypted-backup-restore-preflight-20261015",
+  "title": "Governed Staging QA encrypted database backup/isolated restore prerequisites",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-governed-encrypted-backup-restore-preflight-20261015.json",
+      ".github/governance/test-authority-registry.json",
+      ".github/derived-state-governance.json",
+      "http-generic-api/config/repository-governance-constitution.json",
+      "http-generic-api/config/deployment-branch-policy.json",
+      "autopilot-portable-staging/manifest.json",
+      "docs/governance/configuration-drift-baseline-extensions.json",
+      "docs/runbooks/staging-qa-encrypted-backup-isolated-restore-20261015.md",
+      "http-generic-api/stagingBackupRestoreAuthority.js",
+      "http-generic-api/scripts/staging-backup-restore-readiness.mjs",
+      "http-generic-api/scripts/dr-certifiers/isolatedRestoreSafety.mjs",
+      "http-generic-api/scripts/dr-certifiers/db-isolated-restore-certifier.mjs",
+      "http-generic-api/test-staging-backup-restore-authority.mjs",
+      "http-generic-api/test-isolated-db-restore-safety.mjs",
+      "http-generic-api/test-staging-synthetic-db-isolated-restore.mjs"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Make database backup/restore prerequisites visible without widening database grants or granting QA-fixture/Production authority, and prove restoration isolation using synthetic data only.",
+      "e2e_journeys": [
+        {
+          "id": "staging-backup-policy-fail-closed-and-synthetic-isolated-restore",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Staging backup operations reviewer",
+          "entrypoint": "Staging-scoped read-only policy census and local encrypted synthetic MariaDB restore",
+          "terminal_outcome": "Report missing governed backup/restore evidence as blockers; prove synthetic encrypted restore and cleanup without claiming QA activation or Production readiness.",
+          "steps": [
+            "Check the exact Staging environment and expected source SHA before querying any policy metadata.",
+            "Select only the designated QA policy using Runtime's existing read permission, and fail closed on missing/denied policy without broadening privileges.",
+            "Reject unallowlisted MariaDB images, unsafe database identifiers, invalid AES-GCM envelopes and checksum mismatches.",
+            "Restore only synthetic test data within an unnetworked disposable MariaDB container with no published ports.",
+            "Verify clean container and plaintext deletion, and reject a tampered encrypted artifact.",
+            "Keep QA fixture writing and Production promotion explicitly unauthorized."
+          ],
+          "assertions": [
+            "Production mutation and fixture mutation are never authorized.",
+            "Read-only policy census reports a missing grant instead of bypassing the permission check.",
+            "Synthetic restore uses network=none, no published ports, strict artifact binding and confirmed cleanup.",
+            "Tampered ciphertext is rejected; synthetic success never substitutes for a restored Staging backup."
+          ],
+          "tests": [
+            {
+              "id": "staging-db-backup-authority-boundary",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-backup-restore-authority.mjs",
+              "args": []
+            },
+            {
+              "id": "isolated-db-restore-safety-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-isolated-db-restore-safety.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/staging-governed-encrypted-backup-restore-preflight-20261015.json",
+            ".github/governance/test-authority-registry.json",
+            ".github/derived-state-governance.json",
+            "http-generic-api/config/repository-governance-constitution.json",
+            "http-generic-api/config/deployment-branch-policy.json",
+            "autopilot-portable-staging/manifest.json",
+            "docs/governance/configuration-drift-baseline-extensions.json",
+            "docs/runbooks/staging-qa-encrypted-backup-isolated-restore-20261015.md",
+            "http-generic-api/stagingBackupRestoreAuthority.js",
+            "http-generic-api/scripts/staging-backup-restore-readiness.mjs",
+            "http-generic-api/scripts/dr-certifiers/isolatedRestoreSafety.mjs",
+            "http-generic-api/scripts/dr-certifiers/db-isolated-restore-certifier.mjs",
+            "http-generic-api/test-staging-backup-restore-authority.mjs",
+            "http-generic-api/test-isolated-db-restore-safety.mjs",
+            "http-generic-api/test-staging-synthetic-db-isolated-restore.mjs"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}
