@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { assessStagingBackupAuthority } from "./stagingBackupRestoreAuthority.js";
@@ -47,4 +48,11 @@ const denied=JSON.parse(nonStaging.stdout);
 assert.equal(denied.qa_fixture_write_authorized,false);
 assert.equal(denied.production_promotion_authorized,false);
 assert(denied.blockers.includes("NO_DATABASE_ACCESS_NON_STAGING"));
+const policy=JSON.parse(readFileSync(new URL("./config/deployment-branch-policy.json",import.meta.url),"utf8"));
+const classified=policy.environment_impact.path_classes.find(x=>x.id==="shared_runtime");
+assert(classified,"Shared runtime class missing");
+for(const path of ["http-generic-api/scripts/dr-certifiers/db-isolated-restore-certifier.mjs",
+  "http-generic-api/scripts/dr-certifiers/isolatedRestoreSafety.mjs"]){
+ assert(classified.patterns.includes(path),"Isolated restore source must be explicitly classified");
+}
 console.log(JSON.stringify({contract:"mad4b.staging.backup-restore-preflight.test.v1",pass:true,cases:13,fixture_write_authorized:false,production_mutation:false}));
