@@ -1,0 +1,84 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-p1-governed-backup-executor-20261015",
+  "title": "Staging P1 governed local-connector encrypted backup executor core",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-p1-governed-backup-executor-20261015.json",
+      ".github/governance/test-authority-registry.json",
+      "autopilot-portable-staging/manifest.json",
+      "http-generic-api/stagingGovernedEncryptedBackup.mjs",
+      "http-generic-api/test-staging-governed-encrypted-backup-executor.mjs",
+      "docs/runbooks/staging-p1-governed-backup-executor-20261015.md",
+      "docs/governance/configuration-drift-baseline-extensions.json",
+      "http-generic-api/config/repository-governance-constitution.json",
+      ".github/derived-state-governance.json"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Add offline-tested fail-closed, owner-signed local connector AES-GCM backup core without activating policies, touching database instances, or granting QA/Production authority.",
+      "e2e_journeys": [
+        {
+          "id": "staging-p1-local-connector-encrypted-backup-synthetic",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Governed Staging backup reviewer",
+          "entrypoint": "Signed lease and local destination, with synthetic SQL stream",
+          "terminal_outcome": "Encrypted synthetic artifact, readback SHA, independent key custody and verified signature, with no real Staging backup or QA authority asserted.",
+          "steps": [
+            "Reject missing, revoked or expired apply approval, forged Ed25519 lease and Production source identities.",
+            "Bind active allowlisted Staging policy and Local Connector device to one approved local destination.",
+            "Stream synthetic SQL through GZIP and AES-256-GCM without a plaintext file.",
+            "Verify encrypted artifact SHA-256 and signed manifest; reject injected failures and clean up."
+          ],
+          "assertions": [
+            "QA identity writes and Production promotion remain false.",
+            "Unsigned policy changes cannot turn a synthetic export into live Staging certification.",
+            "No plaintext SQL or recovery AES key is placed in the artifact destination.",
+            "Rejected jobs are fail-closed and temporary fragments are removed."
+          ],
+          "tests": [
+            {
+              "id": "staging-p1-governed-local-backup-executor",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-governed-encrypted-backup-executor.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/staging-p1-governed-backup-executor-20261015.json",
+            ".github/governance/test-authority-registry.json",
+            "autopilot-portable-staging/manifest.json",
+            "http-generic-api/stagingGovernedEncryptedBackup.mjs",
+            "http-generic-api/test-staging-governed-encrypted-backup-executor.mjs",
+            "docs/runbooks/staging-p1-governed-backup-executor-20261015.md",
+            "docs/governance/configuration-drift-baseline-extensions.json",
+            "http-generic-api/config/repository-governance-constitution.json",
+            ".github/derived-state-governance.json"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}

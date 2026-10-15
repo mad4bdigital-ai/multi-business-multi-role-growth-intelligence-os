@@ -806,6 +806,7 @@
       "test_paths": [
         "http-generic-api/test-isolated-db-restore-safety.mjs",
         "http-generic-api/test-staging-backup-restore-authority.mjs",
+        "http-generic-api/test-staging-governed-encrypted-backup-executor.mjs",
         "http-generic-api/test-staging-synthetic-db-isolated-restore.mjs"
       ]
     },
