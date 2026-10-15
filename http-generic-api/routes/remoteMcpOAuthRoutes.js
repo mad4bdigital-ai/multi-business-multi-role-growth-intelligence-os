@@ -378,10 +378,15 @@ export function buildRemoteMcpOAuthRoutes(deps = {}) {
       if (!client) return oauthError(res, 401, "invalid_client", "OAuth client authentication failed.");
       const token = String(req.body?.token || "");
       if (token.includes(".")) {
+        // Invalid/unknown tokens are idempotent 200, but database revocation
+        // errors must not be swallowed or reported as successful disconnects.
+        let claims = null;
         try {
-          const claims = verifyRemoteMcpAccessTokenForRevocation(token, { env });
-          if (claims?.client_id === client.client_id && claims?.jti) await revokeRemoteMcpGrantByAccessJti(claims.jti, { pool });
+          claims = verifyRemoteMcpAccessTokenForRevocation(token, { env });
         } catch {}
+        if (claims?.client_id === client.client_id && claims?.jti) {
+          await revokeRemoteMcpGrantByAccessJti(claims.jti, { pool });
+        }
       } else if (token) {
         const grant = await readRemoteMcpGrantByRefreshToken(token, { pool });
         if (grant?.client_id === client.client_id) await revokeRemoteMcpGrantByRefreshToken(token, { pool });
@@ -389,7 +394,9 @@ export function buildRemoteMcpOAuthRoutes(deps = {}) {
       noStore(res);
       return res.status(200).end();
     } catch {
-      return res.status(200).end();
+      // RFC 7009's success for invalid tokens does not mean a failed DB write
+      // may claim revocation happened. The client can safely retry later.
+      return oauthError(res, 503, "temporarily_unavailable", "OAuth revocation state could not be confirmed.");
     }
   });
 
