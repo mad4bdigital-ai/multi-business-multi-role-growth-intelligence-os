@@ -72,6 +72,7 @@
     "draft_pr_automerge_forbidden": true,
     "automation_control_surface_changes_require_manual_merge": true,
     "automation_control_paths": [
+      ".changes/e2e/admin-tenant-oauth-mcp-lifecycle-20261015.json",
       ".changes/e2e/auth-connector-control-plane-convergence-20260922.json",
       ".changes/e2e/capability-catalog-trust-authority-20261010.json",
       ".changes/e2e/certified-release-cut-production-classifier-adapter.json",
@@ -386,6 +387,7 @@
       "canonicals/openapi/custom-gpt-surfaces.yaml",
       "canonicals/openapi/registration-topology-closure.yaml",
       "docs/governance/admin-recovery-chatgpt-connection.md",
+      "docs/governance/admin-tenant-oauth-mcp-lifecycle-acceptance-20261015.md",
       "docs/governance/capability-catalog-trust-authority-v1.md",
       "docs/governance/configuration-drift-baseline-extensions.json",
       "docs/governance/configuration-drift-policy.json",
