@@ -17,7 +17,10 @@
       "docs/governance/admin-tenant-oauth-mcp-lifecycle-acceptance-20261015.md",
       ".github/governance/test-authority-registry.json",
       "autopilot-portable-staging/Start-AutoPilot.ps1",
-      "http-generic-api/test-staging-startup-mutation-policy.mjs"
+      "http-generic-api/test-staging-startup-mutation-policy.mjs",
+      "http-generic-api/scripts/staging-authenticated-remote-readiness.mjs",
+      "http-generic-api/openApiMutationGovernance.js",
+      "http-generic-api/test-staging-mcp-oauth-openapi-gate.mjs"
     ]
   },
   "environment_impact": {
@@ -81,6 +84,13 @@
               "working_directory": "http-generic-api",
               "path": "test-remote-mcp-oauth21-routes.mjs",
               "args": []
+            },
+            {
+              "id": "staging-mcp-oauth-code-openapi-mutation-boundary",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-mcp-oauth-openapi-gate.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
@@ -94,7 +104,10 @@
             "docs/governance/admin-tenant-oauth-mcp-lifecycle-acceptance-20261015.md",
             ".github/governance/test-authority-registry.json",
             "autopilot-portable-staging/Start-AutoPilot.ps1",
-            "http-generic-api/test-staging-startup-mutation-policy.mjs"
+            "http-generic-api/test-staging-startup-mutation-policy.mjs",
+            "http-generic-api/scripts/staging-authenticated-remote-readiness.mjs",
+            "http-generic-api/openApiMutationGovernance.js",
+            "http-generic-api/test-staging-mcp-oauth-openapi-gate.mjs"
           ]
         }
       ]
