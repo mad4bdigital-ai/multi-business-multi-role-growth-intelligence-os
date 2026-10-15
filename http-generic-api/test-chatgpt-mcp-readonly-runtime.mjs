@@ -406,7 +406,7 @@ function createPool(queryHandler) {
   });
   assert.equal(queryIndex, 3);
   assert.equal(result.status, 200);
-  assert.equal(result.body.result.isError, false);
+  assert.equal(result.body.result.structuredContent.ok, true);
   const brands = result.body.result.structuredContent.brands;
   assert.equal(brands.length, 2);
   const aliasGrant = brands.find((entry) => entry.brand_ref === "brand:shared");
