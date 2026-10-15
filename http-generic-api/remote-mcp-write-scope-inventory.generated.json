@@ -8,7 +8,7 @@
     "7eaf87af3c9df2a3aa55a9f6adbd93d4d7bc4334c58084cb382d851af888e4a2"
   ],
   "db_catalog_fingerprint_match": true,
-  "file_count": 8087,
+  "file_count": 8088,
   "route_count": 1120,
   "write_route_count": 684,
   "classified_write_surface_count": 44,
@@ -40171,7 +40171,7 @@
         "source_line": 374,
         "handler_window_lines": [
           374,
-          398
+          405
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -40179,7 +40179,7 @@
           "db_registry_signal": false,
           "authority_signal": false,
           "readback_signal": true,
-          "mutation_signal": false
+          "mutation_signal": true
         },
         "signals": {
           "provider": [],
@@ -40188,7 +40188,9 @@
           "readback": [
             "verify"
           ],
-          "mutation": []
+          "mutation": [
+            "write"
+          ]
         },
         "static_only": true,
         "secrets_included": false
@@ -54568,7 +54570,7 @@
       "route_to_db_registry_signal": 0,
       "route_to_authority_signal": 433,
       "route_to_readback_signal": 388,
-      "route_to_mutation_signal": 390,
+      "route_to_mutation_signal": 391,
       "route_to_explicit_scope_candidate": 44
     },
     "execution_edges_are_non_authorizing": true,
