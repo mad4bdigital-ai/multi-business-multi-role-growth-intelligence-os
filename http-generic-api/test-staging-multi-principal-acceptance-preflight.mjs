@@ -54,4 +54,11 @@ assert.deepEqual(phase.environment_impact.declared_targets,["staging","productio
 assert.equal(phase.environment_impact.cross_environment_reviewed,true);
 assert.equal(phase.environment_impact.live_staging_certification_required,true);
 assert.equal(phase.environment_impact.production_mutation_allowed,false);
+const declaration=".changes/e2e/staging-oa-mc-live-multi-principal-prerequisite-gate-20261015.json";
+const constitution=JSON.parse(readFileSync(new URL("./config/repository-governance-constitution.json",import.meta.url),"utf8"));
+const derived=JSON.parse(readFileSync(new URL("../.github/derived-state-governance.json",import.meta.url),"utf8"));
+assert(constitution.control_plane_paths.includes(declaration),"critical path must be registered in Constitution");
+assert(derived.convergence.automation_control_paths.includes(declaration),"critical path must be registered in convergence automation");
+assert(phase.scope.include.includes("http-generic-api/config/repository-governance-constitution.json"));
+assert(phase.scope.include.includes(".github/derived-state-governance.json"));
 console.log(JSON.stringify({contract:"mad4b.staging.oa-mc-four-principal-preflight.test.v1",ok:true,synthetic_cases:6,matrix_cases:OA_MC_CASES.length,mutations:false}));

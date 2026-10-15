@@ -577,6 +577,7 @@
     ".changes/e2e/staging-migration-1041-note-compatibility.json",
     ".changes/e2e/staging-migration-1042-order-compatibility.json",
     ".changes/e2e/staging-migration-125-json-path-contract.json",
+    ".changes/e2e/staging-oa-mc-live-multi-principal-prerequisite-gate-20261015.json",
     ".changes/e2e/staging-one-click-loopback-origin-20260905.json",
     ".changes/e2e/staging-one-click-runtime-state-20260912.json",
     ".changes/e2e/staging-one-click-schema-governance-preflight.json",
