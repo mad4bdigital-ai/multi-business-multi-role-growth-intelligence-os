@@ -15,6 +15,7 @@ assert(args.includes("--network")&&args.includes("none"));
 assert(args.includes("no-new-privileges:true"));
 assert(!args.includes("-p")&&!args.includes("--privileged"));
 for(const patch of [
+  {database:""},
   {database:"prod;DROP DATABASE users"},
   {image:"alpine:latest"},
   {image:"mariadb:latest"},

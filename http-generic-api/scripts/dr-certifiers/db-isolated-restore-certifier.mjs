@@ -23,7 +23,9 @@ const manifestPath = arg("manifest");
 const keyPath = arg("recovery-key");
 const restoreRoot = arg("restore-root", path.join(process.cwd(), "restore-tests", "db-isolated"));
 const image = arg("image", "mariadb:11.4");
-const database = arg("database", "u338416126_growthOS");
+// The isolated test database must always be explicitly named by the caller.
+// No runtime, Staging, or Production schema identity is valid as a fallback.
+const database = arg("database");
 const stamp = new Date().toISOString().replace(/[:.]/g, "-");
 const workDir = path.join(restoreRoot, `isolated-restore-${stamp}`);
 fs.mkdirSync(workDir, { recursive: true });
