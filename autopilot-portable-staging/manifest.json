@@ -443,6 +443,10 @@
     {
       "path": "http-generic-api/config/empty-provider-secret",
       "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "http-generic-api/stagingGovernedEncryptedBackup.mjs",
+      "sha256": "16b2cb19db5b0afe7074a9f1ac03c5daeef8cf5b3c0701f9524f9c79840cb915"
     }
   ],
   "safety": {
