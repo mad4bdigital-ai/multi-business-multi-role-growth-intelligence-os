@@ -695,14 +695,53 @@ function Assert-PRHeadStagingWriterPreflight([string]$EnvPath) {
     if ($LASTEXITCODE -ne 0 -or $dbContainer -notmatch '^[0-9a-f]{12,64}$') { Fail "PR-head writer probe requires exactly one existing runtime-db" }
     $dbHealth = (& docker inspect --format "{{.State.Health.Status}}" $dbContainer 2>$null | Out-String).Trim()
     if ($LASTEXITCODE -ne 0 -or $dbHealth -ne "healthy") { Fail "PR-head writer probe requires a healthy runtime-db" }
-    # Send the password through stdin, never in Docker argv, logs or evidence.
-    $probeCommand = 'IFS= read -r MYSQL_PWD; export MYSQL_PWD; exec mariadb --protocol=TCP --host=127.0.0.1 --user="$1" --database="$2" --batch --skip-column-names --execute="SELECT DATABASE(), CURRENT_USER()"'
-    $output = @($password | & docker exec -i $dbContainer sh -c $probeCommand _ $writer $database 2>$null)
-    $probeExit = $LASTEXITCODE
-    $columns = @((($output | ForEach-Object { [string]$_ }) -join "`n").Trim() -split "`t")
+    # Marshal the secret to Docker stdin, never arguments, logs, or evidence.
+    # Windows PowerShell 5 treats MariaDB's stderr warnings as terminating native
+    # errors even when the login succeeds; capture both pipes without displaying them.
+    $quoteShell = {
+        param([string]$Value)
+        return "'" + $Value.Replace("'", "'\''") + "'"
+    }
+    if ($password -match '[\r\n]' -or $writer -notmatch '^[a-zA-Z0-9_]+$' -or $database -notmatch '^[a-zA-Z0-9_]+$') {
+        Fail "STAGING_CONTROL_PLANE_WRITE_CONFIG_INVALID: unsafe login input"
+    }
+    $sql = "SELECT DATABASE(), CURRENT_USER(); SHOW GRANTS FOR CURRENT_USER()"
+    $script = 'export MYSQL_PWD=' + (& $quoteShell $password) + "`n" +
+        'exec mariadb --protocol=TCP --host=127.0.0.1 --user=' + (& $quoteShell $writer) +
+        ' --database=' + (& $quoteShell $database) +
+        ' --batch --skip-column-names --execute=' + (& $quoteShell $sql) + "`n"
+    $startInfo = New-Object System.Diagnostics.ProcessStartInfo
+    $startInfo.FileName = "docker.exe"
+    $startInfo.Arguments = "exec -i $dbContainer sh"
+    $startInfo.UseShellExecute = $false
+    $startInfo.RedirectStandardInput = $true
+    $startInfo.RedirectStandardOutput = $true
+    $startInfo.RedirectStandardError = $true
+    $client = [System.Diagnostics.Process]::Start($startInfo)
+    $probeExit = 1
+    $proof = ""
+    try {
+        $stdoutTask = $client.StandardOutput.ReadToEndAsync()
+        $stderrTask = $client.StandardError.ReadToEndAsync()
+        $client.StandardInput.Write($script)
+        $client.StandardInput.Close()
+        $client.WaitForExit()
+        $probeExit = $client.ExitCode
+        $proof = $stdoutTask.Result.Trim()
+        # Deliberately discard stderr, which can contain driver diagnostics.
+        [void]$stderrTask.Result
+    } finally {
+        $client.Dispose()
+    }
+    $lines = @($proof -split "`r?`n" | Where-Object { $_ })
+    $columns = if ($lines.Count -gt 0) { @($lines[0] -split "`t") } else { @() }
     if ($probeExit -ne 0 -or $columns.Count -ne 2 -or $columns[0] -ne $database -or
         -not $columns[1].StartsWith(($writer + "@"), [StringComparison]::OrdinalIgnoreCase)) {
         Fail "STAGING_CONTROL_PLANE_WRITE_LOGIN_UNVERIFIED: dedicated local database login failed (secret redacted)"
+    }
+    $grants = @($lines | Select-Object -Skip 1)
+    if ($grants.Count -lt 1 -or ($grants -join "`n") -match '(?i)ALL PRIVILEGES|GRANT OPTION|DELETE|CREATE|ALTER|DROP') {
+        Fail "STAGING_CONTROL_PLANE_WRITE_GRANTS_INVALID: forbidden MariaDB privileges detected"
     }
     Write-StagingLog -Level info -Component $LogComponent -Stage "pr-head-writer-preflight" -Message "Dedicated local Staging writer authenticated before deployment" -Data @{ local_db = $true; identity_distinct = $true; secrets_included = $false; mutation_performed = $false }
 }

@@ -142,7 +142,9 @@ test("PR-head Staging writer must pass preflight before self-update or container
   assert.ok(preflight > 0, "writer readiness preflight must precede source checkout");
   assert.match(launcher, /STAGING_CONTROL_PLANE_WRITE_IDENTITY_REQUIRED/);
   assert.match(launcher, /STAGING_CONTROL_PLANE_WRITE_LOGIN_UNVERIFIED/);
-  assert.match(launcher, /docker exec -i \$dbContainer sh -c/);
+  assert.match(launcher, /\$startInfo\.Arguments = "exec -i \$dbContainer sh"/);
+  assert.match(launcher, /\$client\.StandardInput\.Write\(\$script\)/);
+  assert.match(launcher, /STAGING_CONTROL_PLANE_WRITE_GRANTS_INVALID/);
 });
 
 test("PR-head Staging re-creates only app and checks every dependency identity", () => {
