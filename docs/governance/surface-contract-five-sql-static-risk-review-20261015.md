@@ -1,0 +1,30 @@
+# Surface Contract — Five SQL Static Risks (2026-10-15)
+
+> **Review-only / non-attestation.** Baseline: `main@6b439a2810eadfba53c224a274ca12ced20c14b4`. Canonical candidate: [PR #8526](https://github.com/mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os/pull/8526), `17e86d145821a1cd3d343f3f4da8c6eb220a050a`, generated from the *same* main. Its new-gap queue is **five** unresolved SQL safety-marker reviews (two medium, three low), compared with the older **ten** still shown by the generated queue in main. This document records static source observations, **not** runtime certification, human approval, or permission to apply migrations.
+
+## Exact Git-blobs, effects and release blockers
+
+| SQL migration (under `http-generic-api/migrations/`) | Git blob SHA at main | Observed SQL behavior | Required check before safety sign-off |
+|---|---|---|---|
+| `20260812_repository_reconciliation_admin_apply_activation.sql` | `1e1e8b23228ac9cb1f4ccb30afa81e7073ab9221` | Conditional `PREPARE/EXECUTE` promotes recipe `repo.pr.reconcile_and_finalize` to `active`; also sets `provider_executor_implemented=true` and `engine_executor_implemented=true` in policy JSON; adds readiness view | **Activation is a live control-plane effect, not inert metadata.** Verify 9 exact active steps, exact authority envelope, no force-push, dedicated typed authorization, stage-only application plan, and readback of recipe **and** policy; do not auto-attest |
+| `20260815_custom_gpt_mcp_catalog_levels.sql` | `930aff399b9ee67a321129cc2ba76c4afde88460` | Adds level columns/indexes; updates *all* admin and tenant tool catalog rows; upserts a tenant mutation endpoint using `POST`; `ON DUPLICATE KEY UPDATE is_enabled=VALUES(is_enabled)` | Inspect existing `is_enabled` value/default before/after upsert: the inserted column list omits `is_enabled`, so a conflict may reset the existing value to its default. Validate permission/route reachability and Custom GPT <=30-operation projection, staging snapshot and rollback |
+| `1042_sprint69_support_ticket_lifecycle_sla_dedupe.sql` | `ae8b0f22c588e9ca4f92a9a80beee0b7c4ede35a` | Alters tickets, creates dedupe table, changes hard-coded ticket records/relationships/status, updates SLA fields, installs `AFTER INSERT` trigger, refreshes two views | Require exact tenant/ticket identity review and pre/post data snapshots, trigger compatibility and idempotent replay, duplicate claims uniqueness, index/readback proof; **this is a data mutation** |
+| `1047_sprint69_tenant_request_inbox_and_chunk_store_hardening.sql` | `fec210d4f41e8bcf3554da4aa80fab70b88188cd` | Many information_schema-conditioned `PREPARE/EXECUTE` ALTERs; adds ticket/tenant inbox indexes and response-chunk ownership fields; backfills `tenant_resolution_cases.ticket_id` only for canonical ticket URI shape; adds readiness views | Audit every dynamic SQL branch, existing index/column compatibility, tenant ownership isolation and null owner fallback, bounded backfill count; use isolated staging and exact readbacks |
+| `1030_sprint69_default_blocker_recovery_governance_seed.sql` | `3597b002e2e01b47ef8d08f96aec0e80a24d76e6` | Widens catalog `tags` columns; broad updates of mutation/approval tags in tool registry tables; inserts/updates blocking execution policy, failure taxonomy and rules | Verify all policy/tag rowsets and preserve original tool permissions; no auto-application or provider grant; sample target rows and validate policy JSON, blocking flags, idempotency, least-privilege staging readback |
+
+## Decision boundary
+
+1. **No sign-off yet for these five files.** The static source does not prove a provider call occurred, but SQL `UPDATE`, `ALTER`, `INSERT`, triggers and control-plane activation have effects upon migration application. `no_external_write` and `no_provider_call` must be independently established in the correct scope; they are not synonyms for `no_database_write` or `no_runtime_effect`.
+2. Use the existing `assessMigrationSqlPreflight` and `validateManualAttestation` rules. Each approved manual safety attestation requires checksum-bound source SHA-256, accepted preflight risks, exact forbidden SQL regex exceptions, required source fragments, a real identified human reviewer and timestamp, `execution_authorized=false` and effect metadata. **Do not create fictional reviewer credentials or turn these notes into an approved manual attestation.**
+3. Do not rewrite an already applied migration just to pass markers: doing so changes migration identity and risks ledger drift. If a source defect must be corrected, prepare a **new governed follow-up migration** with staging rollback/readback contract.
+4. Static approval, when granted by an eligible reviewer, is **not** permission for Staging/Production SQL apply. Confirm the current execution ledger, backup, compatibility, rollback and live negative/readback tests before an independently authorized stage apply. Keep Production mutation prohibited.
+5. The generated [PR #8526](https://github.com/mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os/pull/8526) reports `New-gap gate blocking: true` and `Governance-finalizer eligible: false`; it is not an eligible merge candidate until its owner/gap policy is satisfied. The old main queue's 10-item count must not be quoted as the current generator result.
+
+## Acceptance evidence still missing
+
+- [ ] Static preflight risk reports for all five exact SQL hashes and reviewer decisions on each risk
+- [ ] Independent Staging preflight and SQL compatibility/rollback plan without applying SQL by default
+- [ ] Sensitive control-plane activation / tenant isolation / write-scope implications reviewed by actual authorized owner
+- [ ] Same-cycle Staging readbacks for exact affected tables, views, trigger, policies and registry rows
+- [ ] Evidence-led manual registry entries and regenerated exact-source derived outputs, if/when authorized
+- [ ] Current-base CI, Derived State Closure, and explicit owner gate (if required) before any relevant PR merge
