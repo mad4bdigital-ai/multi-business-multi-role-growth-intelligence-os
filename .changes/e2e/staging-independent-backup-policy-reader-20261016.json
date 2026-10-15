@@ -9,6 +9,8 @@
     "include": [
       ".changes/e2e/staging-independent-backup-policy-reader-20261016.json",
       ".github/governance/test-authority-registry.json",
+      ".github/derived-state-governance.json",
+      "http-generic-api/config/repository-governance-constitution.json",
       "docs/governance/configuration-drift-baseline-extensions.json",
       "docs/runbooks/staging-backup-independent-policy-reader-20261016.md",
       "http-generic-api/package.json",
@@ -75,6 +77,8 @@
           "evidence_paths": [
             ".changes/e2e/staging-independent-backup-policy-reader-20261016.json",
             ".github/governance/test-authority-registry.json",
+            ".github/derived-state-governance.json",
+            "http-generic-api/config/repository-governance-constitution.json",
             "docs/governance/configuration-drift-baseline-extensions.json",
             "docs/runbooks/staging-backup-independent-policy-reader-20261016.md",
             "http-generic-api/package.json",
