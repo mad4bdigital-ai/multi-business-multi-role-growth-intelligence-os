@@ -447,6 +447,10 @@
     {
       "path": "http-generic-api/stagingGovernedEncryptedBackup.mjs",
       "sha256": "3631dc2d43c40841abe71372b5d731573482a7e3aa8cea29a31135a6a904ede2"
+    },
+    {
+      "path": "http-generic-api/stagingBackupLocalAuthorityAdapter.mjs",
+      "sha256": "cfed7ac5143d2de4002f4822ed9fd6ccbf0d24e9c2d63fd075211445f7116e97"
     }
   ],
   "safety": {
