@@ -344,7 +344,10 @@ function resolveLegacyPrincipal(headers, env, verifyAuthorization) {
   };
 }
 
-async function listAccessibleWorkspaces({ pool, userId, limit }) {
+async function listAccessibleWorkspaces({ pool, userId, limit, tenantId = null }) {
+  // A Tenant-bound OAuth grant can only enumerate that same Tenant, even
+  // when its user also has active memberships in other workspaces.
+  const tenantConstraint = tenantId ? " AND m.tenant_id = ?" : "";
   const [rows] = await pool.query(
     `SELECT m.tenant_id AS workspace_id,
             t.display_name,
@@ -357,9 +360,10 @@ async function listAccessibleWorkspaces({ pool, userId, limit }) {
       WHERE m.user_id = ?
         AND m.status = 'active'
         AND t.status = 'active'
+        ${tenantConstraint}
       ORDER BY m.granted_at ASC
       LIMIT ?`,
-    [userId, limit],
+    tenantId ? [userId, tenantId, limit] : [userId, limit],
   );
 
   return rows.map((row) => ({
@@ -506,12 +510,18 @@ async function listAccessibleBrands({ pool, userId, workspaceId, limit }) {
 }
 
 async function executeTool({ name, args, principal, pool, requestId }) {
+  // The verified Remote MCP OAuth grant is bound to its selected Tenant.
+  // Legacy user-JWT sessions keep their established membership semantics.
+  const oauthTenantId = principal.claims?.auth_mode === "remote_mcp_oauth_2_1"
+    ? normalizedString(principal.tenant_id, 128)
+    : "";
   if (name === "list_accessible_workspaces") {
     const limit = boundedInteger(args?.limit, 25, MAX_WORKSPACES);
     const workspaces = await listAccessibleWorkspaces({
       pool,
       userId: principal.user_id,
       limit,
+      tenantId: oauthTenantId || null,
     });
     return toolSuccessResult({
       summary: `Found ${workspaces.length} accessible workspace${workspaces.length === 1 ? "" : "s"}.`,
@@ -527,6 +537,13 @@ async function executeTool({ name, args, principal, pool, requestId }) {
       return toolErrorResult({
         code: "MCP_INPUT_INVALID",
         message: "workspace_id is required.",
+        requestId,
+      });
+    }
+    if (oauthTenantId && workspaceId !== oauthTenantId) {
+      return toolErrorResult({
+        code: "MCP_CONTEXT_DENIED",
+        message: "The selected resource is not accessible to the signed-in user.",
         requestId,
       });
     }
