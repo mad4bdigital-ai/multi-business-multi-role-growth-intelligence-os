@@ -38,7 +38,9 @@ if(!result.environment_valid){
       LEFT JOIN platform_copy_locations d ON d.location_id=p.destination_location_id
       WHERE p.backup_kind='database' AND p.policy_key='policy:staging-qa-db:approved'
       LIMIT 2`);
-    const candidate=rows.length===1?rows[0]:null;
+    const candidate=rows.length===1
+      ?rows.find(row=>row.policy_key==="policy:staging-qa-db:approved" && row.backup_kind==="database")
+      :null;
     result=assessStagingBackupAuthority({
       environment:runtime,expected_source_sha:expected,
       policy_count:rows.length,policy:candidate,
