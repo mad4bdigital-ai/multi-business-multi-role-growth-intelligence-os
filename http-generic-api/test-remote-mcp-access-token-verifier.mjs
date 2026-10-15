@@ -113,6 +113,34 @@ function activePool({ active = true, subjectActiveCount = 1, grant = {} } = {}) 
 }
 
 {
+  // A revoked grant must not be treated as merely missing a scope: such a
+  // response can otherwise offer incremental OAuth consent for a dead session.
+  const result = await verifyRemoteMcpBearerAuthorization(`Bearer ${token({ scope: "workspaces.read" })}`, {
+    env,
+    pool: activePool({ active: false }),
+    requiredScopes: ["brands.read"],
+  });
+  assert.equal(result.ok, false);
+  assert.equal(result.status, 401);
+  assert.equal(result.code, "MCP_TOKEN_REVOKED");
+  assert.equal(result.claims, undefined);
+}
+
+{
+  // A removed Tenant membership is also a hard authorization boundary,
+  // even if the presented signed token is missing a newly requested scope.
+  const result = await verifyRemoteMcpBearerAuthorization(`Bearer ${token({ scope: "workspaces.read" })}`, {
+    env,
+    pool: activePool({ subjectActiveCount: 0 }),
+    requiredScopes: ["brands.read"],
+  });
+  assert.equal(result.ok, false);
+  assert.equal(result.status, 401);
+  assert.equal(result.code, "MCP_SUBJECT_INACTIVE");
+  assert.equal(result.claims, undefined);
+}
+
+{
   const result = await verifyRemoteMcpBearerAuthorization(`Bearer ${token()}`, {
     env,
     pool: activePool({ subjectActiveCount: 0 }),
