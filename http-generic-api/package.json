@@ -10,6 +10,7 @@
     "governance:admin-control-db-contract": "node scripts/admin-control-db-contract-governance.mjs --ci",
     "test": "node scripts/run-test-and-run-adaptive-authorization-verification-manifest.mjs",
     "test:staging:startup-safety": "node --test test-staging-startup-mutation-policy.mjs",
+    "test:staging:backup-reader": "node test-staging-backup-independent-policy-reader.mjs && node test-staging-backup-restore-authority.mjs",
     "test:list": "node scripts/run-test-manifest.mjs --list",
     "test:context-kernel:provider-consent": "node test-context-kernel-provider-consent-core.mjs",
     "automation:overlap:report": "node scripts/automation-overlap-analyzer.mjs",
