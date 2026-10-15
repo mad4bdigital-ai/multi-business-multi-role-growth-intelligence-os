@@ -451,19 +451,45 @@ async function listAccessibleBrands({ pool, userId, workspaceId, limit }) {
     );
   }
 
-  const metadataByKey = new Map();
+  // Canonical IDs outrank legacy aliases. A legacy brand name/target key is
+  // not a globally unique resource identity; competing matches must never
+  // disclose another Brand's metadata through an authorized workspace grant.
+  const metadataById = new Map();
+  const metadataByAlias = new Map();
+  const ambiguousAliases = new Set();
+  const ambiguousIds = new Set();
   for (const row of brandRows) {
-    for (const value of [row.brand_id, row.target_key, row.normalized_brand_name, row.brand_name]) {
-      for (const key of brandLookupKeys(value)) metadataByKey.set(key.toLowerCase(), row);
+    const brandId = normalizedString(row.brand_id, 256).toLowerCase();
+    if (!brandId) continue;
+    if (metadataById.has(brandId)) {
+      metadataById.set(brandId, null);
+      ambiguousIds.add(brandId);
+    } else {
+      metadataById.set(brandId, row);
+    }
+    for (const value of [row.target_key, row.normalized_brand_name, row.brand_name]) {
+      for (const key of brandLookupKeys(value)) {
+        const alias = key.toLowerCase();
+        if (ambiguousAliases.has(alias)) continue;
+        const previous = metadataByAlias.get(alias);
+        if (previous && normalizedString(previous.brand_id, 256).toLowerCase() !== brandId) {
+          metadataByAlias.delete(alias);
+          ambiguousAliases.add(alias);
+        } else {
+          metadataByAlias.set(alias, row);
+        }
+      }
     }
   }
 
   return {
     membership_role: membership.role || null,
     brands: grants.map((grant) => {
-      const metadata = brandLookupKeys(grant.brand_ref)
-        .map((key) => metadataByKey.get(key.toLowerCase()))
-        .find(Boolean);
+      const lookupKeys = brandLookupKeys(grant.brand_ref).map((key) => key.toLowerCase());
+      const metadata = lookupKeys.map((key) => metadataById.get(key)).find(Boolean)
+        || lookupKeys.filter((key) => !ambiguousAliases.has(key))
+          .map((key) => metadataByAlias.get(key))
+          .find((row) => row && !ambiguousIds.has(normalizedString(row.brand_id, 256).toLowerCase()));
       return {
         ...grant,
         brand_id: metadata?.brand_id || null,
