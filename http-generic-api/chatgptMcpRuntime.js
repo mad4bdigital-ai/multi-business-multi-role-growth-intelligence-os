@@ -344,7 +344,10 @@ function resolveLegacyPrincipal(headers, env, verifyAuthorization) {
   };
 }
 
-async function listAccessibleWorkspaces({ pool, userId, limit }) {
+async function listAccessibleWorkspaces({ pool, userId, limit, tenantId = null }) {
+  // A Tenant-bound OAuth grant can only enumerate that same Tenant, even
+  // when its user also has active memberships in other workspaces.
+  const tenantConstraint = tenantId ? " AND m.tenant_id = ?" : "";
   const [rows] = await pool.query(
     `SELECT m.tenant_id AS workspace_id,
             t.display_name,
@@ -357,9 +360,10 @@ async function listAccessibleWorkspaces({ pool, userId, limit }) {
       WHERE m.user_id = ?
         AND m.status = 'active'
         AND t.status = 'active'
+        ${tenantConstraint}
       ORDER BY m.granted_at ASC
       LIMIT ?`,
-    [userId, limit],
+    tenantId ? [userId, tenantId, limit] : [userId, limit],
   );
 
   return rows.map((row) => ({
@@ -451,19 +455,45 @@ async function listAccessibleBrands({ pool, userId, workspaceId, limit }) {
     );
   }
 
-  const metadataByKey = new Map();
+  // Canonical IDs outrank legacy aliases. A legacy brand name/target key is
+  // not a globally unique resource identity; competing matches must never
+  // disclose another Brand's metadata through an authorized workspace grant.
+  const metadataById = new Map();
+  const metadataByAlias = new Map();
+  const ambiguousAliases = new Set();
+  const ambiguousIds = new Set();
   for (const row of brandRows) {
-    for (const value of [row.brand_id, row.target_key, row.normalized_brand_name, row.brand_name]) {
-      for (const key of brandLookupKeys(value)) metadataByKey.set(key.toLowerCase(), row);
+    const brandId = normalizedString(row.brand_id, 256).toLowerCase();
+    if (!brandId) continue;
+    if (metadataById.has(brandId)) {
+      metadataById.set(brandId, null);
+      ambiguousIds.add(brandId);
+    } else {
+      metadataById.set(brandId, row);
+    }
+    for (const value of [row.target_key, row.normalized_brand_name, row.brand_name]) {
+      for (const key of brandLookupKeys(value)) {
+        const alias = key.toLowerCase();
+        if (ambiguousAliases.has(alias)) continue;
+        const previous = metadataByAlias.get(alias);
+        if (previous && normalizedString(previous.brand_id, 256).toLowerCase() !== brandId) {
+          metadataByAlias.delete(alias);
+          ambiguousAliases.add(alias);
+        } else {
+          metadataByAlias.set(alias, row);
+        }
+      }
     }
   }
 
   return {
     membership_role: membership.role || null,
     brands: grants.map((grant) => {
-      const metadata = brandLookupKeys(grant.brand_ref)
-        .map((key) => metadataByKey.get(key.toLowerCase()))
-        .find(Boolean);
+      const lookupKeys = brandLookupKeys(grant.brand_ref).map((key) => key.toLowerCase());
+      const metadata = lookupKeys.map((key) => metadataById.get(key)).find(Boolean)
+        || lookupKeys.filter((key) => !ambiguousAliases.has(key))
+          .map((key) => metadataByAlias.get(key))
+          .find((row) => row && !ambiguousIds.has(normalizedString(row.brand_id, 256).toLowerCase()));
       return {
         ...grant,
         brand_id: metadata?.brand_id || null,
@@ -480,12 +510,18 @@ async function listAccessibleBrands({ pool, userId, workspaceId, limit }) {
 }
 
 async function executeTool({ name, args, principal, pool, requestId }) {
+  // The verified Remote MCP OAuth grant is bound to its selected Tenant.
+  // Legacy user-JWT sessions keep their established membership semantics.
+  const oauthTenantId = principal.claims?.auth_mode === "remote_mcp_oauth_2_1"
+    ? normalizedString(principal.tenant_id, 128)
+    : "";
   if (name === "list_accessible_workspaces") {
     const limit = boundedInteger(args?.limit, 25, MAX_WORKSPACES);
     const workspaces = await listAccessibleWorkspaces({
       pool,
       userId: principal.user_id,
       limit,
+      tenantId: oauthTenantId || null,
     });
     return toolSuccessResult({
       summary: `Found ${workspaces.length} accessible workspace${workspaces.length === 1 ? "" : "s"}.`,
@@ -501,6 +537,13 @@ async function executeTool({ name, args, principal, pool, requestId }) {
       return toolErrorResult({
         code: "MCP_INPUT_INVALID",
         message: "workspace_id is required.",
+        requestId,
+      });
+    }
+    if (oauthTenantId && workspaceId !== oauthTenantId) {
+      return toolErrorResult({
+        code: "MCP_CONTEXT_DENIED",
+        message: "The selected resource is not accessible to the signed-in user.",
         requestId,
       });
     }

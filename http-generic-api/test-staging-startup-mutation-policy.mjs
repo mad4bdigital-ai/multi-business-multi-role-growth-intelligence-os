@@ -136,6 +136,27 @@ test("Dedicated Staging writer must target the local runtime-db and same databas
   assert.doesNotThrow(() => requireLocalStagingControlPlaneTarget({ NODE_ENV: "production" }));
 });
 
+test("PR-head Staging writer must pass preflight before self-update or container replacement", () => {
+  const launcher = readFileSync(new URL("../autopilot-portable-staging/Start-AutoPilot.ps1", import.meta.url), "utf8");
+  const preflight = launcher.indexOf("Assert-PRHeadStagingWriterPreflight $EnvFile\nInvoke-SelfUpdate");
+  assert.ok(preflight > 0, "writer readiness preflight must precede source checkout");
+  assert.match(launcher, /STAGING_CONTROL_PLANE_WRITE_IDENTITY_REQUIRED/);
+  assert.match(launcher, /STAGING_CONTROL_PLANE_WRITE_LOGIN_UNVERIFIED/);
+  assert.match(launcher, /\$startInfo\.Arguments = "exec -i \$dbContainer sh"/);
+  assert.match(launcher, /\$client\.StandardInput\.Write\(\$script\)/);
+  assert.match(launcher, /STAGING_CONTROL_PLANE_WRITE_GRANTS_INVALID/);
+});
+
+test("PR-head Staging re-creates only app and checks every dependency identity", () => {
+  const launcher = readFileSync(new URL("../autopilot-portable-staging/Start-AutoPilot.ps1", import.meta.url), "utf8");
+  const branch = launcher.split('if ($env:STAGING_CERT_AUTHORITY_MODE -eq "pull_request_head") {').at(-1);
+  assert.ok(branch, "PR-head app-only branch is required");
+  const body = branch.split('    } else {\n        Write-StagingLog -Level info -Component $LogComponent -Stage "compose-up" -Message "starting local application topology"')[0];
+  assert.match(body, /"up", "-d", "--no-deps", "--no-build", "--force-recreate", "app"/);
+  assert.match(body, /\$currentId -ne \$dependencyIds\[\$service\]/);
+  assert.doesNotMatch(body, /Invoke-StagingComposeUpWithZombieRecovery/);
+});
+
 test("Server validates dedicated writer before manifest generation and listener", () => {
   const server = read("./server.js");
   const validation = server.indexOf("resolveControlPlaneWriteDbConfig(process.env);");

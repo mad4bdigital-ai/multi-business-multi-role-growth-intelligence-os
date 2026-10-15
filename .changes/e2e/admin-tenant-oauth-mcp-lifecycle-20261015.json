@@ -1,0 +1,117 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "admin-tenant-oauth-mcp-lifecycle-20261015",
+  "title": "Fail-closed Admin and Tenant OAuth/MCP lifecycle isolation",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/admin-tenant-oauth-mcp-lifecycle-20261015.json",
+      "http-generic-api/chatgptMcpRuntime.js",
+      "http-generic-api/remoteMcpAccessTokenVerifier.js",
+      "http-generic-api/routes/remoteMcpOAuthRoutes.js",
+      "http-generic-api/test-chatgpt-mcp-readonly-runtime.mjs",
+      "http-generic-api/test-remote-mcp-access-token-verifier.mjs",
+      "http-generic-api/test-remote-mcp-oauth21-routes.mjs",
+      "docs/governance/admin-tenant-oauth-mcp-lifecycle-acceptance-20261015.md",
+      ".github/governance/test-authority-registry.json",
+      "autopilot-portable-staging/Start-AutoPilot.ps1",
+      "http-generic-api/test-staging-startup-mutation-policy.mjs",
+      "http-generic-api/scripts/staging-authenticated-remote-readiness.mjs",
+      "http-generic-api/openApiMutationGovernance.js",
+      "http-generic-api/test-staging-mcp-oauth-openapi-gate.mjs"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Close read-only MCP cross-Tenant identity disclosure, OAuth grant/membership status ordering, and failed revocation persistence while keeping both runtime environments explicitly governed.",
+      "e2e_journeys": [
+        {
+          "id": "oauth-mcp-tenant-and-admin-safety",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Platform user (Admin or Tenant) through protected OAuth and MCP tests",
+          "entrypoint": "Synthetic OAuth token issuance, scope upgrade, revocation persistence, MCP workspace/Brand tool invocation.",
+          "terminal_outcome": "Revoked or inactive Tenant tokens fail before incremental OAuth consent; ambiguous global Brand metadata is not returned across Tenant grants; failed revocation storage is not represented as successful disconnect.",
+          "steps": [
+            "Verify signed OAuth access grant belongs to active subject, client, tenant and resource.",
+            "Exercise insufficient-scope, revoked-grant and inactive Tenant paths.",
+            "Exercise Brand grant lookup with duplicate global aliases and exact canonical Brand IDs.",
+            "Simulate database revocation write failure, then a successful retry.",
+            "Preserve environment-separation declarations; no live Staging or Production grant is performed."
+          ],
+          "assertions": [
+            "Scope re-consent is offered only after grant validity and active membership have been established.",
+            "Ambiguous Brand aliases return no cross-Tenant metadata; exact canonical Brand IDs take precedence.",
+            "Revocation persistence failure returns HTTP 503 rather than false success; unknown token remains idempotent HTTP 200.",
+            "Shared runtime changes require separately certified live Staging before any Production promotion.",
+            "No production mutations, OAuth real tokens or secrets in test logs."
+          ],
+          "tests": [
+            {
+              "id": "oauth-active-grant-before-scope-upgrade",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-remote-mcp-access-token-verifier.mjs",
+              "args": []
+            },
+            {
+              "id": "brand-canonical-identity-cross-tenant-mcp",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-chatgpt-mcp-readonly-runtime.mjs",
+              "args": []
+            },
+            {
+              "id": "oauth-revocation-persistence-retry",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-remote-mcp-oauth21-routes.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-mcp-oauth-code-openapi-mutation-boundary",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-mcp-oauth-openapi-gate.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/admin-tenant-oauth-mcp-lifecycle-20261015.json",
+            "http-generic-api/chatgptMcpRuntime.js",
+            "http-generic-api/remoteMcpAccessTokenVerifier.js",
+            "http-generic-api/routes/remoteMcpOAuthRoutes.js",
+            "http-generic-api/test-chatgpt-mcp-readonly-runtime.mjs",
+            "http-generic-api/test-remote-mcp-access-token-verifier.mjs",
+            "http-generic-api/test-remote-mcp-oauth21-routes.mjs",
+            "docs/governance/admin-tenant-oauth-mcp-lifecycle-acceptance-20261015.md",
+            ".github/governance/test-authority-registry.json",
+            "autopilot-portable-staging/Start-AutoPilot.ps1",
+            "http-generic-api/test-staging-startup-mutation-policy.mjs",
+            "http-generic-api/scripts/staging-authenticated-remote-readiness.mjs",
+            "http-generic-api/openApiMutationGovernance.js",
+            "http-generic-api/test-staging-mcp-oauth-openapi-gate.mjs"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}
