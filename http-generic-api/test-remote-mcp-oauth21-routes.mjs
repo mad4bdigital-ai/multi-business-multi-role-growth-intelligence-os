@@ -22,6 +22,7 @@ const grantsById = new Map();
 const grantsByAccessJti = new Map();
 const grantsByRefreshHash = new Map();
 let membershipActive = true;
+let revocationStorageUnavailable = false;
 
 function result(affectedRows = 0) {
   return [{ affectedRows }, []];
@@ -30,6 +31,9 @@ function result(affectedRows = 0) {
 const pool = {
   async query(sqlValue, params = []) {
     const sql = String(sqlValue);
+    if (revocationStorageUnavailable && sql.includes("SET status = 'revoked'")) {
+      throw new Error("test-only revocation persistence outage");
+    }
     if (sql.includes("INSERT INTO remote_mcp_oauth_clients")) {
       clients.set(params[0], {
         client_id: params[0],
@@ -450,6 +454,44 @@ try {
   });
   assert.equal(revokeResponse.status, 200);
   assert.equal(grantsByAccessJti.get(refreshedClaims.jti).status, "revoked");
+
+  // Failure to persist revocation cannot be reported as a successful 200:
+  // clients must be able to distinguish an unknown token from a storage outage.
+  assert.equal(grantsByAccessJti.get(incrementalAccessClaims.jti).status, "active");
+  revocationStorageUnavailable = true;
+  const failedRevocationResponse = await fetch(`${baseUrl}/auth/mcp/oauth/revoke`, {
+    method: "POST",
+    headers: { "content-type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      client_id: registered.client_id,
+      token: incrementalTokens.access_token,
+      token_type_hint: "access_token",
+    }),
+  });
+  const failedRevocation = await json(failedRevocationResponse);
+  assert.equal(failedRevocationResponse.status, 503);
+  assert.equal(failedRevocation.error, "temporarily_unavailable");
+  assert.equal(grantsByAccessJti.get(incrementalAccessClaims.jti).status, "active");
+
+  revocationStorageUnavailable = false;
+  const retriedRevocationResponse = await fetch(`${baseUrl}/auth/mcp/oauth/revoke`, {
+    method: "POST",
+    headers: { "content-type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      client_id: registered.client_id,
+      token: incrementalTokens.access_token,
+      token_type_hint: "access_token",
+    }),
+  });
+  assert.equal(retriedRevocationResponse.status, 200);
+  assert.equal(grantsByAccessJti.get(incrementalAccessClaims.jti).status, "revoked");
+
+  const unknownTokenRevoke = await fetch(`${baseUrl}/auth/mcp/oauth/revoke`, {
+    method: "POST",
+    headers: { "content-type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ client_id: registered.client_id, token: "not.a.valid.jwt" }),
+  });
+  assert.equal(unknownTokenRevoke.status, 200);
 
   const originalRefreshHash = sha256(tokens.refresh_token);
   assert.equal(grantsByRefreshHash.get(originalRefreshHash).status, "rotated");
