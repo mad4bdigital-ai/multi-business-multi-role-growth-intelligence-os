@@ -34,16 +34,10 @@ $hash=(Get-FileHash -LiteralPath $BinaryPath -Algorithm SHA256).Hash.ToLowerInva
 if($hash -cne $ExpectedBinarySha256.ToLowerInvariant()){
   throw 'BROKER_COMPILED_BINARY_SHA256_MISMATCH'
 }
-$testRaw=(& $BinaryPath --self-test 2>$null|Out-String).Trim()
-if($LASTEXITCODE -ne 0){throw 'BROKER_COMPILED_BINARY_NOT_INERT'}
-$test=$testRaw|ConvertFrom-Json
-if($test.service_name -cne $serviceName -or
-   $test.mode -cne 'inert_no_io' -or
-   $test.operational_broker -ne $false -or
-   $test.db_admin_authorized -ne $false -or
-   $test.production_mutation -ne $false){
-  throw 'BROKER_COMPILED_BINARY_CONTRACT_INVALID'
-}
+# Never execute a supplied EXE inside an elevated installer.
+# Compile and self-test under the unprivileged Build helper instead;
+# this installer checks only the exact externally reviewed file digest.
+# Digest equality proves integrity only, not independent publisher trust.
 $deploy=Get-Content -Raw (Join-Path $RepositoryPath 'autopilot-portable-staging\auto-deploy-state.json')|ConvertFrom-Json
 if($deploy.deployed_commit -cne $ExpectedCommit -or
    $deploy.certified_commit -cne $ExpectedCommit -or
@@ -65,7 +59,7 @@ if(-not $Apply){
     contract='mad4b.staging.backup-broker.native-install-plan.v1'
     exact_sha=$ExpectedCommit
     sha256_verified=$true
-    compiled_inert_host_verified=$true
+    installer_executed_binary=$false
     staging_certified=$true
     service_present=$false
     can_apply_under_current_token=$isAdmin

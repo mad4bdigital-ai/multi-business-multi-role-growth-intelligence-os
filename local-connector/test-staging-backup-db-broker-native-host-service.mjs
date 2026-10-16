@@ -36,6 +36,9 @@ for(const [label,regex] of [
 }
 assert(build.includes("/reference:"),"native ServiceProcess reference expected");
 assert(build.includes("--self-test"),"compiled native host must self-test");
+assert(!installer.includes("& $BinaryPath"),"elevated installer must not run a caller-supplied binary");
+assert(installer.includes("installer_executed_binary=$false"),
+  "read-only installer must disclose that it did not execute the binary");
 for(const [label,regex] of [
  ["network",/\b(?:HttpListener|Socket|TcpClient|UdpClient|WebClient|HttpClient)\b/],
  ["SQL",/\b(?:SqlConnection|MySqlConnection|OleDbConnection|OdbcConnection)\b/],
