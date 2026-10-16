@@ -4,6 +4,28 @@
   "purpose": "Permanent, explicitly reviewed code-owned CI governance inputs that extend the legacy monolithic configuration fingerprint baseline without suppressing drift.",
   "entries": [
     {
+      "fingerprint": "http-generic-api/stagingBackupManagedMariaDbProvider.mjs|accountHost|literal_declaration|accounthost",
+      "owner": "staging-backup-reader-governance",
+      "reason": "Fixed, nonsecret reader account host pattern for Staging-only 172.18.% network, enforced as an invariant. The fingerprint registry provides no runtime broker authority or permission to provision MariaDB users.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/stagingBackupManagedMariaDbProvider.mjs|dbHost|literal_declaration|dbhost",
+      "owner": "staging-backup-reader-governance",
+      "reason": "Fixed nonsecret Staging-only runtime-db Docker service locator, verified through independent broker attestation and with no fallback to Production or generic SQL execution.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
       "fingerprint": ".github/ops/github-followup-automerge-readiness.mjs|branch|environment_reference|target.branch",
       "owner": "repository-governance",
       "reason": "Target branch is a read-only identity binding used to reject cross-branch auto-merge registration and is constrained by the verifier to the governed main target.",
