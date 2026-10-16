@@ -12,6 +12,7 @@
       "autopilot-portable-staging/Inspect-StagingBackupBrokerPrerequisites.ps1",
       "docs/runbooks/staging-backup-broker-sandbox-candidate-20261016.md",
       "http-generic-api/config/repository-governance-constitution.json",
+      "http-generic-api/config/deployment-branch-policy.json",
       "http-generic-api/docker-compose.staging.backup-broker-preflight.yml",
       "local-connector/staging-backup-db-broker-host-discovery.mjs",
       "local-connector/test-staging-backup-db-broker-host-discovery.mjs",
