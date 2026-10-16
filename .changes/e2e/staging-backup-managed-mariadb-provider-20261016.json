@@ -11,6 +11,7 @@
       ".github/derived-state-governance.json",
       ".github/governance/test-authority-registry.json",
       "http-generic-api/config/repository-governance-constitution.json",
+      "docs/governance/configuration-drift-baseline-extensions.json",
       "docs/runbooks/staging-backup-managed-mariadb-provider-20261016.md",
       "http-generic-api/stagingBackupManagedMariaDbProvider.mjs",
       "http-generic-api/test-staging-backup-managed-mariadb-provider.mjs"
@@ -86,7 +87,8 @@
             ".github/derived-state-governance.json",
             ".github/governance/test-authority-registry.json",
             "http-generic-api/config/repository-governance-constitution.json",
-            "docs/runbooks/staging-backup-managed-mariadb-provider-20261016.md",
+            "docs/governance/configuration-drift-baseline-extensions.json",
+      "docs/runbooks/staging-backup-managed-mariadb-provider-20261016.md",
             "http-generic-api/stagingBackupManagedMariaDbProvider.mjs",
             "http-generic-api/test-staging-backup-managed-mariadb-provider.mjs"
           ]
