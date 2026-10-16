@@ -313,3 +313,48 @@ Never clear operational Broker or independent trust blockers from these
 source-only tests. broker_operationally_certified=false,
 db_admin_authorized=false, backup_executed=false,
 restore_executed=false, production_mutation=false remain mandatory.
+
+
+## Externally signed audit readback acceptance - source-only
+
+The portable Staging module local-connector/staging-backup-broker-audit-readback.mjs
+checks the consistency of THREE distinct Ed25519 signatures: original
+elevated OS evidence, an independent witness and a purported provider
+receipt over exact canonical saved witness envelope. Provider receipt
+must bind Staging-only object key using SHA256 of saved envelope,
+explicit object version, exact certified Git SHA, original challenge
+nonce and COMPLIANCE retention claim of at least thirty days.
+Readback bytes, SHA256, signature, strict fields, freshness and
+provider-signer separation are checked.
+
+A signed retention claim does NOT prove WORM storage! Even on a
+cryptographically successful result this function reports false for
+external_custody_verified,
+externally_immutable_audit_verified,
+external_retention_policy_independently_measured,
+external_readback_independently_authenticated,
+trusted_provider_key_independently_pinned,
+replay_registry_externally_controlled,
+broker_operationally_certified,
+db_admin_authorized, backup_executed, restore_executed and
+production_mutation. Its explicit trust blockers remain.
+
+No external provider is connected and no provider secrets are loaded
+or signing keys stored. The tests use three ephemeral in-memory keys
+and 22 negative scenarios. Test outcomes never establish actual WORM
+custody or an independent root key.
+
+Real provider acceptance requires Owner-selected external WORM/retention
+provider independently operated from Windows Broker/Hostinger Staging,
+operator verification of account/endpoint identity and actual object
+lock/retention configuration, protection against deletion/bypass,
+independent retrieval of exact retained version, independently pinned
+provider verification key, externally controlled issuance and
+atomic replay consumption, plus auditable key rotation/compromise plan.
+A self-reported COMPLIANCE field and synthetic provider signatures
+are NOT independent evidence of those facts.
+
+Source-only verifier: no Windows service registration, no HTTP/MCP route,
+no SQL execution, no credential installation, no backup or restore,
+no Production change. Any future real provider write/readback test
+requires explicit Owner authorization for that provider and scope.

@@ -24,7 +24,9 @@
       "local-connector/staging-backup-broker-challenge-ledger.mjs",
       "local-connector/test-staging-backup-broker-challenge-ledger.mjs",
       "local-connector/staging-backup-broker-pinned-key-registry.mjs",
-      "local-connector/test-staging-backup-broker-pinned-key-registry.mjs"
+      "local-connector/test-staging-backup-broker-pinned-key-registry.mjs",
+      "local-connector/staging-backup-broker-audit-readback.mjs",
+      "local-connector/test-staging-backup-broker-audit-readback.mjs"
     ]
   },
   "merge_contract": {
@@ -278,6 +280,40 @@
           "evidence_paths": [
             "local-connector/staging-backup-broker-pinned-key-registry.mjs",
             "local-connector/test-staging-backup-broker-pinned-key-registry.mjs"
+          ]
+        },
+        {
+          "id": "staging-broker-signed-provider-retention-receipt-readback-no-authority",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Offline Staging external audit verifier, without independent provider credentials",
+          "entrypoint": "Validate separately signed OS/witness chain plus provider-signed retention claim against exact canonical witness bytes read back from purported external storage.",
+          "terminal_outcome": "Three distinct Ed25519 signatures and exact Staging/source/nonce/object/content/retention claim consistent, 22 integrity and authority-spoofing cases denied; actual provider WORM remains unverified and trust gates blocked.",
+          "steps": [
+            "Generate three ephemeral test-only signing keys: OS, witness and independent provider role.",
+            "Verify original signed OS evidence, separately signed witness and domain-separated signed provider retention claim.",
+            "Compare entire stored witness-envelope bytes with exactly expected canonical envelope and provider key/object/version/retention bindings.",
+            "Reject wrong source, nonce, binary, provider key, object path, content digest, short retention, old/future claims, signature forgery and authority injection.",
+            "Always deny external WORM certification and DBA/Backup/Restore operational authority until genuinely independent provider readback and retention evidence exist."
+          ],
+          "assertions": [
+            "Provider receipt signature and Staging witness chain are mathematically valid but not evidence of an independently authenticated WORM service.",
+            "No caller-provided retention_mode=COMPLIANCE or claim booleans can clear WORM/independent custody blockers.",
+            "No real provider credentials, network requests, DB mutations, production changes or key installation.",
+            "The source test must include at least 22 negative cases and keep Broker operation denied."
+          ],
+          "tests": [
+            {
+              "id": "staging-broker-provider-retention-readback-offline",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "local-connector/test-staging-backup-broker-audit-readback.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "local-connector/staging-backup-broker-audit-readback.mjs",
+            "local-connector/test-staging-backup-broker-audit-readback.mjs"
           ]
         }
       ],
