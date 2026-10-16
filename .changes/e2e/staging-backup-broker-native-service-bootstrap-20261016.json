@@ -1,0 +1,84 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-backup-broker-native-service-bootstrap-20261016",
+  "title": "Native Windows Staging broker host bootstrap with fail-closed installation authority",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-backup-broker-native-service-bootstrap-20261016.json",
+      ".github/derived-state-governance.json",
+      "autopilot-portable-staging/Build-StagingBackupBrokerHostService.ps1",
+      "autopilot-portable-staging/Install-StagingBackupBrokerHostService.ps1",
+      "docs/runbooks/staging-backup-broker-native-host-service-20261016.md",
+      "http-generic-api/config/repository-governance-constitution.json",
+      "local-connector/staging-backup-db-broker-host-service.cs",
+      "local-connector/test-staging-backup-db-broker-native-host-service.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Provide a native Windows SCM service skeleton and bounded Staging-only installation plan that cannot grant DBA authority.",
+      "e2e_journeys": [
+        {
+          "id": "native-windows-staging-service-build-plan-denial",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Staging OS Operator",
+          "entrypoint": "Build a credential-free ServiceBase host and verify the elevated-only installer guards.",
+          "terminal_outcome": "Native host compiles and selftests; non-admin installation stops before any OS mutation; no DBA or Production authority is generated.",
+          "steps": [
+            "Compile native ServiceBase host with built-in Windows compiler, without a third-party unsigned wrapper.",
+            "Verify signed-out source SHA, executable hash, default read-only installer and exact deployment certification.",
+            "Reject unauthorized interactive execution and unprivileged Windows service installation.",
+            "Require explicit Staging-only inert service scope and protected virtual service identity for future admin operation.",
+            "Do not open database, network or cryptographic operations in the inert ServiceBase class."
+          ],
+          "assertions": [
+            "Native code contains no network/DB/filesystem writes or handler for signed operation tickets.",
+            "Installer checks exact main/source/deployed in-container SHA, binary digest and elevation before modifying the OS.",
+            "No automatic GitHub source code approval can authorize a DBA operation or backup/restore.",
+            "Staging service bootstrap and tests cannot mutate Production or grant DBA."
+          ],
+          "tests": [
+            {
+              "id": "native-host-negative-authority-contract",
+              "runner": "node",
+              "path": "local-connector/test-staging-backup-db-broker-native-host-service.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "autopilot-portable-staging/Install-StagingBackupBrokerHostService.ps1",
+            "docs/runbooks/staging-backup-broker-native-host-service-20261016.md"
+          ]
+        }
+      ],
+      "tests": [
+        {
+          "id": "native-host-negative-authority-contract",
+          "runner": "node",
+          "path": "local-connector/test-staging-backup-db-broker-native-host-service.mjs",
+          "args": []
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}
