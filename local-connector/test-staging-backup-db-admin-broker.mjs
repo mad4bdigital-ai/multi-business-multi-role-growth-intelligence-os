@@ -135,11 +135,12 @@ for(const [label,mutations,expected] of [
   }),e=>e.code===expected,label);
   assert.equal(v.st.opened,0,label);
 }
-const wrongEndpoint=mock({boundTargetPatch:{host:"production-db"}});
-await assert.rejects(opens(wrongEndpoint),
-  e=>e.code==="INDEPENDENT_DB_BROKER_ENDPOINT_ATTESTATION_REQUIRED");
-assert.equal(wrongEndpoint.st.closed,1);
-assert.equal(wrongEndpoint.st.queries.length,0);
+for(const invalid of [mock({boundTargetPatch:{host:"other-db"}})]){
+  await assert.rejects(opens(invalid),
+    e=>e.code==="INDEPENDENT_DB_BROKER_ENDPOINT_ATTESTATION_REQUIRED");
+  assert.equal(invalid.st.closed,1);
+  assert.equal(invalid.st.queries.length,0);
+}
 const badIdentity=mock({principal:"runtime_app"});
 await assert.rejects(opens(badIdentity),
   e=>e.code==="INDEPENDENT_DB_BROKER_ADMIN_IDENTITY_DENIED");
