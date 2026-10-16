@@ -16,7 +16,9 @@
       "local-connector/staging-backup-db-broker-host-service.cs",
       "local-connector/test-staging-backup-db-broker-native-host-service.mjs",
       "autopilot-portable-staging/Inspect-StagingBackupBrokerOsEvidence.ps1",
-      "local-connector/test-staging-backup-broker-os-evidence.mjs"
+      "local-connector/test-staging-backup-broker-os-evidence.mjs",
+      "local-connector/staging-backup-broker-signed-os-evidence.mjs",
+      "local-connector/test-staging-backup-broker-signed-os-evidence.mjs"
     ]
   },
   "merge_contract": {
@@ -136,6 +138,40 @@
           "evidence_paths": [
             "autopilot-portable-staging/Inspect-StagingBackupBrokerOsEvidence.ps1",
             "local-connector/test-staging-backup-broker-os-evidence.mjs"
+          ]
+        },
+        {
+          "id": "staging-broker-ed25519-cryptographic-evidence-verification-no-authority",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Staging audit-verifier developer without trusted signer custody",
+          "entrypoint": "Validate detached Ed25519 evidence using in-memory ephemeral test keys and a trusted-expectations argument.",
+          "terminal_outcome": "Cryptographic signature and exact evidence-bound assertions validate, but independent pinned-key custody, replay registry, immutable audit and operational grant all remain denied.",
+          "steps": [
+            "Generate an ephemeral Ed25519 test key in CI memory without persisting a private key.",
+            "Sign canonical domain-separated payload bound to Staging exact SHA, installed executable digest, nonce and OS evidence.",
+            "Reject substitutions to key, signature, schema, timestamp, nonce, host, account, hash, ACL and false authority flags.",
+            "Report successful cryptographic verification with blocked external trust/custody and immutable-audit gates.",
+            "Never create credentials, authorize one-shot DBA operations, execute Backup/Restore or mutate Production."
+          ],
+          "assertions": [
+            "Signed payload bytes must be canonical and Ed25519 SPKI pin fingerprint must match.",
+            "No caller-controlled pin or JSON field can independently certify Broker or authorize DBA.",
+            "Unissued nonce, replay, stale or future timestamps are refused as cryptographic binding failures.",
+            "Even a syntactically and cryptographically valid signature is not an externally custodied trusted attestation."
+          ],
+          "tests": [
+            {
+              "id": "staging-broker-ed25519-offline-verifier",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "local-connector/test-staging-backup-broker-signed-os-evidence.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "local-connector/staging-backup-broker-signed-os-evidence.mjs",
+            "local-connector/test-staging-backup-broker-signed-os-evidence.mjs"
           ]
         }
       ],

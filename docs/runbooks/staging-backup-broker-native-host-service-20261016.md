@@ -175,3 +175,52 @@ separately provisioned, independently verifiable signing identity, trusted
 public-key pin, freshness binding and immutable external audit receipt, as
 well as the other DBA/backup one-shot prerequisites. Do not replace those
 controls with a manually supplied JSON boolean or silently self-sign evidence.
+
+
+## Offline Ed25519 verification bridge (source-only, trust still blocked)
+
+The new local-connector/staging-backup-broker-signed-os-evidence.mjs
+implements an offline, pure cryptographic verifier with **no key generation,
+no OS/DB reads, no network, no credential storage and no operational
+authority**. Its input is a detached Ed25519 signature over a *canonical
+JSON payload* with fixed domain separation
+(MAD4B/STAGING/BROKER/OS-EVIDENCE/V1 plus newline), together with
+caller-supplied public-key SPKI DER and SHA-256 fingerprint.
+
+The signed payload must bind a 256-bit challenge nonce, fixed verifier
+audience, exact certified Staging Git SHA and measured installed
+Windows service EXE SHA-256. It must include the positive local OS evidence
+contract with exact device, manual-start SCM service, virtual account, SID
+type, running PID, protected directory and file ACL assertions, bounded UTC
+timestamp and explicit false values for DBA / backup / restore / Production
+authority flags. Canonical byte comparison rejects ambiguous JSON.
+
+The verifyStagingBrokerSignedOsEvidence() function accepts a signature
+envelope, the trusted caller's expected SHA/EXE digest/challenge nonce,
+a public-key SPKI pin, and a verified clock timestamp. It verifies Ed25519,
+key type and fingerprint, nonce, payload binding and freshness.
+
+**Its cryptographically valid result is never operational authorization.**
+It may report cryptographic_signature_valid=true and
+os_evidence_bindings_valid=true, but always
+trusted_key_custody_verified=false,
+immutable_external_audit_verified=false,
+replay_registry_verified=false,
+independently_attested=false,
+broker_operationally_certified=false and db_admin_authorized=false.
+
+An attacker can supply an arbitrary Ed25519 public key and a valid signature
+created with its own private key. That proves mathematical consistency only,
+not independent key custody or owner authorization. Likewise, a caller-
+supplied challenge nonce does not establish durable issuance or replay
+prevention. The verifier does NOT clear the protected independent OS
+attestation trust gate.
+
+CI security tests use ephemeral Ed25519 keys held **in memory only**.
+Real governed trust separately requires an independently controlled public
+key pin and rotation, challenge issuance and durable one-shot nonce
+consumption, external immutable audit receipt verified independently,
+signing-key custody outside the Broker host, and explicit one-shot Owner
+authority before any DB action. The current change intentionally does not
+create those authorities, store private material, connect to MariaDB,
+execute Backup/Restore or mutate Production.
