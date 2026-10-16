@@ -20,17 +20,35 @@ try{
      $base.expected_sha -ne $ExpectedCommit){throw 'HOST_DISCOVERY_CONTRACT_UNVERIFIED'}
 }catch{throw 'HOST_DISCOVERY_CONTRACT_UNVERIFIED'}
 $service=$null;$serviceImageDigest=''
+$serviceImageMeasurementStatus='service_not_running'
 try{
   $service=Get-CimInstance Win32_Service -Filter "Name='Mad4B-Staging-Backup-Db-Broker'" -ErrorAction Stop
 }catch{}
 if($null -ne $service -and $service.State -eq 'Running' -and $service.ProcessId -gt 0){
+  $serviceImageMeasurementStatus='process_metadata_unavailable'
   try{
     $process=Get-CimInstance Win32_Process -Filter "ProcessId = $($service.ProcessId)" -ErrorAction Stop
-    $exe=[string]$process.ExecutablePath
-    if(-not [string]::IsNullOrWhiteSpace($exe) -and (Test-Path -LiteralPath $exe -PathType Leaf)){
-      $serviceImageDigest=(Get-FileHash -LiteralPath $exe -Algorithm SHA256 -ErrorAction Stop).Hash.ToLowerInvariant()
+    if($null -ne $process){
+      $exe=[string]$process.ExecutablePath
+      if([string]::IsNullOrWhiteSpace($exe)){
+        $serviceImageMeasurementStatus='process_path_not_disclosed'
+      }else{
+        # Never substitute an SCM ImagePath/build artifact for the running image.
+        $serviceImageMeasurementStatus='process_image_unreadable'
+        if(Test-Path -LiteralPath $exe -PathType Leaf -ErrorAction Stop){
+          $serviceImageDigest=(Get-FileHash -LiteralPath $exe -Algorithm SHA256 -ErrorAction Stop).Hash.ToLowerInvariant()
+          $serviceImageMeasurementStatus='measured_from_process_path'
+        }
+      }
     }
-  }catch{}
+  }catch{
+    if($_.Exception -is [System.UnauthorizedAccessException] -or
+       $_.Exception.Message -match '(?i)access is denied|permission denied'){
+      $serviceImageMeasurementStatus='os_access_denied'
+    }else{
+      $serviceImageMeasurementStatus='measurement_failed'
+    }
+  }
 }
 $e=[ordered]@{
   expected_sha=$ExpectedCommit
@@ -43,6 +61,7 @@ $e=[ordered]@{
   windows_service_pid=if($null -ne $service){[int]$service.ProcessId}else{0}
   windows_service_account=if($null -ne $service){[string]$service.StartName}else{''}
   process_image_sha256=$serviceImageDigest
+  process_image_measurement_status=$serviceImageMeasurementStatus
 }
 $e|ConvertTo-Json -Depth 6 -Compress|& node $assessor
 if($LASTEXITCODE -ne 2){throw 'BROKER_TRUST_DISCOVERY_MUST_FAIL_CLOSED'}

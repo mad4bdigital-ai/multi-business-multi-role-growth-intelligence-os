@@ -4,6 +4,11 @@ import {pathToFileURL} from "node:url";
 const SHA40=/^[0-9a-f]{40}$/i;
 const SHA256=/^[0-9a-f]{64}$/i;
 const DEVICE="DESKTOP-91FDEFP";
+const IMAGE_MEASUREMENT_STATUSES=new Set([
+  "service_not_running","process_metadata_unavailable",
+  "process_path_not_disclosed","process_image_unreadable",
+  "os_access_denied","measurement_failed","measured_from_process_path"
+]);
 const NOT_PRIVATE=/^(?:LocalSystem|NT AUTHORITY\\(?:SYSTEM|LOCAL SERVICE|NETWORK SERVICE)|LocalService|NetworkService)$/i;
 export function assessStagingBrokerTrustReadiness(e={}){
   const blockers=new Set();
@@ -47,6 +52,12 @@ export function assessStagingBrokerTrustReadiness(e={}){
     dedicated_service_running:e.windows_service_present===true&&
       e.windows_service_running===true,
     process_image_digest_observed:SHA256.test(String(e.process_image_sha256||"")),
+    process_image_measurement_status:IMAGE_MEASUREMENT_STATUSES.has(
+      e.process_image_measurement_status)?e.process_image_measurement_status:
+      "unreported_or_invalid",
+    process_image_measurement_needs_privileged_readonly_probe:
+      e.windows_service_running===true&&
+      !SHA256.test(String(e.process_image_sha256||"")),
     service_identity_independently_attested:false,
     broker_operationally_certified:false,
     owner_operation_approved:false,

@@ -29,6 +29,25 @@ const full={...base,windows_service_present:true,windows_service_running:true,
 const spoof=assess(full);
 assert.equal(spoof.dedicated_service_running,true);
 assert.equal(spoof.process_image_digest_observed,true);
+assert.equal(spoof.process_image_measurement_needs_privileged_readonly_probe,false);
+assert.equal(spoof.process_image_measurement_status,"unreported_or_invalid");
+for(const status of ["process_path_not_disclosed","os_access_denied",
+  "process_metadata_unavailable","measurement_failed"]){
+  const diagnosed=assess({...full,process_image_sha256:"",
+    process_image_measurement_status:status});
+  assert.equal(diagnosed.process_image_digest_observed,false);
+  assert.equal(diagnosed.process_image_measurement_status,status);
+  assert.equal(diagnosed.process_image_measurement_needs_privileged_readonly_probe,true);
+  assert(diagnosed.blockers.includes("BROKER_PROCESS_IMAGE_DIGEST_NOT_MEASURED"));
+  assert.equal(diagnosed.broker_operationally_certified,false);
+  assert.equal(diagnosed.db_admin_operation_authorized,false);
+}
+const forgedMeasurementStatus=assess({...full,
+  process_image_sha256:"",process_image_measurement_status:"externally_attested",
+  independently_signed:true});
+assert.equal(forgedMeasurementStatus.process_image_measurement_status,"unreported_or_invalid");
+assert.equal(forgedMeasurementStatus.broker_operationally_certified,false);
+assert(forgedMeasurementStatus.blockers.includes("BROKER_PROCESS_IMAGE_DIGEST_NOT_MEASURED"));
 assert.equal(spoof.service_identity_independently_attested,false);
 for(const k of ["broker_operationally_certified","owner_operation_approved",
  "db_admin_operation_authorized","reader_provisioned","backup_executed",
@@ -65,7 +84,11 @@ const script=fs.readFileSync(path.join(root,"autopilot-portable-staging",
  "Inspect-StagingBackupBrokerTrustReadiness.ps1"),"utf8");
 for(const str of ["-ExpectedCommit","Get-CimInstance Win32_Service",
  "Get-FileHash","HOST_DISCOVERY_CONTRACT_UNVERIFIED",
- "BROKER_TRUST_DISCOVERY_MUST_FAIL_CLOSED"])
+ "BROKER_TRUST_DISCOVERY_MUST_FAIL_CLOSED",
+ "process_image_measurement_status",
+ "process_path_not_disclosed",
+ "os_access_denied",
+ "Never substitute an SCM ImagePath/build artifact"])
  assert(script.includes(str),str);
 for(const forbidden of [/(?:CREATE\s+USER|GRANT\s+SELECT|DROP\s+USER)/i,
  /\bdocker\s+(?:run|create|start|network\s+connect)\b/i,

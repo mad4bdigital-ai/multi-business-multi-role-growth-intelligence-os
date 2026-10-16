@@ -313,3 +313,37 @@ Never clear operational Broker or independent trust blockers from these
 source-only tests. broker_operationally_certified=false,
 db_admin_authorized=false, backup_executed=false,
 restore_executed=false, production_mutation=false remain mandatory.
+
+
+## Staging read-only process image measurement diagnostics
+
+The Staging process image preflight returns a sanitized,
+non-authoritative process_image_measurement_status:
+- measured_from_process_path: process metadata exposed executable path
+  and a SHA256 was computed for that path. Still does NOT independently
+  attest a running image, nor promote the Broker trust root.
+- process_path_not_disclosed: Win32_Process returned the service PID
+  but did not disclose ExecutablePath to the current inspection identity.
+- os_access_denied: OS blocked metadata or file access.
+- process_metadata_unavailable, process_image_unreadable,
+  measurement_failed, service_not_running: fail-closed diagnostics.
+
+It also returns
+process_image_measurement_needs_privileged_readonly_probe=true
+when the Windows service is Running but no SHA256 could be read from
+the actual process path. Existing blocker
+BROKER_PROCESS_IMAGE_DIGEST_NOT_MEASURED always remains in that case.
+
+On DESKTOP-91FDEFP, current non-elevated Remote Desktop Commander
+session observed the service Running but process ExecutablePath was
+not disclosed and the protected installed EXE path was access-denied.
+This is not proof the image is corrupt or different; it requires a
+separate authorized elevated **read-only** OS inspection channel.
+Never hash the SCM ImagePath, a copied installer or build artifact
+as a substitute for the running process image. Preserve the original
+exact elevated Inspect-StagingBackupBrokerOsEvidence.ps1 acceptance
+requirements and all independent key/audit/DBA/Backup/Restore blockers.
+
+No service installation, elevation change, credentials, SQL, endpoint
+activation, backup/restore or Production changes are part of this
+diagnostics improvement.
