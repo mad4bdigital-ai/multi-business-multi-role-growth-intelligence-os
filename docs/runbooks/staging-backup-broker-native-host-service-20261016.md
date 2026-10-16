@@ -260,3 +260,56 @@ audit receipt, with procedures for rotation and compromise. No caller-
 provided JSON can clear the existing trust gate. The test creates two
 ephemeral Ed25519 keypairs solely in CI memory and includes 21 negative
 integrity and privilege-spoofing cases, without contacting MariaDB.
+
+
+## Protected key readback + atomic challenge ledger (source-only feature)
+
+Two Staging-only modules extend the cryptographic evidence chain:
+
+1. local-connector/staging-backup-broker-challenge-ledger.mjs:
+   Cryptographically random 256-bit nonce with exact certified Staging
+   release SHA, Broker EXE SHA256 and <=10-minute lifetime. The private
+   ledger directory MUST already exist under operator-controlled protected
+   DACL (or POSIX 0700). The module does not create directories or change
+   permissions. It revalidates path/ACL before every operation. Issue and
+   consume markers use exclusive creation (wx) plus file fsync.
+   Partial files after crashes fail closed and MUST NOT be deleted.
+   Tests race eight independent OS processes (exactly one winner), then
+   reboot the logical ledger object and deny the same nonce again.
+   Local file-system replay denial is NOT external nonce custody or WORM.
+
+2. local-connector/staging-backup-broker-pinned-key-registry.mjs:
+   Read an ALREADY EXISTING protected trusted-key-registry.json from the
+   isolated Staging host. Require matching raw-file SHA256 from an
+   independently authenticated channel, protected file and directory DACL,
+   strict Staging/device schema and exactly two DISTINCT Ed25519 SPKI public
+   verification keys with owner and witness roles. Never generate or store
+   private keys. A caller-chosen registry hash or ACL callback does NOT
+   establish external approval; independent trust remains false.
+
+Both are source-only. They are not attached to the inert Windows service,
+exposed as web/connector tools, or connected to SQL. The unit tests use
+isolated temporary directories and ephemeral public test keys; the tests
+do NOT certify any real Windows DACL, trusted external signer, or WORM.
+
+### Remaining external custody implementation, separate authorization
+
+A separate independently controlled provider must actually support:
+- Signing-key custody outside Broker, Owner-approved key registry and
+  externally verifiable public-key rotation/pinning;
+- separately controlled durable challenge issuance + atomic one-time
+  consume records (not only Staging-local ledger);
+- remotely verifiable append-only/WORM audit with retention protection,
+  independently authenticated read-back and replay-safe receipt chain;
+- independently attested DB endpoint/admin identity, secure secrets,
+  explicitly signed per-operation Owner approvals and cleanup verification.
+
+The owner/provider must select and authorize that external authority and
+its access before deployment; no provider was provisioned or connected by
+this change. Neither caller-provided verified=true nor a local JSON file
+nor a mutable GitHub issue comment is an immutable audit proof.
+
+Never clear operational Broker or independent trust blockers from these
+source-only tests. broker_operationally_certified=false,
+db_admin_authorized=false, backup_executed=false,
+restore_executed=false, production_mutation=false remain mandatory.
