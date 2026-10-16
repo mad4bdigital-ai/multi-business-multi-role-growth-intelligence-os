@@ -20,7 +20,11 @@
       "local-connector/staging-backup-broker-signed-os-evidence.mjs",
       "local-connector/test-staging-backup-broker-signed-os-evidence.mjs",
       "local-connector/staging-backup-broker-witness-receipt.mjs",
-      "local-connector/test-staging-backup-broker-witness-receipt.mjs"
+      "local-connector/test-staging-backup-broker-witness-receipt.mjs",
+      "local-connector/staging-backup-broker-challenge-ledger.mjs",
+      "local-connector/test-staging-backup-broker-challenge-ledger.mjs",
+      "local-connector/staging-backup-broker-pinned-key-registry.mjs",
+      "local-connector/test-staging-backup-broker-pinned-key-registry.mjs"
     ]
   },
   "merge_contract": {
@@ -208,6 +212,72 @@
           "evidence_paths": [
             "local-connector/staging-backup-broker-witness-receipt.mjs",
             "local-connector/test-staging-backup-broker-witness-receipt.mjs"
+          ]
+        },
+        {
+          "id": "staging-broker-private-atomic-nonce-issuance-and-consumption",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Local Windows/Staging isolated OS challenge coordinator",
+          "entrypoint": "Open separately protected directory and issue random 256-bit Staging-only challenge, then consume exactly once.",
+          "terminal_outcome": "One process claims nonce; seven concurrent processes and post-restart replay are blocked by atomic persistent file markers. External independent challenge ownership is still unverified.",
+          "steps": [
+            "Require preprovisioned private Staging-only directory and separately measured ACL, revalidating before every issue/consume.",
+            "Generate 256-bit random challenge bound to exact certified Git SHA, executable SHA256, expiry.",
+            "Atomically write+fsync issued challenge, then validate exact issue record and create consumed marker with exclusive creation and fsync.",
+            "Race eight separate OS Node processes, simulate restart, deny reused/expired/forged and out-of-scope challenges.",
+            "Never authorize operational service or database changes merely from a successful local replay check."
+          ],
+          "assertions": [
+            "Exactly one concurrent process consumes challenge, even across isolated process boundaries.",
+            "Consumed marker persists and is rejected on restart; no deletion/rewinding of records.",
+            "Changing expected Staging SHA, measured binary hash, expiry, issued nonce, or scope fails closed.",
+            "Local ledger cannot be represented as externally immutable audit or independent custody."
+          ],
+          "tests": [
+            {
+              "id": "staging-broker-atomic-durable-challenge-ledger",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "local-connector/test-staging-backup-broker-challenge-ledger.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "local-connector/staging-backup-broker-challenge-ledger.mjs",
+            "local-connector/test-staging-backup-broker-challenge-ledger.mjs"
+          ]
+        },
+        {
+          "id": "staging-broker-protected-external-key-anchor-import",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Staging isolated OS key verifier without independent out-of-band owner anchor",
+          "entrypoint": "Read pre-existing protected Staging registry of two public Ed25519 keys using a separately supplied SHA256 digest.",
+          "terminal_outcome": "Canonical owner and witness public keys read only if file hash, scope, key type, identities, directory/file permissions match. Independent root custody remains denied.",
+          "steps": [
+            "Require an exact protected Staging registry path and an expected digest obtained via independent channel.",
+            "Verify hash of full bytes and strict schema, exact Staging environment and device.",
+            "Verify two distinct Ed25519 SPKI public keys and their fingerprints; reject swapped, duplicate, tampered, Production and overprivileged manifests.",
+            "Never create private signing keys, install an Operator authority or grant DBA based only on a caller-provided registry digest."
+          ],
+          "assertions": [
+            "Public key readback rejects tampered files and mismatched expected hash.",
+            "Two distinct signer roles required, with no private keys persisted.",
+            "Missing independently approved anchor, external immutable storage and owner one-shot permission remain hard blocked."
+          ],
+          "tests": [
+            {
+              "id": "staging-broker-protected-key-registry",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "local-connector/test-staging-backup-broker-pinned-key-registry.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "local-connector/staging-backup-broker-pinned-key-registry.mjs",
+            "local-connector/test-staging-backup-broker-pinned-key-registry.mjs"
           ]
         }
       ],
