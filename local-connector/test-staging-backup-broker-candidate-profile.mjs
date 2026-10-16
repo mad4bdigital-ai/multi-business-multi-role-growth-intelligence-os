@@ -8,6 +8,8 @@ const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),"..");
 const filename=path.join(root,"http-generic-api","docker-compose.staging.backup-broker-preflight.yml");
 const overlay=fs.readFileSync(filename,"utf8");
 const officialDeploy=fs.readFileSync(path.join(root,"autopilot-portable-staging","Start-AutoPilot.ps1"),"utf8");
+assert(!/\n\s+environment:\s*\n/.test(overlay.match(/^  backup-db-broker:\n([\s\S]+?)(?=^networks:)/m)?.[1] || ""),
+  "candidate must not inject configuration or secret environment variables");
 assert(!officialDeploy.includes("docker-compose.staging.backup-broker-preflight.yml"),
   "inert candidate overlay must never activate with standard Staging deployment");
 const service=overlay.match(/^  backup-db-broker:\n([\s\S]+?)(?=^networks:)/m)?.[1];
@@ -24,7 +26,7 @@ const checks=[
   ['dedicated internal network only',/networks:\s*\n\s+- backup-broker-internal\s*\n\s+ports:/],
   ['no published ports',/ports:\s*!reset\s*\[\]/],
   ['no mounted host files',/volumes:\s*!reset\s*\[\]/],
-  ['fixed unprivileged mode',/MAD4B_BACKUP_BROKER_MODE:\s*host-candidate-only/],
+  ['non-root runtime guard',/process\.getuid\(\) === 0/],
   ['explicitly uncertified',/broker_operationally_certified:\s*false/],
   ['no admin client',/admin_client_configured:\s*false/],
   ['no owner approval',/owner_operation_approved:\s*false/],

@@ -14,7 +14,7 @@ the original Staging default network for the application. No DB port is
 published to the host. The candidate uses non-root UID/GID 65534,
 read-only root filesystem, all Linux capabilities dropped,
 `no-new-privileges`, a PID and memory limit, no host volumes or
-Docker socket, and an allowlisted non-secret role marker.
+Docker socket, and no injected environment configuration.
 
 The candidate simply emits an **uncertified** status and remains alive
 for independent sandbox observation. It has no SQL client, credentials,

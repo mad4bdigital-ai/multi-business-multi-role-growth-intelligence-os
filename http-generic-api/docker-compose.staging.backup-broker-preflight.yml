@@ -24,12 +24,11 @@ services:
       - backup-broker-internal
     ports: !reset []
     volumes: !reset []
-    environment:
-      MAD4B_BACKUP_BROKER_MODE: host-candidate-only
+    # No environment variables or secret files are injected into this candidate.
     entrypoint: ["node", "-e"]
     command:
       - |
-        if (process.env.MAD4B_BACKUP_BROKER_MODE !== "host-candidate-only") process.exit(2);
+        if (typeof process.getuid !== "function" || process.getuid() === 0) process.exit(2);
         process.stdout.write(JSON.stringify({
           contract: "mad4b.staging.backup-broker-host-candidate.v1",
           mode: "host-candidate-only",
