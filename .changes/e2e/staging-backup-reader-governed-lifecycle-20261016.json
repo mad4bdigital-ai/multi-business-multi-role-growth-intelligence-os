@@ -11,6 +11,7 @@
       ".github/derived-state-governance.json",
       ".github/governance/test-authority-registry.json",
       "http-generic-api/config/repository-governance-constitution.json",
+      "docs/governance/configuration-drift-baseline-extensions.json",
       "docs/runbooks/staging-backup-reader-governed-lifecycle-20261016.md",
       "http-generic-api/stagingBackupReaderGrantLifecycle.mjs",
       "http-generic-api/test-staging-backup-reader-grant-lifecycle.mjs"
@@ -85,7 +86,8 @@
             ".github/derived-state-governance.json",
             ".github/governance/test-authority-registry.json",
             "http-generic-api/config/repository-governance-constitution.json",
-            "docs/runbooks/staging-backup-reader-governed-lifecycle-20261016.md",
+            "docs/governance/configuration-drift-baseline-extensions.json",
+      "docs/runbooks/staging-backup-reader-governed-lifecycle-20261016.md",
             "http-generic-api/stagingBackupReaderGrantLifecycle.mjs",
             "http-generic-api/test-staging-backup-reader-grant-lifecycle.mjs"
           ]
