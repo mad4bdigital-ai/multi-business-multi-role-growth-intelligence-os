@@ -169,5 +169,5 @@ export async function createManagedStagingBackupReaderAdapters({
   });
   return Object.freeze({admin,reader,broker_capability:capabilityKey,
     source_sha:expectedSourceSha,device_id:deviceId,
-    admin_provisioning_performed:false,production_mutation:false});
+    broker_bound:true,production_mutation:false});
 }
