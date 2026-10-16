@@ -10,7 +10,8 @@ const argv=new Map(process.argv.slice(2).map(a=>{
 const runtime=String(process.env.DEPLOYMENT_ENVIRONMENT||"").toLowerCase();
 const expected=String(argv.get("--expected-source-sha")||"");
 let result=assessStagingBackupAuthority({
-  environment:runtime,expected_source_sha:expected,policy_count:0,
+  environment:runtime,expected_source_sha:expected,
+  policy_inventory_verified:false,
 });
 const blockers=new Set();
 if(!result.environment_valid){
@@ -43,7 +44,7 @@ if(!result.environment_valid){
       :null;
     result=assessStagingBackupAuthority({
       environment:runtime,expected_source_sha:expected,
-      policy_count:rows.length,policy:candidate,
+      policy_inventory_verified:true,policy_count:rows.length,policy:candidate,
     });
     if(rows.length>1)blockers.add("AMBIGUOUS_BACKUP_POLICY");
   }catch(error){
