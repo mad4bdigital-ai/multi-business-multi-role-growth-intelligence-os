@@ -3,7 +3,10 @@
 // No route, CLI executor, root credential resolution, or automatic binding.
 import {randomBytes} from "node:crypto";
 import {openStagingBackupPolicyReader} from "./stagingBackupPolicyReader.mjs";
-import {STAGING_BACKUP_READER_TABLES} from "./stagingBackupReaderGrantLifecycle.mjs";
+import {
+  STAGING_BACKUP_READER_TABLES,planStagingBackupReaderGrant,
+  verifySignedReaderGrantApproval,runGovernedStagingBackupReaderCensus,
+} from "./stagingBackupReaderGrantLifecycle.mjs";
 
 const expectedTables=[...STAGING_BACKUP_READER_TABLES].sort();
 const accountName="backup_policy_reader";
@@ -170,4 +173,91 @@ export async function createManagedStagingBackupReaderAdapters({
   return Object.freeze({admin,reader,broker_capability:capabilityKey,
     source_sha:expectedSourceSha,device_id:deviceId,
     broker_bound:true,production_mutation:false});
+}
+
+// Staging-only composition boundary. The injected broker MUST be an independently
+// installed, measured and security-reviewed local service, not an app route,
+// a caller-crafted session object, a shell alias or Desktop Commander.
+function assertOneShotBrokerTicket(session,plan,nowMs){
+  const authority=session?.authority;
+  if(typeof session?.close!=="function"||
+    authority?.run_id!==plan.binding.run_id||
+    authority?.plan_sha256!==plan.plan_sha256||
+    authority?.source_sha!==plan.binding.source_sha||
+    authority?.device_id!==plan.binding.device_id||
+    authority?.capability_key!==capabilityKey||
+    authority?.single_use_ephemeral_session!==true||
+    !Number.isSafeInteger(authority?.issued_at_ms)||
+    !Number.isSafeInteger(authority?.expires_at_ms)||
+    authority.issued_at_ms>nowMs||
+    authority.expires_at_ms<=nowMs||
+    authority.expires_at_ms-authority.issued_at_ms>600_000)
+    fail("MANAGED_READER_BROKER_OPERATION_TICKET_UNVERIFIED");
+}
+
+// No default broker, credential, signer or execution route is registered here.
+// A signed source-head review is not an owner-signed one-shot DB operation.
+// Session close failure always invalidates a previously successful census.
+export async function runWithIndependentStagingBackupBroker({
+  broker,measuredIdentity,expectedSha,runId,approval,
+  trustedOwnerPublicKey,readerDriver,ledger,audit,
+}={}){
+  if(typeof broker?.openOneShotSession!=="function"||
+    typeof measuredIdentity!=="function"||
+    typeof ledger?.consumeOnce!=="function"||
+    typeof audit?.append!=="function"||
+    typeof readerDriver?.createPool!=="function")
+    fail("INDEPENDENT_STAGING_BACKUP_BROKER_REQUIRED");
+  const measured=await measuredIdentity();
+  const plan=planStagingBackupReaderGrant({
+    measured,expectedSha,runId,
+  });
+  // Check the cryptographic owner authorization before opening any privileged
+  // session. The independent broker must perform its OWN verification too.
+  verifySignedReaderGrantApproval({plan,approval,trustedOwnerPublicKey});
+  let session=null,completion=null,result=null;
+  // Defer ONLY the final positive audit event until the broker session is
+  // confirmed closed. The initial attempt remains durably append-only.
+  const gatedAudit=Object.freeze({async append(event){
+    if(event?.event==="reader_grant_completed"){
+      completion=Object.freeze({...event});
+      return true;
+    }
+    return audit.append(event);
+  }});
+  try{
+    session=await broker.openOneShotSession(Object.freeze({
+      capability_key:capabilityKey,plan,approval,
+    }));
+    assertOneShotBrokerTicket(session,plan,Date.now());
+    const adapters=await createManagedStagingBackupReaderAdapters({
+      adminSession:session,readerDriver,
+      expectedSourceSha:expectedSha,deviceId:measured.device_id,
+    });
+    result=await runGovernedStagingBackupReaderCensus({
+      measuredIdentity:async()=>measured,expectedSha,runId,approval,
+      trustedOwnerPublicKey,admin:adapters.admin,reader:adapters.reader,
+      ledger,audit:gatedAudit,
+    });
+  }finally{
+    if(session){
+      try{
+        if(typeof session.close!=="function")
+          fail("MANAGED_READER_BROKER_SESSION_CLOSE_UNVERIFIED");
+        await session.close();
+      }catch{
+        try{
+          if(completion)await audit.append({...completion,status:"blocked",
+            broker_session_closed:false});
+          else await audit.append({event:"reader_broker_session_close_failed",
+            run_id:runId,audit_ref:plan.plan_sha256,status:"blocked"});
+        }catch{ /* Close failure already invalidates the run. */ }
+        fail("MANAGED_READER_BROKER_SESSION_CLOSE_UNVERIFIED");
+      }
+    }
+  }
+  if(!completion||!result)fail("READER_GRANT_AUDIT_UNVERIFIED");
+  try{await audit.append({...completion,broker_session_closed:true});}
+  catch{fail("READER_GRANT_AUDIT_UNVERIFIED");}
+  return result;
 }

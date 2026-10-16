@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import {generateKeyPairSync,sign} from "node:crypto";
-import {createManagedStagingBackupReaderAdapters} from "./stagingBackupManagedMariaDbProvider.mjs";
+import {createManagedStagingBackupReaderAdapters,runWithIndependentStagingBackupBroker} from "./stagingBackupManagedMariaDbProvider.mjs";
 import {
   planStagingBackupReaderGrant,runGovernedStagingBackupReaderCensus,
   STAGING_BACKUP_READER_TABLES,
@@ -175,6 +175,80 @@ await assert.rejects(createManagedStagingBackupReaderAdapters({
   expectedSourceSha:sha,deviceId:device,
 }),e=>e.code==="MANAGED_READER_BROKER_AUTHORITY_UNVERIFIED");
 assert.equal(bad.st.statements.length,0);
+// Exercise the new purpose-scoped broker handoff. These are synthetic broker
+// objects; they do NOT claim a live installed DBA service or grant authority.
+function brokerFixture(ticketPatch={},options={}){
+  const f=fixture();
+  let opened=0,closed=0;
+  const issued=Date.now();
+  const session={
+    ...f.adminSession,
+    authority:{...f.adminSession.authority,run_id:runId,
+      plan_sha256:plan.plan_sha256,issued_at_ms:issued-1000,
+      expires_at_ms:issued+90_000,...ticketPatch},
+    async close(){closed++;if(options.closeFails)throw new Error("synthetic close failure");},
+  };
+  const broker={async openOneShotSession(request){
+    opened++;
+    assert.equal(request.capability_key,"staging.backup.reader.provision-census-revoke");
+    assert.equal(request.plan.plan_sha256,plan.plan_sha256);
+    return session;
+  }};
+  return {f,broker,session,get opened(){return opened;},
+    get closed(){return closed;}};
+}
+function invokeBroker(v,overrides={}){
+  return runWithIndependentStagingBackupBroker({
+    broker:v.broker,measuredIdentity:async()=>measured,expectedSha:sha,
+    runId,approval,trustedOwnerPublicKey:keys.publicKey,
+    readerDriver:v.f.readerDriver,ledger:v.f.ledger,audit:v.f.audit,
+    ...overrides,
+  });
+}
+const composed=brokerFixture();
+const brokerResult=await invokeBroker(composed);
+assert.equal(brokerResult.ok,true);
+assert.equal(composed.opened,1);
+assert.equal(composed.closed,1);
+assert.equal(composed.f.st.created,1);
+assert.equal(composed.f.st.dropped,1);
+assert.equal(composed.f.st.user,false);
+assert.equal(composed.f.st.events.length,2);
+assert.equal(composed.f.st.events.at(-1).status,"census_verified");
+assert.equal(composed.f.st.events.at(-1).broker_session_closed,true);
+const unsigned=brokerFixture();
+await assert.rejects(invokeBroker(unsigned,{approval:{...approval,plan_sha256:"f".repeat(64)}}),
+  e=>e.code==="READER_GRANT_OWNER_APPROVAL_REQUIRED");
+assert.equal(unsigned.opened,0);
+assert.equal(unsigned.f.st.created,0);
+for(const patch of [
+  {plan_sha256:"f".repeat(64)},
+  {run_id:"different-operation-001"},
+  {source_sha:"f".repeat(40)},
+  {issued_at_ms:Date.now()+60_000},
+  {expires_at_ms:Date.now()-1000},
+  {single_use_ephemeral_session:false},
+]){
+  const v=brokerFixture(patch);
+  await assert.rejects(invokeBroker(v),
+    e=>e.code==="MANAGED_READER_BROKER_OPERATION_TICKET_UNVERIFIED");
+  assert.equal(v.opened,1);
+  assert.equal(v.closed,1);
+  assert.equal(v.f.st.created,0);
+}
+const closing=brokerFixture({}, {closeFails:true});
+await assert.rejects(invokeBroker(closing),
+  e=>e.code==="MANAGED_READER_BROKER_SESSION_CLOSE_UNVERIFIED");
+assert.equal(closing.f.st.created,1);
+assert.equal(closing.f.st.dropped,1);
+assert.equal(closing.f.st.user,false);
+assert.equal(closing.closed,1);
+assert.equal(closing.f.st.events.at(-1).status,"blocked");
+assert.equal(closing.f.st.events.at(-1).broker_session_closed,false);
+const noBroker=brokerFixture();
+await assert.rejects(invokeBroker(noBroker,{broker:{}}),
+  e=>e.code==="INDEPENDENT_STAGING_BACKUP_BROKER_REQUIRED");
+assert.equal(noBroker.f.st.created,0);
 console.log(JSON.stringify({
   contract:"mad4b.staging-managed-db-reader-provider.test.v1",
   passed:true,synthetic_only:true,
