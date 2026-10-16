@@ -24,7 +24,10 @@
       "local-connector/staging-backup-broker-challenge-ledger.mjs",
       "local-connector/test-staging-backup-broker-challenge-ledger.mjs",
       "local-connector/staging-backup-broker-pinned-key-registry.mjs",
-      "local-connector/test-staging-backup-broker-pinned-key-registry.mjs"
+      "local-connector/test-staging-backup-broker-pinned-key-registry.mjs",
+      "autopilot-portable-staging/Inspect-StagingBackupBrokerTrustReadiness.ps1",
+      "local-connector/staging-backup-db-broker-trust-readiness.mjs",
+      "local-connector/test-staging-backup-db-broker-trust-readiness.mjs"
     ]
   },
   "merge_contract": {
@@ -278,6 +281,40 @@
           "evidence_paths": [
             "local-connector/staging-backup-broker-pinned-key-registry.mjs",
             "local-connector/test-staging-backup-broker-pinned-key-registry.mjs"
+          ]
+        },
+        {
+          "id": "staging-broker-os-process-image-measurement-status-fail-closed",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Staging read-only OS inventory without admin elevation",
+          "entrypoint": "Run the Win32_Process ExecutablePath measurement for the SCM service PID, report sanitized reason when the protected path is not disclosed.",
+          "terminal_outcome": "Provide exact access-denial/not-disclosed reason but never substitute the SCM path or a build digest; retain all independent trust/DBA/WORM/Production gates.",
+          "steps": [
+            "Discover the exact Staging-certified runtime source and dedicated running SCM Broker service.",
+            "Request executable path from Win32_Process using the actual SCM PID, attempt read-only SHA256 only when actual process path is disclosed.",
+            "Report sanitized status process_path_not_disclosed, os_access_denied, metadata unavailable or measured_from_process_path.",
+            "Reject caller self-approval, spoofed source/digest or status as authority; never execute SQL or change host permissions."
+          ],
+          "assertions": [
+            "Non-elevated/blocked process path leaves process digest unmeasured and the existing blocker present.",
+            "A synthetically supplied hash cannot make service_identity_independently_attested or broker_operationally_certified true.",
+            "Status is a fixed enum, not raw executable path, error text or filesystem secret.",
+            "No fallback to SCM ImagePath, no file modification, no DBA, Backup/Restore or Production operations."
+          ],
+          "tests": [
+            {
+              "id": "staging-broker-os-process-image-diagnostic-failclosed",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "local-connector/test-staging-backup-db-broker-trust-readiness.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "autopilot-portable-staging/Inspect-StagingBackupBrokerTrustReadiness.ps1",
+            "local-connector/staging-backup-db-broker-trust-readiness.mjs",
+            "local-connector/test-staging-backup-db-broker-trust-readiness.mjs"
           ]
         }
       ],
