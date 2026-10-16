@@ -14,7 +14,9 @@
       "docs/runbooks/staging-backup-broker-native-host-service-20261016.md",
       "http-generic-api/config/repository-governance-constitution.json",
       "local-connector/staging-backup-db-broker-host-service.cs",
-      "local-connector/test-staging-backup-db-broker-native-host-service.mjs"
+      "local-connector/test-staging-backup-db-broker-native-host-service.mjs",
+      "autopilot-portable-staging/Inspect-StagingBackupBrokerOsEvidence.ps1",
+      "local-connector/test-staging-backup-broker-os-evidence.mjs"
     ]
   },
   "merge_contract": {
@@ -101,6 +103,39 @@
             "autopilot-portable-staging/Install-StagingBackupBrokerHostService.ps1",
             "docs/runbooks/staging-backup-broker-native-host-service-20261016.md",
             "local-connector/test-staging-backup-db-broker-native-host-service.mjs"
+          ]
+        },
+        {
+          "id": "staging-windows-broker-elevated-os-evidence-no-dba",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Staging Windows operator and offline CI auditor",
+          "entrypoint": "Read-only elevated inspect of already registered inert Broker service on the exact certified Staging release.",
+          "terminal_outcome": "Exact OS path, SHA256, PID, virtual identity, SID type and protected three-principal ACL are measured without grants; independently signed and operational authority remain false.",
+          "steps": [
+            "Check actual Administrator token and exact Staging source certification before protected reads.",
+            "Read service and process identity from Windows CIM and reject mismatched SCM binary path, reparse points and SHA-256.",
+            "Require protected directory DACL and exact SYSTEM/Admin full control plus virtual service RX; inspect file DACL.",
+            "Report only bounded, unsigned noncredential evidence and retain explicit denial of independent signing, DBA, backup, restore and Production privileges."
+          ],
+          "assertions": [
+            "Non-elevated execution is denied before accessing protected installed binary or ACL.",
+            "No service, filesystem, Docker, database or credential mutation occurs.",
+            "Unsigned OS readback is never treated as operational certification or an independent signed attestation.",
+            "Existing deployed/certified Staging exact source remains an explicit prerequisite."
+          ],
+          "tests": [
+            {
+              "id": "native-broker-elevated-os-evidence-static",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "local-connector/test-staging-backup-broker-os-evidence.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "autopilot-portable-staging/Inspect-StagingBackupBrokerOsEvidence.ps1",
+            "local-connector/test-staging-backup-broker-os-evidence.mjs"
           ]
         }
       ],
