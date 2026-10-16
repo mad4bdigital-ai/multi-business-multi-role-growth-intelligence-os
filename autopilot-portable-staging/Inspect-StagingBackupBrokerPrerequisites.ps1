@@ -87,7 +87,8 @@ try {
       [string]$broker.Config.User -eq '65534:65534' -and
       $caps -contains 'ALL' -and
       $opts -contains 'no-new-privileges:true' -and
-      $nets.Count -eq 1 -and $nets[0] -eq 'http-generic-api_backup-broker-internal' -and
+      [string]$broker.HostConfig.NetworkMode -eq 'none' -and
+      $nets.Count -eq 1 -and $nets[0] -eq 'none' -and
       $pub.Count -eq 0 -and @($broker.Mounts | Where-Object {$null -ne $_}).Count -eq 0 -and
       @($broker.HostConfig.Binds | Where-Object {$null -ne $_}).Count -eq 0 -and
       @($broker.Config.Env | Where-Object {$_ -match '(?i)^(DB_|MYSQL_|MARIADB_|.*SECRET|.*TOKEN|.*PASSWORD)' }).Count -eq 0

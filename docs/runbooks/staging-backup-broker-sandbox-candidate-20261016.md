@@ -1,71 +1,65 @@
-# Issue #8534 — Staging backup broker sandbox candidate
+# Issue #8534 — zero-impact Staging Backup Broker candidate
 
-## What this stage delivers
+## Operational boundary
 
-A **disabled-by-default** Docker Compose overlay at
-`http-generic-api/docker-compose.staging.backup-broker-preflight.yml`.
-It introduces a credential-free, non-admin **host candidate**, not a
-production-ready MariaDB broker, not the Broker core and not an authority.
-The official `Auto-Deploy-Staging.ps1` does not include the overlay.
+The PR #8555 candidate is **not an operational MariaDB Broker**.
+This revision makes the optional container a **network-disconnected probe**:
+`network_mode: none`, no runtime-db override, no declared network, no DB
+dependency, no published port, no environment secret, no host volume or
+Docker socket. Root filesystem is read-only; it runs as UID/GID 65534,
+with every capability dropped and privilege escalation disabled.
 
-The opt-in profile `backup-broker-preflight` attaches only `runtime-db`
-and the sidecar candidate to a **new Docker-internal network**. It preserves
-the original Staging default network for the application. No DB port is
-published to the host. The candidate uses non-root UID/GID 65534,
-read-only root filesystem, all Linux capabilities dropped,
-`no-new-privileges`, a PID and memory limit, no host volumes or
-Docker socket, and no injected environment configuration.
+The regular `Auto-Deploy-Staging.ps1` remains unchanged and excludes
+`docker-compose.staging.backup-broker-preflight.yml`.
+The profile is opt-in. It does not attach MariaDB to another network,
+and cannot establish a MariaDB endpoint or privileged Broker authority.
 
-The candidate simply emits an **uncertified** status and remains alive
-for independent sandbox observation. It has no SQL client, credentials,
-signing private/public key, audit root, operational Broker code, or HTTP/MCP
-route. No signer or DBA privileges can be obtained from this package.
-
-## Source and host checks (do not activate the profile)
+## Required read-only host preflight
 
 ```powershell
 $repo = 'M:\Users\Nagy\Repo\multi-business-multi-role-growth-intelligence-os'
+$sha = '<exact certified Staging main SHA>'
+powershell.exe -NoProfile -ExecutionPolicy Bypass `
+  -File "$repo\autopilot-portable-staging\Inspect-StagingBackupBrokerZeroDbImpact.ps1" `
+  -RepositoryPath $repo -ExpectedCommit $sha
 node "$repo\local-connector\test-staging-backup-broker-candidate-profile.mjs"
 node "$repo\local-connector\test-staging-backup-db-broker-host-discovery.mjs"
-$api = "$repo\http-generic-api"
-docker compose -f "$api\docker-compose.yml" `
-  -f "$api\docker-compose.staging.yml" `
-  -f "$api\docker-compose.staging.windows-service.yml" `
-  -f "$api\docker-compose.staging.backup-broker-preflight.yml" `
-  --env-file "$api\.env.staging" `
-  --profile backup-broker-preflight config --quiet
 ```
 
-The configuration check is read-only. The optional profile is **not**
-part of the standard Staging deployment. A future operator-approved
-sandbox rollout must first explicitly review the network change because
-connecting `runtime-db` to the internal-only network may recreate the
-existing database container.
+Exit 0 from the first command certifies **configuration parity ONLY**:
+all existing Compose services and networks unchanged; candidate has no
+network, ports, volumes or independent DBA privileges; live runtime-db
+is healthy, on its original network with no published DB port; exact
+app source SHA matches; no candidate is running. Exit 2 is fail-closed.
+The script never creates, starts, stops or connects Docker resources,
+and never reads database credentials or executes SQL.
 
-## Acceptance and non-authority boundary
+## Future optional sandbox exercise (separate operator approval)
 
-The host discovery script checks the observed container security posture
-before labelling a running candidate's sandbox as observed. On a
-two-network runtime-db it continues to require membership of the
-original Staging network. Its `broker_operationally_certified`,
-`owner_operation_approved` and `db_admin_operation_authorized`
-must **always be false**, even after successful sandbox checks. Exit 2
-is expected.
+After source-head CI, owner review and merge, an operator can explicitly
+approve a **Staging-only inert probe**, not DBA access. Before any
+activation, verify the exact deployed SHA, run the read-only preflight,
+record live DB container ID / health / network and local app health. With
+explicit authorization for the inert candidate only, run an opt-in
+`docker compose --profile backup-broker-preflight up -d --no-deps backup-db-broker`
+using the three official Staging Compose files **plus** this overlay.
+Then inspect only the new container's security and `NetworkMode=none`,
+verify the DB container ID/network unchanged and app health, and remove
+only the probe with Compose `stop` and `rm`. Stop and report rather
+than modifying `runtime-db` on any mismatch.
 
-The following **remain independently blocked**: a measured Broker
-binary/runtime identity and OS ACL, actual independently attested
-Staging-only `runtime-db:3306` administrative endpoint, a dedicated
-`backup_grant_service` account and isolated secret custody,
-a separately pinned Ed25519 owner operation verification key,
-trusted immutable audit custody, and a one-shot cryptographically signed
-grant/census/revoke plan. GitHub's source-head review is not such a
-signature. The credential-free host candidate cannot satisfy these.
+Do **not** activate the old overlay that attached the DB to a new network.
+Do not run unqualified `docker compose up` for this phase.
 
-No `CREATE USER`, `GRANT`, `DROP USER`, policy census, encrypted
-backup, isolated restore, OA/MC fixtures or Production mutation is
-authorized by this source change.
+## What this cannot authorize
 
-**Deployment state of this PR:** source-only, not activated. All live
-Staging rollout must go through a separately approved release and
-post-deploy certification, without bypassing the established DBA
-execution safety boundary.
+Even after a successful inert probe, discovery output must keep
+`broker_operationally_certified=false`,
+`owner_operation_approved=false`,
+`db_admin_operation_authorized=false`.
+A separate DBA endpoint trust boundary, OS/service identity, privileged
+secret custody, Ed25519 per-operation owner signature and independent
+immutable audit are still required. GitHub source approval is **not**
+an operation signature. No CREATE/GRANT/DROP, credential exposure, DB
+write, real backup, isolated restore, OA/MC fixtures or Production
+change is authorized by this candidate or its preflight.
