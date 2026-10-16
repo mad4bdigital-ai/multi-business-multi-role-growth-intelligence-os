@@ -89,8 +89,11 @@ the independently pinned Ed25519 owner **operation** signature and exact
 source/device/network-bound plan before opening a dedicated administrative
 client. An **independent measured-identity provider** is mandatory. The broker
 requires a private atomic one-shot reservation, restricted append-only audit,
-a separately injected `backup_grant_service` MariaDB admin-client factory,
-and an explicit isolated Staging process attestation. No default client exists.
+a separately injected `backup_grant_service` MariaDB admin-client factory
+with independently attested **actual runtime-db host, port, network, schema,
+source SHA and device identity**, and an explicit isolated Staging process
+attestation. Checking only `CURRENT_USER()`/`DATABASE()` is insufficient to
+distinguish an identically named Production database. No default client exists.
 
 Broker session SQL is restricted to the fixed staging schema, temporary reader
 account, table inventory, four fixed table-level SELECT grants, SHOW GRANTS and

@@ -112,6 +112,19 @@ export function createIndependentStagingBackupDbAdminBroker(options={}){
         client=await adminClientFactory();
         if(typeof client?.query!=="function"||typeof client?.close!=="function")
           throw ERR("INDEPENDENT_DB_BROKER_CLIENT_INVALID");
+        // The independently provisioned client must attest its ACTUAL endpoint;
+        // SQL DATABASE()/CURRENT_USER() alone cannot distinguish a Staging DB
+        // from an identically named Production schema or principal.
+        const target=client.boundTarget;
+        if(target?.host!=="runtime-db"||target?.port!==3306||
+          target?.schema!==SCHEMA||
+          target?.network!=="http-generic-api_default"||
+          target?.environment!=="staging_local_windows_docker"||
+          target?.device_id!==measured.device_id||
+          target?.source_sha!==sourceSha||
+          target?.independently_attested!==true||
+          target?.no_production_mutation!==true)
+          throw ERR("INDEPENDENT_DB_BROKER_ENDPOINT_ATTESTATION_REQUIRED");
         validateAdminIdentity(await client.query(IDENTITY_SQL));
         const ownedClient=client;
         let closed=false;
