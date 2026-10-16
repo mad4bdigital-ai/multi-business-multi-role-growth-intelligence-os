@@ -1,0 +1,52 @@
+# Optional Staging-only, credential-free PROCESS CANDIDATE. Not a DBA broker.
+# Never included in Auto-Deploy. Requires explicit -f and --profile activation.
+services:
+  runtime-db:
+    networks:
+      default: {}
+      backup-broker-internal:
+        aliases: [runtime-db]
+
+  backup-db-broker:
+    profiles: ["backup-broker-preflight"]
+    image: node:22-slim@sha256:c3de60bf2f9dd0ac6370e6117950ff62d6e339527e7472301c9c78a017978392
+    init: true
+    restart: "no"
+    user: "65534:65534"
+    read_only: true
+    privileged: false
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    pids_limit: 32
+    mem_limit: 128m
+    tmpfs: ["/tmp:rw,noexec,nosuid,size=16m"]
+    networks:
+      - backup-broker-internal
+    ports: !reset []
+    volumes: !reset []
+    environment:
+      MAD4B_BACKUP_BROKER_MODE: host-candidate-only
+    entrypoint: ["node", "-e"]
+    command:
+      - |
+        if (process.env.MAD4B_BACKUP_BROKER_MODE !== "host-candidate-only") process.exit(2);
+        process.stdout.write(JSON.stringify({
+          contract: "mad4b.staging.backup-broker-host-candidate.v1",
+          mode: "host-candidate-only",
+          broker_operationally_certified: false,
+          admin_client_configured: false,
+          owner_operation_approved: false,
+          database_mutated: false,
+          production_mutation: false
+        }) + "\n");
+        setInterval(() => {}, 60000);
+    healthcheck:
+      disable: true
+    depends_on:
+      runtime-db:
+        condition: service_healthy
+
+networks:
+  backup-broker-internal:
+    driver: bridge
+    internal: true

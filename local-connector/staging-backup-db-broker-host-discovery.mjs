@@ -29,8 +29,12 @@ export function assessStagingBackupBrokerHostDiscovery(e={}){
     if(!e.windows_service_account||/^(localsystem|localservice|networkservice)$/i.test(e.windows_service_account))
       blockers.add("WINDOWS_BROKER_DEDICATED_OS_ACCOUNT_UNVERIFIED");
   }
-  if(e.docker_sidecar_present===true&&e.docker_sidecar_running!==true)
-    blockers.add("CONTAINER_BROKER_NOT_RUNNING");
+  if(e.docker_sidecar_present===true){
+    if(e.docker_sidecar_running!==true)
+      blockers.add("CONTAINER_BROKER_NOT_RUNNING");
+    if(e.docker_sidecar_sandbox_verified!==true)
+      blockers.add("BROKER_CANDIDATE_SANDBOX_UNVERIFIED");
+  }
   // These cannot be cleared by discovery: require external, independent evidence.
   for(const code of [
     "BROKER_OS_ISOLATION_AND_ACL_ATTESTATION_REQUIRED",

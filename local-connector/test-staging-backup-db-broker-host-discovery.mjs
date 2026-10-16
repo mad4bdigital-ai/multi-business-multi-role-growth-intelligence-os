@@ -40,6 +40,14 @@ assert(service.blockers.includes("WINDOWS_BROKER_DEDICATED_OS_ACCOUNT_UNVERIFIED
 assert.equal(service.broker_operationally_certified,false);
 const candidate=assess({...base,docker_sidecar_present:true,docker_sidecar_running:true});
 assert.equal(candidate.broker_candidate_found,true);
+assert(candidate.blockers.includes("BROKER_CANDIDATE_SANDBOX_UNVERIFIED"));
+const isolated=assess({...base,docker_sidecar_present:true,
+  docker_sidecar_running:true,docker_sidecar_sandbox_verified:true});
+assert.equal(isolated.broker_candidate_found,true);
+assert(!isolated.blockers.includes("BROKER_CANDIDATE_SANDBOX_UNVERIFIED"));
+assert.equal(isolated.broker_operationally_certified,false);
+assert.equal(isolated.owner_operation_approved,false);
+assert(isolated.blockers.includes("BROKER_ONE_SHOT_SIGNED_OPERATION_APPROVAL_REQUIRED"));
 assert(candidate.blockers.includes("BROKER_ACTUAL_DB_ENDPOINT_ATTESTATION_REQUIRED"));
 assert.equal(candidate.db_admin_operation_authorized,false);
 const cli=spawnSync(process.execPath,[fileURLToPath(new URL(
