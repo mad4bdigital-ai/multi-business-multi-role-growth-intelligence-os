@@ -49,6 +49,34 @@ isolated provider process, then dropped after revoke attempt. It is never
 passed to the long-running web app, GitHub, stdout, debug logs or generic
 device-command invocation.
 
+## Broker session lifecycle composition (follow-up)
+
+`runWithIndependentStagingBackupBroker` in the provider module now exposes
+an intentionally **injected-only** composition step; it does not register a
+network endpoint, CLI runner, app route, Windows service or database identity.
+
+The orchestration verifies the short-lived Ed25519 owner-operation approval and
+exact source-bound grant plan **before opening** any privileged session. The
+independently installed broker must implement `openOneShotSession({capability_key,
+plan,approval})`, separately verify the signature using independently pinned
+trust, measure the Docker identity, enforce one-time replay reservation and open
+a dedicated MariaDB administrative session from independent OS secret custody.
+
+The returned session must have an observed `query()`, mandatory `close()`,
+and a broker-issued authority tuple including exact `run_id`, `plan_sha256`,
+source SHA, device, capability and an unexpired maximum-ten-minute ticket.
+The app-side code checks these fields but **cannot authenticate a broker from
+caller-supplied JSON**; only an isolated trusted issuer can establish that.
+Both the lifecycle and broker must retain append-only audit and durable replay
+records. Even a successful grant/census/revocation result fails closed if the
+administrative session fails to close.
+
+Synthetic regression tests cover the successful composition, invalid signed
+approval before session issuance, wrong plan/run/source, issued-in-future or
+expired tickets, a non-single-use ticket, absent broker and failed close. None
+of those tests proves that a real broker, DBA account, secret store, independent
+owner-operation signing key or approved runtime binding exists.
+
 ## Provider separation: what is NOT implemented or approved
 
 This PR **does not mint the owner operation signature**, create a DB-admin

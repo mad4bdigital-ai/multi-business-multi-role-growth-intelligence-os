@@ -41,7 +41,7 @@
           "end_to_end": true,
           "level": "synthetic_runtime",
           "actor": "Independent approved Staging Local Connector managed-DB broker",
-          "entrypoint": "createManagedStagingBackupReaderAdapters -> runGovernedStagingBackupReaderCensus",
+          "entrypoint": "runWithIndependentStagingBackupBroker -> createManagedStagingBackupReaderAdapters -> runGovernedStagingBackupReaderCensus",
           "terminal_outcome": "Synthetic exact 4x SELECT grant, verified policy count, revocation and absence readback; any missing broker attestation, invalid binding, excessive privilege, partial grant failure or bad cleanup fails closed without real database operations.",
           "steps": [
             "Build exact SHA-bound plan and owner-signed short-lived approval in synthetic fixture; keep signature creation outside source provider.",
@@ -50,14 +50,16 @@
             "Simulate exact CREATE USER with hidden random credential and four fixed table-level SELECT grants.",
             "Read back effective grants and simulate a real SELECT-only policy census through the independent reader driver.",
             "Revoke the exact temporary principal with independent absence readback even after partial CREATE/GRANT or census errors.",
-            "Verify failed cleanup or replay never creates positive certification; no live SQL grants or Production mutation."
+            "Verify failed cleanup or replay never creates positive certification; no live SQL grants or Production mutation.",
+            "In a synthetic broker handoff, bind a short-lived one-shot session to exact plan hash and run ID, verify owner signature before opening it, and require closure even after errors."
           ],
           "assertions": [
             "No generic SQL, SSH, device-command, HTTP execution route, root login or Production broker is added.",
             "No caller-supplied dynamic principal, host, schema, table, privilege, policy key or SQL is accepted.",
             "An independently broker-attested admin session, observed database identity, signed owner authorization and replay guard are mandatory.",
             "Partial user creation or grant error always enters cleanup and fails closed if cleanup cannot be verified.",
-            "Only synthetic tests execute; real MariaDB privileged broker provisioning requires separate, independently permitted operator approval."
+            "Only synthetic tests execute; real MariaDB privileged broker provisioning requires separate, independently permitted operator approval.",
+            "An invalid or expired broker operation ticket, forged plan or failed admin-session close must never yield positive acceptance."
           ],
           "tests": [
             {
