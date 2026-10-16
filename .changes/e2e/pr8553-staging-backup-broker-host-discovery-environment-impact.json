@@ -8,8 +8,10 @@
   "scope": {
     "include": [
       ".changes/e2e/pr8553-staging-backup-broker-host-discovery-environment-impact.json",
+      ".github/derived-state-governance.json",
       "autopilot-portable-staging/Inspect-StagingBackupBrokerPrerequisites.ps1",
       "docs/runbooks/staging-backup-broker-host-discovery-20261016.md",
+      "http-generic-api/config/repository-governance-constitution.json",
       "local-connector/staging-backup-db-broker-host-discovery.mjs",
       "local-connector/test-staging-backup-db-broker-host-discovery.mjs"
     ]
