@@ -116,3 +116,62 @@ This PR does not install a service, connect a database, change Docker
 networks or deploy Production. The official Staging release remains the
 source of truth for health/certification and must not be confused with
 the separately compiled Windows service source branch.
+
+## 2026-10-16 post-install readback and memory incident
+
+The Owner's elevated PowerShell readback and a separate unprivileged SCM
+observation showed `Mad4B-Staging-Backup-Db-Broker` RUNNING as
+`NT SERVICE\Mad4B-Staging-Backup-Db-Broker` (manual start, PID 18316),
+with the expected installed EXE SHA-256
+`8771be99cb7a54b58cc7a5ab11fb3dc095429f7c7832b7346981c9921045144a`.
+The directory has protected DACL, with three exact Allow grants:
+SYSTEM and Administrators FullControl (2032127), and the virtual
+service account ReadAndExecute+Synchronize (1179817).
+These **post-install** three ACEs are intentional; the interrupted-install
+recovery guard only accepts **two** ACEs before the service exists.
+
+The unprivileged Remote Desktop Commander could not independently open the
+protected EXE; the Owner's elevated hash/ACL output is an **unsigned OS
+measurement**, NOT an externally signed independent attestation.
+
+A prior unprivileged verification child PowerShell (PID 13248, confirmed
+exact command line and original Desktop Commander parent) remained alive,
+consuming ~7.3 GB private memory. That **one identified orphan diagnostic**
+was stopped; free RAM improved from 816 MB to 4,636 MB immediately.
+Docker, Broker and databases were not stopped or changed. The previously
+failing `Inspect-StagingBackupBrokerZeroDbImpact.ps1` was subsequently
+re-run **read-only** and passed (`preflight_pass=true`, `blockers=[]`,
+`database_mutated=false`). Use bounded process-output capture and avoid
+unbounded JSON/host-inspection pipes when collecting diagnostics. The
+Windows CIM FreeVirtualMemorySize field alone is insufficient for commit
+headroom; review committed bytes against commit limit as well.
+
+## New elevated read-only OS evidence collection (separate source gate)
+
+After an approved merge and new exact-Staging deployment, invoke:
+
+```powershell
+$repo = 'M:\Users\Nagy\Repo\multi-business-multi-role-growth-intelligence-os'
+powershell.exe -NoProfile -ExecutionPolicy Bypass `
+  -File "$repo\autopilot-portable-staging\Inspect-StagingBackupBrokerOsEvidence.ps1" `
+  -RepositoryPath $repo `
+  -ExpectedCommit '<exact currently certified main/Staging SHA>' `
+  -ExpectedBinarySha256 '<independently measured installed EXE SHA-256>'
+```
+
+Run under a genuine Windows Administrator token; ordinary remote connector
+sessions will fail closed without elevation. The script checks exact certified
+Staging source, Windows service configuration, live process image path, installed
+SHA256, no reparse points, virtual service identity/SID type, protected
+directory ACL with exactly three allowed principals and the installed EXE ACL.
+It performs no OS mutation, networking, SQL or backup/restore.
+
+A passing output means only `os_evidence_checks_passed=true`,
+`independently_signed=false`, `externally_custodied=false`,
+`operational_broker_certified=false` and `db_admin_authorized=false`.
+It does **not** clear the independent OS attestation requirement in the
+fail-closed Trust Readiness assessor. Clearing that gate would require a
+separately provisioned, independently verifiable signing identity, trusted
+public-key pin, freshness binding and immutable external audit receipt, as
+well as the other DBA/backup one-shot prerequisites. Do not replace those
+controls with a manually supplied JSON boolean or silently self-sign evidence.
