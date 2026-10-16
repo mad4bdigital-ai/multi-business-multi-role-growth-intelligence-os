@@ -17,8 +17,10 @@ const capabilityKey="staging.backup.reader.provision-census-revoke";
 const exactSha=/^[0-9a-f]{40}$/i;
 function fail(code){const e=new Error(code);e.code=code;throw e;}
 function resultRows(value){
-  if(!Array.isArray(value)||!Array.isArray(value[0]))fail("MANAGED_READER_ADMIN_SQL_RESPONSE_INVALID");
-  return value[0];
+  if(!Array.isArray(value)||value.length<1)fail("MANAGED_READER_ADMIN_SQL_RESPONSE_INVALID");
+  const [rowset]=value;
+  if(!Array.isArray(rowset))fail("MANAGED_READER_ADMIN_SQL_RESPONSE_INVALID");
+  return rowset;
 }
 function assertBound(binding,expectedSourceSha,deviceId){
   if(!binding||binding.source_sha!==expectedSourceSha||
@@ -50,15 +52,20 @@ function validateAdminSession({session,sourceSha,deviceId}){
 }
 async function assertAdminIdentity(query){
   const rows=resultRows(await query("SELECT DATABASE() AS database_name,CURRENT_USER() AS identity"));
-  if(rows.length!==1||rows[0]?.database_name!==dbName)fail("MANAGED_READER_DATABASE_IDENTITY_MISMATCH");
-  const user=String(rows[0].identity||"").split("@")[0].toLowerCase();
+  if(rows.length!==1)fail("MANAGED_READER_DATABASE_IDENTITY_MISMATCH");
+  const [singleIdentity]=rows;
+  if(singleIdentity?.database_name!==dbName)fail("MANAGED_READER_DATABASE_IDENTITY_MISMATCH");
+  const user=String(singleIdentity.identity||"").split("@")[0].toLowerCase();
   if(!user||["root","admin","runtime_app","control_plane_writer",accountName].includes(user))
     fail("MANAGED_READER_ADMIN_PRINCIPAL_NOT_INDEPENDENT");
 }
 function count(rows){
-  if(rows.length!==1||!Number.isSafeInteger(Number(rows[0]?.total))||
-    Number(rows[0].total)<0)fail("MANAGED_READER_SQL_COUNT_UNVERIFIED");
-  return Number(rows[0].total);
+  if(rows.length!==1)fail("MANAGED_READER_SQL_COUNT_UNVERIFIED");
+  const [singleCount]=rows;
+  const numericCount=Number(singleCount?.total);
+  if(!Number.isSafeInteger(numericCount)||numericCount<0)
+    fail("MANAGED_READER_SQL_COUNT_UNVERIFIED");
+  return numericCount;
 }
 
 // The injected administrative session is issued by a separately trusted
