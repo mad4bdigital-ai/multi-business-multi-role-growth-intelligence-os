@@ -1,0 +1,99 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-backup-reader-governed-lifecycle-20261016",
+  "title": "Owner-signed Staging Backup policy reader grant lifecycle composition contract",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-backup-reader-governed-lifecycle-20261016.json",
+      ".github/derived-state-governance.json",
+      ".github/governance/test-authority-registry.json",
+      "http-generic-api/config/repository-governance-constitution.json",
+      "docs/governance/configuration-drift-baseline-extensions.json",
+      "docs/runbooks/staging-backup-reader-governed-lifecycle-20261016.md",
+      "http-generic-api/stagingBackupReaderGrantLifecycle.mjs",
+      "http-generic-api/test-staging-backup-reader-grant-lifecycle.mjs"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Define a fail-closed, independently approved Staging Local Connector composition boundary for one-shot reader grants, governed read-only census, replay defense and verified revocation, without exposing generic privileged SQL execution or attempting live grants.",
+      "e2e_journeys": [
+        {
+          "id": "staging-ephemeral-backup-reader-owner-gated-census",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Independent audited Staging database administration connector",
+          "entrypoint": "planStagingBackupReaderGrant, verifySignedReaderGrantApproval, runGovernedStagingBackupReaderCensus",
+          "terminal_outcome": "A signed, exact-head one-shot grant can be simulated through trusted adapters and produces census evidence only after narrow SELECT grants are validated and the temporary account is provably revoked; otherwise returns blocked.",
+          "steps": [
+            "Bind requested grant to independently measured Staging device, exact release SHA, runtime-db, exact schema and private Docker subnet.",
+            "Validate exact plan digest, owner Ed25519 signature, operation type and maximum ten-minute lease.",
+            "Persist the unique run ID in an atomic replay ledger before any simulated account creation.",
+            "Read physical table inventory and reject preexisting principals, then provision synthetic four-table reader through injected trusted adapter.",
+            "Verify fixed table-scoped SELECT-only grants and simulate independent reader census, and always revoke and recheck identity absence.",
+            "Fail closed when signing, grant, census, audit or cleanup cannot be independently verified, with no real resource mutations."
+          ],
+          "assertions": [
+            "No raw SQL admin executor, generic remote API, root credentials or Production destination is introduced.",
+            "Owner approval by chat text or GitHub comment alone is not an Ed25519 grant-execution token.",
+            "The caller cannot dynamically select a user, schema, privilege, table, host pattern, target environment or network.",
+            "No positive certificate is possible with failed revocation, failed audit or unavailable census.",
+            "All tests are synthetic; separately permitted real Staging DB admin channel and live grant/restore certification are still required."
+          ],
+          "tests": [
+            {
+              "id": "governed-reader-lifecycle-synthetic",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-backup-reader-grant-lifecycle.mjs",
+              "args": []
+            },
+            {
+              "id": "existing-staging-independent-reader",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-backup-independent-policy-reader.mjs",
+              "args": []
+            },
+            {
+              "id": "existing-staging-backup-restore-gates",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-backup-restore-authority.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/staging-backup-reader-governed-lifecycle-20261016.json",
+            ".github/derived-state-governance.json",
+            ".github/governance/test-authority-registry.json",
+            "http-generic-api/config/repository-governance-constitution.json",
+            "docs/governance/configuration-drift-baseline-extensions.json",
+      "docs/runbooks/staging-backup-reader-governed-lifecycle-20261016.md",
+            "http-generic-api/stagingBackupReaderGrantLifecycle.mjs",
+            "http-generic-api/test-staging-backup-reader-grant-lifecycle.mjs"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}

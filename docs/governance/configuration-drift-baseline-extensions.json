@@ -2446,6 +2446,28 @@
       "grants_production_activation": false
     },
     {
+      "fingerprint": "http-generic-api/stagingBackupReaderGrantLifecycle.mjs|APPROVAL_CONTRACT|literal_declaration|approval.contract",
+      "owner": "staging-backup-reader-governance",
+      "reason": "Static non-secret signed approval protocol contract ID for a not-yet-bound Staging-only reader admin adapter. It cannot issue signatures, approvals, accounts, SQL grants, backups or Production mutations.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/stagingBackupReaderGrantLifecycle.mjs|REPORT_CONTRACT|literal_declaration|report.contract",
+      "owner": "staging-backup-reader-governance",
+      "reason": "Static non-secret one-shot reader lifecycle report compatibility ID. Not an operational config value, secret or execution authority; no database account, provider, backup, restore or Production rights are granted.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
       "fingerprint": "http-generic-api/stagingRecoveryAuthorityBindingPhaseB.js|STAGING_RECOVERY_PHASE_B_APPROVAL_TOKEN_CONTRACT|literal_declaration|staging.recovery.phase.b.approval.token.contract",
       "owner": "staging-recovery-governance",
       "reason": "Static Phase B single-issuance approval-token handle contract identifier; it is not runtime configuration and grants no approval, repository, provider, database, or Production mutation authority.",
