@@ -209,6 +209,7 @@
       ".changes/e2e/staging-backup-broker-candidate-sandbox-20261016.json",
       ".changes/e2e/staging-backup-broker-zero-db-impact-20261016.json",
       ".changes/e2e/staging-backup-broker-trust-readiness-20261016.json",
+      ".changes/e2e/staging-backup-broker-native-service-bootstrap-20261016.json",
       ".changes/e2e/staging-backup-inventory-evidence-tristate-20261016.json",
       ".changes/e2e/staging-cte-alias-view-dependency-replay-20260829.json",
       ".changes/e2e/staging-database-readiness-repair-20260829.json",
