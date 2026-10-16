@@ -1,0 +1,99 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-backup-broker-candidate-sandbox-20261016",
+  "title": "Staging Backup Broker independently isolated host candidate (no admin authority)",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-backup-broker-candidate-sandbox-20261016.json",
+      ".github/derived-state-governance.json",
+      "autopilot-portable-staging/Inspect-StagingBackupBrokerPrerequisites.ps1",
+      "autopilot-portable-staging/manifest.json",
+      "docs/runbooks/staging-backup-broker-sandbox-candidate-20261016.md",
+      "http-generic-api/config/repository-governance-constitution.json",
+      "http-generic-api/config/deployment-branch-policy.json",
+      "http-generic-api/docker-compose.staging.backup-broker-preflight.yml",
+      "local-connector/staging-backup-db-broker-host-discovery.mjs",
+      "local-connector/test-staging-backup-db-broker-host-discovery.mjs",
+      "local-connector/test-staging-backup-broker-candidate-profile.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Offer an opt-in isolated, credential-free Staging Broker process candidate while preserving unconditional administrative fail-closed behavior.",
+      "e2e_journeys": [
+        {
+          "id": "staging-backup-broker-candidate-readonly-sandbox",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Staging Operator",
+          "entrypoint": "Validate a Docker Compose opt-in preflight profile and read-only host discovery under certified exact Staging source",
+          "terminal_outcome": "Sandbox candidate remains non-admin and cannot be mistaken for an independently approved Broker.",
+          "steps": [
+            "Validate isolated Docker-internal network and runtime-db existing app network continuity.",
+            "Verify no published port, host mount, socket, privileged user, Linux capability, or accepted owner/DBA approval.",
+            "Run read-only broker discovery for missing, unsafe and observed candidate and check it never certifies administrative authority.",
+            "Inspect Staging Compose overlay with --profile backup-broker-preflight config --quiet without activating the profile."
+          ],
+          "assertions": [
+            "Source code requires explicit opt-in; standard Auto Deploy does not include this overlay.",
+            "No database account/SQL, real backup, restore, Production mutation or signing key is exposed.",
+            "Candidate sandbox observation does not imply Broker operational attestation, Ed25519 signature or DBA authority.",
+            "Shared Local Connector code is explicitly reviewed for Staging and Production; Production mutation remains false."
+          ],
+          "tests": [
+            {
+              "id": "staging-broker-candidate-profile",
+              "runner": "node",
+              "path": "local-connector/test-staging-backup-broker-candidate-profile.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-broker-host-discovery-regression",
+              "runner": "node",
+              "path": "local-connector/test-staging-backup-db-broker-host-discovery.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/docker-compose.staging.backup-broker-preflight.yml",
+            "docs/runbooks/staging-backup-broker-sandbox-candidate-20261016.md",
+            "local-connector/test-staging-backup-broker-candidate-profile.mjs"
+          ]
+        }
+      ],
+      "tests": [
+        {
+          "id": "staging-broker-candidate-profile",
+          "runner": "node",
+          "path": "local-connector/test-staging-backup-broker-candidate-profile.mjs",
+          "args": []
+        },
+        {
+          "id": "staging-broker-host-discovery-regression",
+          "runner": "node",
+          "path": "local-connector/test-staging-backup-db-broker-host-discovery.mjs",
+          "args": []
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}

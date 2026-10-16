@@ -128,6 +128,7 @@
           "http-generic-api/scripts/classify-staging-empty-role-census.mjs",
           "http-generic-api/docker-compose.staging.yml",
           "http-generic-api/docker-compose.staging.windows-service.yml",
+          "http-generic-api/docker-compose.staging.backup-broker-preflight.yml",
           "http-generic-api/docker-compose.staging.docker-sidecar.yml",
           "http-generic-api/Dockerfile.staging",
           "http-generic-api/.env.staging.example",

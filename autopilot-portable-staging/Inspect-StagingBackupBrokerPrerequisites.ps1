@@ -28,6 +28,7 @@ $e=[ordered]@{
   windows_service_account=''
   docker_sidecar_present=$false
   docker_sidecar_running=$false
+  docker_sidecar_sandbox_verified=$false
 }
 # Never output raw docker inspect: it can include environment secrets.
 try {
@@ -48,7 +49,7 @@ foreach($service in @('app','redis','governance-db','persistence-db','runtime-db
     $names=@($item.NetworkSettings.Networks.PSObject.Properties.Name)
     if($service -eq 'app' -and $names.Count -eq 1){$e.app_network=[string]$names[0]}
     if($service -eq 'runtime-db'){
-      if($names.Count -eq 1){$e.runtime_db_network=[string]$names[0]}
+      if($names -contains 'http-generic-api_default'){$e.runtime_db_network='http-generic-api_default'}
       $mapped=@($item.NetworkSettings.Ports.PSObject.Properties |
         Where-Object {$null -ne $_.Value -and @($_.Value).Count -gt 0})
       $e.runtime_db_host_port_exposed=($mapped.Count -gt 0)
@@ -76,6 +77,21 @@ try {
     $broker=@($sidecar | ConvertFrom-Json)[0]
     $e.docker_sidecar_present=$true
     $e.docker_sidecar_running=($broker.State.Running -eq $true)
+    $nets=@($broker.NetworkSettings.Networks.PSObject.Properties.Name)
+    $pub=@($broker.NetworkSettings.Ports.PSObject.Properties | Where-Object {$null -ne $_.Value -and @($_.Value).Count -gt 0})
+    $opts=@($broker.HostConfig.SecurityOpt)
+    $caps=@($broker.HostConfig.CapDrop)
+    $e.docker_sidecar_sandbox_verified=(
+      $broker.HostConfig.ReadonlyRootfs -eq $true -and
+      $broker.HostConfig.Privileged -eq $false -and
+      [string]$broker.Config.User -eq '65534:65534' -and
+      $caps -contains 'ALL' -and
+      $opts -contains 'no-new-privileges:true' -and
+      $nets.Count -eq 1 -and $nets[0] -eq 'http-generic-api_backup-broker-internal' -and
+      $pub.Count -eq 0 -and @($broker.Mounts | Where-Object {$null -ne $_}).Count -eq 0 -and
+      @($broker.HostConfig.Binds | Where-Object {$null -ne $_}).Count -eq 0 -and
+      @($broker.Config.Env | Where-Object {$_ -match '(?i)^(DB_|MYSQL_|MARIADB_|.*SECRET|.*TOKEN|.*PASSWORD)' }).Count -eq 0
+    )
   }
 } catch {}
 # Sanitized evidence only. Exit 2 is deliberate: discovery never grants access.
