@@ -68,6 +68,40 @@
             "autopilot-portable-staging/Install-StagingBackupBrokerHostService.ps1",
             "docs/runbooks/staging-backup-broker-native-host-service-20261016.md"
           ]
+        },
+        {
+          "id": "native-windows-staging-scm-registration-recovery",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Authorized Staging Windows Operator",
+          "entrypoint": "Detect an interrupted virtual-service registration and run exact-source, no-DB recovery guards.",
+          "terminal_outcome": "Omit the empty native password argument, report sanitized SCM registration failure codes, require explicitly authorized single-binary recovery, and reject all non-admin execution before OS writes.",
+          "steps": [
+            "Omit PowerShell 5.1 password= empty argument when registering the NT SERVICE virtual account.",
+            "Preserve native SCM failure exit and sanitized Win32 status.",
+            "Refuse recovery unless a separate explicit switch and exact copied EXE SHA-256, one-file content and protected SYSTEM/Administrators ACL agree.",
+            "Enforce exact GitHub main, deployed Staging source, in-container manifest, OS elevation, inert-only operation scope before changes.",
+            "Keep all DBA, backup/restore and Production operations out of the inert service host."
+          ],
+          "assertions": [
+            "No empty password= native argument is passed to sc.exe on Windows PowerShell 5.1.",
+            "Interrupted registration fails closed for unverified content, ACL or binary hash.",
+            "Unprivileged apply cannot mutate service or installation directory.",
+            "No SQL or Production mutation authorization is introduced."
+          ],
+          "tests": [
+            {
+              "id": "native-host-negative-authority-contract",
+              "runner": "node",
+              "path": "local-connector/test-staging-backup-db-broker-native-host-service.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "autopilot-portable-staging/Install-StagingBackupBrokerHostService.ps1",
+            "docs/runbooks/staging-backup-broker-native-host-service-20261016.md",
+            "local-connector/test-staging-backup-db-broker-native-host-service.mjs"
+          ]
         }
       ],
       "tests": [
