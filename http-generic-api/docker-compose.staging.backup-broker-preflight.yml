@@ -1,12 +1,7 @@
-# Optional Staging-only, credential-free PROCESS CANDIDATE. Not a DBA broker.
-# Never included in Auto-Deploy. Requires explicit -f and --profile activation.
+# Optional inert Staging sandbox probe. Not a MariaDB broker.
+# No database service changes, no Docker network attachment, no credentials.
+# Excluded from default Auto Deploy; opt-in profile only.
 services:
-  runtime-db:
-    networks:
-      default: {}
-      backup-broker-internal:
-        aliases: [runtime-db]
-
   backup-db-broker:
     profiles: ["backup-broker-preflight"]
     image: node:22-slim@sha256:c3de60bf2f9dd0ac6370e6117950ff62d6e339527e7472301c9c78a017978392
@@ -20,18 +15,16 @@ services:
     pids_limit: 32
     mem_limit: 128m
     tmpfs: ["/tmp:rw,noexec,nosuid,size=16m"]
-    networks:
-      - backup-broker-internal
+    network_mode: "none"
     ports: !reset []
     volumes: !reset []
-    # No environment variables or secret files are injected into this candidate.
     entrypoint: ["node", "-e"]
     command:
       - |
         if (typeof process.getuid !== "function" || process.getuid() === 0) process.exit(2);
         process.stdout.write(JSON.stringify({
           contract: "mad4b.staging.backup-broker-host-candidate.v1",
-          mode: "host-candidate-only",
+          mode: "network-disconnected-sandbox-probe",
           broker_operationally_certified: false,
           admin_client_configured: false,
           owner_operation_approved: false,
@@ -41,11 +34,3 @@ services:
         setInterval(() => {}, 60000);
     healthcheck:
       disable: true
-    depends_on:
-      runtime-db:
-        condition: service_healthy
-
-networks:
-  backup-broker-internal:
-    driver: bridge
-    internal: true
