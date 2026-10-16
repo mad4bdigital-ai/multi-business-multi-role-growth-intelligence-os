@@ -44,7 +44,7 @@ for(const patch of [
   {db_host:"production-db"},{db_schema:"other_runtime"},
   {docker_subnet:"10.0.0.0/8"},{docker_network:"production_default"},
   {local_connector_verified:false},{production_mutation:true},
-  {source_sha:"e".repeat(40)},
+  {source_sha:"e".repeat(40)},{device_id:undefined},
 ]){
   rejects(()=>planStagingBackupReaderGrant({
     measured:{...measured,...patch},expectedSha:SHA,runId,
@@ -88,7 +88,7 @@ function sandbox(opts={}){
       if(opts.createThrows)throw Object.assign(new Error("synthetic"),{code:"SYNTHETIC_CREATE_ERROR"});
       return Object.freeze({lease:"synthetic-opaque",no_password_in_result:true});
     },
-    async readReaderGrants(){return opts.extraPrivilege?
+    async readReaderGrants(){if(opts.wrongPrincipal)return grants.map(r=>({g:r.g.replaceAll("backup_policy_reader","unrelated_reader")}));return opts.extraPrivilege?
       [...grants,{g:"GRANT INSERT ON `growth_runtime`.* TO `backup_policy_reader`@'172.18.%'"}]:
       grants},
     async revokeTemporaryReader(){
@@ -137,6 +137,7 @@ for(const [name,options,code,created] of [
   ["existing-principal",{existingPrincipal:true},"READER_GRANT_ADMIN_PREFLIGHT_BLOCKED",false],
   ["missing-table",{missingTable:true},"READER_GRANT_ADMIN_PREFLIGHT_BLOCKED",false],
   ["excess-rights",{extraPrivilege:true},"BACKUP_POLICY_READER_EXCESS_PRIVILEGES",true],
+  ["wrong-account",{wrongPrincipal:true},"READER_GRANT_PRINCIPAL_IDENTITY_MISMATCH",true],
   ["failed-create",{createThrows:true},"SYNTHETIC_CREATE_ERROR",true],
   ["failed-census",{censusThrows:true},"READER_GRANT_EXECUTION_FAILED",true],
   ["unverified-census",{badCensus:true},"READER_POLICY_CENSUS_UNVERIFIED",true],

@@ -25,7 +25,8 @@ function sameArray(a,b){return Array.isArray(a)&&a.length===b.length&&
 export function planStagingBackupReaderGrant({measured,expectedSha,runId}={}){
   if(!SHA40.test(String(expectedSha||""))||!RUN_ID.test(String(runId||""))||
     measured?.deployment_environment!=="staging_local_windows_docker"||
-    measured?.local_connector_verified!==true||measured?.device_id?.length<3||
+    measured?.local_connector_verified!==true||
+    typeof measured?.device_id!=="string"||measured.device_id.length<3||
     measured?.source_sha!==expectedSha||
     measured?.docker_network!==NETWORK||
     measured?.docker_subnet!==CIDR||
@@ -116,6 +117,12 @@ export async function runGovernedStagingBackupReaderCensus({
     const lease=await admin.provisionTemporaryReader(plan.binding);
     if(!lease)fail("READER_GRANT_LEASE_UNVERIFIED");
     const grants=await admin.readReaderGrants(plan.binding);
+    // Do not accept evidence belonging to an arbitrary account even if the
+    // underlying grants are otherwise SELECT-only.
+    if(!Array.isArray(grants)||grants.some(row=>{
+      const statement=String(Object.values(row??{})[0]??"");
+      return !/\bTO\s+([`\x27])?backup_policy_reader\1@([`\x27])?172\.18\.%\2\s*$/i.test(statement);
+    }))fail("READER_GRANT_PRINCIPAL_IDENTITY_MISMATCH");
     const verification=verifyBackupPolicyReaderGrants(grants,"growth_runtime");
     if(verification.table_count!==4||verification.read_only!==true)
       fail("READER_GRANT_EFFECTIVE_PRIVILEGES_INVALID");
