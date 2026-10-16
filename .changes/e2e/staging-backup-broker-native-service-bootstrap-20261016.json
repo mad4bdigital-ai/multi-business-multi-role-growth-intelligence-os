@@ -18,7 +18,9 @@
       "autopilot-portable-staging/Inspect-StagingBackupBrokerOsEvidence.ps1",
       "local-connector/test-staging-backup-broker-os-evidence.mjs",
       "local-connector/staging-backup-broker-signed-os-evidence.mjs",
-      "local-connector/test-staging-backup-broker-signed-os-evidence.mjs"
+      "local-connector/test-staging-backup-broker-signed-os-evidence.mjs",
+      "local-connector/staging-backup-broker-witness-receipt.mjs",
+      "local-connector/test-staging-backup-broker-witness-receipt.mjs"
     ]
   },
   "merge_contract": {
@@ -172,6 +174,40 @@
           "evidence_paths": [
             "local-connector/staging-backup-broker-signed-os-evidence.mjs",
             "local-connector/test-staging-backup-broker-signed-os-evidence.mjs"
+          ]
+        },
+        {
+          "id": "staging-broker-witness-dual-ed25519-receipt-rejection-no-trust-promotion",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "offline Staging audit verifier without independent custodian",
+          "entrypoint": "Validate signed OS evidence and a separately signed, domain-separated audit witness receipt using in-memory synthetic keys.",
+          "terminal_outcome": "Both mathematical signatures and exact source/executable/nonce/digest bindings verified with 21 adversarial cases; no external custody, replay, immutable audit or operational authority declared.",
+          "steps": [
+            "Generate two distinct ephemeral Ed25519 test keys in memory without persisting signing secrets.",
+            "Check domain-separated canonical OS evidence with exact Staging SHA, executable digest and challenge nonce.",
+            "Independently verify witness receipt signature with second key against signer digest, OS-evidence hash, nonce and staging SHA.",
+            "Reject forged authority, incorrect key, swapped hash, stale/future timestamps, altered receipts and noncanonical signed bytes.",
+            "Report cryptographic consistency while retaining all independent authority/replay/audit/DBA/Backup/Restore/Production blockers."
+          ],
+          "assertions": [
+            "Two signatures must be distinct, valid and unambiguously bound to the same Staging OS evidence.",
+            "Extra fields claiming independently custodied audit or operational DBA authority must fail closed.",
+            "Synthetic verification must never clear live Trust Readiness blockers or authorize data operations.",
+            "No key or secret persistence, network access or database mutation by the receipt verifier."
+          ],
+          "tests": [
+            {
+              "id": "staging-broker-witness-receipt-offline-ci",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "local-connector/test-staging-backup-broker-witness-receipt.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "local-connector/staging-backup-broker-witness-receipt.mjs",
+            "local-connector/test-staging-backup-broker-witness-receipt.mjs"
           ]
         }
       ],
