@@ -8,6 +8,7 @@ param(
  [Parameter(Mandatory=$true)][string]$BinaryPath,
  [Parameter(Mandatory=$true)][string]$ExpectedBinarySha256,
  [switch]$Apply,
+ [switch]$ResumeInterruptedRegistration,
  [string]$OperationScope=''
 )
 Set-StrictMode -Version Latest
@@ -62,6 +63,8 @@ if(-not $Apply){
     installer_executed_binary=$false
     staging_certified=$true
     service_present=$false
+    interrupted_install_directory_present=(Test-Path -LiteralPath (Join-Path $env:ProgramData 'MAD4B\StagingBackupBrokerHost') -PathType Container)
+    resume_interrupted_registration_requested=[bool]$ResumeInterruptedRegistration
     can_apply_under_current_token=$isAdmin
     apply_requires_exact_scope=$scope
     installed=$false
@@ -73,19 +76,60 @@ if(-not $Apply){
 if(-not $isAdmin){throw 'BROKER_WINDOWS_ADMINISTRATOR_REQUIRED'}
 if($OperationScope -cne $scope){throw 'BROKER_EXPLICIT_NO_DBA_SCOPE_REQUIRED'}
 $installDir=Join-Path $env:ProgramData 'MAD4B\StagingBackupBrokerHost'
-if(Test-Path -LiteralPath $installDir){throw 'BROKER_INSTALL_DIRECTORY_ALREADY_EXISTS'}
 $destination=Join-Path $installDir 'Mad4B-Staging-Backup-Db-Broker.exe'
+$existingDir=Test-Path -LiteralPath $installDir -PathType Container
+if($existingDir -and -not $ResumeInterruptedRegistration){
+  throw 'BROKER_INSTALL_DIRECTORY_ALREADY_EXISTS_USE_EXPLICIT_RECOVERY'
+}
+if($existingDir){
+  # Fail closed: recover only the one exact previously copied binary, never a general directory.
+  $folder=Get-Item -LiteralPath $installDir -Force -ErrorAction Stop
+  $entries=@(Get-ChildItem -LiteralPath $installDir -Force -ErrorAction Stop)
+  if(($folder.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0 -or
+     $entries.Count -ne 1 -or $entries[0].FullName -cne $destination -or
+     $entries[0].PSIsContainer -or
+     ($entries[0].Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0){
+    throw 'BROKER_INTERRUPTED_DIRECTORY_CONTENT_UNVERIFIED'
+  }
+  if((Get-FileHash -LiteralPath $destination -Algorithm SHA256).Hash.ToLowerInvariant() -cne
+     $ExpectedBinarySha256.ToLowerInvariant()){
+    throw 'BROKER_INTERRUPTED_BINARY_HASH_MISMATCH'
+  }
+  $directoryAcl=Get-Acl -LiteralPath $installDir -ErrorAction Stop
+  $aces=@($directoryAcl.GetAccessRules($true,$false,[Security.Principal.SecurityIdentifier]))
+  $sids=@($aces | ForEach-Object {$_.IdentityReference.Value})
+  if(-not $directoryAcl.AreAccessRulesProtected -or $aces.Count -ne 2 -or
+     @($sids | Sort-Object -Unique).Count -ne 2 -or
+     @($sids | Where-Object {$_ -notin @('S-1-5-18','S-1-5-32-544')}).Count -ne 0){
+    throw 'BROKER_INTERRUPTED_DIRECTORY_ACL_UNVERIFIED'
+  }
+  foreach($ace in $aces){
+    if($ace.AccessControlType -ne [Security.AccessControl.AccessControlType]::Allow -or
+       ($ace.FileSystemRights -band [Security.AccessControl.FileSystemRights]::FullControl) -ne
+       [Security.AccessControl.FileSystemRights]::FullControl){
+      throw 'BROKER_INTERRUPTED_DIRECTORY_ACL_UNVERIFIED'
+    }
+  }
+}
 $created=$false
 try{
-  [void](New-Item -ItemType Directory -Path $installDir -Force)
-  & icacls.exe $installDir /inheritance:r /grant:r 'SYSTEM:(OI)(CI)F' 'BUILTIN\Administrators:(OI)(CI)F' |Out-Null
-  if($LASTEXITCODE -ne 0){throw 'BROKER_SERVICE_ACL_SETUP_FAILED'}
-  Copy-Item -LiteralPath $BinaryPath -Destination $destination -ErrorAction Stop
-  if((Get-FileHash -LiteralPath $destination -Algorithm SHA256).Hash.ToLowerInvariant() -cne
-     $ExpectedBinarySha256.ToLowerInvariant()){throw 'BROKER_SERVICE_COPY_HASH_MISMATCH'}
+  if(-not $existingDir){
+    [void](New-Item -ItemType Directory -Path $installDir -Force)
+    & icacls.exe $installDir /inheritance:r /grant:r 'SYSTEM:(OI)(CI)F' 'BUILTIN\Administrators:(OI)(CI)F' |Out-Null
+    if($LASTEXITCODE -ne 0){throw 'BROKER_SERVICE_ACL_SETUP_FAILED'}
+    Copy-Item -LiteralPath $BinaryPath -Destination $destination -ErrorAction Stop
+    if((Get-FileHash -LiteralPath $destination -Algorithm SHA256).Hash.ToLowerInvariant() -cne
+       $ExpectedBinarySha256.ToLowerInvariant()){throw 'BROKER_SERVICE_COPY_HASH_MISMATCH'}
+  }
   $account="NT SERVICE\$serviceName"
-  & sc.exe create $serviceName binPath= ('"'+$destination+'"') start= demand obj= $account password= '' |Out-Null
-  if($LASTEXITCODE -ne 0){throw 'BROKER_WINDOWS_SERVICE_REGISTRATION_FAILED'}
+  # Virtual accounts require a NULL password, not an empty PowerShell native argument.
+  # PowerShell 5.1 silently drops the empty string in "password= ''", breaking sc.exe.
+  $scOutput=(& sc.exe create $serviceName binPath= ('"'+$destination+'"') start= demand obj= $account 2>&1 |Out-String)
+  $scExit=$LASTEXITCODE
+  if($scExit -ne 0){
+    $nativeCode=[regex]::Match($scOutput,'FAILED\s+(\d+)').Groups[1].Value
+    throw "BROKER_WINDOWS_SERVICE_REGISTRATION_FAILED: sc_exit=$scExit win32_code=$nativeCode"
+  }
   $created=$true
   & sc.exe sidtype $serviceName unrestricted |Out-Null
   if($LASTEXITCODE -ne 0){throw 'BROKER_WINDOWS_SERVICE_SID_SETUP_FAILED'}
