@@ -14,7 +14,11 @@
       "docs/governance/configuration-drift-baseline-extensions.json",
       "docs/runbooks/staging-backup-managed-mariadb-provider-20261016.md",
       "http-generic-api/stagingBackupManagedMariaDbProvider.mjs",
-      "http-generic-api/test-staging-backup-managed-mariadb-provider.mjs"
+      "http-generic-api/test-staging-backup-managed-mariadb-provider.mjs",
+      "local-connector/staging-backup-db-admin-broker.mjs",
+      "local-connector/staging-backup-db-broker-file-state.mjs",
+      "local-connector/test-staging-backup-db-admin-broker.mjs",
+      "local-connector/test-staging-backup-db-broker-file-state.mjs"
     ]
   },
   "environment_impact": {
@@ -51,7 +55,8 @@
             "Read back effective grants and simulate a real SELECT-only policy census through the independent reader driver.",
             "Revoke the exact temporary principal with independent absence readback even after partial CREATE/GRANT or census errors.",
             "Verify failed cleanup or replay never creates positive certification; no live SQL grants or Production mutation.",
-            "In a synthetic broker handoff, bind a short-lived one-shot session to exact plan hash and run ID, verify owner signature before opening it, and require closure even after errors."
+            "In a synthetic broker handoff, bind a short-lived one-shot session to exact plan hash and run ID, verify owner signature before opening it, and require closure even after errors.",
+            "Exercise independent local process broker rules, exact SQL allowlist, pre-use identity validation, expired operation cleanup and private durable atomic replay/audit state without connecting to real MariaDB."
           ],
           "assertions": [
             "No generic SQL, SSH, device-command, HTTP execution route, root login or Production broker is added.",
@@ -59,7 +64,8 @@
             "An independently broker-attested admin session, observed database identity, signed owner authorization and replay guard are mandatory.",
             "Partial user creation or grant error always enters cleanup and fails closed if cleanup cannot be verified.",
             "Only synthetic tests execute; real MariaDB privileged broker provisioning requires separate, independently permitted operator approval.",
-            "An invalid or expired broker operation ticket, forged plan or failed admin-session close must never yield positive acceptance."
+            "An invalid or expired broker operation ticket, forged plan or failed admin-session close must never yield positive acceptance.",
+            "The independent broker code requires externally held pinned operation signing trust, separate OS-isolated DBA identity/credential custody, privately ACL-protected append-only audit and replay ledger; none may default to runtime_app, HTTP execution or a generic shell."
           ],
           "tests": [
             {
@@ -82,6 +88,20 @@
               "working_directory": "http-generic-api",
               "path": "test-staging-backup-independent-policy-reader.mjs",
               "args": []
+            },
+            {
+              "id": "staging-independent-db-broker-core",
+              "runner": "node",
+              "working_directory": "local-connector",
+              "path": "test-staging-backup-db-admin-broker.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-independent-db-broker-persistence",
+              "runner": "node",
+              "working_directory": "local-connector",
+              "path": "test-staging-backup-db-broker-file-state.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
@@ -92,7 +112,11 @@
             "docs/governance/configuration-drift-baseline-extensions.json",
       "docs/runbooks/staging-backup-managed-mariadb-provider-20261016.md",
             "http-generic-api/stagingBackupManagedMariaDbProvider.mjs",
-            "http-generic-api/test-staging-backup-managed-mariadb-provider.mjs"
+            "http-generic-api/test-staging-backup-managed-mariadb-provider.mjs",
+            "local-connector/staging-backup-db-admin-broker.mjs",
+            "local-connector/staging-backup-db-broker-file-state.mjs",
+            "local-connector/test-staging-backup-db-admin-broker.mjs",
+            "local-connector/test-staging-backup-db-broker-file-state.mjs"
           ]
         }
       ]

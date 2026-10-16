@@ -77,6 +77,76 @@ expired tickets, a non-single-use ticket, absent broker and failed close. None
 of those tests proves that a real broker, DBA account, secret store, independent
 owner-operation signing key or approved runtime binding exists.
 
+## Independent Staging broker core (next implementation)
+
+The source-owned Local Connector **broker core** now exists in:
+- `local-connector/staging-backup-db-admin-broker.mjs`;
+- `local-connector/staging-backup-db-broker-file-state.mjs`.
+
+It composes with `runWithIndependentStagingBackupBroker` **in the same
+independently isolated process**, not through the public API. The core verifies
+the independently pinned Ed25519 owner **operation** signature and exact
+source/device/network-bound plan before opening a dedicated administrative
+client. An **independent measured-identity provider** is mandatory. The broker
+requires a private atomic one-shot reservation, restricted append-only audit,
+a separately injected `backup_grant_service` MariaDB admin-client factory
+with independently attested **actual runtime-db host, port, network, schema,
+source SHA and device identity**, and an explicit isolated Staging process
+attestation. Checking only `CURRENT_USER()`/`DATABASE()` is insufficient to
+distinguish an identically named Production database. No default client exists.
+
+Broker session SQL is restricted to the fixed staging schema, temporary reader
+account, table inventory, four fixed table-level SELECT grants, SHOW GRANTS and
+DROP USER. The independently observed MariaDB principal must be
+`backup_grant_service`, never root, runtime_app or the Control Plane writer.
+The broker retries exact reader cleanup on interrupted operations and verifies
+the principal's absence at session closure. Failed cleanup, failed closure or
+missing audit **blocks** successful readback; the broker never promotes itself
+to a provider or a Production authority.
+
+The private file-state adapter requires **two existing, distinct, private,
+non-symlink, absolute Staging directories**, validates POSIX permissions, and
+requires an independent Windows ACL verifier on Windows. It uses exclusive
+`wx` files with fsync for atomic run-id replay denial that survives process
+restarts, and redacted fsynced NDJSON audit events with no SQL or passwords.
+This is a filesystem-backed audit ledger, **not** an independently notarized
+tamper-proof evidence store; protect it using OS access controls and export
+evidence to a trusted immutable audit sink before live certification.
+
+### Explicitly not activated by this source change
+
+- **No Windows service installation, Docker container, route, CLI execution
+  alias, remote SQL endpoint or Staging broker binding** is created.
+- No DB admin principal or privileged grants are created; the
+  `adminClientFactory` and OS trust roots are **injected**, not fabricated.
+- No owner Ed25519 operation key is generated. The prior GitHub source-head
+  `OWNER_ATTEST_SINGLE_OWNER` cannot replace a fresh, single-use signed
+  database operation plan.
+- No MariaDB live census, encrypted backup, isolated restore, QA fixture
+  creation or Production mutation is performed by tests or deployment.
+- Merely setting `isolatedStagingProcessAttested=true` in application code is
+  **not proof of OS isolation**. The executable and permissions need
+  independent host-operator verification before enabling a live client.
+
+### Remaining deployment acceptance
+
+1. Install and independently attest the OS-isolated Staging-only broker
+   process and device identity; separately custody the dedicated DBA secret,
+   owner trust key, ledger and audit paths with verified Windows ACLs.
+2. Independently authorize a short-lived, exact plan-bound owner operation,
+   then execute the **one-shot** provision / four SELECT grants / policy census /
+   DROP / absence-readback through the dedicated broker only.
+3. Collect sealed operational evidence, obtain separate real Backup and
+   isolated-Restore approvals, and certify the 18 OA/MC live cases. Do not
+   publish Production until all relevant gates pass.
+
+New read-only/synthetic contract tests:
+
+```sh
+node local-connector/test-staging-backup-db-admin-broker.mjs
+node local-connector/test-staging-backup-db-broker-file-state.mjs
+```
+
 ## Provider separation: what is NOT implemented or approved
 
 This PR **does not mint the owner operation signature**, create a DB-admin
