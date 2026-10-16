@@ -86,6 +86,10 @@ const denied=spawnSync(process.execPath,[readinessPath,"--expected-source-sha="+
 assert.equal(denied.status,2);
 const parsed=JSON.parse(denied.stdout);
 assert(parsed.blockers.includes("BACKUP_POLICY_READER_NOT_CONFIGURED"));
+assert(parsed.blockers.includes("BACKUP_POLICY_INVENTORY_UNVERIFIED"));
+assert(!parsed.blockers.includes("DATABASE_BACKUP_POLICY_MISSING"));
+assert.equal(parsed.policy_inventory_verified,false);
+assert.equal(parsed.existing_policy_count,null);
 assert.equal(parsed.qa_fixture_write_authorized,false);
 assert.equal(parsed.production_promotion_authorized,false);
 assert.doesNotMatch(denied.stdout,/test-only-secret|root@/i);

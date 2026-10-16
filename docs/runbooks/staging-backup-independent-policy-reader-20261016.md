@@ -62,8 +62,13 @@ The executable validates the actual `DATABASE()` / `CURRENT_USER()`,
 reads `SHOW GRANTS FOR CURRENT_USER()`, refuses extra privileges or missing
 grants, and executes only the existing fixed SELECT inventory SQL.
 Exit code 2 is intentional. A policy census **never authorizes** export, restore
-or QA fixtures. An absent policy row remains `DATABASE_BACKUP_POLICY_MISSING`,
-even when all grants pass.
+or QA fixtures. If the independent reader cannot complete an authorized query,
+`policy_inventory_verified=false`, `existing_policy_count=null`, and
+`BACKUP_POLICY_INVENTORY_UNVERIFIED` indicate that policy existence is unknown;
+this is not evidence that the registry contains zero policies. Only a successful
+census with `policy_inventory_verified=true` and no matching policy may report
+`DATABASE_BACKUP_POLICY_MISSING` and `existing_policy_count=0`. Actual policy
+activation, backup execution and QA fixture writes remain independently gated.
 
 ## Tests and independent acceptance
 

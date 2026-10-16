@@ -7,17 +7,28 @@ const source="a".repeat(40), hash="b".repeat(64);
 const approved={
   environment:"staging_local_docker",
   expected_source_sha:source,
-  policy_count:1,approved_backup_count:1,verified_restore_count:1,
+  policy_inventory_verified:true,policy_count:1,approved_backup_count:1,verified_restore_count:1,
   policy:{backup_kind:"database",status:"active",activation_gate_status:"active",allowed_executor:"local_connector",source_status:"active",destination_status:"active",artifact_format:"sql_dump",checksum_algorithm:"sha256",encryption_scheme:"platform_managed",approved_count:1,approval_required:true,restore_test_required:true},
   backup:{status:"succeeded",encryption_scheme:"aes-256-gcm",checksum_algorithm:"sha256",artifact_sha256:hash,checksum_verified:true,secret_bearing_urls_included:false,source_sha:source},
   restore:{ok:true,mode:"isolated_db_restore_mariadb",ports_published:false,network_isolated:true,production_touched:false,full_import_attempted:true,cleanup:{container_removed:true,plaintext_sql_removed:true},source_sha:source,artifact_sha256:hash},
 };
-const absent=assessStagingBackupAuthority({environment:"staging",expected_source_sha:source,policy_count:0});
+const absent=assessStagingBackupAuthority({environment:"staging",expected_source_sha:source,policy_inventory_verified:true,policy_count:0});
 assert(absent.blockers.includes("DATABASE_BACKUP_POLICY_MISSING"));
 assert(absent.blockers.includes("FRESH_ENCRYPTED_BACKUP_NOT_VERIFIED"));
 assert(absent.blockers.includes("ISOLATED_RESTORE_NOT_ATTESTED"));
 assert.equal(absent.qa_fixture_write_authorized,false);
 assert.equal(absent.production_promotion_authorized,false);
+assert.equal(absent.policy_inventory_verified,true);
+assert.equal(absent.existing_policy_count,0);
+const unknown=assessStagingBackupAuthority({environment:"staging",expected_source_sha:source});
+assert(unknown.blockers.includes("BACKUP_POLICY_INVENTORY_UNVERIFIED"));
+assert(!unknown.blockers.includes("DATABASE_BACKUP_POLICY_MISSING"));
+assert.equal(unknown.existing_policy_count,null);
+assert.equal(unknown.policy_inventory_verified,false);
+assert.equal(unknown.backup_restore_prerequisites_satisfied,false);
+const forgedEvidence=assessStagingBackupAuthority({...approved,policy_inventory_verified:false});
+assert(forgedEvidence.blockers.includes("BACKUP_POLICY_INVENTORY_UNVERIFIED"));
+assert.equal(forgedEvidence.backup_restore_prerequisites_satisfied,false);
 const good=assessStagingBackupAuthority(approved);
 assert.equal(good.backup_restore_prerequisites_satisfied,true);
 assert.deepEqual(good.blockers,[]);

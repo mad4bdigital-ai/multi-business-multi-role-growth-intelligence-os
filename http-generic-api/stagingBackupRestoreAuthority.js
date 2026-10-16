@@ -6,6 +6,9 @@ const integer = x => Number.isSafeInteger(Number(x)) && Number(x) >= 0 ? Number(
 export function assessStagingBackupAuthority(input={}) {
   const runtime = String(input.environment || "").toLowerCase();
   const staging = runtime.includes("staging") && !runtime.includes("production") && !runtime.includes("prod_");
+  // Unknown inventory is not evidence that a policy is absent. Only a
+  // successful privileged SELECT census can certify a zero-policy result.
+  const inventoryVerified = input.policy_inventory_verified === true;
   const p = input.policy || null;
   const backup = input.backup || null;
   const restore = input.restore || null;
@@ -13,8 +16,9 @@ export function assessStagingBackupAuthority(input={}) {
   const blockers = [];
   if (!staging) blockers.push("STAGING_RUNTIME_NOT_ATTESTED");
   if (!sha40.test(expectedHead)) blockers.push("EXACT_SOURCE_SHA_NOT_ATTESTED");
-  if (!p) blockers.push("DATABASE_BACKUP_POLICY_MISSING");
+  if (!p) blockers.push(inventoryVerified ? "DATABASE_BACKUP_POLICY_MISSING" : "BACKUP_POLICY_INVENTORY_UNVERIFIED");
   else {
+    if (!inventoryVerified) blockers.push("BACKUP_POLICY_INVENTORY_UNVERIFIED");
     if (p.backup_kind !== "database") blockers.push("DATABASE_POLICY_KIND_INVALID");
     if (p.status !== "active" || p.activation_gate_status !== "active") blockers.push("BACKUP_POLICY_NOT_ACTIVE");
     if (p.allowed_executor !== "local_connector") blockers.push("LOCAL_CONNECTOR_EXECUTOR_REQUIRED");
@@ -54,7 +58,8 @@ export function assessStagingBackupAuthority(input={}) {
     environment_valid:staging,
     backup_restore_prerequisites_satisfied:blocked.length===0,
     blockers:blocked,
-    existing_policy_count:integer(input.policy_count),
+    policy_inventory_verified:inventoryVerified,
+    existing_policy_count:inventoryVerified ? integer(input.policy_count) : null,
     approved_backup_count:integer(input.approved_backup_count),
     verified_isolated_restore_count:integer(input.verified_restore_count),
     qa_fixture_write_authorized:false,
