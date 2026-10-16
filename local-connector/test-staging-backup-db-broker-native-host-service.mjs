@@ -39,6 +39,22 @@ assert(build.includes("--self-test"),"compiled native host must self-test");
 assert(!installer.includes("& $BinaryPath"),"elevated installer must not run a caller-supplied binary");
 assert(installer.includes("installer_executed_binary=$false"),
   "read-only installer must disclose that it did not execute the binary");
+const scmCreate=installer.split(/\r?\n/).find(line=>line.includes("& sc.exe create "));
+assert(scmCreate,"dedicated virtual-account SCM registration expected");
+assert(!scmCreate.includes("password="),
+  "SCM virtual-account password must be null; PowerShell 5.1 drops empty native arguments");
+assert(installer.includes("$scExit=$LASTEXITCODE"),
+  "native sc.exe exit code must be captured before reporting failed registration");
+assert(installer.includes("win32_code=$nativeCode"),
+  "surface the sanitized Windows registration error code");
+assert(installer.includes("ResumeInterruptedRegistration"),
+  "leftover directory recovery must require a separate explicit switch");
+for(const required of [
+  "BROKER_INTERRUPTED_DIRECTORY_CONTENT_UNVERIFIED",
+  "BROKER_INTERRUPTED_BINARY_HASH_MISMATCH",
+  "BROKER_INTERRUPTED_DIRECTORY_ACL_UNVERIFIED",
+  "BROKER_INSTALL_DIRECTORY_ALREADY_EXISTS_USE_EXPLICIT_RECOVERY"
+])assert(installer.includes(required),"fail-closed partial-install guard missing: "+required);
 for(const [label,regex] of [
  ["network",/\b(?:HttpListener|Socket|TcpClient|UdpClient|WebClient|HttpClient)\b/],
  ["SQL",/\b(?:SqlConnection|MySqlConnection|OleDbConnection|OdbcConnection)\b/],

@@ -66,6 +66,39 @@ host, uncleared OS admin privilege or unapproved operation scope. Do not
 automate UAC, use a shared LocalSystem account or bypass Windows ACLs.
 The binary digest is a measurement, not independent publisher signature.
 
+## Windows PowerShell 5.1 SCM registration failure — safe recovery
+
+An elevated Windows install attempt on 2026-10-16 failed at
+`BROKER_WINDOWS_SERVICE_REGISTRATION_FAILED` and left the protected
+`%ProgramData%\MAD4B\StagingBackupBrokerHost` directory containing a copied
+host EXE, while the named SCM service was **not registered**. The old installer
+passed `password= ''` to `sc.exe create`. Windows PowerShell 5.1 silently
+omits the empty native argument, yielding an invalid `password=` option.
+A virtual `NT SERVICE\<service-name>` account requires a null password:
+the corrected installer **omits the password option entirely**.
+
+Do not delete, loosen ACLs on, or adopt this partial directory by default.
+The corrected installer requires an **explicit**
+`-ResumeInterruptedRegistration` flag. Before any SCM write, it requires:
+exact repository/origin/deployed SHA, exact source binary SHA-256, genuinely
+elevated Windows token, Staging inert-only scope, service absent, no reparse
+points, exactly one expected copied EXE, exact copied EXE SHA-256, and a
+protected ACL that grants FullControl to SYSTEM and Administrators only.
+Any mismatch refuses recovery without changing the directory or service.
+The original caller-supplied binary is **never executed** by the installer.
+
+In a separately authorized **elevated** PowerShell window, after review
+and source certification, use the normal installer invocation from above
+with `-Apply -ResumeInterruptedRegistration` and
+`-OperationScope STAGING_INERT_SERVICE_ONLY_NO_DBA`. The exact
+`ExpectedCommit` must match current deployed/certified `main`; the
+`ExpectedBinarySha256` must be freshly measured, not blindly reused from
+a prior incident. A failed `sc.exe create` reports only the native exit
+and Win32 status codes, never broad native output or credentials.
+
+This recovery does not authorize DBA, MariaDB changes, backup/restore,
+or any Production operation.
+
 ## Operational certification remains separate
 
 After the inert SCM service exists, it can satisfy only *service presence*
