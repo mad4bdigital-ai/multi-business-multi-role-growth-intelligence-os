@@ -224,3 +224,39 @@ signing-key custody outside the Broker host, and explicit one-shot Owner
 authority before any DB action. The current change intentionally does not
 create those authorities, store private material, connect to MariaDB,
 execute Backup/Restore or mutate Production.
+
+
+## Separate signed witness receipt — cryptographic bridge, no trust promotion
+
+The source-only file local-connector/staging-backup-broker-witness-receipt.mjs
+accepts the existing Ed25519-signed read-only OS evidence and a second,
+separately signed and domain-separated witness receipt. The witness payload
+is constrained to Staging read-only OS evidence, requiring:
+- exact certified Staging Git SHA and installed Broker executable SHA-256;
+- original signed evidence bytes SHA-256, original signer SPKI SHA-256;
+- the identical 256-bit challenge nonce, 256-bit receipt identifier;
+- short UTC receipt freshness window, and a distinct Ed25519 witness key.
+
+The verifier checks both signatures and rejects noncanonical bytes,
+unexpected authority fields, swapped identities and key reuse. A valid
+result only establishes **two mathematically consistent signatures**:
+signed_os_evidence_valid=true, witness_signature_valid=true and
+witness_bindings_valid=true. It **always** reports
+external_custody_verified=false,
+immutable_external_audit_verified=false,
+replay_registry_verified=false,
+owner_public_key_independently_pinned=false,
+independently_attested=false,
+broker_operationally_certified=false, db_admin_authorized=false,
+backup_executed=false, restore_executed=false, production_mutation=false.
+
+There is intentionally no signing key provisioning or online audit service
+in this change. A self-generated witness key and signed receipt do not
+constitute external immutable storage or a trusted reviewer. To advance
+the live trust gate, separately authorized work must establish an external
+administrator-controlled trust anchor, challenge issuance and *atomic durable*
+nonce consumption, and an externally independently verified append-only
+audit receipt, with procedures for rotation and compromise. No caller-
+provided JSON can clear the existing trust gate. The test creates two
+ephemeral Ed25519 keypairs solely in CI memory and includes 21 negative
+integrity and privilege-spoofing cases, without contacting MariaDB.
