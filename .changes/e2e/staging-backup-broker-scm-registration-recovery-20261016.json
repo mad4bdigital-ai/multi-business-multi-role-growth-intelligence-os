@@ -1,0 +1,83 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-backup-broker-scm-registration-recovery-20261016",
+  "title": "Fail-closed recovery after interrupted native Windows Backup Broker SCM registration",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-backup-broker-scm-registration-recovery-20261016.json",
+      "autopilot-portable-staging/Install-StagingBackupBrokerHostService.ps1",
+      "local-connector/test-staging-backup-db-broker-native-host-service.mjs",
+      "docs/runbooks/staging-backup-broker-native-host-service-20261016.md"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Correct virtual Windows service account registration and recover only exact attested inert SCM install residue without DBA or Production authority.",
+      "e2e_journeys": [
+        {
+          "id": "staging-native-scm-empty-password-and-attested-recovery",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Staging OS Operator",
+          "entrypoint": "Invoke native installer with a virtual service account and inspect recovery-plan/negative authorization contract.",
+          "terminal_outcome": "Empty native password argument is omitted, recovery requires exact copied binary, directory ACL and explicit owner-scoped elevated operator; non-admin apply fails closed without SCM writes.",
+          "steps": [
+            "Verify Windows PowerShell 5.1 drops an empty password argument and omit password= entirely from sc.exe virtual-account registration.",
+            "Report only sanitized sc.exe exit and Win32 error codes on failed registration.",
+            "Require an explicit ResumeInterruptedRegistration switch and exact previously copied executable SHA-256, single file, no reparse point, protected SYSTEM/Administrators ACL.",
+            "Re-check pinned repository, remote main, deployed/certified source, in-container manifest, binary digest and Windows elevation before any service registration.",
+            "Reject unprivileged attempts before filesystem or SCM changes, and keep all DBA/backup/restore and Production mutation paths blocked."
+          ],
+          "assertions": [
+            "PowerShell native sc.exe command never passes the empty password= option and captures native failure codes.",
+            "Partial-install recovery rejects unknown content, hash mismatch, unprotected ACL and missing explicit flag.",
+            "Negative non-elevated path rejects with BROKER_WINDOWS_ADMINISTRATOR_REQUIRED before SCM registration.",
+            "Host binary is inert and creates no SQL/DB, network, private key or Production mutation surface."
+          ],
+          "tests": [
+            {
+              "id": "native-broker-scm-recovery-static-regression",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "local-connector/test-staging-backup-db-broker-native-host-service.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "autopilot-portable-staging/Install-StagingBackupBrokerHostService.ps1",
+            "docs/runbooks/staging-backup-broker-native-host-service-20261016.md",
+            "local-connector/test-staging-backup-db-broker-native-host-service.mjs"
+          ]
+        }
+      ],
+      "tests": [
+        {
+          "id": "native-broker-scm-recovery-static-regression",
+          "runner": "node",
+          "working_directory": ".",
+          "path": "local-connector/test-staging-backup-db-broker-native-host-service.mjs",
+          "args": []
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}
