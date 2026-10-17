@@ -186,6 +186,9 @@ assert.ok(recoveryWorkflow.includes("write_scope:$write_scope"), "Recovery must 
 assert.ok(recoveryWorkflow.includes("work-map-autofix:authorized docs_only {0}"), "docs-only owner marker must carry exact SHA");
 assert.ok(recoveryWorkflow.includes("inputs.expected_head_sha"), "docs-only marker must bind owner approval to exact head");
 assert.ok(recoveryWorkflow.includes("write_scope=${WRITE_SCOPE} authorization_consumed=true"), "Recovery must bind scope to its one-time grant");
+assert.ok(recoveryWorkflow.includes('--arg scope "${WRITE_SCOPE}"'), "Retry must provide the requested write scope to grant lookup");
+assert.ok(recoveryWorkflow.includes('contains(" write_scope=" + $scope + " ")'), "Retry must never restore a different-scope writer grant");
+assert.ok(recoveryWorkflow.includes('write_scope:$write_scope,behind_by:$behind_by'), "Recovery report must bind audited scope");
 assert.ok(workflow.includes("write_scope=${WRITE_SCOPE} authorization_consumed=true"), "Writer must verify exact delegated scope");
 assert.ok(workflow.includes('node .github/scripts/work-map-docs-only-guard.mjs --expected-head-sha "${EXPECTED_HEAD_SHA}"'));
 assert.ok(workflow.includes('if [[ "${WRITE_SCOPE}" == "docs_only" ]]; then'));
