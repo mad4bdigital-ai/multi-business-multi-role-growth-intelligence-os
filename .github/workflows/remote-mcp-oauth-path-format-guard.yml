@@ -77,8 +77,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: mad4b-latest-head-${{ github.workflow_ref }}-${{ (github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref_type == 'branch' && !github.ref_protected && github.ref != 'refs/heads/main' && github.ref != 'refs/heads/master' && github.ref != 'refs/heads/Production' && github.ref != 'refs/heads/production' && github.ref != 'refs/heads/staging' && github.ref != 'refs/heads/Staging' && !startsWith(github.ref, 'refs/heads/release/'))) && (github.event.pull_request.number || github.ref) || github.run_id }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref_type == 'branch' && !github.ref_protected && github.ref != 'refs/heads/main' && github.ref != 'refs/heads/master' && github.ref != 'refs/heads/Production' && github.ref != 'refs/heads/production' && github.ref != 'refs/heads/staging' && github.ref != 'refs/heads/Staging' && !startsWith(github.ref, 'refs/heads/release/')) }}
+  group: remote-mcp-oauth-path-format-guard-${{ github.ref }}-${{ inputs.expected_head_sha || github.sha }}
+  cancel-in-progress: true
 
 jobs:
   path-format-guard:
