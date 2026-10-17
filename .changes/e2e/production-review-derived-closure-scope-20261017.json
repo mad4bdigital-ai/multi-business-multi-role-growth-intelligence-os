@@ -1,0 +1,81 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "production-review-derived-closure-scope-20261017",
+  "title": "Fail-closed main-only Derived State Closure routing for Production review events",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/production-review-derived-closure-scope-20261017.json",
+      ".github/workflows/derived-state-closure.yml",
+      "http-generic-api/test-derived-state-converged-automerge-source-event.mjs",
+      "http-generic-api/scripts/production-review-derived-closure-scope-self-test.mjs",
+      "http-generic-api/config/repository-governance-constitution.json",
+      ".github/derived-state-governance.json"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "production"
+    ],
+    "cross_environment_reviewed": false,
+    "live_staging_certification_required": false,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Skip main-only Derived State jobs for Production review events without fabricating required Production CI evidence or bypassing owner consent.",
+      "e2e_journeys": [
+        {
+          "id": "main-only-derived-review-source-pin",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Repository reviewer",
+          "entrypoint": "Submitted or dismissed PR review event with an immutable target branch",
+          "terminal_outcome": "Main PR review receives existing Derived State evaluation; Production PR review skips that non-applicable job; Production required checks are unaffected.",
+          "steps": [
+            "Read exact source event and PR target from trusted event payload",
+            "Run main-only Derived State detector for main PR review",
+            "Skip main-only detector for Production or other PR review",
+            "Retain main API re-verification and independent Production Source-Pin required check",
+            "Do not issue merge, deployment, or Production status attestation"
+          ],
+          "assertions": [
+            "No main-only Derived State evidence is issued for Production PR reviews",
+            "Main PR checks and owner review behavior remain unchanged",
+            "Production Unit, E2E and Source-Pin required status contexts remain untouched",
+            "No Production mutation, CI bypass, forged check or secrets"
+          ],
+          "tests": [
+            {
+              "id": "production-review-derived-scope",
+              "runner": "node",
+              "path": "http-generic-api/scripts/production-review-derived-closure-scope-self-test.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/scripts/production-review-derived-closure-scope-self-test.mjs",
+            ".github/workflows/derived-state-closure.yml"
+          ]
+        }
+      ],
+      "tests": [
+        {
+          "id": "production-review-derived-scope",
+          "runner": "node",
+          "path": "http-generic-api/scripts/production-review-derived-closure-scope-self-test.mjs",
+          "args": []
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}
