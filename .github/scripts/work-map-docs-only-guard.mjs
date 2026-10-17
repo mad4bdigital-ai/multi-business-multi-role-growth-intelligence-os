@@ -37,10 +37,10 @@ export function inspectDocsOnlyGit({ root = REPO_ROOT, expectedHeadSha } = {}) {
   if (!SHA_RE.test(expectedHeadSha || "")) throw new Error("docs_only_expected_head_invalid");
   const git = (...args) => execFileSync("git", args, { cwd: root, stdio: ["ignore", "pipe", "pipe"] });
   git("merge-base", "--is-ancestor", expectedHeadSha, "HEAD");
-  // Covers staged + unstaged tracked files, untracked files, and already committed changes.
-  const tracked = readNulPaths(git("diff", "--name-only", "-z", "HEAD"));
+  // Disable rename detection to check both source and destination paths.\n  // Covers staged + unstaged tracked files, untracked files, and already committed changes.
+  const tracked = readNulPaths(git("diff", "--no-renames", "--name-only", "-z", "HEAD"));
   const untracked = readNulPaths(git("ls-files", "--others", "--exclude-standard", "-z"));
-  const committed = readNulPaths(git("diff", "--name-only", "-z", expectedHeadSha, "HEAD"));
+  const committed = readNulPaths(git("diff", "--no-renames", "--name-only", "-z", expectedHeadSha, "HEAD"));
   const paths = [...new Set([...tracked, ...untracked, ...committed])].sort();
   assertDocsOnlyPaths(paths, root);
   return {
