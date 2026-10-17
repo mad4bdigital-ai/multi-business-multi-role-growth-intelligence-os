@@ -766,6 +766,12 @@
       ]
     },
     {
+      "id": "work_map_post_write_exact_verification_dispatch",
+      "test_paths": [
+        "http-generic-api/test-work-map-post-write-exact-verification-dispatch.mjs"
+      ]
+    },
+    {
       "id": "work_map_schema_classification_contract",
       "test_paths": [
         "http-generic-api/scripts/platform-work-map-schema-intelligence.mjs",
