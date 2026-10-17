@@ -15,6 +15,14 @@ on:
         description: Exact current branch head SHA authorized for regeneration
         required: true
         type: string
+      write_scope:
+        description: Bound to trusted Recovery grant; docs_only writes docs/work-maps only
+        required: false
+        type: choice
+        default: full
+        options:
+          - docs_only
+          - full
       recovery_run_id:
         description: Recovery workflow run that issued this one-time writer delegation
         required: true
@@ -49,6 +57,7 @@ jobs:
       EXPECTED_HEAD_SHA: ${{ inputs.expected_head_sha }}
       RECOVERY_RUN_ID: ${{ inputs.recovery_run_id }}
       DELEGATION_COMMENT_ID: ${{ inputs.delegation_comment_id }}
+      WRITE_SCOPE: ${{ inputs.write_scope || 'full' }}
     steps:
       - name: Initialize diagnostics and validate inputs
         id: initialize
@@ -67,6 +76,7 @@ jobs:
           [[ "${EXPECTED_HEAD_SHA}" =~ ^[0-9a-f]{40}$ ]]
           [[ "${RECOVERY_RUN_ID}" =~ ^[1-9][0-9]*$ ]]
           [[ "${DELEGATION_COMMENT_ID}" =~ ^[1-9][0-9]*$ ]]
+          [[ "${WRITE_SCOPE}" == "docs_only" || "${WRITE_SCOPE}" == "full" ]]
 
           cat > "${diagnostic_root}/report.md" <<EOF
           # Work Map Autofix Diagnostic Report
@@ -80,6 +90,7 @@ jobs:
           | Expected head | \`${EXPECTED_HEAD_SHA}\` |
           | Recovery run | \`${RECOVERY_RUN_ID}\` |
           | Delegation comment | \`${DELEGATION_COMMENT_ID}\` |
+          | Write scope | \`${WRITE_SCOPE}\` |
           EOF
 
       - name: Require trusted follow-up writer identity
@@ -374,12 +385,12 @@ jobs:
           test "$(jq -r '.user.login' "${delegation_file}" | normalize_scalar)" = "github-actions[bot]"
           test "$(jq -r '.issue_url' "${delegation_file}" | normalize_scalar)" = "https://api.github.com/repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}"
 
-          expected_grant="WORK_MAP_WRITER_DELEGATION contract=mad4b.work-map-writer-delegation.v1 state=issued recovery_run_id=${RECOVERY_RUN_ID} recovery_run_attempt=${recovery_run_attempt} pr_number=${PR_NUMBER} target_branch=${TARGET_BRANCH} expected_head_sha=${EXPECTED_HEAD_SHA} authorization_consumed=true"
+          expected_grant="WORK_MAP_WRITER_DELEGATION contract=mad4b.work-map-writer-delegation.v1 state=issued recovery_run_id=${RECOVERY_RUN_ID} recovery_run_attempt=${recovery_run_attempt} pr_number=${PR_NUMBER} target_branch=${TARGET_BRANCH} expected_head_sha=${EXPECTED_HEAD_SHA} write_scope=${WRITE_SCOPE} authorization_consumed=true"
           actual_grant="$(jq -r '.body' "${delegation_file}" | normalize_scalar)"
           printf 'delegation_grant_issue_lengths actual=%s expected=%s\n' "${#actual_grant}" "${#expected_grant}"
           test "${actual_grant}" = "${expected_grant}"
 
-          consumed_grant="WORK_MAP_WRITER_DELEGATION contract=mad4b.work-map-writer-delegation.v1 state=consumed recovery_run_id=${RECOVERY_RUN_ID} recovery_run_attempt=${recovery_run_attempt} pr_number=${PR_NUMBER} target_branch=${TARGET_BRANCH} expected_head_sha=${EXPECTED_HEAD_SHA} authorization_consumed=true writer_run_id=${GITHUB_RUN_ID} writer_run_attempt=${GITHUB_RUN_ATTEMPT}"
+          consumed_grant="WORK_MAP_WRITER_DELEGATION contract=mad4b.work-map-writer-delegation.v1 state=consumed recovery_run_id=${RECOVERY_RUN_ID} recovery_run_attempt=${recovery_run_attempt} pr_number=${PR_NUMBER} target_branch=${TARGET_BRANCH} expected_head_sha=${EXPECTED_HEAD_SHA} write_scope=${WRITE_SCOPE} authorization_consumed=true writer_run_id=${GITHUB_RUN_ID} writer_run_attempt=${GITHUB_RUN_ATTEMPT}"
           patch_response="${DIAGNOSTIC_ROOT}/writer-delegation-consume-response.json"
           jq -n --arg body "${consumed_grant}" '{body:$body}' > "${delegation_payload}"
           gh api --method PATCH "repos/${GITHUB_REPOSITORY}/issues/comments/${DELEGATION_COMMENT_ID}" \
@@ -560,6 +571,10 @@ jobs:
 
           run_convergence() {
             node http-generic-api/scripts/platform-work-map-generator.mjs --write
+            if [[ "${WRITE_SCOPE}" == "docs_only" ]]; then
+              node .github/scripts/work-map-docs-only-guard.mjs --expected-head-sha "${EXPECTED_HEAD_SHA}"
+              return
+            fi
             node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs
             node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --feature-key 014-retail-commerce-operations-growth-os
             node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --feature-key 017-remote-mcp-host-isolation-oauth-readiness
@@ -577,6 +592,10 @@ jobs:
           test "${first_diff_hash}" = "${second_diff_hash}"
 
           node http-generic-api/scripts/platform-work-map-generator.mjs --check
+          if [[ "${WRITE_SCOPE}" == "docs_only" ]]; then
+            node .github/scripts/work-map-docs-only-guard.mjs --expected-head-sha "${EXPECTED_HEAD_SHA}"
+            exit 0
+          fi
           node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --check
           node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --feature-key 014-retail-commerce-operations-growth-os --check
           node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --feature-key 017-remote-mcp-host-isolation-oauth-readiness --check
@@ -601,6 +620,27 @@ jobs:
           set -euo pipefail
           changed=false
           result_head_sha="${EXPECTED_HEAD_SHA}"
+          if [[ "${WRITE_SCOPE}" == "docs_only" ]]; then
+            node .github/scripts/work-map-docs-only-guard.mjs --expected-head-sha "${EXPECTED_HEAD_SHA}"
+            if ! git diff --quiet -- docs/work-maps; then
+              git config user.name "github-actions[bot]"
+              git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+              git add -- docs/work-maps
+              node .github/scripts/work-map-docs-only-guard.mjs --expected-head-sha "${EXPECTED_HEAD_SHA}"
+              git commit -m "docs(work-maps): regenerate docs-only governed maps"
+              node .github/scripts/work-map-docs-only-guard.mjs --expected-head-sha "${EXPECTED_HEAD_SHA}"
+              remote_head_sha="$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+              test "${remote_head_sha}" = "${EXPECTED_HEAD_SHA}"
+              git push origin "HEAD:refs/heads/${TARGET_BRANCH}"
+              result_head_sha="$(git rev-parse HEAD)"
+              remote_head_sha="$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+              test "${remote_head_sha}" = "${result_head_sha}"
+              changed=true
+            fi
+            echo "changed=${changed}" >> "$GITHUB_OUTPUT"
+            echo "result_head_sha=${result_head_sha}" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           governed_paths=(
             docs/work-maps
             specs/014-governed-hostinger-storage-orchestration/work-map-integration.json
