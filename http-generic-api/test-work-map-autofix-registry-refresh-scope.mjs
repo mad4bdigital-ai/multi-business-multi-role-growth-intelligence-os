@@ -183,6 +183,8 @@ console.log("Work Map autofix registry-refresh scope regression tests passed.");
 // Exact-head docs-only delegated writer contract and real Git delta regression.
 const recoveryWorkflow = fs.readFileSync(path.resolve(HERE, "..", ".github", "workflows", "spec-kit-work-map-autofix-recovery-dispatch.yml"), "utf8");
 assert.ok(recoveryWorkflow.includes("write_scope:$write_scope"), "Recovery must carry scope into the dispatch payload");
+assert.ok(recoveryWorkflow.includes("work-map-autofix:authorized docs_only {0}"), "docs-only owner marker must carry exact SHA");
+assert.ok(recoveryWorkflow.includes("inputs.expected_head_sha"), "docs-only marker must bind owner approval to exact head");
 assert.ok(recoveryWorkflow.includes("write_scope=${WRITE_SCOPE} authorization_consumed=true"), "Recovery must bind scope to its one-time grant");
 assert.ok(workflow.includes("write_scope=${WRITE_SCOPE} authorization_consumed=true"), "Writer must verify exact delegated scope");
 assert.ok(workflow.includes('node .github/scripts/work-map-docs-only-guard.mjs --expected-head-sha "${EXPECTED_HEAD_SHA}"'));
