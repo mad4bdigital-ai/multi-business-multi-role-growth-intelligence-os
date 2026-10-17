@@ -7,6 +7,13 @@ const launcher = read(".github/workflows/governed-production-promotion-request-l
 const candidate = read(".github/workflows/production-promotion-candidate.yml");
 const mainSourcePinGuard = read(".github/workflows/governed-production-main-source-pin-guard.yml");
 const releaseSourcePinGate = read(".github/workflows/governed-production-release-source-pin-gate.yml");
+// The trusted source pin checks bounded hotfix and release-cut identities independently.
+assert.match(releaseSourcePinGate, /Classify exact Production PR without granting authority/u);
+assert.match(releaseSourcePinGate, /production-security-hotfix-source-pin\.mjs/u);
+assert.match(releaseSourcePinGate, /steps\.classify\.outputs\.mode == 'release'/u);
+assert.match(releaseSourcePinGate, /steps\.classify\.outputs\.mode == 'hotfix'/u);
+assert.match(releaseSourcePinGate, /Production Promotion Semantic Source-Pin Gate/u);
+assert.match(releaseSourcePinGate, /--reviews-file/u);
 const postFinalizationGuard = read(".github/workflows/governed-production-promotion-post-finalization-guard.yml");
 const certifiedReleaseCut = read(".github/workflows/production-certified-release-cut-validation.yml");
 const semanticSourcePinGate = releaseSourcePinGate;
@@ -481,6 +488,7 @@ assert.doesNotMatch(evidenceHelper, /candidate_tree_matches_main: true/u);
 
 await import("./test-response-chunk-ownership-governed-rollout-control.mjs");
 
+await import("./scripts/production-security-hotfix-source-pin-self-test.mjs");
 console.log(JSON.stringify({
   contract: "mad4b.production-promotion-release-cut-convergence.v2",
   ok: true,
