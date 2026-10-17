@@ -37,6 +37,9 @@ jobs:
         run: node http-generic-api/scripts/production-security-hotfix-candidate-self-test.mjs
 
       - name: Verify Production Environment binding for governed runtime credentials
+        env:
+          CREDENTIAL_PROVENANCE_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before || '' }}
+          CREDENTIAL_PROVENANCE_EVENT: ${{ github.event_name }}
         run: |
           node --input-type=module <<'NODE'
           import assert from "node:assert/strict";
@@ -79,6 +82,58 @@ jobs:
             "  readiness:\n"
           ), "readiness"), /Production Environment required/);
           console.log(count + " governed Production jobs have verified Environment binding.");
+
+          // Dynamic ratchet: every changed workflow must bind jobs consuming
+          // privileged credential names to an explicit GitHub Environment.
+          // Existing unbound legacy consumers are not silently re-authorized.
+          import { execFileSync } from "node:child_process";
+
+          function verifyChangedWorkflowCredentialBindings(path, yaml) {
+            const jobsStart = yaml.indexOf("\njobs:\n");
+            if (jobsStart < 0) return 0;
+            const jobsSource = yaml.slice(jobsStart + "\njobs:\n".length);
+            const jobStarts = [...jobsSource.matchAll(/^  ([a-zA-Z_][\w-]*):\s*$/gm)];
+            let checked = 0;
+            for (let i = 0; i < jobStarts.length; i += 1) {
+              const job = jobStarts[i];
+              const block = jobsSource.slice(job.index, jobStarts[i + 1]?.index ?? jobsSource.length);
+              const used = [...new Set([...block.matchAll(/secrets\.(HOSTINGER_API_TOKEN|BACKEND_API_KEY)\b/g)].map((match) => match[1]))];
+              if (!used.length) continue;
+              assert.match(block, /^    environment:\s*(?:Production|Staging|staging|\$\{\{[^\n]+\}\}|\n\s{6}name:\s*[^ \n]+\s*)$/m,
+                path + " / " + job[1] + ": secret-consuming job needs explicit environment");
+              if (used.includes("HOSTINGER_API_TOKEN")) {
+                assert.match(block, /^    environment:\n      name: Production\n      deployment: false$/m,
+                  path + " / " + job[1] + ": Hostinger token needs Production Environment");
+              }
+              checked += 1;
+            }
+            return checked;
+          }
+
+          const baseSha = String(process.env.CREDENTIAL_PROVENANCE_BASE_SHA || "").trim();
+          const event = String(process.env.CREDENTIAL_PROVENANCE_EVENT || "");
+          let ratchetJobs = 0;
+          if (event === "pull_request" || event === "push") {
+            assert.match(baseSha, /^[0-9a-f]{40}$/, "branch baseline must be a complete SHA for credential scope ratchet");
+            const changed = execFileSync("git", ["diff", "--name-only", baseSha + "...HEAD", "--", ".github/workflows"], {encoding: "utf8"})
+              .split(/\r?\n/).filter((item) => /^\.github\/workflows\/[^/\n]+\.ya?ml$/.test(item));
+            for (const path of changed) {
+              ratchetJobs += verifyChangedWorkflowCredentialBindings(path, readFileSync(path, "utf8"));
+            }
+          } else {
+            console.log("Credential scope diff ratchet: no PR/push baseline (static governed bindings still verified).");
+          }
+          const passingFixture = "\njobs:\n  job:\n    environment:\n      name: Production\n      deployment: false\n    env:\n      HOSTINGER_API_TOKEN: secrets.HOSTINGER_API_TOKEN\n";
+          assert.equal(verifyChangedWorkflowCredentialBindings("positive-fixture", passingFixture), 1);
+          assert.throws(
+            () => verifyChangedWorkflowCredentialBindings("negative-fixture", passingFixture.replace("    environment:\n      name: Production\n      deployment: false\n", "")),
+            /needs explicit environment/
+          );
+          assert.throws(
+            () => verifyChangedWorkflowCredentialBindings("wrong-scope-fixture", passingFixture.replace("name: Production", "name: staging")),
+            /Hostinger token needs Production Environment/
+          );
+          console.log("Credential scope ratchet verified " + ratchetJobs + " changed secret-consuming jobs.");
           NODE
 
       - name: Enforce Runtime data lifecycle classification
