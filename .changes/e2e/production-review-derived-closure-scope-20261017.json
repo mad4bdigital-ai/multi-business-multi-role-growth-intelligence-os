@@ -12,7 +12,10 @@
       "http-generic-api/test-derived-state-converged-automerge-source-event.mjs",
       "http-generic-api/scripts/production-review-derived-closure-scope-self-test.mjs",
       "http-generic-api/config/repository-governance-constitution.json",
-      ".github/derived-state-governance.json"
+      ".github/derived-state-governance.json",
+      "http-generic-api/config/deployment-branch-policy.json",
+      "http-generic-api/test-environment-impact-closure.mjs",
+      "http-generic-api/scripts/maintenance-tools/work-map-docs-only-guard.mjs"
     ]
   },
   "merge_contract": {

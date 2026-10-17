@@ -22,6 +22,11 @@ for (const name of ["GPT_Admin_Assistant_Knowledge_Guide.md", "runtime_confirmat
   assert(classes.includes("repository_governance"), `missing exact repository impact: ${name}`);
   assert(!classes.includes("shared_runtime"), `documentation cannot imply runtime mutation: ${name}`);
 }
+const docsOnlyGuardClasses = classifyPath(
+  "http-generic-api/scripts/maintenance-tools/work-map-docs-only-guard.mjs", policy.path_classes,
+).map(entry => entry.id);
+assert.deepEqual(docsOnlyGuardClasses, ["repository_governance"],
+  "Docs-only source guard must be repository governance only, never staging/Production runtime authority");
 const legacyMigrationClasses = classifyPath(
   "http-generic-api/scripts/governed-migration-runner-legacy.mjs", policy.path_classes,
 ).map(entry => entry.id);
