@@ -91,12 +91,13 @@ jobs:
 
           comments_file="${REPORT_DIR}/retry-authorization-comments.json"
           gh api "repos/${GITHUB_REPOSITORY}/issues/${REQUESTED_PR_NUMBER}/comments?per_page=100" > "${comments_file}"
-          delegation_comment_id="$(jq -r --arg branch "${target_branch}" --arg head "${REQUESTED_HEAD_SHA}" --arg pr "${REQUESTED_PR_NUMBER}" '
+          delegation_comment_id="$(jq -r --arg branch "${target_branch}" --arg head "${REQUESTED_HEAD_SHA}" --arg pr "${REQUESTED_PR_NUMBER}" --arg scope "${WRITE_SCOPE}" '
             [.[] | select(.user.login == "github-actions[bot]"
               and (.body | startswith("WORK_MAP_WRITER_DELEGATION contract=mad4b.work-map-writer-delegation.v1 state="))
               and (.body | contains(" pr_number=" + $pr + " "))
               and (.body | contains(" target_branch=" + $branch + " "))
               and (.body | contains(" expected_head_sha=" + $head + " "))
+              and (.body | contains(" write_scope=" + $scope + " "))
               and (.body | contains(" authorization_consumed=true"))
               and ((.body | contains(" state=issued ")) or (.body | contains(" state=consumed "))))]
             | last | .id // empty' "${comments_file}")"
@@ -355,6 +356,7 @@ jobs:
             --arg recovery_run_id "${GITHUB_RUN_ID}" \
             --arg target_branch "${TARGET_BRANCH:-unresolved}" \
             --arg expected_head_sha "${EXPECTED_HEAD_SHA:-unresolved}" \
+            --arg write_scope "${WRITE_SCOPE}" \
             --arg behind_by "${BEHIND_BY:-unknown}" \
             --arg writer_state "${WRITER_STATE:-unknown}" \
             --arg integration_state "${INTEGRATION_STATE:-unknown}" \
@@ -362,7 +364,7 @@ jobs:
             --arg delegation_comment_id "${DELEGATION_COMMENT_ID:-none}" \
             --arg delegated_run_id "${DELEGATED_RUN_ID:-none}" \
             --argjson pr_number "${PR_NUMBER:-0}" \
-            '{contract:$contract,outcome:$outcome,source_event:$source_event,actor:$actor,recovery_run_id:$recovery_run_id,pr_number:$pr_number,target_branch:$target_branch,expected_head_sha:$expected_head_sha,behind_by:$behind_by,writer_state:$writer_state,integration_state:$integration_state,authorization_consumed:$authorization_consumed,delegation_comment_id:$delegation_comment_id,delegated_run_id:$delegated_run_id,direct_repository_mutation:false,protected_branch_mutation:false,force_push:false,secrets_included:false}' \
+            '{contract:$contract,outcome:$outcome,source_event:$source_event,actor:$actor,recovery_run_id:$recovery_run_id,pr_number:$pr_number,target_branch:$target_branch,expected_head_sha:$expected_head_sha,write_scope:$write_scope,behind_by:$behind_by,writer_state:$writer_state,integration_state:$integration_state,authorization_consumed:$authorization_consumed,delegation_comment_id:$delegation_comment_id,delegated_run_id:$delegated_run_id,direct_repository_mutation:false,protected_branch_mutation:false,force_push:false,secrets_included:false}' \
             > "${REPORT_DIR}/report.json"
 
           if [[ "${PR_NUMBER:-}" =~ ^[1-9][0-9]*$ ]]; then
