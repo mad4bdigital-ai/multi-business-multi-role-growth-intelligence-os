@@ -97,7 +97,7 @@ jobs:
             for (let i = 0; i < jobStarts.length; i += 1) {
               const job = jobStarts[i];
               const block = jobsSource.slice(job.index, jobStarts[i + 1]?.index ?? jobsSource.length);
-              const used = [...new Set([...block.matchAll(/secrets\.(HOSTINGER_API_TOKEN|BACKEND_API_KEY)\b/g)].map((match) => match[1]))];
+              const used = [...new Set([...block.matchAll(/\$\{\{\s*secrets\.(HOSTINGER_API_TOKEN|BACKEND_API_KEY)\s*\}\}/g)].map((match) => match[1]))];
               if (!used.length) continue;
               assert.match(block, /^    environment:\s*(?:Production|Staging|staging|\$\{\{[^\n]+\}\}|\n\s{6}name:\s*[^ \n]+\s*)$/m,
                 path + " / " + job[1] + ": secret-consuming job needs explicit environment");
@@ -123,7 +123,7 @@ jobs:
           } else {
             console.log("Credential scope diff ratchet: no PR/push baseline (static governed bindings still verified).");
           }
-          const passingFixture = "\njobs:\n  job:\n    environment:\n      name: Production\n      deployment: false\n    env:\n      HOSTINGER_API_TOKEN: secrets.HOSTINGER_API_TOKEN\n";
+          const passingFixture = "\njobs:\n  job:\n    environment:\n      name: Production\n      deployment: false\n    env:\n      HOSTINGER_API_TOKEN: " + "${" + "{ secrets.HOSTINGER_API_TOKEN }}\n";
           assert.equal(verifyChangedWorkflowCredentialBindings("positive-fixture", passingFixture), 1);
           assert.throws(
             () => verifyChangedWorkflowCredentialBindings("negative-fixture", passingFixture.replace("    environment:\n      name: Production\n      deployment: false\n", "")),
