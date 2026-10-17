@@ -572,7 +572,7 @@ jobs:
           run_convergence() {
             node http-generic-api/scripts/platform-work-map-generator.mjs --write
             if [[ "${WRITE_SCOPE}" == "docs_only" ]]; then
-              node .github/scripts/work-map-docs-only-guard.mjs --expected-head-sha "${EXPECTED_HEAD_SHA}"
+              node http-generic-api/scripts/maintenance-tools/work-map-docs-only-guard.mjs --expected-head-sha "${EXPECTED_HEAD_SHA}"
               return
             fi
             node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs
@@ -593,7 +593,7 @@ jobs:
 
           node http-generic-api/scripts/platform-work-map-generator.mjs --check
           if [[ "${WRITE_SCOPE}" == "docs_only" ]]; then
-            node .github/scripts/work-map-docs-only-guard.mjs --expected-head-sha "${EXPECTED_HEAD_SHA}"
+            node http-generic-api/scripts/maintenance-tools/work-map-docs-only-guard.mjs --expected-head-sha "${EXPECTED_HEAD_SHA}"
             exit 0
           fi
           node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --check
@@ -621,14 +621,14 @@ jobs:
           changed=false
           result_head_sha="${EXPECTED_HEAD_SHA}"
           if [[ "${WRITE_SCOPE}" == "docs_only" ]]; then
-            node .github/scripts/work-map-docs-only-guard.mjs --expected-head-sha "${EXPECTED_HEAD_SHA}"
+            node http-generic-api/scripts/maintenance-tools/work-map-docs-only-guard.mjs --expected-head-sha "${EXPECTED_HEAD_SHA}"
             if ! git diff --quiet -- docs/work-maps; then
               git config user.name "github-actions[bot]"
               git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
               git add -- docs/work-maps
-              node .github/scripts/work-map-docs-only-guard.mjs --expected-head-sha "${EXPECTED_HEAD_SHA}"
+              node http-generic-api/scripts/maintenance-tools/work-map-docs-only-guard.mjs --expected-head-sha "${EXPECTED_HEAD_SHA}"
               git commit -m "docs(work-maps): regenerate docs-only governed maps"
-              node .github/scripts/work-map-docs-only-guard.mjs --expected-head-sha "${EXPECTED_HEAD_SHA}"
+              node http-generic-api/scripts/maintenance-tools/work-map-docs-only-guard.mjs --expected-head-sha "${EXPECTED_HEAD_SHA}"
               remote_head_sha="$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
               test "${remote_head_sha}" = "${EXPECTED_HEAD_SHA}"
               git push origin "HEAD:refs/heads/${TARGET_BRANCH}"

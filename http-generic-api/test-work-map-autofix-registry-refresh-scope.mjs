@@ -5,7 +5,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { execFileSync } from "node:child_process";
 import os from "node:os";
-import { assertDocsOnlyPaths, inspectDocsOnlyGit } from "../.github/scripts/work-map-docs-only-guard.mjs";
+import { assertDocsOnlyPaths, inspectDocsOnlyGit } from "./scripts/maintenance-tools/work-map-docs-only-guard.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const workflowPath = path.resolve(HERE, "..", ".github", "workflows", "spec-kit-work-map-autofix.yml");
@@ -190,7 +190,7 @@ assert.ok(recoveryWorkflow.includes('--arg scope "${WRITE_SCOPE}"'), "Retry must
 assert.ok(recoveryWorkflow.includes('contains(" write_scope=" + $scope + " ")'), "Retry must never restore a different-scope writer grant");
 assert.ok(recoveryWorkflow.includes('write_scope:$write_scope,behind_by:$behind_by'), "Recovery report must bind audited scope");
 assert.ok(workflow.includes("write_scope=${WRITE_SCOPE} authorization_consumed=true"), "Writer must verify exact delegated scope");
-assert.ok(workflow.includes('node .github/scripts/work-map-docs-only-guard.mjs --expected-head-sha "${EXPECTED_HEAD_SHA}"'));
+assert.ok(workflow.includes('node http-generic-api/scripts/maintenance-tools/work-map-docs-only-guard.mjs --expected-head-sha "${EXPECTED_HEAD_SHA}"'));
 assert.ok(workflow.includes('if [[ "${WRITE_SCOPE}" == "docs_only" ]]; then'));
 assert.doesNotThrow(() => assertDocsOnlyPaths(["docs/work-maps/README.md", "docs/work-maps/repository-automation-map.md"]));
 for (const file of ["specs/014-retail-commerce-operations-growth-os/work-map-integration.json", ".github/workflows/ci.yml", "docs/work-maps/../secret", "docs/work-maps\\escape"]) {
