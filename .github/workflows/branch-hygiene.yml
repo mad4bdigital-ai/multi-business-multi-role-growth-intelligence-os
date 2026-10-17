@@ -28,7 +28,7 @@ on:
           - dry_run
           - apply
       confirmation:
-        description: "Required only for apply: APPLY_BRANCH_HYGIENE"
+        description: "Apply confirmation: APPLY_BRANCH_HYGIENE (branches) or CANCEL_SUPERSEDED_PR_CHECKS (ci_runs)"
         required: false
         type: string
 
