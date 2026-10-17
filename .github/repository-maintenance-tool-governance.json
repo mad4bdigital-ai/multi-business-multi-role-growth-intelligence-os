@@ -162,6 +162,13 @@
         "^docs/branch-hygiene\\.md$"
       ],
       "report_contract": "mad4b.branch-hygiene-report.v2"
+    },
+    "work-map-docs-only-guard": {
+      "description": "Inspect exact-head Git file deltas, without write operations, and fail closed if a governed Work Map docs-only writer would stage, commit, or push paths outside docs/work-maps; reject traversal and symlink output.",
+      "entrypoint": ".github/scripts/work-map-docs-only-guard.mjs",
+      "mode": "read_only",
+      "allowed_changed_path_patterns": [],
+      "report_contract": "mad4b.work-map-docs-only-scope.v1"
     }
   }
 }
