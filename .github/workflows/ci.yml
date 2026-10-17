@@ -36,6 +36,51 @@ jobs:
       - name: Validate governed Production security-hotfix classification
         run: node http-generic-api/scripts/production-security-hotfix-candidate-self-test.mjs
 
+      - name: Verify Production Environment binding for governed runtime credentials
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from "node:assert/strict";
+          import { readFileSync } from "node:fs";
+
+          const targets = [
+            ["github-repository-policy-1049-governed-rollout.yml", ["readiness", "apply", "verify"]],
+            ["github-repository-policy-1050-governed-rollout.yml", ["readiness", "apply", "verify"]],
+            ["github-repository-policy-1051-governed-rollout.yml", ["readiness", "reconcile_record_only", "apply_after_record_only_reconcile", "apply"]],
+            ["transport-response-schema-1048-governed-rollout.yml", ["readiness", "apply", "verify"]],
+          ];
+
+          function verify(source, name) {
+            const blocks = [...source.matchAll(/^  ([a-zA-Z_][\w-]*):\s*$/gm)];
+            const matches = blocks.filter((match) => match[1] === name);
+            assert.equal(matches.length, 1, "expected exactly one governed job: " + name);
+            const index = blocks.indexOf(matches[0]);
+            const start = matches[0].index;
+            const end = blocks[index + 1]?.index ?? source.length;
+            const block = source.slice(start, end);
+            assert.match(block, /^    environment:\n      name: Production\n      deployment: false$/m,
+              name + ": Production Environment required");
+            assert.match(block, /secrets\.BACKEND_API_KEY\b/,
+              name + ": environment-scoped backend key reference required");
+            assert.match(block, /RUNTIME_BASE_URL:\s*https:\/\/auth\.mad4b\.com/,
+              name + ": fixed Production endpoint required");
+          }
+
+          let count = 0;
+          for (const [file, jobs] of targets) {
+            const source = readFileSync(".github/workflows/" + file, "utf8");
+            for (const job of jobs) {
+              verify(source, job);
+              count += 1;
+            }
+          }
+          const fixture = readFileSync(".github/workflows/github-repository-policy-1051-governed-rollout.yml", "utf8");
+          assert.throws(() => verify(fixture.replace(
+            "  readiness:\n    environment:\n      name: Production\n      deployment: false\n",
+            "  readiness:\n"
+          ), "readiness"), /Production Environment required/);
+          console.log(count + " governed Production jobs have verified Environment binding.");
+          NODE
+
       - name: Enforce Runtime data lifecycle classification
         working-directory: http-generic-api
         env:
