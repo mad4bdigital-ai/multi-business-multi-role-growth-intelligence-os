@@ -36,3 +36,5 @@ The first test constructs an isolated local Git origin, evaluates 13 positive/ne
 - Obtain complete OAuth, MCP, trusted ingress, stable application/DB readback, verified backup/isolated restore and no-secret host parity.
 - Bring #8500 GitHub protected Production ruleset and #8487 trusted attestation into certified status.
 - Obtain new exact-head owner approval **only** once every release precondition passes, then use separately governed promotion/deployment with auditable rollback.
+## Immutable legacy mirror
+The legacy classifier source is preserved byte-for-byte. The new adapter in `e2e-parallel-pr-gate.mjs` runs the legacy gate, then removes **only** its single known identity classification finding when all independently validated exact-SHA, scope, monotonic upgrade, and registry constraints pass. Any other finding or process failure remains blocked. This preserves the existing configuration-discovery immutable-mirror hash test.

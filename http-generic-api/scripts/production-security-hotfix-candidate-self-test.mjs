@@ -75,7 +75,7 @@ try {
   assertDenied(validHead, { baseSha: "f".repeat(40) }, "production_base_not_live");
   assertDenied("f".repeat(40), {}, "head_unavailable");
   const cli = execFileSync(process.execPath, [
-    path.join(HERE, "e2e-parallel-pr-gate-legacy.mjs"),
+    path.join(HERE, "e2e-parallel-pr-gate.mjs"),
     "--root", root, "--base", baseSha, "--head", validHead,
     "--head-ref", "security/production-hotfix-20261017", "--base-ref", "Production"
   ], { encoding: "utf8" });

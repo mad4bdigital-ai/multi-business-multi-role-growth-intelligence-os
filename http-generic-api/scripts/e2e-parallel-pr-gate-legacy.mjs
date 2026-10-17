@@ -5,7 +5,6 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { evaluateParallelWork } from "./e2e-parallel-work-governance.mjs";
 import { matchesPattern } from "./e2e-phase-governance.mjs";
-import { inspectProductionSecurityHotfix } from "./production-security-hotfix-candidate.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(HERE, "..", "..");
@@ -449,12 +448,6 @@ function main() {
     baseSha: options.base
   });
   const productionPromotion = promotion.allowed;
-  const securityHotfix = options.baseRef === "Production" && !productionPromotion
-    ? inspectProductionSecurityHotfix({
-      root: options.root, baseRef: options.baseRef, headRef: options.headRef,
-      baseSha: options.base, headSha: options.head
-    })
-    : null;
   const phaseEvaluationBase = productionPromotion ? promotion.phase_evaluation_base : null;
   if (productionPromotion && !phaseEvaluationBase) {
     addFinding(report, "production_promotion_phase_evaluation_base_unavailable", {
@@ -462,7 +455,7 @@ function main() {
       promotion_identity: promotion.identity
     });
   }
-  if (options.baseRef === "Production" && !productionPromotion && !securityHotfix?.ok) {
+  if (options.baseRef === "Production" && !productionPromotion) {
     addFinding(report, "production_promotion_identity_invalid", {
       head_ref: options.headRef || null,
       head_sha: options.head || null,
@@ -563,9 +556,6 @@ function main() {
   report.base_ref = options.baseRef || null;
   report.production_promotion = productionPromotion;
   report.production_promotion_identity = promotion.identity;
-  report.production_security_hotfix_candidate = securityHotfix?.ok === true;
-  report.production_security_hotfix_identity = securityHotfix?.ok ? securityHotfix.identity : null;
-  report.production_security_hotfix_authority_eligible = false;
   report.phase_evaluation_base = phaseEvaluationBase;
   report.production_promotion_anchor_sha = promotion.promotion_anchor_sha || null;
   report.production_promotion_rearm_depth = Number.isInteger(promotion.rearm_depth) ? promotion.rearm_depth : null;
@@ -577,8 +567,6 @@ function main() {
     workstream_id: workstreamId,
     production_promotion: productionPromotion,
     production_promotion_identity: promotion.identity || "",
-    production_security_hotfix_candidate: securityHotfix?.ok === true,
-    production_security_hotfix_authority_eligible: false,
     phase_evaluation_base: phaseEvaluationBase || "",
     production_promotion_anchor_sha: promotion.promotion_anchor_sha || "",
     production_promotion_rearm_depth: Number.isInteger(promotion.rearm_depth) ? promotion.rearm_depth : ""
