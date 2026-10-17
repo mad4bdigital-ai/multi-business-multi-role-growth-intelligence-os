@@ -5,6 +5,20 @@ on:
     - cron: "17 3 * * 1"
   workflow_dispatch:
     inputs:
+      target:
+        description: Run branch cleanup or supervised PR CI cleanup
+        required: true
+        default: branches
+        type: choice
+        options: [branches, ci_runs]
+      pr_number:
+        description: Required only for ci_runs
+        required: false
+        type: string
+      expected_head_sha:
+        description: Exact 40-character PR head SHA for ci_runs
+        required: false
+        type: string
       mode:
         description: "Run mode; dry_run is the safe default"
         required: true
@@ -14,7 +28,7 @@ on:
           - dry_run
           - apply
       confirmation:
-        description: "Required only for apply: APPLY_BRANCH_HYGIENE"
+        description: "Apply confirmation: APPLY_BRANCH_HYGIENE (branches) or CANCEL_SUPERSEDED_PR_CHECKS (ci_runs)"
         required: false
         type: string
 
@@ -25,11 +39,12 @@ permissions:
 concurrency:
   group: branch-hygiene-main
   cancel-in-progress: false
+  queue: max
 
 jobs:
   hygiene:
     name: Evaluate and enforce branch hygiene
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' && (github.event_name != 'workflow_dispatch' || inputs.target != 'ci_runs')
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
@@ -103,3 +118,39 @@ jobs:
             ${{ runner.temp }}/branch-hygiene-summary.json
           if-no-files-found: warn
           retention-days: 90
+
+
+  ci_runs:
+    name: Governed exact-head CI cleanup (manual only)
+    if: github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch' && inputs.target == 'ci_runs'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      pull-requests: read
+      actions: write
+    steps:
+      - name: Checkout trusted main
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: main
+          persist-credentials: false
+
+      - name: Run registered Branch Hygiene regression suite
+        run: node --test .github/tests/branch-hygiene-policy.test.mjs
+
+      - name: Inspect or cancel strictly superseded PR CI
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ inputs.pr_number }}
+          EXACT_HEAD: ${{ inputs.expected_head_sha }}
+          MODE: ${{ inputs.mode }}
+          CONFIRM: ${{ inputs.confirmation }}
+        run: |
+          set -euo pipefail
+          node http-generic-api/scripts/maintenance-tools/branch-hygiene-policy.mjs \
+            --repo "$GITHUB_REPOSITORY" \
+            --ci-pr-number "$PR_NUMBER" \
+            --ci-expected-head "$EXACT_HEAD" \
+            --mode "$MODE" \
+            --confirm "$CONFIRM"
