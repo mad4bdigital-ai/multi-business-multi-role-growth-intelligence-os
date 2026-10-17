@@ -58,6 +58,9 @@ jobs:
         run: node scripts/test-hostinger-nodejs-build-evidence.mjs
 
   live:
+    environment:
+      name: Production
+      deployment: false
     name: Live Hostinger Node.js Build History
     if: github.event_name == 'workflow_dispatch'
     needs: contract
