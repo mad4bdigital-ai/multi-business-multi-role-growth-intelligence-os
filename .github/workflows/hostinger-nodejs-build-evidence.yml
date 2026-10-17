@@ -6,6 +6,10 @@ on:
     paths:
       - '.changes/e2e/hostinger-nodejs-build-evidence.json'
       - '.github/workflows/hostinger-nodejs-build-evidence.yml'
+      - '.github/workflows/hostinger-current-production-build-evidence-r4.yml'
+      - '.github/workflows/hostinger-nodejs-completed-build-log-evidence.yml'
+      - '.github/workflows/hostinger-production-release-evidence-r5.yml'
+      - '.github/workflows/hostinger-production-release-evidence-r6.yml'
       - 'http-generic-api/scripts/hostinger-nodejs-build-evidence.mjs'
       - 'http-generic-api/scripts/test-hostinger-nodejs-build-evidence.mjs'
   workflow_dispatch:
@@ -56,6 +60,36 @@ jobs:
       - name: Validate Hostinger Node.js build evidence reporter
         working-directory: http-generic-api
         run: node scripts/test-hostinger-nodejs-build-evidence.mjs
+
+      - name: Guard Production Environment binding for Hostinger credentials
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from "node:assert/strict";
+          import { readFileSync } from "node:fs";
+
+          const authorizedJobs = [
+            ["hostinger-current-production-build-evidence-r4.yml", "collect-build-evidence"],
+            ["hostinger-nodejs-build-evidence.yml", "live"],
+            ["hostinger-nodejs-completed-build-log-evidence.yml", "live"],
+            ["hostinger-production-release-evidence-r5.yml", "collect-release-evidence"],
+            ["hostinger-production-release-evidence-r6.yml", "collect-release-evidence"],
+          ];
+
+          for (const [file, job] of authorizedJobs) {
+            const yaml = readFileSync(".github/workflows/" + file, "utf8");
+            const marker = "  " + job + ":\n";
+            assert.equal(yaml.split(marker).length, 2, file + ": target job must be unique");
+            const block = yaml.split(marker)[1].split(/\n  [a-zA-Z_][\w-]*:\s*\n/)[0];
+            assert.match(block, /^    environment:\n      name: Production\n      deployment: false$/m,
+              file + ": provider job must bind to Production Environment");
+            assert.match(block, /secrets\.HOSTINGER_API_TOKEN\b/,
+              file + ": provider job must use the named secret reference");
+            assert.doesNotMatch(block, /(?:HOSTINGER_API_TOKEN:\s*['"][^$]|HOSTINGER_API_TOKEN:\s*\$\{\{\s*vars\.)/,
+              file + ": never substitute inline credentials or variables for secrets");
+          }
+          console.log("Five Hostinger collector jobs are Production Environment scoped.");
+          NODE
 
   live:
     environment:
