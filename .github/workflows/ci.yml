@@ -33,6 +33,9 @@ jobs:
         with:
           node-version: "22"
 
+      - name: Validate governed Production security-hotfix classification
+        run: node http-generic-api/scripts/production-security-hotfix-candidate-self-test.mjs
+
       - name: Enforce Runtime data lifecycle classification
         working-directory: http-generic-api
         env:

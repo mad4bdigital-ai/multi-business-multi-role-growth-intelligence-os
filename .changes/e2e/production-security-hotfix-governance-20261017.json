@@ -1,0 +1,82 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "production-security-hotfix-governance-20261017",
+  "title": "Governed production security hotfix candidate classification",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/production-security-hotfix-governance-20261017.json",
+      ".github/workflows/ci.yml",
+      "http-generic-api/config/repository-governance-constitution.json",
+      "docs/governance/production-security-hotfix-candidate.md",
+      "http-generic-api/scripts/e2e-parallel-pr-gate.mjs",
+      "http-generic-api/scripts/production-security-hotfix-candidate-self-test.mjs",
+      "http-generic-api/scripts/production-security-hotfix-candidate.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "production"
+    ],
+    "cross_environment_reviewed": false,
+    "live_staging_certification_required": false,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Classify exact-SHA Production security lockfile review candidates with strict negative scope testing without granting Promotion or Deployment authority.",
+      "e2e_journeys": [
+        {
+          "id": "production-hotfix-candidate-review-only",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Governed release reviewer",
+          "entrypoint": "PR head candidate plus immutable Production base SHA into reviewer classification",
+          "terminal_outcome": "Eligible candidate may pass scoped classification while production_promotion and production_security_hotfix_authority_eligible remain false.",
+          "steps": [
+            "Build isolated git origin and Production review candidate",
+            "Reject out-of-scope files, moved Production base, added dependency, unsafe tarball, downgrade and changed package root metadata",
+            "Require legacy classifier identity mismatch to be only finding before conditional candidate classification",
+            "Verify no trusted attestation or Production mutation implied"
+          ],
+          "assertions": [
+            "Current remote Production base must exactly match candidate ancestry",
+            "Changes restricted to existing npm lockfiles and monotonic version upgrades",
+            "All invalid candidates fail closed; old release-cut invariants preserved",
+            "Production merge and deployment require separate owner and GitHub App proof"
+          ],
+          "tests": [
+            {
+              "id": "production-hotfix-governance-self-test",
+              "runner": "node",
+              "path": "http-generic-api/scripts/production-security-hotfix-candidate-self-test.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/scripts/production-security-hotfix-candidate.mjs",
+            "http-generic-api/scripts/production-security-hotfix-candidate-self-test.mjs",
+            "docs/governance/production-security-hotfix-candidate.md"
+          ]
+        }
+      ],
+      "tests": [
+        {
+          "id": "production-hotfix-governance-self-test",
+          "runner": "node",
+          "path": "http-generic-api/scripts/production-security-hotfix-candidate-self-test.mjs",
+          "args": []
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}
