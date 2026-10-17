@@ -47,7 +47,7 @@ jobs:
       MANUAL_CONFIRMATION: ${{ inputs.confirmation }}
       WRITE_SCOPE: ${{ inputs.write_scope || 'full' }}
       COMMAND_ACTOR: ${{ github.actor }}
-      AUTHORIZATION_MARKER: '<!-- work-map-autofix:authorized -->'
+      AUTHORIZATION_MARKER: ${{ inputs.write_scope == 'docs_only' && format('<!-- work-map-autofix:authorized docs_only {0} -->', inputs.expected_head_sha) || '<!-- work-map-autofix:authorized -->' }}
     steps:
       - name: Initialize bounded report directory after runner allocation
         shell: bash
