@@ -218,4 +218,23 @@ try {
 } finally {
   fs.rmSync(fixture, { recursive: true, force: true });
 }
+const renameFixture = fs.mkdtempSync(path.join(os.tmpdir(), "mad4b-docs-only-rename-"));
+const renameGit = (...args) => execFileSync("git", args, { cwd: renameFixture, encoding: "utf8" }).trim();
+try {
+  renameGit("init", "-q");
+  renameGit("config", "user.email", "test@example.invalid");
+  renameGit("config", "user.name", "Fixture");
+  fs.mkdirSync(path.join(renameFixture, "specs"), { recursive: true });
+  fs.mkdirSync(path.join(renameFixture, "docs", "work-maps"), { recursive: true });
+  fs.writeFileSync(path.join(renameFixture, "specs", "original.md"), "tracked origin\n");
+  renameGit("add", "--all");
+  renameGit("commit", "-qm", "baseline with protected origin");
+  const renameBase = renameGit("rev-parse", "HEAD");
+  renameGit("mv", "specs/original.md", "docs/work-maps/new.md");
+  assert.throws(() => inspectDocsOnlyGit({ root: renameFixture, expectedHeadSha: renameBase }), /docs_only_scope_violation:specs\/original\.md/u, "rename source outside docs blocked before commit");
+  renameGit("commit", "-qm", "move protected original into docs");
+  assert.throws(() => inspectDocsOnlyGit({ root: renameFixture, expectedHeadSha: renameBase }), /docs_only_scope_violation:specs\/original\.md/u, "rename source outside docs blocked after commit");
+} finally {
+  fs.rmSync(renameFixture, { recursive: true, force: true });
+}
 console.log("Work Map docs-only scope and delegated grant regression tests passed.");
