@@ -3115,6 +3115,28 @@
       "contains_secret_value": false,
       "grants_runtime_mutation": false,
       "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/scripts/credential-environment-scope-ratchet.mjs|baseSha|environment_reference|credential.provenance.base.sha",
+      "owner": "repository-governance",
+      "reason": "Non-secret pull-request or push GitHub event baseline commit SHA. The ratchet validates the exact 40-character SHA and compares changed GitHub Actions jobs to their immutable base, refusing new or modified credential consumers without explicit Environment binding. The baseline is read-only; no approval, credential or Production access is granted.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/scripts/credential-environment-scope-ratchet.mjs|event|environment_reference|credential.provenance.event",
+      "owner": "repository-governance",
+      "reason": "Non-secret GitHub Actions event type used only to choose the read-only exact-baseline workflow diff path. No repository write, runtime credential access, deployment, or Production activation authority is enabled by this configuration declaration.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
     }
   ],
   "safety": {
