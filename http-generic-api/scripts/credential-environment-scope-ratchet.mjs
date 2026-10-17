@@ -49,11 +49,19 @@ function verifyGovernedWorkflow(file, requiredJobs) {
 // and documentation must not be treated as credential exposure.
 const secretExpression = /\$\{\{\s*secrets\.(HOSTINGER_API_TOKEN|BACKEND_API_KEY)\s*\}\}/g;
 
-function inspectChangedWorkflow(file, yaml) {
+function inspectChangedWorkflow(file, yaml, baseYaml = "") {
   let count = 0;
+  const previousJobs = new Map(jobsIn(baseYaml).map((job) => [job.name, job.source]));
   for (const job of jobsIn(yaml)) {
     const used = [...new Set([...job.source.matchAll(secretExpression)].map((m) => m[1]))];
     if (!used.length) continue;
+    // Preserve unmodified historical jobs exactly as they existed on base.
+    // Changing any byte of a legacy secret-consuming job requires passing
+    // the new Environment contract; no policy exception is granted to edits.
+    if (previousJobs.get(job.name) === job.source) {
+      count++;
+      continue;
+    }
     const description = file + " / " + job.name;
     const explicitEnvironment = /^    environment:\s*[A-Za-z][\w-]*\s*$/m.test(job.source)
       || /^    environment:\n      name:\s*[A-Za-z][\w-]*\s*$/m.test(job.source);
@@ -86,7 +94,12 @@ if (event === "pull_request" || event === "push") {
     { encoding: "utf8" }).split(/\r?\n/)
     .filter((item) => /^\.github\/workflows\/[A-Za-z0-9._-]+\.ya?ml$/.test(item));
   for (const file of changed) {
-    ratchetJobs += inspectChangedWorkflow(file, readFileSync(file, "utf8"));
+    const existed = execFileSync("git", ["ls-tree", "--name-only", baseSha, "--", file],
+      { encoding: "utf8" }).trim() === file;
+    const baselineYaml = existed
+      ? execFileSync("git", ["show", baseSha + ":" + file], { encoding: "utf8" })
+      : "";
+    ratchetJobs += inspectChangedWorkflow(file, readFileSync(file, "utf8"), baselineYaml);
   }
 }
 
@@ -100,6 +113,10 @@ assert.throws(() => inspectChangedWorkflow("unbound-fixture",
 assert.throws(() => inspectChangedWorkflow("wrong-scope-fixture",
   good.replace("name: Production", "name: staging")),
   /Production Environment binding required/);
+const legacyFixture = "\njobs:\n  fixture:\n    environment: Production\n    env:\n      TOKEN: " + expression + "\n";
+assert.equal(inspectChangedWorkflow("unchanged-base", legacyFixture, legacyFixture), 1);
+assert.throws(() => inspectChangedWorkflow("changed-legacy", legacyFixture + "    # edited\n", legacyFixture),
+  /Production Environment binding required/);
 const inert = "\njobs:\n  fixture:\n    run: echo 'secrets.BACKEND_API_KEY'\n";
 assert.equal(inspectChangedWorkflow("inert-reference-fixture", inert), 0);
 
@@ -108,7 +125,7 @@ console.log(JSON.stringify({
   contract: "mad4b.credential-environment-scope-ratchet.v1",
   governed_production_jobs_checked: governedJobs,
   changed_secret_consuming_jobs_checked: ratchetJobs,
-  fixture_cases_passed: 4,
+  fixture_cases_passed: 6,
   secret_values_accessed: false,
   provider_requests_performed: false,
   repository_mutation_performed: false,
