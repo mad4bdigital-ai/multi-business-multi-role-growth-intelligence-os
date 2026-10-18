@@ -360,8 +360,11 @@ paths:
               required: [device_id, action]
               properties:
                 device_id: { type: string }
-                action: { type: string, enum: [capabilities, list, info, read, search, patch, rollback] }
+                action: { type: string, enum: [capabilities, list, info, stat, read, read_many, search, patch, rollback, create_file, create_directory, copy, move] }
                 relative_path: { type: string, description: "Relative to the exact device bound root; never absolute." }
+                target_path: { type: string, description: "Exclusive destination, within the same bound root." }
+                paths: { type: array, minItems: 1, maxItems: 8, items: { type: string } }
+                content: { type: string, maxLength: 1048576 }
                 query: { type: string, description: "Literal search term, not a regular expression." }
                 mode: { type: string, enum: [filename, content] }
                 cursor: { type: integer, minimum: 0 }

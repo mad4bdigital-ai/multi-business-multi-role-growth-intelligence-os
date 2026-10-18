@@ -24,7 +24,8 @@ test("Local scope and approval headers are enforced independently per risk class
 });
 test("Workspace exposes functional controls for files, terminal and owned sessions", () => {
   for (const action of ["list", "read", "search", "patch", "rollback",
-    "start", "input", "output", "resume", "cancel", "process_list", "process_terminate"]) {
+    "start", "input", "output", "resume", "cancel", "process_list", "process_terminate",
+    "read_many", "stat", "create_directory", "create_file", "copy", "move"]) {
     assert.ok(form.includes('"' + action + '"'), "Missing action: " + action);
   }
   assert.match(form, /async Task FilesAsync/);

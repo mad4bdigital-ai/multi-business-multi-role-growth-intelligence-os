@@ -23,7 +23,7 @@ const ERRORS = Object.freeze({
   not_text_file: 400, not_directory: 400, not_file: 400, digest_required: 400,
   digest_mismatch: 409, patch_not_unique: 409, write_denied: 403,
   approval_required: 403, backup_unavailable: 409, rollback_unknown: 404,
-  state_not_configured: 403, io_error: 500,
+  state_not_configured: 403, path_exists: 409, io_error: 500,
 });
 function failure(code) {
   return { ok: false, code, http_status: ERRORS[code] || 400, secrets_included: false };
@@ -133,6 +133,115 @@ export function createDeviceFilesEngine({ env = process.env } = {}) {
       content: bytes.toString("utf8"), sha256: digest(bytes), size: bytes.length,
       secrets_included: false };
   }
+
+  function statPath(relative) {
+    const absolute = resolve(root, relative);
+    if (!absolute) return failure("path_denied");
+    const stat = fs.lstatSync(absolute);
+    if (stat.isSymbolicLink()) return failure("path_denied");
+    if (!stat.isFile() && !stat.isDirectory()) return failure("path_denied");
+    if (stat.isFile() && !isText(relative)) return failure("not_text_file");
+    if (stat.isFile() && stat.size > MAX_FILE_BYTES) return failure("file_too_large");
+    const result = { ok: true, http_status: 200, relative_path: relative,
+      type: stat.isDirectory() ? "directory" : "file", size: stat.size,
+      created_at: stat.birthtime.toISOString(), modified_at: stat.mtime.toISOString(),
+      secrets_included: false };
+    if (stat.isFile()) result.sha256 = digest(fs.readFileSync(absolute));
+    return result;
+  }
+  function readMultiple(input) {
+    if (!Array.isArray(input.paths) || input.paths.length === 0 || input.paths.length > 8 ||
+        input.paths.some(p => typeof p !== "string")) return failure("invalid_request");
+    const results = [];
+    let total = 0;
+    for (const relative of input.paths) {
+      const item = readFile(relative);
+      if (item.ok) {
+        total += item.size;
+        if (total > MAX_FILE_BYTES) return failure("file_too_large");
+      }
+      results.push(item);
+    }
+    return { ok: true, http_status: 200, items: results, secrets_included: false };
+  }
+  function destination(relative, directory = false) {
+    if (typeof relative !== "string" || relative === ".") return null;
+    const absolute = resolve(root, relative, { mustExist: false });
+    if (!absolute || fs.existsSync(absolute)) return null;
+    if (!directory && !isText(relative)) return null;
+    const parent = path.dirname(absolute);
+    try {
+      if (!fs.statSync(parent).isDirectory() || fs.lstatSync(parent).isSymbolicLink())
+        return null;
+    } catch { return null; }
+    return absolute;
+  }
+  function createDirectory(input) {
+    const denied = requireWrite(input);
+    if (denied) return denied;
+    const absolute = destination(input.relative_path, true);
+    if (!absolute) return failure("path_denied");
+    fs.mkdirSync(absolute, { recursive: false, mode: 0o700 });
+    return { ok: true, http_status: 200, relative_path: input.relative_path,
+      created: true, rollback_supported: false, secrets_included: false };
+  }
+  function createFile(input) {
+    const denied = requireWrite(input);
+    if (denied) return denied;
+    if (typeof input.content !== "string" ||
+        Buffer.byteLength(input.content) > MAX_FILE_BYTES) return failure("invalid_content");
+    const absolute = destination(input.relative_path);
+    if (!absolute) return failure("path_denied");
+    fs.writeFileSync(absolute, input.content, { flag: "wx", mode: 0o600 });
+    return { ok: true, http_status: 200, relative_path: input.relative_path,
+      sha256: digest(Buffer.from(input.content)), bytes_written: Buffer.byteLength(input.content),
+      rollback_supported: false, secrets_included: false };
+  }
+  function copyOrMove(input, move) {
+    const denied = requireWrite(input);
+    if (denied) return denied;
+    const from = input.relative_path;
+    const to = input.target_path;
+    const source = resolve(root, from);
+    const target = destination(to);
+    if (!source || !target || !isText(from) || !isText(to)) return failure("path_denied");
+    if (!/^[a-f0-9]{64}$/i.test(input.expected_sha256 || "")) return failure("digest_required");
+    if (!fs.statSync(source).isFile()) return failure("not_file");
+    if (fs.statSync(source).size > MAX_FILE_BYTES) return failure("file_too_large");
+    const before = fs.readFileSync(source);
+    if (before.length > MAX_FILE_BYTES) return failure("file_too_large");
+    const expected = digest(before);
+    if (expected !== input.expected_sha256.toLowerCase()) return failure("digest_mismatch");
+    if (move) {
+      // Hard link creation is exclusive. Source stays intact on a failed link.
+      // Same-volume restriction avoids silent cross-volume partial moves.
+      fs.linkSync(source, target);
+      try {
+        if (fs.statSync(source).size > MAX_FILE_BYTES ||
+            fs.statSync(target).size > MAX_FILE_BYTES ||
+            digest(fs.readFileSync(target)) !== expected ||
+            digest(fs.readFileSync(source)) !== expected) return failure("digest_mismatch");
+        fs.unlinkSync(source);
+      } finally {
+        // A failed rename may have created a temporary second hard link.
+        // Remove that second link only while the source still exists, so
+        // successful moves never lose the destination.
+        if (fs.existsSync(source)) {
+          try {
+            const a = fs.statSync(source), b = fs.statSync(target);
+            if (a.ino === b.ino && a.dev === b.dev) fs.unlinkSync(target);
+          } catch { /* no data-loss cleanup fallback */ }
+        }
+      }
+    } else {
+      fs.copyFileSync(source, target, fs.constants.COPYFILE_EXCL);
+      if (digest(fs.readFileSync(target)) !== expected) return failure("digest_mismatch");
+    }
+    return { ok: true, http_status: 200, operation: move ? "move" : "copy",
+      source_path: from, target_path: to, sha256: expected,
+      rollback_supported: false, secrets_included: false };
+  }
+
   function list(relative, input) {
     const absolute = resolve(root, relative);
     if (!absolute) return failure("path_denied");
@@ -200,6 +309,7 @@ export function createDeviceFilesEngine({ env = process.env } = {}) {
     if (!/^[a-f0-9]{64}$/i.test(input.expected_sha256 || "")) return failure("digest_required");
     if (typeof input.old_text !== "string" || !input.old_text ||
       typeof input.new_text !== "string") return failure("invalid_content");
+    if (fs.statSync(absolute).size > MAX_FILE_BYTES) return failure("file_too_large");
     const before = fs.readFileSync(absolute);
     if (before.length > MAX_FILE_BYTES) return failure("file_too_large");
     if (digest(before) !== input.expected_sha256.toLowerCase()) return failure("digest_mismatch");
@@ -242,6 +352,7 @@ export function createDeviceFilesEngine({ env = process.env } = {}) {
     const record = JSON.parse(fs.readFileSync(metaPath, "utf8"));
     const absolute = resolve(root, record.relative_path);
     if (!absolute || !isText(record.relative_path)) return failure("path_denied");
+    if (fs.statSync(backupPath).size > MAX_FILE_BYTES) return failure("backup_unavailable");
     const before = fs.readFileSync(backupPath);
     if (digest(before) !== record.before) return failure("backup_unavailable");
     const current = fs.readFileSync(absolute);
@@ -266,6 +377,12 @@ export function createDeviceFilesEngine({ env = process.env } = {}) {
     if (!enabled) return failure("disabled");
     try {
       if (input.action === "list") return list(input.relative_path || ".", input);
+      if (input.action === "stat") return statPath(input.relative_path || ".");
+      if (input.action === "read_many") return readMultiple(input);
+      if (input.action === "create_directory") return createDirectory(input);
+      if (input.action === "create_file") return createFile(input);
+      if (input.action === "copy") return copyOrMove(input, false);
+      if (input.action === "move") return copyOrMove(input, true);
       if (input.action === "read" || input.action === "info") {
         const result = readFile(input.relative_path);
         if (input.action === "info" && result.ok) delete result.content;

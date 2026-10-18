@@ -110,3 +110,45 @@ test("patch rejects ambiguous match and blocks rollback after independent modifi
     assert.equal(fs.readFileSync(file, "utf8"), "edited by another writer");
   } finally { f.cleanup(); }
 });
+
+
+test("bounded multi-file read and stat support desktop workspace previews", () => {
+  const f = fixture();
+  try {
+    const manager = f.engine;
+    assert.equal(manager.dispatch({ action: "stat", relative_path: "src" }).type, "directory");
+    const read = manager.dispatch({ action: "read_many", paths: ["src/index.js", ".env"] });
+    assert.equal(read.ok, true);
+    assert.match(read.items[0].content, /hello/);
+    assert.equal(read.items[1].code, "path_denied");
+    assert.equal(manager.dispatch({ action: "read_many", paths: [] }).code, "invalid_request");
+    assert.equal(manager.dispatch({ action: "read_many", paths: Array(9).fill("src/index.js") }).code, "invalid_request");
+  } finally { f.cleanup(); }
+});
+test("exclusive create, copy and same-volume move enforce approval, SHA and no overwrite", () => {
+  const f = fixture(true);
+  const token = "local-approval-only";
+  const go = req => f.engine.dispatch({ ...req, approval_token: token });
+  try {
+    assert.equal(f.engine.dispatch({ action: "create_directory", relative_path: "public" }).code, "approval_required");
+    assert.equal(go({ action: "create_directory", relative_path: "public" }).ok, true);
+    assert.equal(go({ action: "create_file", relative_path: "public/a.txt", content: "alpha" }).ok, true);
+    assert.equal(go({ action: "create_file", relative_path: "public/a.txt", content: "overwrite" }).ok, false);
+    assert.equal(fs.readFileSync(path.join(f.root, "public", "a.txt"), "utf8"), "alpha");
+    assert.equal(go({ action: "copy", relative_path: "public/a.txt", target_path: "public/b.txt",
+      expected_sha256: hash("other") }).code, "digest_mismatch");
+    const copied = go({ action: "copy", relative_path: "public/a.txt", target_path: "public/b.txt",
+      expected_sha256: hash("alpha") });
+    assert.equal(copied.ok, true);
+    assert.equal(copied.rollback_supported, false);
+    assert.equal(go({ action: "move", relative_path: "public/a.txt", target_path: "public/b.txt",
+      expected_sha256: hash("alpha") }).ok, false);
+    const moved = go({ action: "move", relative_path: "public/a.txt", target_path: "public/c.txt",
+      expected_sha256: hash("alpha") });
+    assert.equal(moved.ok, true);
+    assert.equal(fs.existsSync(path.join(f.root, "public", "a.txt")), false);
+    assert.equal(fs.readFileSync(path.join(f.root, "public", "c.txt"), "utf8"), "alpha");
+    assert.equal(go({ action: "create_file", relative_path: "../outside.txt", content: "not allowed" }).code, "path_denied");
+    assert.equal(go({ action: "create_directory", relative_path: ".ssh" }).code, "path_denied");
+  } finally { f.cleanup(); }
+});

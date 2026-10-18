@@ -28,6 +28,8 @@ internal sealed class DeviceWorkspaceForm : Form
     private readonly TabControl _tabs = new() { Dock = DockStyle.Fill };
     private readonly Dictionary<TabPage, TextBox> _outputs = new();
     private readonly TextBox _filePath = Field(250);
+    private readonly TextBox _targetPath = Field(250);
+    private readonly TextBox _fileContent = Field(350);
     private readonly TextBox _search = Field(200);
     private readonly TextBox _expectedSha = Field(500);
     private readonly TextBox _replaceOld = Field(220);
@@ -83,6 +85,14 @@ internal sealed class DeviceWorkspaceForm : Form
             panel.Controls.Add(ActionButton("List", async () => await FilesAsync("list")));
             panel.Controls.Add(ActionButton("Read", async () => await FilesAsync("read")));
             panel.Controls.Add(ActionButton("SHA / Info", async () => await FilesAsync("info")));
+            panel.Controls.Add(ActionButton("Stat", async () => await FilesAsync("stat")));
+            panel.Controls.Add(ActionButton("Read multiple (comma-separated)", async () => await FilesAsync("read_many")));
+            panel.Controls.Add(ActionButton("Create directory", async () => await FilesAsync("create_directory")));
+            AddField(panel, "New text file content", _fileContent);
+            panel.Controls.Add(ActionButton("Create text file", async () => await FilesAsync("create_file")));
+            AddField(panel, "Copy / move destination", _targetPath);
+            panel.Controls.Add(ActionButton("Copy (exclusive)", async () => await FilesAsync("copy")));
+            panel.Controls.Add(ActionButton("Move (same-volume)", async () => await FilesAsync("move")));
             AddField(panel, "Search text", _search);
             panel.Controls.Add(ActionButton("Search content", async () => await FilesAsync("search")));
             AddField(panel, "Current SHA-256", _expectedSha);
@@ -193,6 +203,14 @@ internal sealed class DeviceWorkspaceForm : Form
             ["device_id"] = _deviceId.Text.Trim(),
             ["action"] = action, ["relative_path"] = _filePath.Text.Trim()
         };
+        if (action == "read_many")
+            payload["paths"] = _filePath.Text.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+        if (action == "create_file") payload["content"] = _fileContent.Text;
+        if (action is "copy" or "move")
+        {
+            payload["target_path"] = _targetPath.Text.Trim();
+            payload["expected_sha256"] = _expectedSha.Text.Trim();
+        }
         if (action == "search")
         {
             payload["query"] = _search.Text;
@@ -205,7 +223,7 @@ internal sealed class DeviceWorkspaceForm : Form
             payload["new_text"] = _replaceNew.Text;
         }
         if (action == "rollback") payload["transaction_id"] = _transaction.Text.Trim();
-        await SendAsync("/device/files", payload, "POST", action is "patch" or "rollback" ? "files" : null);
+        await SendAsync("/device/files", payload, "POST", action is "patch" or "rollback" or "create_file" or "create_directory" or "copy" or "move" ? "files" : null);
     }
 
     private async Task TerminalAsync(string action)
