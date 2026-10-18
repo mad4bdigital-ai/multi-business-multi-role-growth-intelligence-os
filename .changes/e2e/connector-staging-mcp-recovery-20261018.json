@@ -27,7 +27,8 @@
       "http-generic-api/test-local-manager-tool-release-owner.mjs",
       "local-connector/connector-safe-upgrade.ps1",
       "local-connector/connector-watchdog.ps1",
-      "autopilot-portable-staging/Repair-LocalConnectorTunnel.ps1"
+      "autopilot-portable-staging/Repair-LocalConnectorTunnel.ps1",
+      "local-connector/.env.example"
     ]
   },
   "environment_impact": {
