@@ -63,7 +63,8 @@ function auditCopy(s) {
   return { session_id: s.id, profile: s.profile, interactive: s.interactive,
     device_id: s.deviceId, owner_principal: s.ownerPrincipal, status: s.status, started_at: s.startedAt,
     finished_at: s.finishedAt, exit_code: s.exitCode,
-    bytes_recorded: s.bytes, truncated: s.truncated, pid: s.status === "running" ? s.child?.pid ?? null : null,
+    bytes_recorded: s.bytes, truncated: s.truncated, pid: ["running", "termination_pending"].includes(s.status) ? s.child?.pid ?? null : null,
+    termination_requested: s.terminationRequested || null,
     shell_approval_used: s.interactive, secrets_included: false };
 }
 
@@ -108,12 +109,12 @@ export function createDeviceTerminalManager({ env = process.env, spawnImpl = spa
         const bytes = Math.min(MAX_OUTPUT, fs.statSync(outputPath).size);
         const s = { id, profile: item.profile, interactive: Boolean(item.interactive),
           deviceId, ownerPrincipal: item.owner_principal,
-          status: item.status === "running" ? "interrupted" : item.status,
+          status: ["running", "termination_pending"].includes(item.status) ? "interrupted" : item.status,
           createdAt: Date.parse(item.started_at), startedAt: item.started_at,
-          finishedAt: item.status === "running" ? new Date(now()).toISOString() : item.finished_at,
+          finishedAt: ["running", "termination_pending"].includes(item.status) ? new Date(now()).toISOString() : item.finished_at,
           exitCode: item.exit_code ?? null, bytes, truncated: Boolean(item.truncated), child: null,
-          outputPath, timer: null };
-        if (Number.isFinite(s.createdAt)) { sessions.set(id, s); if (item.status === "running") save(s); }
+          outputPath, timer: null, terminationRequested: null };
+        if (Number.isFinite(s.createdAt)) { sessions.set(id, s); if (["running", "termination_pending"].includes(item.status)) save(s); }
       } catch { /* invalid, stale or unrelated persistent record is ignored */ }
     }
   }
@@ -130,7 +131,7 @@ export function createDeviceTerminalManager({ env = process.env, spawnImpl = spa
   }
   function finish(s, status, code = null) {
     if (s.timer) clearTimeout(s.timer);
-    if (s.status !== "running") return;
+    if (s.status !== "running" && s.status !== "termination_pending") return;
     s.status = status; s.exitCode = code; s.finishedAt = new Date(now()).toISOString();
     save(s);
   }
@@ -163,17 +164,30 @@ export function createDeviceTerminalManager({ env = process.env, spawnImpl = spa
       killer.once("close", (code) => { if (code !== 0) fallback(); });
     } catch { fallback(); }
   }
+  function requestTermination(s, requestedStatus) {
+    if (s.status !== "running") return;
+    s.terminationRequested = requestedStatus;
+    // Do not report cancellation as completed before the process closes.
+    s.status = "termination_pending";
+    save(s);
+    terminateOwnedProcess(s);
+  }
   function removeOld() {
     for (const [id, s] of sessions) {
       if (now() - s.createdAt <= SESSION_TTL_MS) continue;
-      if (s.status === "running") { finish(s, "expired"); terminateOwnedProcess(s); }
+      if (s.status === "running") requestTermination(s, "expired");
+      // A still-live owned process cannot be forgotten just to free capacity.
+      if (s.status === "termination_pending") continue;
       sessions.delete(id);
       eraseSessionArtifacts(s);
     }
     if (sessions.size > MAX_SESSIONS) {
       for (const [id, s] of sessions) {
         if (sessions.size <= MAX_SESSIONS) break;
-        if (s.status !== "running") sessions.delete(id);
+        if (s.status !== "running" && s.status !== "termination_pending") {
+          sessions.delete(id);
+          eraseSessionArtifacts(s);
+        }
       }
     }
   }
@@ -220,9 +234,9 @@ export function createDeviceTerminalManager({ env = process.env, spawnImpl = spa
       child.stdout?.on("data", data => append(s, data));
       child.stderr?.on("data", data => append(s, data));
       child.on("error", () => finish(s, "failed", -1));
-      child.on("close", code => finish(s, code === 0 ? "completed" : "failed", Number.isInteger(code) ? code : -1));
+      child.on("close", code => finish(s, s.terminationRequested || (code === 0 ? "completed" : "failed"), Number.isInteger(code) ? code : -1));
       s.timer = setTimeout(() => {
-        if (s.status === "running") { finish(s, "timed_out"); terminateOwnedProcess(s); }
+        if (s.status === "running") requestTermination(s, "timed_out");
       }, MAX_RUNTIME_MS);
       s.timer.unref?.();
       return inspect(s);
@@ -260,11 +274,11 @@ export function createDeviceTerminalManager({ env = process.env, spawnImpl = spa
       return inspect(s, req.cursor || 0);
     if (req.action === "input") return input(req, s);
     if (req.action === "cancel" || req.action === "process_terminate") {
-      if (s.status === "running") { finish(s, "cancelled"); terminateOwnedProcess(s); }
+      if (s.status === "running") requestTermination(s, "cancelled");
       return inspect(s, req.cursor || 0);
     }
     if (req.action === "close") {
-      if (s.status === "running") return denied("session_closed");
+      if (s.status === "running" || s.status === "termination_pending") return denied("session_closed");
       sessions.delete(s.id);
       eraseSessionArtifacts(s);
       return { ok: true, http_status: 200, closed: true, session_id: s.id, secrets_included: false };

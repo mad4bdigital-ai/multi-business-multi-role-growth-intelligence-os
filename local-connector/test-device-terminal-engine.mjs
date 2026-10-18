@@ -63,8 +63,10 @@ test("read-only task streams bounded output and resumes after transient disconne
     assert.ok(!read.output.includes("token-value"));
     assert.equal(m.dispatch({ action: "resume", session_id: run.session_id, cursor: read.next_cursor }).output, "");
     assert.equal(m.dispatch({ action: "process_list" }).sessions[0].session_id, run.session_id);
-    const stopped = m.dispatch({ action: "process_terminate", session_id: run.session_id });
-    assert.equal(stopped.status, "cancelled");
+      const stopped = m.dispatch({ action: "process_terminate", session_id: run.session_id });
+    assert.ok(["cancelled", "termination_pending"].includes(stopped.status));
+    if (stopped.status === "termination_pending") spawned.children[0].emit("close", null);
+    assert.equal(m.dispatch({ action: "status", session_id: run.session_id }).status, "cancelled");
     assert.equal(m.dispatch({ action: "input", session_id: run.session_id, input: "oops" }).code, "session_closed");
     assert.equal(m.dispatch({ action: "close", session_id: run.session_id }).closed, true);
     assert.equal(fs.existsSync(path.join(f.state, run.session_id + ".json")), false);
@@ -133,5 +135,22 @@ test("principal ownership prevents cross-client list, output, cancel and restart
     assert.equal(owner(rebooted, "oauth:bob").dispatch({ action: "resume", session_id: session.session_id }).code, "session_not_found");
     assert.match(owner(rebooted, "oauth:alice").dispatch({ action: "resume", session_id: session.session_id }).output, /alice-only/);
     alice.dispatch({ action: "cancel", session_id: session.session_id });
+  } finally { f.done(); }
+});
+
+test("termination is pending until the owned child actually closes", () => {
+  const f = fixture(), spawned = fakeSpawn();
+  try {
+    const manager = owner(createDeviceTerminalManager({ env: f.env, spawnImpl: spawned.create }));
+    const run = manager.dispatch({ action: "start", profile: "git_status" });
+    spawned.children[0].kill = () => true; // Process still running after termination request.
+    const requested = manager.dispatch({ action: "cancel", session_id: run.session_id });
+    assert.equal(requested.status, "termination_pending");
+    assert.equal(requested.termination_requested, "cancelled");
+    assert.equal(manager.dispatch({ action: "close", session_id: run.session_id }).code, "session_closed");
+    assert.equal(manager.dispatch({ action: "list" }).sessions.length, 1);
+    spawned.children[0].emit("close", null);
+    assert.equal(manager.dispatch({ action: "status", session_id: run.session_id }).status, "cancelled");
+    assert.equal(manager.dispatch({ action: "close", session_id: run.session_id }).closed, true);
   } finally { f.done(); }
 });
