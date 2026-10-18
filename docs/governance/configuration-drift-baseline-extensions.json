@@ -3115,6 +3115,50 @@
       "contains_secret_value": false,
       "grants_runtime_mutation": false,
       "grants_production_activation": false
+    },
+    {
+      "fingerprint": "local-connector/connector-developer-sessions.mjs|SESSION_TTL_MS|literal_declaration|session.ttl.ms",
+      "owner": "developer-runtime-governance",
+      "reason": "Fixed 30-minute upper session lifetime inside an opt-in repo-bound developer adapter. Static resource limit, not user-configurable or a runtime credential.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "local-connector/connector-staging-recovery.mjs|TIMEOUT_MS|literal_declaration|timeout.ms",
+      "owner": "connector-staging-recovery-governance",
+      "reason": "Fixed 5-second per-request network timeout for independently authenticated, read-only Staging recovery. Security and availability bound; not a tenant-selectable runtime setting.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "local-connector/test-connector-developer-sessions.mjs|CONNECTOR_SECRET|environment_reference|connector.secret",
+      "owner": "developer-runtime-test-governance",
+      "reason": "Test-only process.env credential fixture used to assert Connector credentials cannot leak to child processes. Value is a local dummy fixture, never stored in this registry, and not a runtime configuration grant.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "test_only_secret_key_name",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "local-connector/test-connector-developer-sessions.mjs|old|environment_reference|connector.secret",
+      "owner": "developer-runtime-test-governance",
+      "reason": "Test-only restoration reference to the previous process.env credential after the isolation assertion. No captured value, credential, or mutation authority is recorded.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "test_only_secret_key_name",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
     }
   ],
   "safety": {
