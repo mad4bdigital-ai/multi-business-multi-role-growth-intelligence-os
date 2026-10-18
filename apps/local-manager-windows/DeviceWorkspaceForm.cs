@@ -64,7 +64,7 @@ internal sealed class DeviceWorkspaceForm : Form
             "files_copy", "files_move", "files_patch", "files_rollback",
             "terminal_start_interactive", "terminal_input" });
         _mcpTool.SelectedIndex = 0;
-        _mcpArguments.Text = "{\\\"relative_path\\\":\\\"src/new-folder\\\"}";
+        _mcpArguments.Text = @"{""relative_path"":""src/new-folder""}";
 
         var header = new FlowLayoutPanel
         {
