@@ -802,7 +802,12 @@
     ".github/tests/branch-hygiene-policy.test.mjs",
     ".github/workflows/branch-hygiene.yml",
     ".changes/e2e/connector-staging-mcp-recovery-20261018.json",
-    "canonicals/openapi/local-connector.openapi.yaml"
+    "canonicals/openapi/local-connector.openapi.yaml",
+    ".changes/e2e/device-desktop-workspace-20261018.json",
+    ".changes/e2e/device-native-mcp-oauth-20261018.json",
+    ".changes/e2e/device-runtime-files-engine-20261018.json",
+    ".changes/e2e/device-runtime-safe-file-ops-20261018.json",
+    ".changes/e2e/device-runtime-terminal-sessions-20261018.json"
   ],
   "derived_state": {
     "registry": ".github/derived-state-governance.json",
