@@ -100,3 +100,21 @@ test("Oversize upstream output is not returned", async () => {
   assert.equal(result.ok, false);
   assert.equal(JSON.stringify(result).includes("AAAAAAAA"), false);
 });
+
+test("Unhealthy Staging and MCP JSON-RPC error do not produce false success", async () => {
+  const noStaging = createStagingRecoveryBridge({ env: config, fetchImpl: async (url) => {
+    if (url === "https://auth.mad4b.com/health") return reply({ ok: false }, 503);
+    return reply({ ok: false, error: "staging unavailable" }, 503);
+  } });
+  const health = await noStaging({ action: "health" });
+  assert.equal(health.ok, false);
+  assert.equal(health.http_status, 502);
+  const mcpError = createStagingRecoveryBridge({ env: config, fetchImpl: async (url, opts) => {
+    if (url === "https://auth.mad4b.com/health") return reply({ ok: false }, 503);
+    return reply({ jsonrpc: "2.0", id: 1, error: { code: -32000, message: "denied" } });
+  } });
+  const result = await mcpError({ action: "mcp_catalog" }, { stagingBearer: "stage-token-123456" });
+  assert.equal(result.ok, false);
+  assert.equal(result.code, "staging_mcp_read_failed");
+  assert.equal(JSON.stringify(result).includes("denied"), false);
+});
