@@ -8,14 +8,24 @@
   "scope": {
     "include": [
       ".changes/e2e/device-native-mcp-parity-20261019.json",
+      ".github/workflows/governed-generated-artifact-refresh-dispatch-v2.yml",
+      ".github/workflows/governed-generated-artifact-refresh-request-dispatcher.yml",
+      ".github/workflows/governed-generated-artifact-refresh.yml",
       ".github/workflows/local-manager-windows.yml",
       "apps/local-manager-windows/DeviceWorkspaceForm.cs",
       "apps/local-manager-windows/Program.cs",
+      "autopilot-portable-staging/manifest.json",
       "autopilot-portable-staging/Repair-LocalConnectorTunnel.ps1",
+      "docs/remote-mcp-write-scope-inventory.md",
       "docs/runbooks/device-native-mcp-desktop-parity-20261019.md",
+      "http-generic-api/frontend-operation-governance.generated.json",
+      "http-generic-api/frontend-surface-dispatch.generated.json",
+      "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
       "http-generic-api/routes/connectorAgentRoutes.js",
       "http-generic-api/routes/localConnectorInstallRoutes.js",
       "http-generic-api/scripts/connector-agent-smoke-test.mjs",
+      "http-generic-api/scripts/maintenance-tools/governed-refresh-idempotency.mjs",
+      "http-generic-api/scripts/test-governed-refresh-idempotency.mjs",
       "http-generic-api/scripts/test-manifest.mjs",
       "http-generic-api/test-connector-staging-mcp-distribution.mjs",
       "http-generic-api/test-desktop-device-workspace-wiring.mjs",
@@ -25,7 +35,10 @@
       "local-connector/device-mcp-resource.mjs",
       "local-connector/server.mjs",
       "local-connector/test-device-mcp-approval-broker.mjs",
-      "local-connector/test-device-runtime-http.mjs"
+      "local-connector/test-device-runtime-http.mjs",
+      "specs/020-platform-resource-identity-brand-governance/openapi-detail-closure-batch-full.json",
+      "specs/020-platform-resource-identity-brand-governance/openapi-detail-gap-classification.json",
+      "specs/020-platform-resource-identity-brand-governance/openapi-gap-closure-plan.json"
     ]
   },
   "environment_impact": {
@@ -132,6 +145,42 @@
             "http-generic-api/test-desktop-device-workspace-wiring.mjs",
             "http-generic-api/test-connector-staging-mcp-distribution.mjs",
             "docs/runbooks/device-native-mcp-desktop-parity-20261019.md"
+          ]
+        },
+        {
+          "id": "governed-generated-artifact-refresh-exact-request-deduplication",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Trusted PR owner posting an exact-head generated artifact request",
+          "entrypoint": "Governed label, issue_comment and pull_request_target workflow-run dispatchers",
+          "terminal_outcome": "Only one writer is dispatched for a matching PR, 40-character SHA and recipe while failed or cancelled attempts remain retriable.",
+          "steps": [
+            "Resolve unique same-repository PR, exact branch/SHA and explicit generated-artifact-refresh label",
+            "Serialize both dispatchers with a shared non-cancelling concurrency lane",
+            "Inspect canonical GitHub writer-run metadata for exact recipe, branch and SHA, then return skipped evidence on a matching pending/running/successful run",
+            "Do not dispatch or mutate generated outputs after an exact replay; permit retries for failed/cancelled runs"
+          ],
+          "assertions": [
+            "Matching PR+SHA+recipe produces exactly one candidate writer invocation across both dispatcher routes",
+            "Any different SHA, branch, recipe, or non-workflow event cannot suppress a distinct request",
+            "Duplicate requests cannot cancel the currently applying writer",
+            "No direct Generated Artifact output rewrite, owner review substitution, or Production promotion"
+          ],
+          "tests": [
+            {
+              "id": "governed-refresh-exact-head-replay-test",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/scripts/test-governed-refresh-idempotency.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/workflows/governed-generated-artifact-refresh-dispatch-v2.yml",
+            ".github/workflows/governed-generated-artifact-refresh-request-dispatcher.yml",
+            ".github/workflows/governed-generated-artifact-refresh.yml",
+            "http-generic-api/scripts/maintenance-tools/governed-refresh-idempotency.mjs",
+            "http-generic-api/scripts/test-governed-refresh-idempotency.mjs"
           ]
         }
       ]
