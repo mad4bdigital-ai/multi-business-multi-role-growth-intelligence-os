@@ -100,7 +100,7 @@ const schemaStart = { type: "object", additionalProperties: false, required: ["p
 const schemaEmpty = { type: "object", additionalProperties: false, properties: {} };
 const schemaMany = { type: "object", additionalProperties: false,
   required: ["paths"], properties: { paths: { type: "array", minItems: 1,
-    maxItems: 16, items: { type: "string", maxLength: 512 } } } };
+    maxItems: 8, items: { type: "string", maxLength: 512 } } } };
 const schemaCreateFile = { type: "object", additionalProperties: false,
   required: ["relative_path", "content"], properties: {
     relative_path: { type: "string" }, content: { type: "string", maxLength: 16000 } } };
