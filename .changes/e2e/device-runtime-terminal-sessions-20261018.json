@@ -1,0 +1,89 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "device-runtime-terminal-sessions-20261018",
+  "title": "Bounded Device Terminal Sessions with Staging and shared-runtime impact",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/device-runtime-terminal-sessions-20261018.json",
+      ".github/workflows/ci.yml",
+      "autopilot-portable-staging/Repair-LocalConnectorTunnel.ps1",
+      "autopilot-portable-staging/manifest.json",
+      "canonicals/openapi/local-connector.openapi.yaml",
+      "docs/remote-mcp-write-scope-inventory.md",
+      "http-generic-api/frontend-surface-dispatch.generated.json",
+      "http-generic-api/openapi/openapi.gpt-action.local-connector.yaml",
+      "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
+      "http-generic-api/routes/connectorAgentRoutes.js",
+      "http-generic-api/routes/localConnectorInstallRoutes.js",
+      "http-generic-api/scripts/connector-agent-smoke-test.mjs",
+      "http-generic-api/test-connector-staging-mcp-distribution.mjs",
+      "local-connector/.env.example",
+      "local-connector/connector-safe-upgrade.ps1",
+      "local-connector/device-terminal-engine.mjs",
+      "local-connector/server.mjs",
+      "local-connector/test-device-terminal-engine.mjs",
+      "specs/020-platform-resource-identity-brand-governance/openapi-detail-closure-batch-full.json",
+      "specs/020-platform-resource-identity-brand-governance/openapi-detail-gap-classification.json",
+      "specs/020-platform-resource-identity-brand-governance/openapi-gap-closure-plan.json"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "secrets_included": false,
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Verify bounded device-specific terminal sessions, allowed command profiles, output pagination, cancel and restart-safe evidence without claiming PTY or live-process reattachment.",
+      "e2e_journeys": [
+        {
+          "id": "scoped-device-terminal-session-contract",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Device-bound Local Connector operator",
+          "entrypoint": "Local Connector /device/terminal",
+          "terminal_outcome": "Only allowlisted terminal tasks run within an approved workspace; cursor-based output and bounded lifecycle evidence remain available without unauthorized shell or cross-device access.",
+          "steps": [
+            "Start a session within the allowlisted project directory using a permitted command profile.",
+            "Read session status and paginated output while rejecting cross-device access and disallowed commands.",
+            "Cancel or close a session and check persisted output records within scope."
+          ],
+          "assertions": [
+            "No arbitrary command execution or path escape.",
+            "Interactive operations need separate explicit approval.",
+            "Persisted logs are not represented as live PTY or process reconnection.",
+            "Live Staging runtime certification remains a release prerequisite."
+          ],
+          "tests": [
+            {
+              "id": "device-terminal-engine-lifecycle",
+              "runner": "node",
+              "working_directory": "local-connector",
+              "path": "test-device-terminal-engine.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "local-connector/device-terminal-engine.mjs",
+            "local-connector/test-device-terminal-engine.mjs",
+            ".github/workflows/ci.yml"
+          ]
+        }
+      ]
+    }
+  ]
+}

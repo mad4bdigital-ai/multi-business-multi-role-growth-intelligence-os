@@ -19,6 +19,9 @@ concurrency:
 
 jobs:
   collect-release-evidence:
+    environment:
+      name: Production
+      deployment: false
     name: Collect GET-only Hostinger build and runtime evidence
     if: >-
       (github.event_name == 'workflow_dispatch' && github.actor == github.repository_owner) ||

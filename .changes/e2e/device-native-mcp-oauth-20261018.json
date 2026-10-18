@@ -1,0 +1,81 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "device-native-mcp-oauth-20261018",
+  "title": "Native Device MCP resource OAuth and exact device grant impact",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/device-native-mcp-oauth-20261018.json",
+      "autopilot-portable-staging/Repair-LocalConnectorTunnel.ps1",
+      "docs/runbooks/native-device-mcp-oauth-20261018.md",
+      "http-generic-api/routes/connectorAgentRoutes.js",
+      "http-generic-api/routes/localConnectorInstallRoutes.js",
+      "http-generic-api/scripts/connector-agent-smoke-test.mjs",
+      "http-generic-api/test-connector-staging-mcp-distribution.mjs",
+      "local-connector/.env.example",
+      "local-connector/connector-safe-upgrade.ps1",
+      "local-connector/device-mcp-resource.mjs",
+      "local-connector/server.mjs",
+      "local-connector/test-device-mcp-resource.mjs"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "secrets_included": false,
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Exercise scoped OAuth JWT and JWKS device-resource admission on Local Connector with strict issuer, audience, tenant, environment, device and scope validation; leave live Staging runtime certification outstanding.",
+      "e2e_journeys": [
+        {
+          "id": "device-mcp-jwt-authentication-authorization",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "OAuth-authenticated device-scoped MCP client",
+          "entrypoint": "Native Device MCP resource",
+          "terminal_outcome": "Only correctly signed and scoped JWTs may enumerate and invoke explicitly permitted device operations; secrets, unauthorized writes, cross-tenant/device/environment calls and malformed signatures are rejected.",
+          "steps": [
+            "Provide a JWKS signer and JWT with exact issuer, audience, tenant, environment and device claims.",
+            "Read allowed tool catalog with a valid read scope and deny local filesystem roots and unauthorized write capabilities.",
+            "Reject forged signatures, noncanonical Base64URL encoding and cross-identity or expired claims.",
+            "Confirm mutation scopes remain separate from read permissions."
+          ],
+          "assertions": [
+            "JWT signature and canonical Base64URL checks fail closed.",
+            "Tool and resource access is bound to exact device, tenant, environment and scope.",
+            "No read-only caller gains mutation permissions or local secret paths.",
+            "Live Staging OAuth and Connector integration remain unverified by synthetic contract tests."
+          ],
+          "tests": [
+            {
+              "id": "device-native-mcp-jwt-claims",
+              "runner": "node",
+              "working_directory": "local-connector",
+              "path": "test-device-mcp-resource.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "local-connector/device-mcp-resource.mjs",
+            "local-connector/test-device-mcp-resource.mjs",
+            "docs/runbooks/native-device-mcp-oauth-20261018.md"
+          ]
+        }
+      ]
+    }
+  ]
+}

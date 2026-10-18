@@ -20,6 +20,18 @@ const requiredProducers = evidence.producers.filter((entry) => entry.required ==
 assert.deepEqual(requiredProducers.map((entry) => entry.id), ["policy-objection-ci"]);
 assert.equal(requiredProducers[0].workflow, "Policy Objection CI");
 assert.equal(requiredProducers[0].workflow_file, ".github/workflows/policy-objection-ci.yml");
+
+const derivedWorkflow = fs.readFileSync(path.join(root, ".github/workflows/derived-state-closure.yml"), "utf8");
+// CI runs may exceed the default 30 globally. Producer lookup must always
+// select the exact reviewed source HEAD, then validate the embedded evidence.
+assert.ok(derivedWorkflow.includes("event=pull_request&head_sha=${SOURCE_HEAD_SHA}&per_page=100"),
+  "derived-state producer lookup must filter by the exact source HEAD");
+assert.ok(!derivedWorkflow.includes("event=pull_request&per_page=30"),
+  "unscoped latest-30 producer lookup is vulnerable to unrelated CI traffic");
+for (const boundField of [".pr_number", ".source_head_sha", ".base_sha", ".merge_candidate_sha", ".executed_sha", ".fixed_point_converged"]) {
+  assert.ok(derivedWorkflow.includes(boundField), "producer evidence must preserve "+boundField+" binding");
+}
+
 assert.ok(evidence.producers.some((entry) => entry.workflow === "CI" && entry.required === false && entry.role === "supplemental_diagnostics"));
 assert.equal(waivers.contract, "mad4b.repository-governance-waiver-ledger.v1");
 assert.ok(Array.isArray(waivers.waivers));
