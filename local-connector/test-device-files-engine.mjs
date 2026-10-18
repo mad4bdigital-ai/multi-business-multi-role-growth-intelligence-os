@@ -198,3 +198,26 @@ test("state directory cannot resolve inside the approved project via ancestor ju
     assert.equal(engine.capabilities.write_enabled, false);
   } finally { f.cleanup(); }
 });
+
+test("same-content source replacement during move cannot unlink the replacement", () => {
+  const f = fixture(true);
+  const from = path.join(f.root, "src", "index.js");
+  const to = path.join(f.root, "src", "moved.js");
+  const saved = path.join(f.root, "src", "original.txt");
+  const originalLink = fs.linkSync;
+  const body = fs.readFileSync(from);
+  try {
+    fs.linkSync = (source, target) => {
+      originalLink(source, target);
+      fs.renameSync(source, saved);
+      fs.writeFileSync(source, body);
+    };
+    const result = f.engine.dispatch({ action: "move",
+      relative_path: "src/index.js", target_path: "src/moved.js",
+      expected_sha256: hash(body), approval_token: "local-approval-only" });
+    assert.equal(result.code, "digest_mismatch");
+    assert.equal(fs.readFileSync(from).toString(), body.toString());
+    assert.equal(fs.existsSync(to), false);
+    assert.equal(fs.readFileSync(saved).toString(), body.toString());
+  } finally { fs.linkSync = originalLink; f.cleanup(); }
+});

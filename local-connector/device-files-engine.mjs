@@ -217,24 +217,33 @@ export function createDeviceFilesEngine({ env = process.env } = {}) {
     const expected = digest(before);
     if (expected !== input.expected_sha256.toLowerCase()) return failure("digest_mismatch");
     if (move) {
-      // Hard link creation is exclusive. Source stays intact on a failed link.
-      // Same-volume restriction avoids silent cross-volume partial moves.
+      // Guard against an external writer replacing the source with an
+      // identical-content file after the SHA check. Copy and unlink must
+      // still refer to the same filesystem object, not just the same bytes.
+      const identity = fs.lstatSync(source);
+      if (!identity.isFile() || identity.isSymbolicLink()) return failure("path_denied");
+      // Hard links are exclusive and same-volume only.
       fs.linkSync(source, target);
+      let committed = false;
       try {
-        if (fs.statSync(source).size > MAX_FILE_BYTES ||
-            fs.statSync(target).size > MAX_FILE_BYTES ||
+        const fromStat = fs.lstatSync(source), toStat = fs.lstatSync(target);
+        if (!fromStat.isFile() || !toStat.isFile() ||
+            fromStat.ino !== identity.ino || fromStat.dev !== identity.dev ||
+            toStat.ino !== identity.ino || toStat.dev !== identity.dev ||
+            fromStat.size > MAX_FILE_BYTES || toStat.size > MAX_FILE_BYTES ||
             digest(fs.readFileSync(target)) !== expected ||
             digest(fs.readFileSync(source)) !== expected) return failure("digest_mismatch");
         fs.unlinkSync(source);
+        committed = true;
       } finally {
-        // A failed rename may have created a temporary second hard link.
-        // Remove that second link only while the source still exists, so
-        // successful moves never lose the destination.
-        if (fs.existsSync(source)) {
+        // Never leave behind a duplicate on failure. Only remove the link
+        // while it still names the original inode, not a replacement file.
+        if (!committed) {
           try {
-            const a = fs.statSync(source), b = fs.statSync(target);
-            if (a.ino === b.ino && a.dev === b.dev) fs.unlinkSync(target);
-          } catch { /* no data-loss cleanup fallback */ }
+            const toStat = fs.lstatSync(target);
+            if (toStat.ino === identity.ino && toStat.dev === identity.dev)
+              fs.unlinkSync(target);
+          } catch { /* best effort: do not unlink a different file */ }
         }
       }
     } else {
