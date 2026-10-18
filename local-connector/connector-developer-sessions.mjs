@@ -143,6 +143,11 @@ export function createDeveloperSessionManager({
       if (rev.status !== 0 || String(rev.stdout || "").trim().toLowerCase() !== expected)
         return fail("repo_head_changed_or_unavailable", 409);
     }
+    // Never inherit connector, Production, cloud or provider credentials into repo code.
+    const safeChildEnv = { CI: "true", GIT_TERMINAL_PROMPT: "0", GIT_PAGER: "cat", NO_COLOR: "1" };
+    for (const key of ["PATH", "Path", "PATHEXT", "SystemRoot", "WINDIR", "TEMP", "TMP", "HOME", "USERPROFILE", "LOCALAPPDATA", "APPDATA"]) {
+      if (typeof process.env[key] === "string") safeChildEnv[key] = process.env[key];
+    }
     const id = randomUUID();
     const s = { id, task: request.task, createdAt: clock(), status: "running",
       exitCode: null, output: "", outputTruncated: false, child: null };
@@ -152,7 +157,7 @@ export function createDeveloperSessionManager({
     try {
       const child = spawnImpl(runCommand, runArgs, {
         cwd: capabilities.repo_root, windowsHide: true, shell: false, stdio: ["ignore", "pipe", "pipe"],
-        env: { ...process.env, GIT_TERMINAL_PROMPT: "0" },
+        env: safeChildEnv,
       });
       s.child = child;
       const timer = setTimeout(() => {
