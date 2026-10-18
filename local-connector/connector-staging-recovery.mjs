@@ -30,6 +30,7 @@ async function limitedRequest(url, options = {}, fetchImpl = fetch) {
       return { available: false, status: response.status, reason: "response_too_large", body: null };
     }
     const reader = response.body?.getReader?.();
+    const sse = String(response.headers?.get?.("content-type") || "").toLowerCase().includes("text/event-stream");
     let content = "";
     if (reader) {
       const chunks = [];
@@ -43,6 +44,10 @@ async function limitedRequest(url, options = {}, fetchImpl = fetch) {
           return { available: false, status: response.status, reason: "response_too_large", body: null };
         }
         chunks.push(value);
+        if (sse && Buffer.concat(chunks.map((chunk) => Buffer.from(chunk))).toString("utf8").match(/\r?\n\r?\n/)) {
+          await reader.cancel().catch(() => {});
+          break;
+        }
       }
       content = Buffer.concat(chunks.map((value) => Buffer.from(value))).toString("utf8");
     } else {
@@ -50,7 +55,17 @@ async function limitedRequest(url, options = {}, fetchImpl = fetch) {
       if (Buffer.byteLength(content) > MAX_BYTES) return { available: false, status: response.status, reason: "response_too_large", body: null };
     }
     let body = null;
-    try { body = content ? JSON.parse(content) : null; } catch { /* do not emit raw upstream HTML */ }
+    if (sse) {
+      const frames = content.split(/\r?\n\r?\n/);
+      for (const frame of frames) {
+        const data = frame.split(/\r?\n/).filter((line) => line.startsWith("data:"))
+          .map((line) => line.slice(5).trimStart()).join("\n");
+        if (!data) continue;
+        try { body = JSON.parse(data); break; } catch { /* bounded unknown SSE event */ }
+      }
+    } else {
+      try { body = content ? JSON.parse(content) : null; } catch { /* do not emit raw upstream HTML */ }
+    }
     return { available, status: response.status, reason: response.ok ? "healthy" : "upstream_http_status", body };
   } catch {
     return { available: false, status: null, reason: "transport_unavailable", body: null };
