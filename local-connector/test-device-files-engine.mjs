@@ -152,3 +152,49 @@ test("exclusive create, copy and same-volume move enforce approval, SHA and no o
     assert.equal(go({ action: "create_directory", relative_path: ".ssh" }).code, "path_denied");
   } finally { f.cleanup(); }
 });
+
+test("a failed or corrupted copy never exposes a partial target", () => {
+  const f = fixture(true);
+  const source = path.join(f.root, "src", "index.js");
+  const target = path.join(f.root, "src", "copied.js");
+  const expected_sha256 = hash(fs.readFileSync(source));
+  const actualCopy = fs.copyFileSync;
+  const copy = () => f.engine.dispatch({ action: "copy", relative_path: "src/index.js",
+    target_path: "src/copied.js", expected_sha256, approval_token: "local-approval-only" });
+  try {
+    fs.copyFileSync = (from, to, flags) => {
+      actualCopy(from, to, flags);
+      fs.writeFileSync(to, "corrupted");
+    };
+    assert.equal(copy().code, "digest_mismatch");
+    assert.equal(fs.existsSync(target), false);
+    assert.equal(fs.readdirSync(path.dirname(target)).some(x => x.startsWith(".mad4b-copy-")), false);
+
+    fs.copyFileSync = (_from, to) => {
+      fs.writeFileSync(to, "partial", { flag: "wx" });
+      throw Object.assign(new Error("simulated interrupted copy"), { code: "EIO" });
+    };
+    assert.equal(copy().code, "io_error");
+    assert.equal(fs.existsSync(target), false);
+    assert.equal(fs.readdirSync(path.dirname(target)).some(x => x.startsWith(".mad4b-copy-")), false);
+  } finally {
+    fs.copyFileSync = actualCopy;
+    f.cleanup();
+  }
+});
+
+test("state directory cannot resolve inside the approved project via ancestor junction", t => {
+  const f = fixture(true);
+  try {
+    const exposed = path.join(f.root, "exposed");
+    fs.mkdirSync(exposed);
+    const alias = path.join(f.base, "alias");
+    try { fs.symlinkSync(f.root, alias, "junction"); }
+    catch (error) { t.diagnostic("directory junction unavailable: " + error.code); return; }
+    const engine = createDeviceFilesEngine({ env: {
+      ...f.env, CONNECTOR_DEVICE_STATE_DIR: path.join(alias, "exposed"),
+    } });
+    assert.equal(engine.capabilities.state_available, false);
+    assert.equal(engine.capabilities.write_enabled, false);
+  } finally { f.cleanup(); }
+});

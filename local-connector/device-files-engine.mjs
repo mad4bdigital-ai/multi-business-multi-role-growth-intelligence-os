@@ -92,7 +92,11 @@ function getStateDirectory(env, root) {
   if (absolute === root || absolute.startsWith(root + path.sep)) return null;
   try {
     if (!fs.lstatSync(absolute).isDirectory() || fs.lstatSync(absolute).isSymbolicLink()) return null;
-    return fs.realpathSync(absolute);
+    // Canonical validation closes ancestor-symlink paths into the project.
+    // Backup state must never be readable through Device Files.
+    const canonical = fs.realpathSync(absolute);
+    if (canonical === root || canonical.startsWith(root + path.sep)) return null;
+    return canonical;
   } catch { return null; }
 }
 function sameSecret(supplied, expected) {
@@ -234,8 +238,18 @@ export function createDeviceFilesEngine({ env = process.env } = {}) {
         }
       }
     } else {
-      fs.copyFileSync(source, target, fs.constants.COPYFILE_EXCL);
-      if (digest(fs.readFileSync(target)) !== expected) return failure("digest_mismatch");
+      // Verify an unpublished temporary file first, then hard-link it into
+      // the destination exclusively. A corrupt/interrupted copy is never visible.
+      const temporary = path.join(path.dirname(target), ".mad4b-copy-" + randomUUID() + ".tmp");
+      try {
+        fs.copyFileSync(source, temporary, fs.constants.COPYFILE_EXCL);
+        if (fs.statSync(temporary).size > MAX_FILE_BYTES ||
+            digest(fs.readFileSync(temporary)) !== expected ||
+            digest(fs.readFileSync(source)) !== expected) return failure("digest_mismatch");
+        fs.linkSync(temporary, target);
+      } finally {
+        try { fs.rmSync(temporary, { force: true }); } catch { /* best effort */ }
+      }
     }
     return { ok: true, http_status: 200, operation: move ? "move" : "copy",
       source_path: from, target_path: to, sha256: expected,
