@@ -54,7 +54,7 @@ test("Repo code execution needs separate flag and exact Git HEAD", () => {
   const manager = createDeveloperSessionManager({
     env: { ...env, CONNECTOR_DEVELOPER_TESTS_ENABLED: "true" },
     spawnImpl: fakeSpawn,
-    spawnSyncImpl: () => ({ status: 0, stdout: sha + "\n" }),
+    spawnSyncImpl: (_cmd, args) => ({ status: 0, stdout: args[0] === "status" ? "" : sha + "\n" }),
   });
   assert.equal(manager.dispatch({ action: "start", task: "node_test",
     test_file: "check.mjs" }).code, "exact_head_sha_required");
@@ -69,7 +69,7 @@ test("Rejects traversal, absolute paths, and symlinks outside bound repo", () =>
   const manager = createDeveloperSessionManager({
     env: { ...env, CONNECTOR_DEVELOPER_TESTS_ENABLED: "true" },
     spawnImpl: fakeSpawn,
-    spawnSyncImpl: () => ({ status: 0, stdout: "a".repeat(40) }),
+    spawnSyncImpl: (_cmd, args) => ({ status: 0, stdout: args[0] === "status" ? "" : "a".repeat(40) }),
   });
   for (const file of ["../secret.mjs", "/tmp/secrets.mjs", "C:/windows/script.mjs", "folder/../../evil.js"]) {
     assert.equal(manager.dispatch({ action: "start", task: "node_test",
@@ -120,4 +120,23 @@ test("Cancellation is explicit and session does not accept arbitrary command arg
   const stop = manager.dispatch({ action: "cancel", session_id: run.session_id });
   assert.equal(stop.status, "cancelled");
   assert.equal(manager.dispatch({ action: "status", session_id: run.session_id }).status, "cancelled");
+});
+
+test("matching commit SHA never authorizes a modified or untracked workspace", () => {
+  const { env } = fixture();
+  const sha = "c".repeat(40);
+  let dirty = " M checked-in.mjs";
+  const manager = createDeveloperSessionManager({
+    env: { ...env, CONNECTOR_DEVELOPER_TESTS_ENABLED: "true" },
+    spawnImpl: fakeSpawn,
+    spawnSyncImpl: (_cmd, args) => ({
+      status: 0, stdout: args[0] === "status" ? dirty : sha + "\n",
+    }),
+  });
+  const request = { action: "start", task: "node_test", test_file: "check.mjs", expected_head_sha: sha };
+  assert.equal(manager.dispatch(request).code, "repo_worktree_not_clean");
+  dirty = "?? untracked.mjs";
+  assert.equal(manager.dispatch(request).code, "repo_worktree_not_clean");
+  dirty = "";
+  assert.equal(manager.dispatch(request).ok, true);
 });

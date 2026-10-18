@@ -142,6 +142,16 @@ export function createDeveloperSessionManager({
       });
       if (rev.status !== 0 || String(rev.stdout || "").trim().toLowerCase() !== expected)
         return fail("repo_head_changed_or_unavailable", 409);
+      // HEAD alone does not prove what Node/npm executes: tracked edits and
+      // untracked test files can change execution without changing the SHA.
+      const worktree = spawnSyncImpl("git",
+        ["status", "--porcelain=v1", "-z", "--untracked-files=all"], {
+          cwd: capabilities.repo_root, timeout: 5000, encoding: "utf8", windowsHide: true,
+        });
+      if (worktree.status !== 0 || typeof worktree.stdout !== "string")
+        return fail("repo_worktree_unverifiable", 409);
+      if (worktree.stdout.length > 0)
+        return fail("repo_worktree_not_clean", 409);
     }
     // Never inherit connector, Production, cloud or provider credentials into repo code.
     const safeChildEnv = { CI: "true", GIT_TERMINAL_PROMPT: "0", GIT_PAGER: "cat", NO_COLOR: "1" };
