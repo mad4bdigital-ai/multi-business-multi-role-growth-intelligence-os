@@ -129,6 +129,7 @@ export function createDeveloperSessionManager({
     }
     if (sessions.size >= MAX_SESSIONS) return fail("developer_session_capacity", 429);
     let args = [...task.args];
+    if (task.cmd === "git") args = ["-c", "core.fsmonitor=false", "-c", `core.hooksPath=${os.devNull}`, ...args];
     if (["node_check", "node_test"].includes(request.task)) {
       const file = cleanRelativeFile(capabilities.repo_root, request.test_file);
       if (!file) return fail("test_file_not_allowed", 400);
@@ -154,7 +155,8 @@ export function createDeveloperSessionManager({
         return fail("repo_worktree_not_clean", 409);
     }
     // Never inherit connector, Production, cloud or provider credentials into repo code.
-    const safeChildEnv = { CI: "true", GIT_TERMINAL_PROMPT: "0", GIT_PAGER: "cat", NO_COLOR: "1" };
+    const safeChildEnv = { CI: "true", GIT_TERMINAL_PROMPT: "0", GIT_PAGER: "cat", NO_COLOR: "1",
+      GIT_CONFIG_NOSYSTEM: "1", GIT_CONFIG_GLOBAL: os.devNull, GIT_OPTIONAL_LOCKS: "0" };
     for (const key of ["PATH", "Path", "PATHEXT", "SystemRoot", "WINDIR", "TEMP", "TMP", "HOME", "USERPROFILE", "LOCALAPPDATA", "APPDATA"]) {
       if (typeof process.env[key] === "string") safeChildEnv[key] = process.env[key];
     }

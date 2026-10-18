@@ -154,3 +154,15 @@ test("termination is pending until the owned child actually closes", () => {
     assert.equal(manager.dispatch({ action: "close", session_id: run.session_id }).closed, true);
   } finally { f.done(); }
 });
+
+test("readonly Git terminal profiles do not enable repository-defined Git hooks or fsmonitor", () => {
+  const f = fixture(), spawned = fakeSpawn();
+  try {
+    const manager = owner(createDeviceTerminalManager({ env: f.env, spawnImpl: spawned.create }));
+    assert.equal(manager.dispatch({ action: "start", profile: "git_status" }).ok, true);
+    assert.deepEqual(spawned.children[0].args.slice(0, 4),
+      ["-c", "core.fsmonitor=false", "-c", "core.hooksPath=" + os.devNull]);
+    assert.equal(spawned.children[0].options.env.GIT_CONFIG_GLOBAL, os.devNull);
+    assert.equal(spawned.children[0].options.env.GIT_CONFIG_NOSYSTEM, "1");
+  } finally { f.done(); }
+});

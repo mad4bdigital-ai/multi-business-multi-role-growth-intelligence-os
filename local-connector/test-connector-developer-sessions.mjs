@@ -140,3 +140,21 @@ test("matching commit SHA never authorizes a modified or untracked workspace", (
   dirty = "";
   assert.equal(manager.dispatch(request).ok, true);
 });
+
+test("readonly Developer Git probes neutralize external repo hooks and fsmonitor", () => {
+  const { env } = fixture();
+  let command = null;
+  const manager = createDeveloperSessionManager({
+    env,
+    spawnImpl: (cmd, args, options) => {
+      command = { cmd, args, options };
+      return fakeSpawn(cmd, args, options);
+    },
+  });
+  assert.equal(manager.dispatch({ action: "start", task: "git_status" }).ok, true);
+  assert.equal(command.cmd, "git");
+  assert.deepEqual(command.args.slice(0, 4),
+    ["-c", "core.fsmonitor=false", "-c", "core.hooksPath=" + os.devNull]);
+  assert.equal(command.options.env.GIT_CONFIG_GLOBAL, os.devNull);
+  assert.equal(command.options.env.GIT_CONFIG_NOSYSTEM, "1");
+});

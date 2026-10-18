@@ -1,6 +1,7 @@
 // Device-scoped terminal sessions. No public network listener and no delegated auth.
 // Local Connector owns authentication, exact device binding and approval-header injection.
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { randomUUID, timingSafeEqual } from "node:crypto";
 import { spawn } from "node:child_process";
@@ -13,8 +14,8 @@ const MAX_RUNNING = 2;
 const MAX_RUNTIME_MS = 15 * 60 * 1000;
 const SESSION_TTL_MS = 60 * 60 * 1000;
 const PROFILES = Object.freeze({
-  git_status: { command: "git", args: ["status", "--short"], interactive: false },
-  git_log: { command: "git", args: ["log", "-5", "--oneline"], interactive: false },
+  git_status: { command: "git", args: ["-c", "core.fsmonitor=false", "-c", `core.hooksPath=${os.devNull}`, "status", "--short"], interactive: false },
+  git_log: { command: "git", args: ["-c", "core.fsmonitor=false", "-c", `core.hooksPath=${os.devNull}`, "log", "-5", "--oneline"], interactive: false },
   node_repl: { command: "node", args: ["-i"], interactive: true },
   python_repl: { command: "python", args: ["-i"], interactive: true },
   powershell: { command: "powershell.exe", args: ["-NoProfile", "-NoLogo", "-NoExit", "-Command", "-"], interactive: true, windows_only: true },
@@ -49,7 +50,8 @@ function stateDirectory(env, root) {
   return state;
 }
 function safeEnv() {
-  const env = { CI: "true", GIT_TERMINAL_PROMPT: "0", GIT_PAGER: "cat", NO_COLOR: "1" };
+  const env = { CI: "true", GIT_TERMINAL_PROMPT: "0", GIT_PAGER: "cat", NO_COLOR: "1",
+    GIT_CONFIG_NOSYSTEM: "1", GIT_CONFIG_GLOBAL: os.devNull, GIT_OPTIONAL_LOCKS: "0" };
   for (const k of ["Path", "PATH", "PATHEXT", "SystemRoot", "WINDIR", "TEMP", "TMP", "HOME", "USERPROFILE"]) {
     if (typeof process.env[k] === "string") env[k] = process.env[k];
   }
