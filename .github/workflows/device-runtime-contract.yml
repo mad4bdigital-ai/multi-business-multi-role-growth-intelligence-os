@@ -50,6 +50,7 @@ jobs:
           node --test local-connector/test-device-terminal-engine.mjs
           if test -f local-connector/test-device-mcp-resource.mjs; then node --test local-connector/test-device-mcp-resource.mjs; fi
           node --test http-generic-api/test-connector-staging-mcp-distribution.mjs
+          node --test local-connector/test-device-runtime-http.mjs
           if test -f http-generic-api/test-desktop-device-workspace-wiring.mjs; then node --test http-generic-api/test-desktop-device-workspace-wiring.mjs; fi
 
   windows-desktop-compile:
