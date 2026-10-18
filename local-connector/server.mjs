@@ -19,6 +19,11 @@ import {
   validateBrowser4Url,
 } from './browser4-adapter.mjs';
 import { createLocalAgentRuntimeHandler } from './local-agent-runtime.mjs';
+import { createStagingRecoveryBridge, stagingRecoveryCapabilities } from './connector-staging-recovery.mjs';
+import { createDeveloperSessionManager } from './connector-developer-sessions.mjs';
+import { createDeviceFilesEngine } from './device-files-engine.mjs';
+import { createDeviceTerminalManager } from './device-terminal-engine.mjs';
+import { createDeviceMcpResource } from './device-mcp-resource.mjs';
 
 // ---------------------------------------------------------------------------
 // Bootstrap â€” manual .env parse (no dotenv dependency)
@@ -1852,6 +1857,136 @@ async function handleCf(req, res) {
   }
 }
 
+// Admin-only failover: never accept a legacy backend key as the connector credential.
+const stagingRecoveryDispatch = createStagingRecoveryBridge();
+const developerSessions = createDeveloperSessionManager();
+const deviceFiles = createDeviceFilesEngine();
+const deviceTerminal = createDeviceTerminalManager();
+const deviceMcp = createDeviceMcpResource({ files: deviceFiles, terminal: deviceTerminal });
+function requireRecoveryAuth(req, res) {
+  const header = String(req.headers['authorization'] || '');
+  const bearer = header.startsWith('Bearer ') ? header.slice(7).trim() : '';
+  const candidate = [bearer, String(req.headers['x-connector-secret'] || '').trim()];
+  const approved = [CONNECTOR_SECRET, CONNECTOR_LOCAL_API_KEY].filter(Boolean);
+  if (approved.length && candidate.some((value) => value && approved.includes(value))) return true;
+  err(res, 401, 'CONNECTOR_RECOVERY_AUTH_REQUIRED',
+    'Admin Recovery requires a device-scoped connector credential, not a Production backend key');
+  return false;
+}
+async function handleStagingRecovery(req, res) {
+  if (!requireRecoveryAuth(req, res)) return;
+  if (req.url !== '/recovery/staging') return err(res, 400, 'QUERY_NOT_ALLOWED', 'Recovery does not accept query credentials or routing');
+  let body;
+  try { body = await readBody(req); } catch { return err(res, 400, 'BAD_BODY', 'Invalid recovery request'); }
+  const result = await stagingRecoveryDispatch(body, {
+    stagingBearer: String(req.headers['x-mad4b-staging-mcp-bearer'] || ''),
+  });
+  console.log(JSON.stringify({
+    ts: new Date().toISOString(), method: 'POST', path: '/recovery/staging',
+    action: typeof body.action === 'string' ? body.action.slice(0, 48) : 'invalid',
+    outcome: result.ok ? 'ok' : result.code || 'not_ready',
+    selected_environment: result.selected_environment || null,
+    secrets_included: false,
+  }));
+  return json(res, result.http_status || 500, result);
+}
+async function handleDeveloperSession(req, res) {
+  if (!requireRecoveryAuth(req, res)) return;
+  if (req.url !== '/developer/sessions') return err(res, 400, 'QUERY_NOT_ALLOWED', 'Developer sessions do not accept query credentials');
+  let body;
+  try { body = await readBody(req); } catch { return err(res, 400, 'BAD_BODY', 'Invalid developer request'); }
+  const result = developerSessions.dispatch(body);
+  console.log(JSON.stringify({
+    ts: new Date().toISOString(), method: 'POST', path: '/developer/sessions',
+    action: typeof body.action === 'string' ? body.action.slice(0, 32) : 'invalid',
+    outcome: result.ok ? 'ok' : result.code || 'not_ready',
+  }));
+  return json(res, result.http_status || 500, result);
+}
+
+// Separate opt-in device-files endpoint; always bound to a specific device identity.
+// File modifications additionally require local write approval in the device engine.
+function readDeviceBody(req, maxBytes = 2 * 1024 * 1024) {
+  return new Promise((resolve, reject) => {
+    let size = 0;
+    let exceeded = false;
+    const chunks = [];
+    req.on('data', (chunk) => {
+      size += chunk.byteLength;
+      if (size > maxBytes) { exceeded = true; chunks.length = 0; }
+      else if (!exceeded) chunks.push(chunk);
+    });
+    req.on('end', () => {
+      if (exceeded) return reject(Object.assign(new Error('request_too_large'), { status: 413 }));
+      try { resolve(JSON.parse(Buffer.concat(chunks).toString('utf8'))); }
+      catch { reject(Object.assign(new Error('invalid_json'), { status: 400 })); }
+    });
+    req.on('error', reject);
+  });
+}
+async function handleDeviceFiles(req, res) {
+  if (!requireRecoveryAuth(req, res)) return;
+  if (req.url !== '/device/files') return err(res, 400, 'QUERY_NOT_ALLOWED', 'Device files accepts no query arguments');
+  let body;
+  try { body = await readDeviceBody(req); }
+  catch (e) { return err(res, e.status || 400, 'BAD_DEVICE_BODY', 'Device file request rejected'); }
+  if (!body || typeof body !== 'object' || Array.isArray(body) || 'approval_token' in body)
+    return err(res, 400, 'INVALID_DEVICE_BODY', 'Write approval must be supplied via trusted header, not body');
+  if (!CONNECTOR_DEVICE_ID || String(body.device_id || '') !== CONNECTOR_DEVICE_ID) {
+    return err(res, 403, 'DEVICE_SCOPE_REQUIRED', 'Exact bound device identity is required');
+  }
+  const result = deviceFiles.dispatch({ ...body,
+    approval_token: String(req.headers['x-mad4b-device-write-approval'] || ''),
+  });
+  console.log(JSON.stringify({
+    ts: new Date().toISOString(), method: 'POST', path: '/device/files',
+    action: typeof body.action === 'string' ? body.action.slice(0, 32) : 'invalid',
+    outcome: result.ok ? 'ok' : result.code || 'denied', device_scoped: true,
+    secrets_included: false,
+  }));
+  return json(res, result.http_status || 500, result);
+}
+
+// All terminal operations remain Connector Admin-only and exact device-bound.
+// Interactive input is denied unless locally configured and independently approved.
+async function handleDeviceTerminal(req, res) {
+  if (!requireRecoveryAuth(req, res)) return;
+  if (req.url !== '/device/terminal')
+    return err(res, 400, 'QUERY_NOT_ALLOWED', 'Terminal does not accept query credentials');
+  let body;
+  try { body = await readDeviceBody(req, 32768); }
+  catch (e) { return err(res, e.status || 400, 'BAD_DEVICE_BODY', 'Terminal request rejected'); }
+  if (!body || typeof body !== 'object' || Array.isArray(body) || 'approval_token' in body)
+    return err(res, 400, 'INVALID_TERMINAL_BODY', 'Terminal approval must be injected via a trusted local header');
+  if (!CONNECTOR_DEVICE_ID || body.device_id !== CONNECTOR_DEVICE_ID)
+    return err(res, 403, 'DEVICE_SCOPE_REQUIRED', 'Exact bound device identity is required');
+  const result = deviceTerminal.dispatch({
+    ...body, owner_principal: 'connector-admin', approval_token: String(req.headers['x-mad4b-device-terminal-approval'] || ''),
+  });
+  console.log(JSON.stringify({
+    ts: new Date().toISOString(), method: 'POST', path: '/device/terminal',
+    action: typeof body.action === 'string' ? body.action.slice(0, 24) : 'invalid',
+    profile: typeof body.profile === 'string' ? body.profile.slice(0, 24) : null,
+    outcome: result.ok ? 'ok' : result.code, device_scoped: true, secrets_included: false,
+  }));
+  return json(res, result.http_status || 500, result);
+}
+
+// OAuth resource server is intentionally independent of Admin Recovery connector keys.
+async function handleNativeDeviceMcp(req, res) {
+  if (req.url !== '/mcp/device') return err(res, 400, 'QUERY_NOT_ALLOWED', 'MCP does not accept query credentials');
+  if (!deviceMcp.capabilities.enabled) return err(res, 404, 'DISABLED', 'Native MCP is disabled');
+  let payload;
+  try { payload = await readDeviceBody(req, 65536); }
+  catch (e) { return err(res, e.status || 400, 'BAD_MCP_BODY', 'Malformed or oversized MCP request'); }
+  const response = deviceMcp.handle({
+    authorization: String(req.headers.authorization || ''),
+    body: payload, contentLength: Number(req.headers['content-length'] || 0),
+  });
+  res.writeHead(response.http_status, response.headers);
+  res.end(response.body === null ? '' : JSON.stringify(response.body));
+}
+
 const server = http.createServer(async (req, res) => {
   const url = req.url?.split('?')[0] ?? '/';
   const method = req.method ?? 'GET';
@@ -1862,10 +1997,27 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, healthBody());
     }
 
+    if (method === 'GET' && url === '/recovery/capabilities') {
+      if (!requireRecoveryAuth(req, res)) return;
+      if (req.url !== '/recovery/capabilities') return err(res, 400, 'QUERY_NOT_ALLOWED', 'No query credentials');
+      return json(res, 200, { ok: true, staging: stagingRecoveryCapabilities(), developer: developerSessions.capabilities, device_files: deviceFiles.capabilities, device_terminal: deviceTerminal.capabilities, device_mcp: deviceMcp.capabilities });
+    }
+    if (method === 'POST' && url === '/recovery/staging') return await handleStagingRecovery(req, res);
+    if (method === 'POST' && url === '/developer/sessions') return await handleDeveloperSession(req, res);
+    if (method === 'POST' && url === '/device/files') return await handleDeviceFiles(req, res);
+    if (method === 'POST' && url === '/device/terminal') return await handleDeviceTerminal(req, res);
+    if (method === 'GET' && url === '/.well-known/oauth-protected-resource/mcp/device') {
+      const metadata = deviceMcp.metadata();
+      return json(res, metadata ? 200 : 404, metadata || { error: 'native_mcp_not_configured' });
+    }
+    if (method === 'POST' && url === '/mcp/device') return await handleNativeDeviceMcp(req, res);
+
     if (method === 'GET' && url === '/policy') { if (!requireAuth(req, res)) return; await refreshShellPolicy(); audit(req, { action: 'policy' }); return json(res, 200, policyBody()); }
 
     if (method === 'GET' && url === '/schema') {
-      const schemaPath = path.join(__dirname, '..', 'http-generic-api', 'openapi.gpt-action.local-connector.yaml');
+      const installedSchema = path.join(__dirname, 'connector-admin-recovery.openapi.yaml');
+      const repoSchema = path.join(__dirname, '..', 'http-generic-api', 'openapi', 'openapi.gpt-action.local-connector.yaml');
+      const schemaPath = fs.existsSync(installedSchema) ? installedSchema : repoSchema;
       try {
         const schema = fs.readFileSync(schemaPath, 'utf8');
         res.writeHead(200, { 'Content-Type': 'application/yaml; charset=utf-8', 'Cache-Control': 'no-cache' });

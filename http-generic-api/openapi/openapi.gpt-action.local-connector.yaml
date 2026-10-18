@@ -175,6 +175,229 @@ paths:
                   platform: { type: string }
                   uptime: { type: number }
 
+  /recovery/capabilities:
+    get:
+      tags: [connector]
+      operationId: connectorRecoveryCapabilities
+      summary: Discover scoped Admin Recovery and developer capabilities
+      description: "Read-only device-local capability inventory. Requires a device-scoped Connector credential (not a Production backend key). No cloud authority is inferred."
+      security:
+        - connectorBearerAuth: []
+      responses:
+        '200':
+          description: Capability state without credential values
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                properties:
+                  ok: { type: boolean }
+                  http_status: { type: integer }
+                  code: { type: string }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /recovery/staging:
+    post:
+      x-openai-isConsequential: false
+      tags: [connector]
+      operationId: connectorStagingRecoveryReadOnly
+      summary: Fail-closed Staging and MCP diagnostics when Production is unavailable
+      description: "Admin-only read-only Staging diagnostics after a verified Production transport error or HTTP 5xx. Reject Production 401/403 and redirects. Protected Staging MCP reads require independent OAuth; no Production credential forwarding, environment rebinding or writes."
+      security:
+        - connectorBearerAuth: []
+      parameters:
+        - in: header
+          name: x-mad4b-staging-mcp-bearer
+          required: false
+          schema: { type: string }
+          description: "Separate Staging MCP access token, never a Production or Connector credential. Needed only for OAuth-protected MCP catalog and read-only tool requests."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [action]
+              properties:
+                action:
+                  type: string
+                  enum: [status, health, mcp_metadata, mcp_initialize, mcp_catalog, mcp_tool_read]
+                tool_name:
+                  type: string
+                  enum: [list_accessible_workspaces, list_accessible_brands]
+                arguments:
+                  type: object
+                  additionalProperties: true
+      responses:
+        '200':
+          description: Bounded Staging diagnostic/read-only MCP result
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                properties:
+                  ok: { type: boolean }
+                  http_status: { type: integer }
+                  code: { type: string }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403':
+          description: Feature flag disabled or authority denied
+        '409':
+          description: Production is healthy or the failure is not a failover trigger
+        '502':
+          description: Staging endpoint unavailable
+
+  /developer/sessions:
+    post:
+      x-openai-isConsequential: true
+      tags: [connector]
+      operationId: connectorDeveloperSessions
+      summary: Start or inspect a bounded repo-scoped developer session
+      description: "Opt-in repo-bound Git/Node tasks, bounded output/cursor and explicit cancellation. Tests require the exact Git HEAD and separate device opt-in. No free-form shell, persistent process reattachment, privilege escalation or Production changes."
+      security:
+        - connectorBearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [action]
+              properties:
+                action: { type: string, enum: [capabilities, start, status, cancel] }
+                task: { type: string, enum: [git_status, git_diff_stat, git_log, node_check, node_test, npm_test] }
+                test_file: { type: string }
+                expected_head_sha: { type: string, pattern: '^[a-f0-9]{40}$' }
+                session_id: { type: string, format: uuid }
+                cursor: { type: integer, minimum: 0 }
+      responses:
+        '200':
+          description: Session identifier, bounded output cursor or capability status
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                properties:
+                  ok: { type: boolean }
+                  http_status: { type: integer }
+                  code: { type: string }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403':
+          description: Developer features disabled or repo not authorized
+        '409':
+          description: Exact Git HEAD mismatch
+        '429':
+          description: Session concurrency limit reached
+
+  /device/terminal:
+    post:
+      x-openai-isConsequential: true
+      tags: [connector]
+      operationId: connectorDeviceTerminal
+      summary: Device-bound terminal output, input, process and session controls
+      description: "Device-bound, opt-in terminal profiles. Interactive STDIN needs separate local approval. Bounded output and persisted transcripts; after Connector restart only transcripts are recoverable, not the process or PTY. No arbitrary PID kill."
+      security:
+        - connectorBearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [device_id, action]
+              properties:
+                device_id: { type: string }
+                action: { type: string, enum: [capabilities, start, list, status, input, output, resume, cancel, close, process_list, process_status, process_terminate] }
+                profile: { type: string, enum: [git_status, git_log, node_repl, python_repl, powershell, cmd] }
+                session_id: { type: string, format: uuid }
+                input: { type: string, maxLength: 2048 }
+                cursor: { type: integer, minimum: 0 }
+      responses:
+        '200':
+          description: Bounded device terminal or process result
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                properties:
+                  ok: { type: boolean }
+                  http_status: { type: integer }
+                  session_id: { type: string }
+                  status: { type: string }
+                  output: { type: string }
+                  next_cursor: { type: integer }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403':
+          description: Device scope or local approval denied
+        '409':
+          description: Session no longer active
+        '429':
+          description: Session capacity reached
+
+  /device/files:
+    post:
+      x-openai-isConsequential: true
+      tags: [connector]
+      operationId: connectorDeviceFiles
+      summary: Inspect, search or atomically patch one bound device project root
+      description: "Exact device ID and allowlisted project root. Read, list, search, SHA-checked atomic patch and rollback. Mutations need separate local approval. Deny symlink traversal, arbitrary filesystem access, shell and Production authority."
+      security:
+        - connectorBearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [device_id, action]
+              properties:
+                device_id: { type: string }
+                action: { type: string, enum: [capabilities, list, info, stat, read, read_many, search, patch, rollback, create_file, create_directory, copy, move] }
+                relative_path: { type: string, description: "Relative to the exact device bound root; never absolute." }
+                target_path: { type: string, description: "Exclusive destination, within the same bound root." }
+                paths: { type: array, minItems: 1, maxItems: 8, items: { type: string } }
+                content: { type: string, maxLength: 1048576 }
+                query: { type: string, description: "Literal search term, not a regular expression." }
+                mode: { type: string, enum: [filename, content] }
+                cursor: { type: integer, minimum: 0 }
+                limit: { type: integer, minimum: 1, maximum: 100 }
+                expected_sha256: { type: string, description: "Expected 64-digit SHA-256 of a file before patch." }
+                old_text: { type: string }
+                new_text: { type: string }
+                transaction_id: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Bounded file result or patch receipt
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                properties:
+                  ok: { type: boolean }
+                  http_status: { type: integer }
+                  code: { type: string }
+                  relative_path: { type: string }
+                  sha256: { type: string }
+                  transaction_id: { type: string }
+        '400':
+          description: Invalid action or relative path
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403':
+          description: Device scope, file allowlist or explicit write approval missing
+        '409':
+          description: SHA mismatch, unsafe patch or rollback conflict
+        '413':
+          description: Payload or file exceeds size limit
+
   /github:
     post:
       x-openai-isConsequential: false

@@ -17,7 +17,7 @@ param(
 
 $ErrorActionPreference = "Continue"
 $WatchdogVersion = "2026.09.07.1"
-$AgentVersion = "2026.05.28.1"
+$AgentVersion = "2026.10.18.1"
 $CanonicalCloudflaredRuntime = "Mad4B-LocalConnector-Cloudflared"
 $StagingCloudflaredRuntime = "Mad4B-Staging-Cloudflared"
 $LogPath = Join-Path $Root "watchdog.log"

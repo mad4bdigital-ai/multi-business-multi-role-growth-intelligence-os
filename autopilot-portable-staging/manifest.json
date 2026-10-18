@@ -122,7 +122,7 @@
     },
     {
       "path": "http-generic-api/config/deployment-branch-policy.json",
-      "sha256": "06dd4606e8c1f58a3222c563127d9723c03e02a8afdc990bfa9c6361cca3c86b"
+      "sha256": "7a72cc37f212aa32c034d7593316131b8504275cbf6b431d2f294d23d9185ffa"
     },
     {
       "path": "http-generic-api/config/domain-family-policy.json",
@@ -146,11 +146,11 @@
     },
     {
       "path": "http-generic-api/frontend-operation-governance.generated.json",
-      "sha256": "d1ca72b1874e950067f6058435318b689dc25a410cefaadd0e6bbfb003921f04"
+      "sha256": "dce6003b9c8947031e92237a0e462b96df8a9c2a35778508897ba60726f36878"
     },
     {
       "path": "http-generic-api/frontend-surface-dispatch.generated.json",
-      "sha256": "4fb8a8e45e69ca7b85e184b0640343310a1e002873b3e015db9b06eac821da2a"
+      "sha256": "936ca24ed2257a8c31af99ec3131cf8f0545dce72df63e3ed58d5625b47faf21"
     },
     {
       "path": "http-generic-api/governanceDb.js",
@@ -170,7 +170,7 @@
     },
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
-      "sha256": "3b1f2a2c66cb134f937b86c06ec618e45e27da033d29f58750a39d89d25ebeb1"
+      "sha256": "183aa5f54b99b149d520b565f4aa38795df8ca418c60dda560069c71f1754f53"
     },
     {
       "path": "http-generic-api/remoteMcpConnectorRuntime.js",
@@ -410,7 +410,7 @@
     },
     {
       "path": "autopilot-portable-staging/Repair-LocalConnectorTunnel.ps1",
-      "sha256": "dc7dd365c9a328d0df38780b2e5f3f340d849ce8bfdfe3c34826db100946db8f"
+      "sha256": "f037d8ed7f5a0c91a0700193b6f2f461ddda3c09b872211a67e069b4cb18f963"
     },
     {
       "path": "autopilot-portable-staging/Provision-LocalConnectorTunnelToken.ps1",
@@ -422,11 +422,11 @@
     },
     {
       "path": "local-connector/connector-watchdog.ps1",
-      "sha256": "24dac8e491ee5bca02306067bd595cfa9dc75694b6428de93e06db636e3e7582"
+      "sha256": "5cf92c34769fa74a43975e9831e9268686dbe8eac5be6b7762d6deba3f0fba2d"
     },
     {
       "path": "local-connector/server.mjs",
-      "sha256": "3314aae95fbea6e4b9eb8da229735306278a8dc7c5275c6f43eaeedf1d5197dd"
+      "sha256": "4aaa483a5ce3c245755124a0a4cca1879e15d63469c64623d137ee721d9ad869"
     },
     {
       "path": "autopilot-portable-staging/Invoke-StagingPrHeadCertification.ps1",

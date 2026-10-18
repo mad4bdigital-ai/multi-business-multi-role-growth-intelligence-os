@@ -18,12 +18,24 @@ $WatchdogPath = Join-Path $Root "connector-watchdog.ps1"
 $SafeUpgradePath = Join-Path $Root "connector-safe-upgrade.ps1"
 $Browser4Path = Join-Path $Root "browser4-adapter.mjs"
 $LocalAgentRuntimePath = Join-Path $Root "local-agent-runtime.mjs"
+$StagingRecoveryBridgePath = Join-Path $Root "connector-staging-recovery.mjs"
+$DeveloperSessionsPath = Join-Path $Root "connector-developer-sessions.mjs"
+$DeviceFilesEnginePath = Join-Path $Root "device-files-engine.mjs"
+$DeviceTerminalEnginePath = Join-Path $Root "device-terminal-engine.mjs"
+$DeviceMcpResourcePath = Join-Path $Root "device-mcp-resource.mjs"
+$AdminRecoverySchemaPath = Join-Path $Root "connector-admin-recovery.openapi.yaml"
 $LogPath = Join-Path $Root "safe-upgrade.log"
 $ManifestPath = Join-Path $Root "connector-agent-manifest.json"
 $RuntimePackage = @(
   @{ Name = "server.mjs"; Destination = $ServerPath },
   @{ Name = "browser4-adapter.mjs"; Destination = $Browser4Path },
-  @{ Name = "local-agent-runtime.mjs"; Destination = $LocalAgentRuntimePath }
+  @{ Name = "local-agent-runtime.mjs"; Destination = $LocalAgentRuntimePath },
+  @{ Name = "connector-staging-recovery.mjs"; Destination = $StagingRecoveryBridgePath },
+  @{ Name = "connector-developer-sessions.mjs"; Destination = $DeveloperSessionsPath },
+  @{ Name = "device-files-engine.mjs"; Destination = $DeviceFilesEnginePath },
+  @{ Name = "device-terminal-engine.mjs"; Destination = $DeviceTerminalEnginePath },
+  @{ Name = "device-mcp-resource.mjs"; Destination = $DeviceMcpResourcePath },
+  @{ Name = "connector-admin-recovery.openapi.yaml"; Destination = $AdminRecoverySchemaPath }
 )
 $RuntimePackageApplied = $false
 

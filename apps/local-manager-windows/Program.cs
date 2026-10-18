@@ -211,7 +211,7 @@ internal static class Program
         {
             _connectorCapabilityVerifier = new ConnectorCapabilityVerifier(_deviceControlClient);
             Text = "Mad4B Local Manager" + LocalManagerEnvironment.DisplaySuffix;
-            MinimumSize = new Size(900, 780);
+            MinimumSize = new Size(900, 860);
             StartPosition = FormStartPosition.CenterScreen;
             Font = new Font("Segoe UI", 10);
 
@@ -261,6 +261,11 @@ internal static class Program
             var repairControlsButton = MakeButton("Repair controls", 380, 392, 150, async (_, _) => await LoadDeviceControlsAsync("repairs", LocalManagerUrl));
             var startN8nButton = MakeButton("Start n8n", 546, 392, 130, async (_, _) => await StartN8nLocalAsync());
             var openN8nButton = MakeButton("Open n8n", 692, 392, 130, async (_, _) => await OpenN8nLocalAsync());
+            var workspaceButton = MakeButton("Device workspace", 28, 720, 180, (_, _) =>
+            {
+                using var workspace = new DeviceWorkspaceForm();
+                workspace.ShowDialog(this);
+            });
 
             _status = new Label
             {
@@ -294,7 +299,7 @@ internal static class Program
                 title, body, signInButton, signUpButton, linkButton, openButton, forgetButton, _pairingCode,
                 devicesButton, routesButton, backupsButton, settingsButton, webDevicesButton,
                 shortcutButton, folderButton, updateButton, tokenStatusButton, repairButton, capabilitiesButton, repairControlsButton,
-                startN8nButton, openN8nButton, _status, _progress, _output
+                startN8nButton, openN8nButton, workspaceButton, _status, _progress, _output
             });
 
             FormClosed += (_, _) => _pairingCancellation?.Cancel();

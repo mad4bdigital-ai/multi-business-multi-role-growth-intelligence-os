@@ -670,7 +670,6 @@
     ".github/scripts/staging-recovery-verify-and-countersign.mjs",
     ".github/scripts/staging-recovery-worker-provider-evidence.mjs",
     ".github/scripts/staging-runtime-artifact-attest.mjs",
-    ".github/tests/branch-hygiene-policy.test.mjs",
     ".github/tests/derived-state-closure.test.mjs",
     ".github/tests/production-promotion-review-mode.test.mjs",
     ".github/tests/production-promotion-runtime.test.mjs",
@@ -678,7 +677,6 @@
     ".github/tests/repository-governance-fixed-point.test.mjs",
     ".github/tests/repository-governance-objection-gate.test.mjs",
     ".github/workflows/automation-overlap-guard.yml",
-    ".github/workflows/branch-hygiene.yml",
     ".github/workflows/branch-test-diagnostic-shards.yml",
     ".github/workflows/brand-skill-mariadb-certification.yml",
     ".github/workflows/ci-pull-request-recovery.yml",
@@ -800,7 +798,16 @@
     "scripts/test-remote-mcp-write-scope-inventory.mjs",
     "specs/020-platform-resource-identity-brand-governance/contracts/runtime-database-readiness-contract.json",
     "specs/020-platform-resource-identity-brand-governance/contracts/runtime-db-write-authority-profiles.json",
-    "specs/020-platform-resource-identity-brand-governance/contracts/runtime-environment-invariant-contract.json"
+    "specs/020-platform-resource-identity-brand-governance/contracts/runtime-environment-invariant-contract.json",
+    ".github/tests/branch-hygiene-policy.test.mjs",
+    ".github/workflows/branch-hygiene.yml",
+    ".changes/e2e/connector-staging-mcp-recovery-20261018.json",
+    "canonicals/openapi/local-connector.openapi.yaml",
+    ".changes/e2e/device-desktop-workspace-20261018.json",
+    ".changes/e2e/device-native-mcp-oauth-20261018.json",
+    ".changes/e2e/device-runtime-files-engine-20261018.json",
+    ".changes/e2e/device-runtime-safe-file-ops-20261018.json",
+    ".changes/e2e/device-runtime-terminal-sessions-20261018.json"
   ],
   "derived_state": {
     "registry": ".github/derived-state-governance.json",
