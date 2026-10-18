@@ -5,6 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import net from "node:net";
 import { spawn } from "node:child_process";
+import { generateKeyPairSync, sign } from "node:crypto";
 
 async function unusedPort() {
   return await new Promise((resolve, reject) => {
@@ -34,6 +35,8 @@ test("real loopback Connector enforces device boundaries and preserves file/term
   const terminalState = path.join(base, "terminal-state");
   fs.mkdirSync(root); fs.mkdirSync(fileState); fs.mkdirSync(terminalState);
   fs.writeFileSync(path.join(root, "sample.txt"), "read-only original\n");
+  const { publicKey, privateKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });
+  const jwk = publicKey.export({ format: "jwk" });
   const port = await unusedPort();
   const url = "http://127.0.0.1:" + port;
   const env = {
@@ -56,7 +59,12 @@ test("real loopback Connector enforces device boundaries and preserves file/term
     CONNECTOR_DEVICE_TERMINAL_ENABLED: "true",
     CONNECTOR_DEVICE_TERMINAL_STATE_DIR: terminalState,
     CONNECTOR_DEVICE_TERMINAL_INTERACTIVE_ENABLED: "false",
-    CONNECTOR_DEVICE_MCP_ENABLED: "false",
+    CONNECTOR_DEVICE_MCP_ENABLED: "true",
+    CONNECTOR_DEVICE_MCP_ENVIRONMENT: "staging",
+    CONNECTOR_DEVICE_MCP_ISSUER: "https://dev.mad4b.com",
+    CONNECTOR_DEVICE_MCP_RESOURCE: "https://connector.mad4b.com/mcp/device",
+    CONNECTOR_DEVICE_MCP_JWKS_JSON: JSON.stringify({ keys: [{ ...jwk, kid: "http-test", alg: "RS256", use: "sig" }] }),
+    CONNECTOR_TENANT_ID: "http-test-tenant",
   };
   let child;
   let stderr = "";
@@ -109,7 +117,40 @@ test("real loopback Connector enforces device boundaries and preserves file/term
       headers: { Authorization: "Bearer dev-test-device-secret",
         "content-type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0",
         id: 1, method: "tools/list" }) });
-    assert.equal(unauthorized.status, 404);
+    assert.equal(unauthorized.status, 401);
+    const jwt = subject => {
+      const now = Math.floor(Date.now() / 1000);
+      const encode = object => Buffer.from(JSON.stringify(object)).toString("base64url");
+      const tokenHead = encode({ typ: "at+jwt", alg: "RS256", kid: "http-test" });
+      const payload = encode({
+        iss: env.CONNECTOR_DEVICE_MCP_ISSUER, aud: env.CONNECTOR_DEVICE_MCP_RESOURCE,
+        iat: now - 10, exp: now + 180, sub: subject, azp: "http-test-client",
+        scope: "device:terminal:read device:terminal:execute",
+        device_id: env.CONNECTOR_DEVICE_ID, tenant_id: env.CONNECTOR_TENANT_ID,
+        environment: "staging",
+      });
+      const signed = tokenHead + "." + payload;
+      return signed + "." + sign("RSA-SHA256", Buffer.from(signed), privateKey).toString("base64url");
+    };
+    const call = async (subject, name, args = {}) => {
+      const res = await fetch(url + "/mcp/device", {
+        method: "POST", headers: { authorization: "Bearer " + jwt(subject), "content-type": "application/json" },
+        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call",
+          params: { name, arguments: args } }), signal: AbortSignal.timeout(3000),
+      });
+      assert.equal(res.status, 200);
+      const data = await res.json();
+      assert.ok(data.result, JSON.stringify(data));
+      return JSON.parse(data.result.content[0].text);
+    };
+    const ownerSession = await call("alice", "terminal_start_readonly", { profile: "git_status" });
+    assert.equal(ownerSession.ok, true);
+    assert.equal((await call("bob", "sessions_list")).sessions.length, 0);
+    assert.equal((await call("bob", "terminal_output", { session_id: ownerSession.session_id })).code,
+      "session_not_found");
+    assert.equal((await call("bob", "terminal_cancel", { session_id: ownerSession.session_id })).code,
+      "session_not_found");
+    assert.equal((await call("alice", "sessions_get", { session_id: ownerSession.session_id })).ok, true);
   } catch (error) {
     error.message += "\nConnector stderr: " + stderr.replace(/Bearer\s+\S+/g, "Bearer [REDACTED]");
     throw error;
