@@ -147,6 +147,7 @@ const staticDiscoveryCommands = [
   "node test-remote-mcp-disabled-startup-boundary.mjs",
   "node scripts/test-generated-artifact-refresh-maintenance-tool.mjs",
   "node scripts/test-generated-artifact-refresh-pr-publisher.mjs",
+  "node scripts/test-governed-refresh-idempotency.mjs",
   "node test-github-file-patch-plan-runtime.mjs",
   "node test-github-list-issue-comments-endpoint.mjs",
   "node test-github-issue-comment-exact-response-parity.mjs",
