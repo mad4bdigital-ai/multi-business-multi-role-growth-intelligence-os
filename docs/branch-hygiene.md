@@ -55,3 +55,38 @@ The weekly workflow retains its configured `apply` mode, while manual runs defau
 ## Contract version
 
 The current report contract is `mad4b.branch-hygiene-report.v2`, with policy contract `mad4b.branch-hygiene-policy.v2`. Consumers that require the former v1 shape should pin or migrate their parser before adopting the v2 artifact.
+## Manual superseded PR CI cleanup
+
+The Branch Hygiene manual workflow_dispatch supports an additional target:
+ci_runs. This is not the weekly branch-deletion operation; the scheduled
+event retains the branches path and its existing policy.
+
+The trusted main workflow checks out main (never untrusted PR code), executes
+the registered Branch Hygiene regression suite, and uses a narrowly scoped
+job token with contents: read, pull-requests: read, actions: write.
+
+For read-only inspection choose target: ci_runs, supply the open PR number and
+its exact 40-character expected_head_sha, and leave mode: dry_run.
+To cancel superseded runs, the operator must select mode: apply and enter
+the typed confirmation CANCEL_SUPERSEDED_PR_CHECKS.
+
+The script verifies that the PR is open, is hosted by this repository,
+targets main, and has the supplied exact head SHA. It examines no more
+than 15 pages per run state (queued, in_progress and waiting) and fails
+closed if the response would be truncated. An eligible run must match
+the exact PR number and branch, have event: pull_request, remain active,
+and use an SHA different from the current PR head. Runs with missing PR
+attribution, another PR, the current head, or push, pull_request_target,
+workflow_dispatch, scheduled, recovery or writer events are excluded.
+The PR head is rechecked before each requested cancellation.
+
+The script prints a structured JSON decision/receipt to the Actions log,
+subject to GitHub Actions log retention. This operation never publishes
+artifacts, changes source branches, deploys code, or grants owner authority.
+It does not replace Exact Head Work Map, Derived State, governance or owner
+attestation checks. There is no automatic background CI cancellation in
+this manual implementation.
+
+The APPLY_BRANCH_HYGIENE confirmation remains exclusive to branch deletion
+when target: branches. It does not authorize CI run cancellation, nor does
+CANCEL_SUPERSEDED_PR_CHECKS authorize branch deletion.

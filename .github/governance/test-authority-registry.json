@@ -66,6 +66,12 @@
       ]
     },
     {
+      "id": "branch_hygiene_exact_head_ci_run_safety",
+      "test_paths": [
+        ".github/tests/branch-hygiene-policy.test.mjs"
+      ]
+    },
+    {
       "id": "centralized_user_jwt_authentication",
       "test_paths": [
         "http-generic-api/scripts/user-jwt-auth-governance.mjs",
