@@ -203,7 +203,7 @@ paths:
       tags: [connector]
       operationId: connectorStagingRecoveryReadOnly
       summary: Fail-closed Staging and MCP diagnostics when Production is unavailable
-      description: "Admin Recovery only. A failed Production HTTPS health probe (transport failure or 5xx) permits fixed-host Staging read-only diagnostics; Production 401/403, active service or redirects never authorize a failover. Never changes connector environment binding, shares Production tokens, or executes Staging writes. MCP catalog and focused read-only tools additionally need a separately issued Staging resource-bound OAuth bearer sent in x-mad4b-staging-mcp-bearer by a trusted client; never paste this secret into chat."
+      description: "Admin-only read-only Staging diagnostics after a verified Production transport error or HTTP 5xx. Reject Production 401/403 and redirects. Protected Staging MCP reads require independent OAuth; no Production credential forwarding, environment rebinding or writes."
       security:
         - connectorBearerAuth: []
       parameters:
@@ -256,7 +256,7 @@ paths:
       tags: [connector]
       operationId: connectorDeveloperSessions
       summary: Start or inspect a bounded repo-scoped developer session
-      description: "Admin-only opt-in, exact repo allowlist, structured task names, no free-form shell/args, restricted Node tests require separate opt-in and exact Git HEAD. In-process status/cursor resume and cancel; no Production deployment permission. Output may contain test data and must not be treated as secret-free."
+      description: "Opt-in repo-bound Git/Node tasks, bounded output/cursor and explicit cancellation. Tests require the exact Git HEAD and separate device opt-in. No free-form shell, persistent process reattachment, privilege escalation or Production changes."
       security:
         - connectorBearerAuth: []
       requestBody:
