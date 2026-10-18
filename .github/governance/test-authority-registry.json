@@ -274,6 +274,7 @@
         "http-generic-api/test-connect-routes.mjs",
         "http-generic-api/test-connector-agent-installer-permission-grants.mjs",
         "http-generic-api/test-connector-local-api-key-registry.mjs",
+        "http-generic-api/test-connector-staging-mcp-distribution.mjs",
         "http-generic-api/test-control-plane-convergence-regressions.mjs",
         "http-generic-api/test-db-driven-connector-capability-policy.mjs",
         "http-generic-api/test-device-generation-challenge-verifier.mjs",
