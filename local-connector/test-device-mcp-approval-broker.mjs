@@ -1,0 +1,101 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import { generateKeyPairSync, sign } from "node:crypto";
+import { createDeviceMcpApprovalBroker } from "./device-mcp-approval-broker.mjs";
+import { createDeviceMcpResource } from "./device-mcp-resource.mjs";
+
+const LOCAL_APPROVAL = "a".repeat(32);
+const env = {
+  CONNECTOR_DEVICE_MCP_ENABLED: "true",
+  CONNECTOR_DEVICE_MCP_APPROVAL_ENABLED: "true",
+  CONNECTOR_DEVICE_MCP_APPROVAL_TOKEN: LOCAL_APPROVAL,
+  CONNECTOR_DEVICE_MCP_ENVIRONMENT: "staging",
+  CONNECTOR_DEVICE_MCP_ISSUER: "https://dev.mad4b.com",
+  CONNECTOR_DEVICE_MCP_RESOURCE: "https://connector.mad4b.com/mcp/device",
+  CONNECTOR_DEVICE_ID: "device-1",
+  CONNECTOR_TENANT_ID: "tenant-1",
+  CONNECTOR_DEVICE_FILE_APPROVAL_TOKEN: "private-file-approval",
+  CONNECTOR_DEVICE_TERMINAL_APPROVAL_TOKEN: "private-terminal-approval",
+};
+function issueData(tool, args = {}) {
+  return { action: "issue", device_id: "device-1", tenant_id: "tenant-1",
+    subject: "alice", client_id: "chatgpt", tool, arguments: args };
+}
+test("broker denies disabled, missing separate approval, invalid identity and arbitrary tools", () => {
+  const off = createDeviceMcpApprovalBroker({ env: { ...env,
+    CONNECTOR_DEVICE_MCP_APPROVAL_ENABLED: "false" } });
+  assert.equal(off.capabilities.enabled, false);
+  assert.equal(off.issue(issueData("files_patch"), LOCAL_APPROVAL).ok, false);
+  const broker = createDeviceMcpApprovalBroker({ env });
+  assert.equal(broker.issue(issueData("files_patch"), "").code, "local_consent_required");
+  assert.equal(broker.issue(issueData("files_patch"), "wrong").code, "local_consent_required");
+  assert.equal(broker.issue(issueData("arbitrary_shell"), LOCAL_APPROVAL).ok, false);
+  assert.equal(broker.issue({ ...issueData("files_patch"), device_id: "other" }, LOCAL_APPROVAL).ok, false);
+  assert.equal(broker.issue({ ...issueData("files_patch"), tenant_id: "other" }, LOCAL_APPROVAL).ok, false);
+  assert.equal(broker.issue({ ...issueData("files_patch"), subject: "x\n" }, LOCAL_APPROVAL).ok, false);
+  assert.equal(broker.issue({ ...issueData("files_patch"), approval_token: "leak" }, LOCAL_APPROVAL).ok, false);
+});
+test("exact local consent is atomic, one-shot, principal-bound, argument-bound and short-lived", () => {
+  let clock = 100000;
+  const broker = createDeviceMcpApprovalBroker({ env, now: () => clock });
+  const args = { relative_path: "docs/readme.md", content: "hello" };
+  const receipt = broker.issue(issueData("files_create_file", args), LOCAL_APPROVAL);
+  assert.equal(receipt.ok, true);
+  assert.equal(JSON.stringify(receipt).includes(LOCAL_APPROVAL), false);
+  assert.equal(broker.consume('oauth:["tenant-1","bob","chatgpt"]', "files_create_file", args), false);
+  assert.equal(broker.consume('oauth:["tenant-1","alice","chatgpt"]', "files_create_file",
+    { relative_path: "docs/other.md", content: "hello" }), false);
+  const principal = 'oauth:["tenant-1","alice","chatgpt"]';
+  assert.equal(broker.consume(principal, "files_create_file", { content: "hello", relative_path: "docs/readme.md" }), true);
+  assert.equal(broker.consume(principal, "files_create_file", args), false);
+  assert.equal(broker.issue(issueData("terminal_input", { session_id: "s", input: "help\n" }), LOCAL_APPROVAL).ok, true);
+  clock += 90001;
+  assert.equal(broker.consume(principal, "terminal_input", { session_id: "s", input: "help\n" }), false);
+});
+test("signed OAuth read and approved write stay separate; no secrets enter MCP tool arguments", () => {
+  const { publicKey, privateKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });
+  const jwk = publicKey.export({ format: "jwk" });
+  const fullEnv = { ...env, CONNECTOR_DEVICE_MCP_JWKS_JSON:
+    JSON.stringify({ keys: [{ ...jwk, kid: "test", alg: "RS256", use: "sig" }] }) };
+  const now = Date.now();
+  const broker = createDeviceMcpApprovalBroker({ env: fullEnv, now: () => now });
+  const calls = [];
+  const files = { capabilities: { enabled: true, write_enabled: true },
+    dispatch: payload => { calls.push(payload); return { ok: true, action: payload.action }; } };
+  const terminal = { capabilities: { enabled: true, interactive_enabled: true },
+    dispatch: payload => { calls.push(payload); return { ok: true, action: payload.action }; } };
+  const gateway = createDeviceMcpResource({ env: fullEnv, files, terminal, approvals: broker, now: () => now });
+  function signed(subject = "alice", scope = "device:files:write device:terminal:interactive") {
+    const encode = x => Buffer.from(JSON.stringify(x)).toString("base64url");
+    const h = encode({ alg: "RS256", kid: "test", typ: "at+jwt" });
+    const p = encode({ iss: env.CONNECTOR_DEVICE_MCP_ISSUER, aud: env.CONNECTOR_DEVICE_MCP_RESOURCE,
+      sub: subject, azp: "chatgpt", device_id: env.CONNECTOR_DEVICE_ID,
+      tenant_id: env.CONNECTOR_TENANT_ID, environment: "staging", scope,
+      iat: Math.floor(now / 1000) - 5, exp: Math.floor(now / 1000) + 180 });
+    return "Bearer " + h + "." + p + "." +
+      sign("RSA-SHA256", Buffer.from(h + "." + p), privateKey).toString("base64url");
+  }
+  const request = (token, name, args) => gateway.handle({ authorization: token,
+    body: { jsonrpc: "2.0", id: 1, method: "tools/call",
+      params: { name, arguments: args } } });
+  const args = { relative_path: "src/example.txt", content: "example" };
+  assert.equal(request(signed("alice", "device:files:read"), "files_create_file", args).body.error.code, -32601);
+  const denied = request(signed(), "files_create_file", args);
+  assert.equal(JSON.parse(denied.body.result.content[0].text).code, "local_consent_required");
+  assert.equal(calls.length, 0);
+  assert.equal(broker.issue(issueData("files_create_file", args), LOCAL_APPROVAL).ok, true);
+  assert.equal(JSON.parse(request(signed("bob"), "files_create_file", args).body.result.content[0].text).code,
+    "local_consent_required");
+  const result = request(signed(), "files_create_file", args);
+  assert.equal(result.body.result.isError, false);
+  assert.equal(calls.at(-1).approval_token, env.CONNECTOR_DEVICE_FILE_APPROVAL_TOKEN);
+  assert.equal(JSON.stringify(result).includes(env.CONNECTOR_DEVICE_FILE_APPROVAL_TOKEN), false);
+  assert.equal(JSON.parse(request(signed(), "files_create_file", args).body.result.content[0].text).code,
+    "local_consent_required");
+  const input = { session_id: "owned-id", input: "echo hi\n" };
+  assert.equal(broker.issue(issueData("terminal_input", input), LOCAL_APPROVAL).ok, true);
+  assert.equal(request(signed(), "terminal_input", input).body.result.isError, false);
+  assert.equal(calls.at(-1).owner_principal, 'oauth:["tenant-1","alice","chatgpt"]');
+  assert.equal(calls.at(-1).approval_token, env.CONNECTOR_DEVICE_TERMINAL_APPROVAL_TOKEN);
+  assert.equal(request(signed(), "terminal_input", { ...input, approval_token: "leak" }).body.error.code, -32602);
+});
