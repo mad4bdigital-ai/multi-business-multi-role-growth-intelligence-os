@@ -150,7 +150,7 @@
     },
     {
       "path": "http-generic-api/frontend-surface-dispatch.generated.json",
-      "sha256": "68646b082e295d09062414724a4630258a73d33ae840068e88213e87ae786aa9"
+      "sha256": "2a7b643d3c1c26d9189aa31deed0e7cf41abb2990f91f0856e96223f2a15e691"
     },
     {
       "path": "http-generic-api/governanceDb.js",
@@ -170,7 +170,7 @@
     },
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
-      "sha256": "b5a364e04b6dd35f0d2ad8372d11f244d271061d2ffa9ba48ded0c35b708ea93"
+      "sha256": "d093f1c205dfd84698607f6569c994e754229a43f569061406d9e057afe40f8b"
     },
     {
       "path": "http-generic-api/remoteMcpConnectorRuntime.js",
@@ -410,7 +410,7 @@
     },
     {
       "path": "autopilot-portable-staging/Repair-LocalConnectorTunnel.ps1",
-      "sha256": "115b84dda371488a7de666b2ca5ee4db6e6d045eb425f3b9cbb327758e5201b7"
+      "sha256": "f037d8ed7f5a0c91a0700193b6f2f461ddda3c09b872211a67e069b4cb18f963"
     },
     {
       "path": "autopilot-portable-staging/Provision-LocalConnectorTunnelToken.ps1",
@@ -426,7 +426,7 @@
     },
     {
       "path": "local-connector/server.mjs",
-      "sha256": "f679a89c4a8afc05d9c5cd0a9f38a15c0fcebe2cfb3f9c6700155e0b359b5160"
+      "sha256": "4aaa483a5ce3c245755124a0a4cca1879e15d63469c64623d137ee721d9ad869"
     },
     {
       "path": "autopilot-portable-staging/Invoke-StagingPrHeadCertification.ps1",
