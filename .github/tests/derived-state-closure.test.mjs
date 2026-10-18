@@ -97,6 +97,15 @@ assert.match(finalizer, /ATTEST_GOVERNED_PRODUCTION_PROMOTION/u);
 assert.match(finalizer, /merge_commit_sha/u);
 assert.match(finalizer, /--match-head-commit/u);
 assert.match(repair, /draft_repair_allowed=true/u);
+// The dispatcher preserves exact-head docs_only authority and never widens it.
+assert.ok(repair.includes('marker_docs_only="<!-- work-map-autofix:authorized docs_only ${HEAD_SHA} -->"'));
+assert.ok(repair.includes('scope="docs_only"'));
+assert.ok(repair.includes('scope="full"'));
+assert.ok(repair.includes('Conflicting full and docs-only authorizations'));
+assert.ok(repair.includes('Ambiguous stale docs-only and full authorizations'));
+assert.ok(repair.includes('--arg scope "$scope"'));
+assert.ok(repair.includes('write_scope:$scope'));
+assert.ok(repair.includes('if [[ -n "$scope" ]]'));
 assert.match(repair, /delegated_work_map_writer/u);
 assert.doesNotMatch(repair, /git\s+push/u);
 assert.match(inventoryGate, /artifact_class === "observability"/u);
