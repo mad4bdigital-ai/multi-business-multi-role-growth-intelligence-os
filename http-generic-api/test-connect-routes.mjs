@@ -751,9 +751,24 @@ section("connect api auth scope");
     assert("local connector /health has no auth (security: [])",
       Array.isArray(doc.paths["/health"]?.get?.security) && doc.paths["/health"].get.security.length === 0);
 
-    assert("local connector all POST operations are non-consequential",
-      postOps.every(({ operation }) => operation["x-openai-isConsequential"] === false),
-      postOps.filter(({ operation }) => operation["x-openai-isConsequential"] !== false).map(({ pathKey }) => pathKey).join(", "));
+    // Developer sessions and device file/terminal writes are consequential by
+    // contract even though status and read operations share their POST routes.
+    // Preserve explicit confirmation for those routes; reject unknown mutations.
+    const consequentialConnectorPaths = new Map([
+      ["/developer/sessions", "connectorDeveloperSessions"],
+      ["/device/files", "connectorDeviceFiles"],
+      ["/device/terminal", "connectorDeviceTerminal"],
+    ]);
+    assert("local connector POST consequential classification matches explicit device mutation routes",
+      postOps.every(({ pathKey, operation }) =>
+        operation["x-openai-isConsequential"] === consequentialConnectorPaths.has(pathKey) &&
+        (!consequentialConnectorPaths.has(pathKey) || operation.operationId === consequentialConnectorPaths.get(pathKey))),
+      postOps.filter(({ pathKey, operation }) =>
+        operation["x-openai-isConsequential"] !== consequentialConnectorPaths.has(pathKey) ||
+        consequentialConnectorPaths.has(pathKey) && operation.operationId !== consequentialConnectorPaths.get(pathKey))
+        .map(({ pathKey }) => pathKey).join(", "));
+    assert("local connector developer sessions require consequential consent",
+      doc.paths["/developer/sessions"]?.post?.["x-openai-isConsequential"] === true);
 
     const MAX_DESC = 300;
     function collectLongDescs(node, path = "$") {
