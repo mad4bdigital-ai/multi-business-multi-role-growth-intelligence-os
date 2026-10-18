@@ -25,6 +25,9 @@ test("broker denies disabled, missing separate approval, invalid identity and ar
   const off = createDeviceMcpApprovalBroker({ env: { ...env,
     CONNECTOR_DEVICE_MCP_APPROVAL_ENABLED: "false" } });
   assert.equal(off.capabilities.enabled, false);
+  const prod = createDeviceMcpApprovalBroker({ env: {
+    ...env, CONNECTOR_DEVICE_MCP_ENVIRONMENT: "production" } });
+  assert.equal(prod.capabilities.enabled, false);
   assert.equal(off.issue(issueData("files_patch"), LOCAL_APPROVAL).ok, false);
   const broker = createDeviceMcpApprovalBroker({ env });
   assert.equal(broker.issue(issueData("files_patch"), "").code, "local_consent_required");
