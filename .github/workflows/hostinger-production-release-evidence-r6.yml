@@ -56,6 +56,9 @@ jobs:
           echo "::notice::R6 evidence collection skipped: pull request is not the exact one-file trigger."
 
   collect-release-evidence:
+    environment:
+      name: Production
+      deployment: false
     name: Collect PR-triggered GET-only Hostinger release evidence
     needs: classify-trigger-scope
     if: needs.classify-trigger-scope.outputs.eligible == 'true'

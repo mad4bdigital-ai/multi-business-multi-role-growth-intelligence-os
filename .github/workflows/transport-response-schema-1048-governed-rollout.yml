@@ -9,6 +9,9 @@ permissions:
 
 jobs:
   readiness:
+    environment:
+      name: Production
+      deployment: false
     name: Authorize and dry-run Migration 1048
     if: >-
       github.event.issue.number == 6531 &&
@@ -71,6 +74,9 @@ jobs:
           NODE
 
   apply:
+    environment:
+      name: Production
+      deployment: false
     name: Apply Migration 1048 exactly once and certify
     if: >-
       github.event.issue.number == 6531 &&
@@ -133,6 +139,9 @@ jobs:
           NODE
 
   verify:
+    environment:
+      name: Production
+      deployment: false
     name: Verify Migration 1048 ledger and readiness
     if: >-
       github.event.issue.number == 6531 &&
