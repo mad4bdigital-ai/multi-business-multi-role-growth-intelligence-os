@@ -120,8 +120,9 @@ export function createDeveloperSessionManager({
   }
   function start(request) {
     if (!capabilities.enabled) return fail("developer_session_not_configured");
+    if (typeof request.task !== "string" || !Object.hasOwn(TASKS, request.task))
+      return fail("developer_task_not_allowlisted", 400);
     const task = TASKS[request.task];
-    if (!task) return fail("developer_task_not_allowlisted", 400);
     if (task.executes_repo_code && !capabilities.execute_tests_enabled) return fail("repo_code_execution_not_approved");
     if ([...sessions.values()].filter((s) => s.status === "running").length >= MAX_RUNNING) {
       return fail("developer_sessions_at_capacity", 429);
