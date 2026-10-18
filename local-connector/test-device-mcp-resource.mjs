@@ -104,7 +104,7 @@ test("terminal ownership comes only from validated OAuth claims", () => {
   assert.equal(alice.body.result.isError, false);
   const call = f.called[0];
   assert.equal(call.action, "start");
-  assert.equal(call.owner_principal, "oauth:tenant-1:alice:mcp-ai-client");
+  assert.equal(call.owner_principal, 'oauth:["tenant-1","alice","mcp-ai-client"]');
   assert.equal(f.request(f.bearer(), "tools/call", { name: "terminal_start_readonly",
     arguments: { profile: "powershell" } }).body.error.code, -32602);
   assert.equal(f.request(f.bearer(), "tools/call", { name: "terminal_start_readonly",
@@ -132,4 +132,17 @@ test("device status scope cannot reveal local filesystem paths or privileged wri
   assert.equal(result.terminal.interactive_enabled, false);
   assert.equal(JSON.stringify(result).includes("/private/admin/project"), false);
   assert.equal(JSON.stringify(result).includes("root"), false);
+});
+
+test("principal names with separators cannot alias another OAuth subject or client", () => {
+  const f = fixture();
+  const first = f.request(f.bearer({ sub: "alice:agent", azp: "client" }),
+    "tools/call", { name: "terminal_start_readonly", arguments: { profile: "git_status" } });
+  const second = f.request(f.bearer({ sub: "alice", azp: "agent:client" }),
+    "tools/call", { name: "terminal_start_readonly", arguments: { profile: "git_status" } });
+  assert.equal(first.body.result.isError, false);
+  assert.equal(second.body.result.isError, false);
+  assert.notEqual(f.called[0].owner_principal, f.called[1].owner_principal);
+  assert.equal(f.called[0].owner_principal, 'oauth:["tenant-1","alice:agent","client"]');
+  assert.equal(f.called[1].owner_principal, 'oauth:["tenant-1","alice","agent:client"]');
 });
