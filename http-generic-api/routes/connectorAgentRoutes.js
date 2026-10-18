@@ -71,6 +71,16 @@ const FILES = {
     contentType: "text/javascript; charset=utf-8",
     executable: false,
   },
+  "connector-staging-recovery.mjs": {
+    relativePath: "local-connector/connector-staging-recovery.mjs",
+    contentType: "text/javascript; charset=utf-8",
+    executable: false,
+  },
+  "connector-developer-sessions.mjs": {
+    relativePath: "local-connector/connector-developer-sessions.mjs",
+    contentType: "text/javascript; charset=utf-8",
+    executable: false,
+  },
 };
 
 const LOCAL_TOOL_RELEASES = [
@@ -523,6 +533,8 @@ function buildInstallPowerShell({ redeemToken, tunnelUrl, aliases, port, capabil
     "$ConnectorRuntimeBootstrap = Join-Path $Root 'connector-runtime-bootstrap.mjs'",
     "$Browser4Adapter = Join-Path $Root 'browser4-adapter.mjs'",
     "$LocalAgentRuntime = Join-Path $Root 'local-agent-runtime.mjs'",
+    "$StagingRecoveryBridge = Join-Path $Root 'connector-staging-recovery.mjs'",
+    "$DeveloperSessions = Join-Path $Root 'connector-developer-sessions.mjs'",
     "$SecretsRoot = Join-Path $Root 'secrets'",
     "$CfTokenFile = Join-Path $SecretsRoot 'cloudflared-token.txt'",
     "$ConnectorSecretFile = Join-Path $SecretsRoot 'connector-secret.txt'",
@@ -590,6 +602,8 @@ function buildInstallPowerShell({ redeemToken, tunnelUrl, aliases, port, capabil
     "Get-Mad4BManifestFile -Name 'connector-runtime-bootstrap.mjs' -OutFile $ConnectorRuntimeBootstrap",
     "Get-Mad4BManifestFile -Name 'browser4-adapter.mjs' -OutFile $Browser4Adapter",
     "Get-Mad4BManifestFile -Name 'local-agent-runtime.mjs' -OutFile $LocalAgentRuntime",
+    "Get-Mad4BManifestFile -Name 'connector-staging-recovery.mjs' -OutFile $StagingRecoveryBridge",
+    "Get-Mad4BManifestFile -Name 'connector-developer-sessions.mjs' -OutFile $DeveloperSessions",
     "Copy-Item -LiteralPath $ServerMjs -Destination (Join-Path $Root 'server.mjs.stable') -Force",
     "",
     "$LegacyBefore = Get-ServiceSnapshot $LegacyCfService",
