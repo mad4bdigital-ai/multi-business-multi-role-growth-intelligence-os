@@ -86,6 +86,11 @@ const FILES = {
     contentType: "text/javascript; charset=utf-8",
     executable: false,
   },
+  "device-terminal-engine.mjs": {
+    relativePath: "local-connector/device-terminal-engine.mjs",
+    contentType: "text/javascript; charset=utf-8",
+    executable: false,
+  },
   "connector-admin-recovery.openapi.yaml": {
     relativePath: "http-generic-api/openapi/openapi.gpt-action.local-connector.yaml",
     contentType: "application/yaml; charset=utf-8",
@@ -546,6 +551,7 @@ function buildInstallPowerShell({ redeemToken, tunnelUrl, aliases, port, capabil
     "$StagingRecoveryBridge = Join-Path $Root 'connector-staging-recovery.mjs'",
     "$DeveloperSessions = Join-Path $Root 'connector-developer-sessions.mjs'",
     "$DeviceFilesEngine = Join-Path $Root 'device-files-engine.mjs'",
+    "$DeviceTerminalEngine = Join-Path $Root 'device-terminal-engine.mjs'",
     "$AdminRecoverySchema = Join-Path $Root 'connector-admin-recovery.openapi.yaml'",
     "$SecretsRoot = Join-Path $Root 'secrets'",
     "$CfTokenFile = Join-Path $SecretsRoot 'cloudflared-token.txt'",
@@ -617,6 +623,7 @@ function buildInstallPowerShell({ redeemToken, tunnelUrl, aliases, port, capabil
     "Get-Mad4BManifestFile -Name 'connector-staging-recovery.mjs' -OutFile $StagingRecoveryBridge",
     "Get-Mad4BManifestFile -Name 'connector-developer-sessions.mjs' -OutFile $DeveloperSessions",
     "Get-Mad4BManifestFile -Name 'device-files-engine.mjs' -OutFile $DeviceFilesEngine",
+    "Get-Mad4BManifestFile -Name 'device-terminal-engine.mjs' -OutFile $DeviceTerminalEngine",
     "Get-Mad4BManifestFile -Name 'connector-admin-recovery.openapi.yaml' -OutFile $AdminRecoverySchema",
     "Copy-Item -LiteralPath $ServerMjs -Destination (Join-Path $Root 'server.mjs.stable') -Force",
     "",

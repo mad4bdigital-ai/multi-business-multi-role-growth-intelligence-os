@@ -1,0 +1,65 @@
+name: Device Runtime Parity Contract
+
+on:
+  pull_request:
+    paths:
+      - 'local-connector/device-*.mjs'
+      - 'local-connector/test-device-*.mjs'
+      - 'local-connector/server.mjs'
+      - 'apps/local-manager-windows/**'
+      - 'http-generic-api/test-desktop-device-workspace-wiring.mjs'
+      - 'http-generic-api/test-connector-staging-mcp-distribution.mjs'
+      - '.github/workflows/device-runtime-contract.yml'
+  push:
+    branches:
+      - 'feat/device-runtime-*'
+      - 'feat/device-native-mcp-*'
+      - 'feat/device-desktop-workspace-*'
+    paths:
+      - 'local-connector/device-*.mjs'
+      - 'local-connector/test-device-*.mjs'
+      - 'apps/local-manager-windows/**'
+      - '.github/workflows/device-runtime-contract.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: device-runtime-parity-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  focused-node-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v4
+        with:
+          node-version: '22'
+      - name: Verify runtime source parses
+        run: |
+          node --check local-connector/server.mjs
+          node --check local-connector/device-files-engine.mjs
+          node --check local-connector/device-terminal-engine.mjs
+          if test -f local-connector/device-mcp-resource.mjs; then node --check local-connector/device-mcp-resource.mjs; fi
+      - name: Run focused runtime regressions
+        run: |
+          node --test local-connector/test-device-files-engine.mjs
+          node --test local-connector/test-device-terminal-engine.mjs
+          if test -f local-connector/test-device-mcp-resource.mjs; then node --test local-connector/test-device-mcp-resource.mjs; fi
+          node --test http-generic-api/test-connector-staging-mcp-distribution.mjs
+          if test -f http-generic-api/test-desktop-device-workspace-wiring.mjs; then node --test http-generic-api/test-desktop-device-workspace-wiring.mjs; fi
+
+  windows-desktop-compile:
+    if: contains(github.head_ref || github.ref, 'device-desktop-workspace')
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
+        with:
+          dotnet-version: '8.0.x'
+      - name: Build Staging Windows app
+        run: dotnet build apps/local-manager-windows/Mad4B.LocalManager.Windows.csproj -c Release -p:LocalManagerEnvironment=staging

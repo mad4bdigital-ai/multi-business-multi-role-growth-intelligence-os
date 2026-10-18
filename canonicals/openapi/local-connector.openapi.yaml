@@ -294,6 +294,53 @@ paths:
         '429':
           description: Session concurrency limit reached
 
+  /device/terminal:
+    post:
+      x-openai-isConsequential: true
+      tags: [connector]
+      operationId: connectorDeviceTerminal
+      summary: Device-bound terminal output, input, process and session controls
+      description: "Device-bound, opt-in terminal profiles. Interactive STDIN needs separate local approval. Bounded output and persisted transcripts; after Connector restart only transcripts are recoverable, not the process or PTY. No arbitrary PID kill."
+      security:
+        - connectorBearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [device_id, action]
+              properties:
+                device_id: { type: string }
+                action: { type: string, enum: [capabilities, start, list, status, input, output, resume, cancel, close, process_list, process_status, process_terminate] }
+                profile: { type: string, enum: [git_status, git_log, node_repl, python_repl, powershell, cmd] }
+                session_id: { type: string, format: uuid }
+                input: { type: string, maxLength: 2048 }
+                cursor: { type: integer, minimum: 0 }
+      responses:
+        '200':
+          description: Bounded device terminal or process result
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                properties:
+                  ok: { type: boolean }
+                  http_status: { type: integer }
+                  session_id: { type: string }
+                  status: { type: string }
+                  output: { type: string }
+                  next_cursor: { type: integer }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403':
+          description: Device scope or local approval denied
+        '409':
+          description: Session no longer active
+        '429':
+          description: Session capacity reached
+
   /device/files:
     post:
       x-openai-isConsequential: true

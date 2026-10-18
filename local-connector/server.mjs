@@ -22,6 +22,7 @@ import { createLocalAgentRuntimeHandler } from './local-agent-runtime.mjs';
 import { createStagingRecoveryBridge, stagingRecoveryCapabilities } from './connector-staging-recovery.mjs';
 import { createDeveloperSessionManager } from './connector-developer-sessions.mjs';
 import { createDeviceFilesEngine } from './device-files-engine.mjs';
+import { createDeviceTerminalManager } from './device-terminal-engine.mjs';
 
 // ---------------------------------------------------------------------------
 // Bootstrap â€” manual .env parse (no dotenv dependency)
@@ -1859,6 +1860,7 @@ async function handleCf(req, res) {
 const stagingRecoveryDispatch = createStagingRecoveryBridge();
 const developerSessions = createDeveloperSessionManager();
 const deviceFiles = createDeviceFilesEngine();
+const deviceTerminal = createDeviceTerminalManager();
 function requireRecoveryAuth(req, res) {
   const header = String(req.headers['authorization'] || '');
   const bearer = header.startsWith('Bearer ') ? header.slice(7).trim() : '';
@@ -1943,6 +1945,31 @@ async function handleDeviceFiles(req, res) {
   return json(res, result.http_status || 500, result);
 }
 
+// All terminal operations remain Connector Admin-only and exact device-bound.
+// Interactive input is denied unless locally configured and independently approved.
+async function handleDeviceTerminal(req, res) {
+  if (!requireRecoveryAuth(req, res)) return;
+  if (req.url !== '/device/terminal')
+    return err(res, 400, 'QUERY_NOT_ALLOWED', 'Terminal does not accept query credentials');
+  let body;
+  try { body = await readDeviceBody(req, 32768); }
+  catch (e) { return err(res, e.status || 400, 'BAD_DEVICE_BODY', 'Terminal request rejected'); }
+  if (!body || typeof body !== 'object' || Array.isArray(body) || 'approval_token' in body)
+    return err(res, 400, 'INVALID_TERMINAL_BODY', 'Terminal approval must be injected via a trusted local header');
+  if (!CONNECTOR_DEVICE_ID || body.device_id !== CONNECTOR_DEVICE_ID)
+    return err(res, 403, 'DEVICE_SCOPE_REQUIRED', 'Exact bound device identity is required');
+  const result = deviceTerminal.dispatch({
+    ...body, approval_token: String(req.headers['x-mad4b-device-terminal-approval'] || ''),
+  });
+  console.log(JSON.stringify({
+    ts: new Date().toISOString(), method: 'POST', path: '/device/terminal',
+    action: typeof body.action === 'string' ? body.action.slice(0, 24) : 'invalid',
+    profile: typeof body.profile === 'string' ? body.profile.slice(0, 24) : null,
+    outcome: result.ok ? 'ok' : result.code, device_scoped: true, secrets_included: false,
+  }));
+  return json(res, result.http_status || 500, result);
+}
+
 const server = http.createServer(async (req, res) => {
   const url = req.url?.split('?')[0] ?? '/';
   const method = req.method ?? 'GET';
@@ -1956,11 +1983,12 @@ const server = http.createServer(async (req, res) => {
     if (method === 'GET' && url === '/recovery/capabilities') {
       if (!requireRecoveryAuth(req, res)) return;
       if (req.url !== '/recovery/capabilities') return err(res, 400, 'QUERY_NOT_ALLOWED', 'No query credentials');
-      return json(res, 200, { ok: true, staging: stagingRecoveryCapabilities(), developer: developerSessions.capabilities, device_files: deviceFiles.capabilities });
+      return json(res, 200, { ok: true, staging: stagingRecoveryCapabilities(), developer: developerSessions.capabilities, device_files: deviceFiles.capabilities, device_terminal: deviceTerminal.capabilities });
     }
     if (method === 'POST' && url === '/recovery/staging') return await handleStagingRecovery(req, res);
     if (method === 'POST' && url === '/developer/sessions') return await handleDeveloperSession(req, res);
     if (method === 'POST' && url === '/device/files') return await handleDeviceFiles(req, res);
+    if (method === 'POST' && url === '/device/terminal') return await handleDeviceTerminal(req, res);
 
     if (method === 'GET' && url === '/policy') { if (!requireAuth(req, res)) return; await refreshShellPolicy(); audit(req, { action: 'policy' }); return json(res, 200, policyBody()); }
 
