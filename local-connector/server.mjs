@@ -1919,7 +1919,9 @@ const server = http.createServer(async (req, res) => {
     if (method === 'GET' && url === '/policy') { if (!requireAuth(req, res)) return; await refreshShellPolicy(); audit(req, { action: 'policy' }); return json(res, 200, policyBody()); }
 
     if (method === 'GET' && url === '/schema') {
-      const schemaPath = path.join(__dirname, 'connector-admin-recovery.openapi.yaml');
+      const installedSchema = path.join(__dirname, 'connector-admin-recovery.openapi.yaml');
+      const repoSchema = path.join(__dirname, '..', 'http-generic-api', 'openapi', 'openapi.gpt-action.local-connector.yaml');
+      const schemaPath = fs.existsSync(installedSchema) ? installedSchema : repoSchema;
       try {
         const schema = fs.readFileSync(schemaPath, 'utf8');
         res.writeHead(200, { 'Content-Type': 'application/yaml; charset=utf-8', 'Cache-Control': 'no-cache' });
