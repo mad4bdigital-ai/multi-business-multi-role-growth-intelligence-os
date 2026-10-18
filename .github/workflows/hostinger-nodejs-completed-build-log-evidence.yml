@@ -44,6 +44,9 @@ jobs:
         run: node scripts/test-hostinger-nodejs-completed-build-log-evidence.mjs
 
   live:
+    environment:
+      name: Production
+      deployment: false
     name: Live Completed Build Log Evidence
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
