@@ -19,7 +19,15 @@
       "canonicals/openapi/local-connector.openapi.yaml",
       "http-generic-api/openapi/openapi.gpt-action.local-connector.yaml",
       "http-generic-api/scripts/test-manifest.mjs",
-      "docs/runbooks/connector-staging-mcp-recovery-20261018.md"
+      "docs/runbooks/connector-staging-mcp-recovery-20261018.md",
+      "http-generic-api/routes/connectorAgentRoutes.js",
+      "http-generic-api/routes/localConnectorInstallRoutes.js",
+      "http-generic-api/test-connector-staging-mcp-distribution.mjs",
+      "http-generic-api/scripts/connector-agent-smoke-test.mjs",
+      "http-generic-api/test-local-manager-tool-release-owner.mjs",
+      "local-connector/connector-safe-upgrade.ps1",
+      "local-connector/connector-watchdog.ps1",
+      "autopilot-portable-staging/Repair-LocalConnectorTunnel.ps1"
     ]
   },
   "environment_impact": {
@@ -69,7 +77,10 @@
           "evidence_paths": [
             "local-connector/connector-staging-recovery.mjs",
             "local-connector/test-connector-staging-recovery.mjs",
-            "local-connector/server.mjs"
+            "local-connector/server.mjs",
+            "http-generic-api/routes/connectorAgentRoutes.js",
+            "local-connector/connector-safe-upgrade.ps1",
+            "http-generic-api/test-connector-staging-mcp-distribution.mjs"
           ]
         },
         {
@@ -102,7 +113,10 @@
           ],
           "evidence_paths": [
             "local-connector/connector-developer-sessions.mjs",
-            "local-connector/test-connector-developer-sessions.mjs"
+            "local-connector/test-connector-developer-sessions.mjs",
+            "http-generic-api/routes/connectorAgentRoutes.js",
+            "local-connector/connector-safe-upgrade.ps1",
+            "http-generic-api/test-connector-staging-mcp-distribution.mjs"
           ]
         }
       ]
