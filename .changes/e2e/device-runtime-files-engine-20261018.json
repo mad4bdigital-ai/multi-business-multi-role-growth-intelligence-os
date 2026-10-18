@@ -1,0 +1,91 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "device-runtime-files-engine-20261018",
+  "title": "Device Runtime scoped files engine and explicit environment impact",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/device-runtime-files-engine-20261018.json",
+      "autopilot-portable-staging/Repair-LocalConnectorTunnel.ps1",
+      "autopilot-portable-staging/manifest.json",
+      "canonicals/openapi/local-connector.openapi.yaml",
+      "docs/remote-mcp-write-scope-inventory.md",
+      "docs/runbooks/device-runtime-files-engine-20261018.md",
+      "http-generic-api/frontend-surface-dispatch.generated.json",
+      "http-generic-api/openapi/openapi.gpt-action.local-connector.yaml",
+      "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
+      "http-generic-api/routes/connectorAgentRoutes.js",
+      "http-generic-api/routes/localConnectorInstallRoutes.js",
+      "http-generic-api/scripts/connector-agent-smoke-test.mjs",
+      "http-generic-api/test-connector-staging-mcp-distribution.mjs",
+      "local-connector/.env.example",
+      "local-connector/connector-safe-upgrade.ps1",
+      "local-connector/device-files-engine.mjs",
+      "local-connector/server.mjs",
+      "local-connector/test-device-files-engine.mjs",
+      "specs/020-platform-resource-identity-brand-governance/openapi-detail-closure-batch-full.json",
+      "specs/020-platform-resource-identity-brand-governance/openapi-detail-gap-classification.json",
+      "specs/020-platform-resource-identity-brand-governance/openapi-gap-closure-plan.json"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "secrets_included": false,
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Verify that disabled-by-default scoped device files can be read and patched only with explicit approval and exact SHA fencing, while changes shared by Staging and Production require independent live Staging certification before release.",
+      "e2e_journeys": [
+        {
+          "id": "scoped-device-files-read-patch-rollback",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Authenticated device-scoped local Connector administrator",
+          "entrypoint": "Device Files dispatch on Local Connector",
+          "terminal_outcome": "Bounded file information, search and reading; denial of secret and escaping paths; atomically approved SHA-bound patch and rollback without cross-environment mutation.",
+          "steps": [
+            "Enable the Device Files engine with a canonical allowlisted root while leaving write disabled.",
+            "Inspect allowed files and reject .env, traversal and symbolic-link escapes.",
+            "Enable explicit write approval, apply a SHA-bound atomic patch and verify optimistic conflict failure.",
+            "Rollback only when the recorded file state still matches and keep the audit record bounded."
+          ],
+          "assertions": [
+            "No unapproved file writes or cross-root file access.",
+            "Secret paths and symbolic-link escapes fail closed.",
+            "SHA mismatch blocks the update and rollback cannot overwrite a later independent change.",
+            "Live Staging certification remains required; this synthetic test is not a Production approval."
+          ],
+          "tests": [
+            {
+              "id": "device-files-engine-boundary",
+              "runner": "node",
+              "working_directory": "local-connector",
+              "path": "test-device-files-engine.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "local-connector/device-files-engine.mjs",
+            "local-connector/test-device-files-engine.mjs",
+            "local-connector/server.mjs",
+            "docs/runbooks/device-runtime-files-engine-20261018.md"
+          ]
+        }
+      ]
+    }
+  ]
+}
