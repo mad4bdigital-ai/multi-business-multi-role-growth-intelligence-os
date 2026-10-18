@@ -92,7 +92,6 @@ internal static class Program
             if (!File.Exists(path)) return 20;
             using var stream = File.Open(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
             if (stream.ReadByte() != (byte)'M' || stream.ReadByte() != (byte)'Z') return 21;
-            if (LocalManagerEnvironment.Name is not ("production" or "staging")) return 22;
             return 0;
         }
         catch
