@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "ef6d543b929d6bde691d30e8f9d23db0e4ccb468a94686c99d3c645e0556596c",
+    "source_digest": "89196e5a54b7c4c0462aafbfb4998c2da6fd08df4fdece84f0036f8c98bd870a",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -11,7 +11,7 @@
       },
       {
         "file": "frontend-operation-governance.generated.json",
-        "sha256": "dce6003b9c8947031e92237a0e462b96df8a9c2a35778508897ba60726f36878",
+        "sha256": "ed86b2278857b124fafdb2c1d388b19850ecebd48291f20d6ed450d1e1549bac",
         "present": true
       },
       {
@@ -511,7 +511,7 @@
       },
       {
         "file": "routes/connectorAgentRoutes.js",
-        "sha256": "a57d8d1103a988bf7ccaf29b0ad80e36bb52b07f377b415d0c2d4869be4be996",
+        "sha256": "3d92c42d338e5bc21a2c53495332d742e9a0bbf741496d4e19b4f6e311725abc",
         "present": true
       },
       {
@@ -661,7 +661,7 @@
       },
       {
         "file": "routes/localConnectorInstallRoutes.js",
-        "sha256": "940c5de225a3c765a9f66dd6bfe5b4a3e848c794adc781a98f3069b580e7f90f",
+        "sha256": "ea27858c1fd1a216a37157905a386128892adb4e878494cecf9985831de31245",
         "present": true
       },
       {
@@ -1101,7 +1101,7 @@
       },
       {
         "file": "scripts/test-manifest.mjs",
-        "sha256": "f5695cdfc8803f717112344fb9c5e9632bf097f3a56cd8345148e47c90e38a1d",
+        "sha256": "7f5dd6fd6ca9a04c481569e658cf3dd849534c75e3dd762e63f3153100a73c00",
         "present": true
       },
       {
@@ -5880,7 +5880,7 @@
       "family_key": "connector-agent.developer",
       "label": "connector agent (developer)",
       "source_file": "routes/connectorAgentRoutes.js",
-      "source_digest": "a57d8d1103a988bf7ccaf29b0ad80e36bb52b07f377b415d0c2d4869be4be996",
+      "source_digest": "3d92c42d338e5bc21a2c53495332d742e9a0bbf741496d4e19b4f6e311725abc",
       "mount_prefix": "/",
       "mount_order": 14389,
       "split_from_mixed_scope_file": true,
@@ -6012,7 +6012,7 @@
       "family_key": "connector-agent.local_device",
       "label": "connector agent (local_device)",
       "source_file": "routes/connectorAgentRoutes.js",
-      "source_digest": "a57d8d1103a988bf7ccaf29b0ad80e36bb52b07f377b415d0c2d4869be4be996",
+      "source_digest": "3d92c42d338e5bc21a2c53495332d742e9a0bbf741496d4e19b4f6e311725abc",
       "mount_prefix": "/",
       "mount_order": 14389,
       "split_from_mixed_scope_file": true,
@@ -6296,7 +6296,7 @@
       "family_key": "connector-agent.public",
       "label": "connector agent (public)",
       "source_file": "routes/connectorAgentRoutes.js",
-      "source_digest": "a57d8d1103a988bf7ccaf29b0ad80e36bb52b07f377b415d0c2d4869be4be996",
+      "source_digest": "3d92c42d338e5bc21a2c53495332d742e9a0bbf741496d4e19b4f6e311725abc",
       "mount_prefix": "/",
       "mount_order": 14389,
       "split_from_mixed_scope_file": true,
@@ -8780,7 +8780,7 @@
       "family_key": "local-connector-install.developer",
       "label": "local connector install (developer)",
       "source_file": "routes/localConnectorInstallRoutes.js",
-      "source_digest": "940c5de225a3c765a9f66dd6bfe5b4a3e848c794adc781a98f3069b580e7f90f",
+      "source_digest": "ea27858c1fd1a216a37157905a386128892adb4e878494cecf9985831de31245",
       "mount_prefix": "/",
       "mount_order": 14763,
       "split_from_mixed_scope_file": true,
@@ -9223,7 +9223,7 @@
       "family_key": "local-connector-install.local_device",
       "label": "local connector install (local_device)",
       "source_file": "routes/localConnectorInstallRoutes.js",
-      "source_digest": "940c5de225a3c765a9f66dd6bfe5b4a3e848c794adc781a98f3069b580e7f90f",
+      "source_digest": "ea27858c1fd1a216a37157905a386128892adb4e878494cecf9985831de31245",
       "mount_prefix": "/",
       "mount_order": 14763,
       "split_from_mixed_scope_file": true,
