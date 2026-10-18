@@ -179,6 +179,18 @@ const repositoryGovernanceConstitution = JSON.parse(readFileSync("./config/repos
 const derivedStateGovernance = JSON.parse(readFileSync("../.github/derived-state-governance.json", "utf8"));
 assert.ok(repositoryGovernanceConstitution.control_plane_paths.includes(authConnectorControlPlaneDeclaration));
 assert.ok(derivedStateGovernance.convergence.automation_control_paths.includes(authConnectorControlPlaneDeclaration));
+// Critical connector declaration and canonical local OpenAPI are governance-bearing
+// source changes, and must be tracked by BOTH control-plane registries.
+for (const critical of [
+  ".changes/e2e/connector-staging-mcp-recovery-20261018.json",
+  "canonicals/openapi/local-connector.openapi.yaml",
+]) {
+  assert.ok(repositoryGovernanceConstitution.control_plane_paths.includes(critical),
+    `Missing Constitution control-plane path: ${critical}`);
+  assert.ok(derivedStateGovernance.convergence.automation_control_paths.includes(critical),
+    `Missing convergence automation control path: ${critical}`);
+}
+
 
 const e2eGovernanceWorkflowSource = readFileSync("../.github/workflows/e2e-phase-governance.yml", "utf8");
 assert.match(e2eGovernanceWorkflowSource, /local_manager_mariadb_certification:/u);
