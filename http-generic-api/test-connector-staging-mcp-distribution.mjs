@@ -18,6 +18,11 @@ for (const file of ["connector-staging-recovery.mjs", "connector-developer-sessi
   assert.ok(staging.includes('"' + file + '"'), "Staging bootstrap must carry " + file);
   assert.ok(smoke.includes('"' + file + '"'), "Release smoke test must require " + file);
 }
+assert.ok(agent.includes("connector-admin-recovery.openapi.yaml"), "Agent must ship signed OpenAPI schema");
+assert.ok(legacy.includes("Get-Mad4BManifestFile -Name 'connector-admin-recovery.openapi.yaml'"));
+assert.ok(upgrader.includes('Name = "connector-admin-recovery.openapi.yaml"'));
+assert.ok(server.includes("installedSchema"), "Connector must serve packaged schema");
+assert.ok(smoke.includes('"connector-admin-recovery.openapi.yaml"'));
 for (const marker of ["/recovery/capabilities:", "/recovery/staging:", "/developer/sessions:"]) {
   assert.ok(canonical.includes(marker), "Canonical schema missing " + marker);
   assert.ok(generated.includes(marker), "Generated schema missing " + marker);
