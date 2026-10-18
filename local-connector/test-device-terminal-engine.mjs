@@ -6,6 +6,9 @@ import path from "node:path";
 import { EventEmitter } from "node:events";
 import { createDeviceTerminalManager } from "./device-terminal-engine.mjs";
 
+function owner(manager, principal = "connector-admin") {
+  return { ...manager, dispatch: req => manager.dispatch({ ...req, owner_principal: principal }) };
+}
 function fixture(interactive = false) {
   const base = fs.mkdtempSync(path.join(os.tmpdir(), "mad4b-terminal-"));
   const root = path.join(base, "repo"), state = path.join(base, "private-state");
@@ -49,7 +52,7 @@ test("terminal never enables without exact device, repo and private directory", 
 test("read-only task streams bounded output and resumes after transient disconnect", () => {
   const f = fixture(), spawned = fakeSpawn();
   try {
-    const m = createDeviceTerminalManager({ env: f.env, spawnImpl: spawned.create });
+    const m = owner(createDeviceTerminalManager({ env: f.env, spawnImpl: spawned.create }));
     const run = m.dispatch({ action: "start", profile: "git_status", input: "arbitrary command" });
     assert.equal(run.ok, true);
     assert.equal(spawned.children[0].stdin.writes.length, 0);
@@ -66,14 +69,14 @@ test("read-only task streams bounded output and resumes after transient disconne
     assert.equal(m.dispatch({ action: "close", session_id: run.session_id }).closed, true);
     assert.equal(fs.existsSync(path.join(f.state, run.session_id + ".json")), false);
     assert.equal(fs.existsSync(path.join(f.state, run.session_id + ".log")), false);
-    const fresh = createDeviceTerminalManager({ env: f.env, spawnImpl: spawned.create });
+    const fresh = owner(createDeviceTerminalManager({ env: f.env, spawnImpl: spawned.create }));
     assert.deepEqual(fresh.dispatch({ action: "list" }).sessions, []);
   } finally { f.done(); }
 });
 test("interactive command and every follow-up input require independent local approval", () => {
   const f = fixture(true), spawned = fakeSpawn();
   try {
-    const m = createDeviceTerminalManager({ env: f.env, spawnImpl: spawned.create });
+    const m = owner(createDeviceTerminalManager({ env: f.env, spawnImpl: spawned.create }));
     assert.equal(m.dispatch({ action: "start", profile: "node_repl" }).code, "approval_required");
     const run = m.dispatch({ action: "start", profile: "node_repl", approval_token: "private-local-approval" });
     assert.equal(run.ok, true);
@@ -90,10 +93,10 @@ test("interactive command and every follow-up input require independent local ap
 test("terminal transcript survives manager restart but process is marked interrupted, not falsely resumed", () => {
   const f = fixture(), spawned = fakeSpawn();
   try {
-    const a = createDeviceTerminalManager({ env: f.env, spawnImpl: spawned.create });
+    const a = owner(createDeviceTerminalManager({ env: f.env, spawnImpl: spawned.create }));
     const run = a.dispatch({ action: "start", profile: "git_status" });
     spawned.children[0].stdout.emit("data", "persisted text\n");
-    const b = createDeviceTerminalManager({ env: f.env, spawnImpl: spawned.create });
+    const b = owner(createDeviceTerminalManager({ env: f.env, spawnImpl: spawned.create }));
     const resumed = b.dispatch({ action: "resume", session_id: run.session_id });
     assert.equal(resumed.status, "interrupted");
     assert.match(resumed.output, /persisted text/);
@@ -103,10 +106,32 @@ test("terminal transcript survives manager restart but process is marked interru
 test("no process can be killed by arbitrary PID or unowned session ID", () => {
   const f = fixture(), spawned = fakeSpawn();
   try {
-    const m = createDeviceTerminalManager({ env: f.env, spawnImpl: spawned.create });
+    const m = owner(createDeviceTerminalManager({ env: f.env, spawnImpl: spawned.create }));
     const run = m.dispatch({ action: "start", profile: "git_status" });
     assert.equal(m.dispatch({ action: "process_terminate", session_id: "not-owned", pid: 4 }).code, "session_not_found");
     assert.equal(m.dispatch({ action: "input", session_id: run.session_id, input: "sudo" }).code, "session_closed");
     assert.equal(m.dispatch({ action: "output", session_id: run.session_id, cursor: -1 }).code, "invalid_cursor");
+  } finally { f.done(); }
+});
+
+test("principal ownership prevents cross-client list, output, cancel and restart access", () => {
+  const f = fixture(), spawned = fakeSpawn();
+  try {
+    const manager = createDeviceTerminalManager({ env: f.env, spawnImpl: spawned.create });
+    const alice = owner(manager, "oauth:alice");
+    const bob = owner(manager, "oauth:bob");
+    assert.equal(manager.dispatch({ action: "start", profile: "git_status" }).code, "approval_required");
+    const session = alice.dispatch({ action: "start", profile: "git_status" });
+    assert.equal(session.ok, true);
+    spawned.children[0].stdout.emit("data", "alice-only");
+    assert.deepEqual(bob.dispatch({ action: "list" }).sessions, []);
+    for (const action of ["status", "output", "resume", "cancel", "process_terminate", "close"]) {
+      assert.equal(bob.dispatch({ action, session_id: session.session_id }).code, "session_not_found");
+    }
+    assert.match(alice.dispatch({ action: "output", session_id: session.session_id }).output, /alice-only/);
+    const rebooted = createDeviceTerminalManager({ env: f.env, spawnImpl: spawned.create });
+    assert.equal(owner(rebooted, "oauth:bob").dispatch({ action: "resume", session_id: session.session_id }).code, "session_not_found");
+    assert.match(owner(rebooted, "oauth:alice").dispatch({ action: "resume", session_id: session.session_id }).output, /alice-only/);
+    alice.dispatch({ action: "cancel", session_id: session.session_id });
   } finally { f.done(); }
 });

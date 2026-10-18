@@ -61,7 +61,7 @@ function redact(s) {
 }
 function auditCopy(s) {
   return { session_id: s.id, profile: s.profile, interactive: s.interactive,
-    device_id: s.deviceId, status: s.status, started_at: s.startedAt,
+    device_id: s.deviceId, owner_principal: s.ownerPrincipal, status: s.status, started_at: s.startedAt,
     finished_at: s.finishedAt, exit_code: s.exitCode,
     bytes_recorded: s.bytes, truncated: s.truncated, pid: s.status === "running" ? s.child?.pid ?? null : null,
     shell_approval_used: s.interactive, secrets_included: false };
@@ -100,13 +100,15 @@ export function createDeviceTerminalManager({ env = process.env, spawnImpl = spa
         if (fs.lstatSync(filename).isSymbolicLink()) continue;
         const item = JSON.parse(fs.readFileSync(filename, "utf8"));
         if (item.device_id !== deviceId || item.expires_at < now() ||
-            !Object.hasOwn(PROFILES, item.profile)) continue;
+            typeof item.owner_principal !== "string" || !item.owner_principal ||
+            item.owner_principal.length > 512 || !Object.hasOwn(PROFILES, item.profile)) continue;
         const id = name.slice(0, -5);
         const outputPath = path.join(state, id + ".log");
         if (!fs.existsSync(outputPath) || fs.lstatSync(outputPath).isSymbolicLink()) continue;
         const bytes = Math.min(MAX_OUTPUT, fs.statSync(outputPath).size);
         const s = { id, profile: item.profile, interactive: Boolean(item.interactive),
-          deviceId, status: item.status === "running" ? "interrupted" : item.status,
+          deviceId, ownerPrincipal: item.owner_principal,
+          status: item.status === "running" ? "interrupted" : item.status,
           createdAt: Date.parse(item.started_at), startedAt: item.started_at,
           finishedAt: item.status === "running" ? new Date(now()).toISOString() : item.finished_at,
           exitCode: item.exit_code ?? null, bytes, truncated: Boolean(item.truncated), child: null,
@@ -191,7 +193,7 @@ export function createDeviceTerminalManager({ env = process.env, spawnImpl = spa
       output: buffer.toString("utf8"), next_cursor: index + buffer.length,
       output_may_contain_sensitive_data: true };
   }
-  function start(req) {
+  function start(req, principal) {
     if (!enabled) return denied("disabled");
     const profile = PROFILES[req.profile];
     if (!profile) return denied("profile_unavailable");
@@ -203,7 +205,7 @@ export function createDeviceTerminalManager({ env = process.env, spawnImpl = spa
         sessions.size >= MAX_SESSIONS) return denied("capacity");
     const id = randomUUID();
     const s = { id, profile: req.profile, interactive: profile.interactive,
-      deviceId, createdAt: now(), startedAt: new Date(now()).toISOString(), finishedAt: null,
+      deviceId, ownerPrincipal: principal, createdAt: now(), startedAt: new Date(now()).toISOString(), finishedAt: null,
       status: "running", exitCode: null, bytes: 0, truncated: false,
       child: null, timer: null, outputPath: path.join(state, id + ".log") };
     try {
@@ -243,13 +245,17 @@ export function createDeviceTerminalManager({ env = process.env, spawnImpl = spa
     if (!req || typeof req !== "object" || Array.isArray(req)) return denied("invalid_request");
     if (req.action === "capabilities") return { ok: true, http_status: 200, ...capabilities };
     if (!enabled) return denied("disabled");
+    const principal = req.owner_principal;
+    if (typeof principal !== "string" || !principal.trim() || principal.length > 512)
+      return denied("approval_required");
     removeOld();
-    if (req.action === "start") return start(req);
+    if (req.action === "start") return start(req, principal);
     if (req.action === "list" || req.action === "process_list") return {
-      ok: true, http_status: 200, sessions: [...sessions.values()].map(auditCopy),
+      ok: true, http_status: 200, sessions: [...sessions.values()].filter(s => s.ownerPrincipal === principal).map(auditCopy),
       next_cursor: null, secrets_included: false };
     const s = sessions.get(String(req.session_id || ""));
-    if (!s || s.deviceId !== deviceId) return denied("session_not_found");
+    if (!s || s.deviceId !== deviceId || s.ownerPrincipal !== principal)
+      return denied("session_not_found");
     if (req.action === "status" || req.action === "output" || req.action === "resume" || req.action === "process_status")
       return inspect(s, req.cursor || 0);
     if (req.action === "input") return input(req, s);

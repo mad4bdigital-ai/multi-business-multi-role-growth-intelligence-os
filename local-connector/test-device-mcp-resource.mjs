@@ -2,9 +2,14 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { generateKeyPairSync, sign } from "node:crypto";
 import { createDeviceMcpResource } from "./device-mcp-resource.mjs";
+import { createDeviceTerminalManager } from "./device-terminal-engine.mjs";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { EventEmitter } from "node:events";
 
 const now = 1781762400000;
-function fixture() {
+function fixture(terminalOverride) {
   const { publicKey, privateKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });
   const jwk = publicKey.export({ format: "jwk" });
   const env = {
@@ -31,7 +36,7 @@ function fixture() {
   }
   const called = [];
   const files = { capabilities: { enabled: true, read_enabled: true, write_enabled: true, root: "/private/admin/project" }, dispatch: x => { called.push(x); return { ok: true, entries: [], echo: x.action }; } };
-  const terminal = { capabilities: { enabled: true }, dispatch: x => { called.push(x); return { ok: true, echo: x.action }; } };
+  const terminal = terminalOverride || { capabilities: { enabled: true }, dispatch: x => { called.push(x); return { ok: true, echo: x.action }; } };
   const gateway = createDeviceMcpResource({ env, files, terminal, now: () => now });
   const request = (authorization, method, params = {}, id = 1) =>
     gateway.handle({ authorization, body: { jsonrpc: "2.0", id, method, params } });
@@ -145,4 +150,40 @@ test("principal names with separators cannot alias another OAuth subject or clie
   assert.notEqual(f.called[0].owner_principal, f.called[1].owner_principal);
   assert.equal(f.called[0].owner_principal, 'oauth:["tenant-1","alice:agent","client"]');
   assert.equal(f.called[1].owner_principal, 'oauth:["tenant-1","alice","agent:client"]');
+});
+
+test("signed OAuth principals are isolated using the actual terminal manager", () => {
+  const base = fs.mkdtempSync(path.join(os.tmpdir(), "mad4b-mcp-owner-"));
+  const root = path.join(base, "repo"), state = path.join(base, "state");
+  fs.mkdirSync(root); fs.mkdirSync(state);
+  const env = {
+    CONNECTOR_DEVICE_TERMINAL_ENABLED: "true", CONNECTOR_DEVELOPER_REPO_ROOT: root,
+    CONNECTOR_FILE_PATHS: JSON.stringify([root]), CONNECTOR_DEVICE_TERMINAL_STATE_DIR: state,
+    CONNECTOR_DEVICE_ID: "device-real-1",
+  };
+  const fakeSpawn = () => {
+    const child = new EventEmitter();
+    child.pid = 12345; child.stdout = new EventEmitter(); child.stderr = new EventEmitter();
+    child.stdin = { destroyed: false, writableEnded: false, write() {} };
+    child.kill = () => { child.emit("close", null); return true; };
+    return child;
+  };
+  try {
+    const engine = createDeviceTerminalManager({ env, spawnImpl: fakeSpawn });
+    const f = fixture(engine);
+    const scopes = "device:terminal:read device:terminal:execute";
+    const alice = f.bearer({ sub: "alice", scope: scopes });
+    const bob = f.bearer({ sub: "bob", scope: scopes });
+    const call = (token, name, args = {}) =>
+      f.request(token, "tools/call", { name, arguments: args });
+    const start = JSON.parse(call(alice, "terminal_start_readonly", { profile: "git_status" }).body.result.content[0].text);
+    assert.equal(start.ok, true);
+    assert.deepEqual(JSON.parse(call(bob, "sessions_list").body.result.content[0].text).sessions, []);
+    for (const name of ["sessions_get", "terminal_output", "terminal_cancel", "process_terminate_owned"]) {
+      const forbidden = JSON.parse(call(bob, name, { session_id: start.session_id }).body.result.content[0].text);
+      assert.equal(forbidden.code, "session_not_found", name);
+    }
+    assert.equal(JSON.parse(call(alice, "sessions_get", { session_id: start.session_id }).body.result.content[0].text).ok, true);
+    assert.equal(JSON.parse(call(alice, "terminal_cancel", { session_id: start.session_id }).body.result.content[0].text).ok, true);
+  } finally { fs.rmSync(base, { recursive: true, force: true }); }
 });
