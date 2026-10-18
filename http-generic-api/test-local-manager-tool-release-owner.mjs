@@ -36,7 +36,7 @@ assert(localManagerProject.includes(`<FileVersion>${advertisedWindowsVersion}.0<
 assert(localManager.includes(`Mad4B-Local-Manager-Setup-${advertisedWindowsVersion}.exe`), 'Local Manager EXE asset URL must include the advertised update route version');
 assert(localManager.includes(`Mad4B-Local-Manager-Setup-${advertisedWindowsVersion}.exe.sha256.json`), 'Local Manager SHA256 URL must include the advertised update route version');
 
-assert(connectorAgent.includes('const AGENT_VERSION = "2026.05.28.1"'), 'connector agent version must move for DB-driven shell policy release');
+assert(connectorAgent.includes('const AGENT_VERSION = "2026.10.18.1"'), 'connector agent version must move for DB-driven shell policy release');
 assert(connectorAgent.includes('"browser4-adapter.mjs"'), 'Browser4 adapter must be shipped by connector-agent manifest');
 assert(connectorAgent.includes('"local-agent-runtime.mjs"'), 'Local agent runtime must be shipped by connector-agent manifest');
 assert(connectorAgent.includes('const ROOT = path.resolve(MODULE_DIR, "../..");'), 'connector-agent manifest must resolve local-connector assets from the repository root');
