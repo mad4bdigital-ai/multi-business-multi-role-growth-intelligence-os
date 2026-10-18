@@ -1,0 +1,82 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "device-desktop-workspace-20261018",
+  "title": "Device Desktop Workspace local-only file and terminal control with governed environment impact",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/device-desktop-workspace-20261018.json",
+      "apps/local-manager-windows/DeviceWorkspaceForm.cs",
+      "apps/local-manager-windows/Program.cs",
+      "autopilot-portable-staging/manifest.json",
+      "docs/remote-mcp-write-scope-inventory.md",
+      "docs/runbooks/desktop-device-workspace-20261018.md",
+      "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
+      "http-generic-api/test-desktop-device-workspace-wiring.mjs",
+      "local-connector/test-device-runtime-http.mjs"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "secrets_included": false,
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Validate the Windows Device Workspace client wiring to the loopback connector and its scoped file and terminal HTTP contracts; preserve independent live Staging certification and deny implicit Production mutations.",
+      "e2e_journeys": [
+        {
+          "id": "device-desktop-workspace-loopback-controls",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Windows Local Manager operator using explicitly entered local credentials",
+          "entrypoint": "DeviceWorkspaceForm and Local Connector on 127.0.0.1:7070",
+          "terminal_outcome": "Local-only desktop controls route through the authenticated connector and enforce device, file-write and terminal boundaries, without persisting approval tokens or granting Production authority.",
+          "steps": [
+            "Open the Device Workspace form and ensure loopback-only connector routing and in-memory secret handling.",
+            "Verify scoped file and terminal HTTP requests reject missing authentication or approval and obey device-bound path constraints."
+          ],
+          "assertions": [
+            "Windows form wiring uses loopback and does not silently fallback to a public endpoint.",
+            "Local Connector HTTP boundary rejects unapproved or invalid operations.",
+            "Live Staging certification remains a separate release prerequisite; no Production deployment is authorized."
+          ],
+          "tests": [
+            {
+              "id": "device-desktop-workspace-wiring-governed",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-desktop-device-workspace-wiring.mjs",
+              "args": []
+            },
+            {
+              "id": "device-desktop-runtime-http-governed",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "local-connector/test-device-runtime-http.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "apps/local-manager-windows/DeviceWorkspaceForm.cs",
+            "http-generic-api/test-desktop-device-workspace-wiring.mjs",
+            "local-connector/test-device-runtime-http.mjs"
+          ]
+        }
+      ]
+    }
+  ]
+}
