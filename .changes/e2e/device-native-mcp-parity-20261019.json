@@ -1,0 +1,140 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "device-native-mcp-parity-20261019",
+  "title": "Native Device MCP exact local consent parity and Windows build-profile correction",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/device-native-mcp-parity-20261019.json",
+      ".github/workflows/local-manager-windows.yml",
+      "apps/local-manager-windows/DeviceWorkspaceForm.cs",
+      "apps/local-manager-windows/Program.cs",
+      "autopilot-portable-staging/Repair-LocalConnectorTunnel.ps1",
+      "docs/runbooks/device-native-mcp-desktop-parity-20261019.md",
+      "http-generic-api/routes/connectorAgentRoutes.js",
+      "http-generic-api/routes/localConnectorInstallRoutes.js",
+      "http-generic-api/scripts/connector-agent-smoke-test.mjs",
+      "http-generic-api/scripts/test-manifest.mjs",
+      "http-generic-api/test-connector-staging-mcp-distribution.mjs",
+      "http-generic-api/test-desktop-device-workspace-wiring.mjs",
+      "local-connector/.env.example",
+      "local-connector/connector-safe-upgrade.ps1",
+      "local-connector/device-mcp-approval-broker.mjs",
+      "local-connector/device-mcp-resource.mjs",
+      "local-connector/server.mjs",
+      "local-connector/test-device-mcp-approval-broker.mjs",
+      "local-connector/test-device-runtime-http.mjs"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "secrets_included": false,
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Verify opt-in, Staging-only, exact-identity local approval for bounded file/terminal actions and Windows environment checks while preserving an independent live Staging acceptance gate.",
+      "e2e_journeys": [
+        {
+          "id": "native-device-mcp-signed-oauth-one-shot-local-approval",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "OAuth-authenticated Native Device MCP client and local Windows consenting operator",
+          "entrypoint": "Native MCP endpoint and independently authenticated loopback consent bridge",
+          "terminal_outcome": "Only a signed, correctly scoped device and tenant principal with exact one-shot Staging local consent can access bounded file or interactive operations. All unauthorized or Production mutation requests fail closed.",
+          "steps": [
+            "Validate signed OAuth client scope, tenant/device binding and read/write separation.",
+            "Issue a one-shot exact-argument consent over the authenticated loopback endpoint and reject tunneled origins.",
+            "Invoke the approved MCP action, verify success, then reject replay, changed arguments and a different principal.",
+            "Reject Production environment, disabled broker and unauthorized operations; retain Staging live certification requirement."
+          ],
+          "assertions": [
+            "No OAuth scope by itself authorizes sensitive file writes or interactive terminal input.",
+            "Consent is bound to exact principal, device, tool, arguments and one use within 90 seconds.",
+            "Forwarded/tunneled, mismatched identity and Production consents are denied.",
+            "Synthetic test success does not constitute live Windows Staging acceptance or Production promotion."
+          ],
+          "tests": [
+            {
+              "id": "device-native-mcp-one-shot-approval-boundaries",
+              "runner": "node",
+              "working_directory": "local-connector",
+              "path": "test-device-mcp-approval-broker.mjs",
+              "args": []
+            },
+            {
+              "id": "device-native-mcp-loopback-http-boundaries",
+              "runner": "node",
+              "working_directory": "local-connector",
+              "path": "test-device-runtime-http.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "local-connector/device-mcp-approval-broker.mjs",
+            "local-connector/device-mcp-resource.mjs",
+            "local-connector/server.mjs",
+            "local-connector/test-device-mcp-approval-broker.mjs",
+            "local-connector/test-device-runtime-http.mjs"
+          ]
+        },
+        {
+          "id": "windows-profile-and-native-mcp-tool-distribution",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Windows Local Manager builder and local Connector administrator",
+          "entrypoint": "Windows local consent UI, build-time environment policy and governed installer",
+          "terminal_outcome": "Windows integration provides explicitly scoped local consent while invalid build profiles are blocked; Native Device MCP assets ship in the Connector staging distribution.",
+          "steps": [
+            "Confirm Windows form exposes one-shot consent without persisting secrets or public fallback.",
+            "Require existing MSBuild production/staging environment check and reject the previously unreachable runtime comparison.",
+            "Check installer and safe-upgrade packaging include the approval broker.",
+            "Build isolated Windows Staging EXE separately before any live Staging deployment."
+          ],
+          "assertions": [
+            "Staging and Production constants remain isolated and wrong profiles fail at build time.",
+            "Original local-connector approval secrets are not copied into MCP requests.",
+            "Installer distribution includes the exact Native MCP broker source.",
+            "Live Staging installation and OAuth pairing remain independently required; Production writes disabled."
+          ],
+          "tests": [
+            {
+              "id": "device-native-mcp-windows-workspace-profile",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-desktop-device-workspace-wiring.mjs",
+              "args": []
+            },
+            {
+              "id": "device-native-mcp-connector-package-distribution",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-connector-staging-mcp-distribution.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "apps/local-manager-windows/DeviceWorkspaceForm.cs",
+            "apps/local-manager-windows/Program.cs",
+            "http-generic-api/test-desktop-device-workspace-wiring.mjs",
+            "http-generic-api/test-connector-staging-mcp-distribution.mjs",
+            "docs/runbooks/device-native-mcp-desktop-parity-20261019.md"
+          ]
+        }
+      ]
+    }
+  ]
+}
