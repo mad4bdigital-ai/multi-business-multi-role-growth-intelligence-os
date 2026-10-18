@@ -122,7 +122,7 @@
     },
     {
       "path": "http-generic-api/config/deployment-branch-policy.json",
-      "sha256": "d764c1858d8eb39e1a3691eff1efc6f4db377b77ad393dcda8377c5ec676b322"
+      "sha256": "efcb643f74d4c989f1e80ed871a31cf38f2ce41804224cf6a294cfd92ab05ce2"
     },
     {
       "path": "http-generic-api/config/domain-family-policy.json",
@@ -150,7 +150,7 @@
     },
     {
       "path": "http-generic-api/frontend-surface-dispatch.generated.json",
-      "sha256": "51cd4f19728dffd6078fd98c3164605a26b0b4e20731c2461af54ceece0db4a0"
+      "sha256": "68646b082e295d09062414724a4630258a73d33ae840068e88213e87ae786aa9"
     },
     {
       "path": "http-generic-api/governanceDb.js",
@@ -170,7 +170,7 @@
     },
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
-      "sha256": "b5a364e04b6dd35f0d2ad8372d11f244d271061d2ffa9ba48ded0c35b708ea93"
+      "sha256": "97d5be3cff91bdd49941280187ccb2ccc2a4ea53af7c0a7a098d3d15d6481236"
     },
     {
       "path": "http-generic-api/remoteMcpConnectorRuntime.js",
@@ -410,7 +410,7 @@
     },
     {
       "path": "autopilot-portable-staging/Repair-LocalConnectorTunnel.ps1",
-      "sha256": "115b84dda371488a7de666b2ca5ee4db6e6d045eb425f3b9cbb327758e5201b7"
+      "sha256": "13427339f3fb2f3d9f65c0e7982f0eeb64a7fc562589af2cb1b09e7b0982b092"
     },
     {
       "path": "autopilot-portable-staging/Provision-LocalConnectorTunnelToken.ps1",
@@ -426,7 +426,7 @@
     },
     {
       "path": "local-connector/server.mjs",
-      "sha256": "f679a89c4a8afc05d9c5cd0a9f38a15c0fcebe2cfb3f9c6700155e0b359b5160"
+      "sha256": "cf4431f3ab64f146575e86cdd9b228c815f165c718801bd5688ad5cf46843e76"
     },
     {
       "path": "autopilot-portable-staging/Invoke-StagingPrHeadCertification.ps1",
