@@ -29,6 +29,13 @@ for (const marker of ["/recovery/capabilities:", "/recovery/staging:", "/develop
   assert.ok(server.includes(marker.slice(0, -1)), "Server route missing " + marker);
 }
 assert.equal(canonical, generated, "Canonical and generated schema projection must match exactly");
+for (const route of ["/recovery/capabilities:", "/recovery/staging:", "/developer/sessions:"]) {
+  const from = canonical.indexOf("  " + route);
+  const next = canonical.indexOf("\n  /", from + 2);
+  const section = canonical.slice(from, next === -1 ? canonical.length : next);
+  assert.ok(section.includes("additionalProperties: true\n                properties:"),
+    "Builder-safe top-level response properties required for " + route);
+}
 assert.equal(canonical.split("\n  /github:\n").length - 1, 1, "GitHub route must have one key");
 assert.equal(canonical.split("\nx-gpt-action-auth-preset:\n").length - 1, 1, "Auth preset must not be duplicated");
 assert.ok(canonical.includes("pattern: '^[a-f0-9]{40}$'"), "Developer exact HEAD pattern must be complete");
