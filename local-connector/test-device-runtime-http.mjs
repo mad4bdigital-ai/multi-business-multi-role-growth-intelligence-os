@@ -60,6 +60,8 @@ test("real loopback Connector enforces device boundaries and preserves file/term
     CONNECTOR_DEVICE_TERMINAL_STATE_DIR: terminalState,
     CONNECTOR_DEVICE_TERMINAL_INTERACTIVE_ENABLED: "false",
     CONNECTOR_DEVICE_MCP_ENABLED: "true",
+    CONNECTOR_DEVICE_MCP_APPROVAL_ENABLED: "true",
+    CONNECTOR_DEVICE_MCP_APPROVAL_TOKEN: "http-local-consent-strong-test-token",
     CONNECTOR_DEVICE_MCP_ENVIRONMENT: "staging",
     CONNECTOR_DEVICE_MCP_ISSUER: "https://dev.mad4b.com",
     CONNECTOR_DEVICE_MCP_RESOURCE: "https://connector.mad4b.com/mcp/device",
@@ -118,23 +120,23 @@ test("real loopback Connector enforces device boundaries and preserves file/term
         "content-type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0",
         id: 1, method: "tools/list" }) });
     assert.equal(unauthorized.status, 401);
-    const jwt = subject => {
+    const jwt = (subject, scope = "device:terminal:read device:terminal:execute") => {
       const now = Math.floor(Date.now() / 1000);
       const encode = object => Buffer.from(JSON.stringify(object)).toString("base64url");
       const tokenHead = encode({ typ: "at+jwt", alg: "RS256", kid: "http-test" });
       const payload = encode({
         iss: env.CONNECTOR_DEVICE_MCP_ISSUER, aud: env.CONNECTOR_DEVICE_MCP_RESOURCE,
         iat: now - 10, exp: now + 180, sub: subject, azp: "http-test-client",
-        scope: "device:terminal:read device:terminal:execute",
+        scope,
         device_id: env.CONNECTOR_DEVICE_ID, tenant_id: env.CONNECTOR_TENANT_ID,
         environment: "staging",
       });
       const signed = tokenHead + "." + payload;
       return signed + "." + sign("RSA-SHA256", Buffer.from(signed), privateKey).toString("base64url");
     };
-    const call = async (subject, name, args = {}) => {
+    const call = async (subject, name, args = {}, scope) => {
       const res = await fetch(url + "/mcp/device", {
-        method: "POST", headers: { authorization: "Bearer " + jwt(subject), "content-type": "application/json" },
+        method: "POST", headers: { authorization: "Bearer " + jwt(subject, scope), "content-type": "application/json" },
         body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call",
           params: { name, arguments: args } }), signal: AbortSignal.timeout(3000),
       });
@@ -151,6 +153,31 @@ test("real loopback Connector enforces device boundaries and preserves file/term
     assert.equal((await call("bob", "terminal_cancel", { session_id: ownerSession.session_id })).code,
       "session_not_found");
     assert.equal((await call("alice", "sessions_get", { session_id: ownerSession.session_id })).ok, true);
+    // Complete HTTP consent boundary: no implicit writes from OAuth alone,
+    // approval secret never enters JSON-RPC, and the receipt cannot be replayed.
+    const writeArgs = { relative_path: "mcp-new.txt", content: "one-shot write\\n" };
+    const writeScope = "device:files:write";
+    assert.equal((await call("alice", "files_create_file", writeArgs, writeScope)).code,
+      "local_consent_required");
+    const approvalRequest = {
+      action: "issue", device_id: "test-device-1", tenant_id: "http-test-tenant",
+      subject: "alice", client_id: "http-test-client",
+      tool: "files_create_file", arguments: writeArgs,
+    };
+    assert.equal((await post("/device/mcp/approvals", approvalRequest, auth)).status, 403);
+    assert.equal((await post("/device/mcp/approvals",
+      { ...approvalRequest, device_id: "wrong" },
+      { ...auth, "x-mad4b-device-mcp-approval": "http-local-consent-strong-test-token" })).status, 400);
+    const permit = await post("/device/mcp/approvals", approvalRequest,
+      { ...auth, "x-mad4b-device-mcp-approval": "http-local-consent-strong-test-token" });
+    assert.equal(permit.status, 200);
+    assert.equal(permit.value.one_shot, true);
+    assert.equal((await call("bob", "files_create_file", writeArgs, writeScope)).code,
+      "local_consent_required");
+    assert.equal((await call("alice", "files_create_file", writeArgs, writeScope)).ok, true);
+    assert.equal(fs.readFileSync(path.join(root, "mcp-new.txt"), "utf8"), "one-shot write\\n");
+    assert.equal((await call("alice", "files_create_file", writeArgs, writeScope)).code,
+      "local_consent_required");
   } catch (error) {
     error.message += "\nConnector stderr: " + stderr.replace(/Bearer\s+\S+/g, "Bearer [REDACTED]");
     throw error;
