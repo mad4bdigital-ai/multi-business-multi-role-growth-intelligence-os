@@ -99,7 +99,16 @@ if (event === "pull_request" || event === "push") {
     const baselineYaml = existed
       ? execFileSync("git", ["show", baseSha + ":" + file], { encoding: "utf8" })
       : "";
-    // Check the committed HEAD tree, not the worktree: deleted workflows have no\n    // HEAD blob and must not crash a read-only credential ratchet. Changes to\n    // existing/new credential-consuming jobs still undergo full inspection.\n    const presentAtHead = execFileSync("git",\n      ["ls-tree", "--name-only", "HEAD", "--", file],\n      { encoding: "utf8" }).trim() === file;\n    const currentYaml = presentAtHead\n      ? execFileSync("git", ["show", "HEAD:" + file], { encoding: "utf8" })\n      : "";\n    ratchetJobs += inspectChangedWorkflow(file, currentYaml, baselineYaml);
+    // Check the committed HEAD tree, not the worktree: deleted workflows have no
+    // HEAD blob and must not crash a read-only credential ratchet. Changes to
+    // existing/new credential-consuming jobs still undergo full inspection.
+    const presentAtHead = execFileSync("git",
+      ["ls-tree", "--name-only", "HEAD", "--", file],
+      { encoding: "utf8" }).trim() === file;
+    const currentYaml = presentAtHead
+      ? execFileSync("git", ["show", "HEAD:" + file], { encoding: "utf8" })
+      : "";
+    ratchetJobs += inspectChangedWorkflow(file, currentYaml, baselineYaml);
   }
 }
 
@@ -118,7 +127,9 @@ assert.equal(inspectChangedWorkflow("unchanged-base", legacyFixture, legacyFixtu
 assert.throws(() => inspectChangedWorkflow("changed-legacy", legacyFixture + "    # edited\n", legacyFixture),
   /Production Environment binding required/);
 const inert = "\njobs:\n  fixture:\n    run: echo 'secrets.BACKEND_API_KEY'\n";
-assert.equal(inspectChangedWorkflow("inert-reference-fixture", inert), 0);\n// A deleted credential-consuming workflow is a valid reduction of authority.\nassert.equal(inspectChangedWorkflow("deleted-workflow-fixture", "", good), 0);
+assert.equal(inspectChangedWorkflow("inert-reference-fixture", inert), 0);
+// A deleted credential-consuming workflow is a valid reduction of authority.
+assert.equal(inspectChangedWorkflow("deleted-workflow-fixture", "", good), 0);
 
 console.log(JSON.stringify({
   ok: true,
