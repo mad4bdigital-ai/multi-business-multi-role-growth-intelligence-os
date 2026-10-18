@@ -9,7 +9,7 @@ const staging = read("autopilot-portable-staging/Repair-LocalConnectorTunnel.ps1
 const smoke = read("http-generic-api/scripts/connector-agent-smoke-test.mjs");
 const canonical = read("canonicals/openapi/local-connector.openapi.yaml");
 const generated = read("http-generic-api/openapi/openapi.gpt-action.local-connector.yaml");
-for (const file of ["connector-staging-recovery.mjs", "connector-developer-sessions.mjs", "device-files-engine.mjs", "device-terminal-engine.mjs", "device-mcp-resource.mjs"]) {
+for (const file of ["connector-staging-recovery.mjs", "connector-developer-sessions.mjs", "device-files-engine.mjs", "device-terminal-engine.mjs", "device-mcp-resource.mjs", "device-mcp-approval-broker.mjs"]) {
   assert.ok(server.includes(file), "Local Connector server must import " + file);
   assert.ok(agent.includes("local-connector/" + file), "Agent manifest must package " + file);
   assert.ok(agent.includes("Get-Mad4BManifestFile -Name '" + file + "'"), "Signed installer must fetch " + file);
