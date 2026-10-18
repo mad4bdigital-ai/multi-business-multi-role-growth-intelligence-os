@@ -85,6 +85,29 @@ test("Rejects traversal, absolute paths, and symlinks outside bound repo", () =>
     fs.rmSync(outside, { force: true });
   }
 });
+test("Repo subprocess never receives connector, API, Cloudflare or provider secrets", () => {
+  const { env } = fixture();
+  const old = process.env.CONNECTOR_SECRET;
+  process.env.CONNECTOR_SECRET = "do-not-inherit-me";
+  try {
+    let childEnv = null;
+    const manager = createDeveloperSessionManager({
+      env,
+      spawnImpl: (command, args, options) => {
+        childEnv = options.env;
+        return fakeSpawn(command, args, options);
+      },
+    });
+    assert.equal(manager.dispatch({ action: "start", task: "git_status" }).ok, true);
+    assert.equal(childEnv.CONNECTOR_SECRET, undefined);
+    assert.equal(childEnv.BACKEND_API_KEY, undefined);
+    assert.equal(childEnv.CLOUDFLARE_API_TOKEN, undefined);
+    assert.equal(childEnv.GIT_TERMINAL_PROMPT, "0");
+  } finally {
+    if (old === undefined) delete process.env.CONNECTOR_SECRET;
+    else process.env.CONNECTOR_SECRET = old;
+  }
+});
 test("Cancellation is explicit and session does not accept arbitrary command args", () => {
   const { env } = fixture();
   const child = new EventEmitter();
