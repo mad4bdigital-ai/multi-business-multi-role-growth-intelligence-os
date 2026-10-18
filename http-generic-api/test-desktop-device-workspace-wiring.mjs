@@ -5,6 +5,13 @@ const read = p => readFileSync(new URL("../" + p, import.meta.url), "utf8");
 const form = read("apps/local-manager-windows/DeviceWorkspaceForm.cs");
 const main = read("apps/local-manager-windows/Program.cs");
 const server = read("local-connector/server.mjs");
+const project = read("apps/local-manager-windows/Mad4B.LocalManager.Windows.csproj");
+test("Local Manager build profile is guarded by MSBuild, not an unreachable runtime check", () => {
+  assert.doesNotMatch(main, /LocalManagerEnvironment\.Name\s+is\s+not\s*\(/);
+  assert.match(project, /<Target Name="ValidateLocalManagerEnvironment" BeforeTargets="BeforeBuild">/);
+  assert.match(project, /LocalManagerEnvironment must be production or staging/);
+  assert.match(project, /LOCAL_MANAGER_STAGING/);
+});
 test("Desktop Workspace is wired to the existing Windows app, not a new independent daemon", () => {
   assert.match(main, /new DeviceWorkspaceForm\(\)/);
   assert.match(form, /class DeviceWorkspaceForm : Form/);
