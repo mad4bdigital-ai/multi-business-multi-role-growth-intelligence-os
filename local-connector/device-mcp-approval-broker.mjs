@@ -32,6 +32,7 @@ function denied(code, status = 403) {
 export function createDeviceMcpApprovalBroker({ env = process.env, now = Date.now } = {}) {
   const enabled = env.CONNECTOR_DEVICE_MCP_APPROVAL_ENABLED === "true" &&
     env.CONNECTOR_DEVICE_MCP_ENABLED === "true" &&
+    env.CONNECTOR_DEVICE_MCP_ENVIRONMENT === "staging" &&
     typeof env.CONNECTOR_DEVICE_MCP_APPROVAL_TOKEN === "string" &&
     env.CONNECTOR_DEVICE_MCP_APPROVAL_TOKEN.length >= 24 &&
     Boolean(env.CONNECTOR_DEVICE_ID && env.CONNECTOR_TENANT_ID);
