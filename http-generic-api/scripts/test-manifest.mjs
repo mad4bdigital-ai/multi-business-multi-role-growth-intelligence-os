@@ -6,6 +6,7 @@ import { testCommands as upstreamMainCommands } from "./manifests/test-manifest-
 const connectorRecoveryTestCommands = Object.freeze([
   "node ../local-connector/test-connector-staging-recovery.mjs",
   "node ../local-connector/test-connector-developer-sessions.mjs",
+  "node ../local-connector/test-device-mcp-approval-broker.mjs",
   "node test-connector-staging-mcp-distribution.mjs",
 ]);
 
