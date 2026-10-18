@@ -8,7 +8,7 @@
   "scope": {
     "include": [
       ".changes/e2e/device-runtime-terminal-sessions-20261018.json",
-      ".github/workflows/device-runtime-contract.yml",
+      ".github/workflows/ci.yml",
       "autopilot-portable-staging/Repair-LocalConnectorTunnel.ps1",
       "autopilot-portable-staging/manifest.json",
       "canonicals/openapi/local-connector.openapi.yaml",
@@ -80,7 +80,7 @@
           "evidence_paths": [
             "local-connector/device-terminal-engine.mjs",
             "local-connector/test-device-terminal-engine.mjs",
-            ".github/workflows/device-runtime-contract.yml"
+            ".github/workflows/ci.yml"
           ]
         }
       ]

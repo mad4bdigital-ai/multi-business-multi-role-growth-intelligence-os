@@ -180,6 +180,9 @@ jobs:
           retention-days: 30
 
   readiness:
+    environment:
+      name: Production
+      deployment: false
     name: Authorize and dry-run Migration 1049
     if: >-
       github.event.issue.number == 6612 &&
@@ -220,6 +223,9 @@ jobs:
           retention-days: 30
 
   apply:
+    environment:
+      name: Production
+      deployment: false
     name: Apply Migration 1049 exactly once and certify
     if: >-
       github.event.issue.number == 6612 &&
@@ -260,6 +266,9 @@ jobs:
           retention-days: 30
 
   verify:
+    environment:
+      name: Production
+      deployment: false
     name: Verify Migration 1049 ledger and metadata
     if: >-
       github.event.issue.number == 6612 &&

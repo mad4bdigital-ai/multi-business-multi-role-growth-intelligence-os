@@ -9,6 +9,9 @@ permissions:
 
 jobs:
   readiness:
+    environment:
+      name: Production
+      deployment: false
     name: Authorize and dry-run Migration 1051
     if: >-
       github.event.issue.number == 6625 &&
@@ -55,6 +58,9 @@ jobs:
           retention-days: 30
 
   reconcile_record_only:
+    environment:
+      name: Production
+      deployment: false
     name: Reconcile Migration 1051 orphan ledger without SQL replay
     if: >-
       github.event.issue.number == 6625 &&
@@ -105,6 +111,9 @@ jobs:
           retention-days: 30
 
   apply_after_record_only_reconcile:
+    environment:
+      name: Production
+      deployment: false
     name: Apply Migration 1051 after certified record-only reconciliation
     if: >-
       github.event.issue.number == 6625 &&
@@ -155,6 +164,9 @@ jobs:
           retention-days: 30
 
   apply:
+    environment:
+      name: Production
+      deployment: false
     name: Apply Migration 1051 exactly once and certify
     if: >-
       github.event.issue.number == 6625 &&

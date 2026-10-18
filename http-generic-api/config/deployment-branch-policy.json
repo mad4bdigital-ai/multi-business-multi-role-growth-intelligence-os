@@ -365,6 +365,7 @@
           "GPT_Admin_Assistant_Knowledge_Guide.md",
           "runtime_confirmation_procedure.md",
           "reference-seeds/context-authority-business-profile-v1/**",
+          "http-generic-api/scripts/credential-environment-scope-ratchet.mjs",
           "http-generic-api/scripts/connector-agent-smoke-test.mjs"
         ],
         "environments": [
