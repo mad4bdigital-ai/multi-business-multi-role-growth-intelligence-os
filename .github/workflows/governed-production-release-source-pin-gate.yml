@@ -23,13 +23,45 @@ jobs:
       REPOSITORY: ${{ github.repository }}
       PR_NUMBER: ${{ github.event.pull_request.number }}
       EVENT_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+      EVENT_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+      REPOSITORY_OWNER: ${{ github.repository_owner }}
       EVENT_BASE_SHA: ${{ github.event.pull_request.base.sha }}
       EVENT_HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
       POLICY_PATH: http-generic-api/config/deployment-branch-policy.json
       SEMANTIC_EVALUATOR: .github/scripts/production-promotion-semantic-continuity.mjs
     steps:
+      - name: Classify exact Production PR without granting authority
+        id: classify
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          [[ "${EVENT_HEAD_SHA}" =~ ^[0-9a-f]{40}$ ]]
+          [[ "${EVENT_BASE_SHA}" =~ ^[0-9a-f]{40}$ ]]
+          PR_JSON="$(mktemp)"
+          trap 'rm -f "${PR_JSON}"' EXIT
+          gh api "/repos/${REPOSITORY}/pulls/${PR_NUMBER}" > "${PR_JSON}"
+          [[ "$(jq -r '.state' "${PR_JSON}")" == open ]]
+          [[ "$(jq -r '.base.ref' "${PR_JSON}")" == Production ]]
+          [[ "$(jq -r '.head.sha' "${PR_JSON}")" == "${EVENT_HEAD_SHA}" ]]
+          [[ "$(jq -r '.base.sha' "${PR_JSON}")" == "${EVENT_BASE_SHA}" ]]
+          [[ "$(jq -r '.head.ref' "${PR_JSON}")" == "${EVENT_HEAD_REF}" ]]
+          [[ "$(jq -r '.head.repo.full_name' "${PR_JSON}")" == "${REPOSITORY}" ]]
+          [[ "$(jq -r '.base.repo.full_name' "${PR_JSON}")" == "${REPOSITORY}" ]]
+          CURRENT_MAIN="$(gh api "/repos/${REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
+          CURRENT_PRODUCTION="$(gh api "/repos/${REPOSITORY}/git/ref/heads/Production" --jq '.object.sha')"
+          [[ "${CURRENT_MAIN}" =~ ^[0-9a-f]{40}$ ]]
+          [[ "${CURRENT_PRODUCTION}" == "${EVENT_BASE_SHA}" ]]
+          if [[ "${EVENT_HEAD_REF}" =~ ^security/production-(hotfix|api-lockfile)-[0-9]{8}(-[a-z0-9-]+)?$ ]]; then
+            [[ "$(jq -r '.draft' "${PR_JSON}")" == false ]] || { echo '::error::hotfix requires ready-for-review state'; exit 1; }
+            echo 'mode=hotfix' >> "${GITHUB_OUTPUT}"
+          else
+            echo 'mode=release' >> "${GITHUB_OUTPUT}"
+          fi
+          echo "main_sha=${CURRENT_MAIN}" >> "${GITHUB_OUTPUT}"
+          echo "production_sha=${CURRENT_PRODUCTION}" >> "${GITHUB_OUTPUT}"
       - name: Resolve exact trusted main and governed release identity
         id: identity
+        if: steps.classify.outputs.mode == 'release'
         shell: bash
         run: |
           set -Eeuo pipefail
@@ -87,7 +119,7 @@ jobs:
       - name: Checkout exact trusted current main evaluator
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
-          ref: ${{ steps.identity.outputs.main_sha }}
+          ref: ${{ steps.classify.outputs.main_sha }}
           fetch-depth: 0
           persist-credentials: false
 
@@ -98,6 +130,7 @@ jobs:
 
       - name: Enforce ancestry, candidate topology, and semantic continuity
         id: continuity
+        if: steps.classify.outputs.mode == 'release'
         shell: bash
         env:
           RELEASE_CUT_SHA: ${{ steps.identity.outputs.release_cut_sha }}
@@ -183,7 +216,32 @@ jobs:
           }
           echo "semantic_report=$REPORT_DIR/report.json" >> "$GITHUB_OUTPUT"
 
+      - name: Verify governed security hotfix with exact owner review
+        if: steps.classify.outputs.mode == 'hotfix'
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          [[ "$(git rev-parse HEAD)" == "${{ steps.classify.outputs.main_sha }}" ]]
+          REPORT_DIR="${RUNNER_TEMP}/governed-production-release-source-pin"
+          mkdir -p "${REPORT_DIR}"
+          gh api "/repos/${REPOSITORY}/pulls/${PR_NUMBER}" > "${REPORT_DIR}/pr.json"
+          gh api --paginate "/repos/${REPOSITORY}/pulls/${PR_NUMBER}/reviews?per_page=100" | jq -s 'add' > "${REPORT_DIR}/reviews.json"
+          git fetch --no-tags origin \
+            "+refs/heads/Production:refs/remotes/origin/Production" \
+            "+refs/pull/${PR_NUMBER}/head:refs/remotes/origin/hotfix-candidate"
+          [[ "$(git rev-parse refs/remotes/origin/Production)" == "${EVENT_BASE_SHA}" ]]
+          [[ "$(git rev-parse refs/remotes/origin/hotfix-candidate)" == "${EVENT_HEAD_SHA}" ]]
+          node http-generic-api/scripts/production-security-hotfix-source-pin.mjs \
+            --root "${GITHUB_WORKSPACE}" \
+            --base-ref Production --head-ref "${EVENT_HEAD_REF}" \
+            --base-sha "${EVENT_BASE_SHA}" --head-sha "${EVENT_HEAD_SHA}" \
+            --owner "${REPOSITORY_OWNER}" \
+            --pr-file "${REPORT_DIR}/pr.json" \
+            --reviews-file "${REPORT_DIR}/reviews.json" \
+            --output "${REPORT_DIR}/report.json"
+          rm -f "${REPORT_DIR}/pr.json" "${REPORT_DIR}/reviews.json"
       - name: Publish source-pin gate evidence
+        if: steps.classify.outputs.mode == 'release'
         shell: bash
         env:
           RELEASE_CUT_SHA: ${{ steps.identity.outputs.release_cut_sha }}

@@ -1,0 +1,82 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "production-hybrid-source-pin-20261017",
+  "title": "Source-pinned governed full release and bounded Production security hotfix",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/production-hybrid-source-pin-20261017.json",
+      ".github/workflows/governed-production-release-source-pin-gate.yml",
+      ".github/derived-state-governance.json",
+      "http-generic-api/config/repository-governance-constitution.json",
+      "http-generic-api/test-production-promotion-convergence-workflows.mjs",
+      "http-generic-api/scripts/production-security-hotfix-source-pin.mjs",
+      "http-generic-api/scripts/production-security-hotfix-source-pin-self-test.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "production"
+    ],
+    "cross_environment_reviewed": false,
+    "live_staging_certification_required": false,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Preserve full release-cut semantic source pin while independently validating exact SHA, limited npm lockfile upgrades and exact-owner COMMENTED review for Production hotfixes.",
+      "e2e_journeys": [
+        {
+          "id": "governed-production-hybrid-source-pin",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Repository release policy reviewer",
+          "entrypoint": "Production-targeted PR review at immutable head and base SHAs",
+          "terminal_outcome": "Full release uses unchanged semantic source pin; hotfix source pin requires owner review yet never grants merge or deploy authority.",
+          "steps": [
+            "Fetch exact source SHA and live Production SHA",
+            "Enforce same-repository PR identity and ready-for-review",
+            "On release: retain certified release-cut validation",
+            "On hotfix: check existing lockfile upgrades and exact owner review",
+            "Reject missing or forged review, wrong branch, changed SHA, untrusted packages or draft PR"
+          ],
+          "assertions": [
+            "Production target and code are never modified by evidence checks",
+            "All malformed identities fail closed",
+            "Legacy release-cut semantics remain enforced",
+            "No status check alone grants Production merge or deployment"
+          ],
+          "tests": [
+            {
+              "id": "production-hybrid-source-pin-self-test",
+              "runner": "node",
+              "path": "http-generic-api/scripts/production-security-hotfix-source-pin-self-test.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/scripts/production-security-hotfix-source-pin.mjs",
+            "http-generic-api/scripts/production-security-hotfix-source-pin-self-test.mjs"
+          ]
+        }
+      ],
+      "tests": [
+        {
+          "id": "production-hybrid-source-pin-self-test",
+          "runner": "node",
+          "path": "http-generic-api/scripts/production-security-hotfix-source-pin-self-test.mjs",
+          "args": []
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}

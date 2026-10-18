@@ -4,6 +4,13 @@ import { readFileSync } from "node:fs";
 const workflow = readFileSync("../.github/workflows/derived-state-converged-automerge.yml", "utf8");
 const readiness = readFileSync("../.github/ops/github-followup-automerge-readiness.mjs", "utf8");
 
+// Review of Production cannot produce main-only Derived State Closure evidence.
+const closureWorkflow = readFileSync("../.github/workflows/derived-state-closure.yml", "utf8").replace(/\r\n/g, "\n");
+assert.ok(closureWorkflow.includes("    if: >-\n      github.event_name != 'pull_request_review' ||\n      github.event.pull_request.base.ref == 'main'"), "non-main review must skip main-only Derived State job");
+assert.ok(closureWorkflow.includes("    branches: [main]"), "main source push and PR restrictions must remain");
+assert.ok(closureWorkflow.includes("    types: [submitted, dismissed]"), "main owner-review replay remains supported");
+assert.ok(closureWorkflow.includes("candidate_kind=\"github_merge_candidate\""), "main evidence requires merge-candidate provenance");
+
 const attestorJob = workflow.split("\n  attest:\n")[1]?.split("\n  merge:\n")[0];
 assert.ok(attestorJob, "Finalizer must expose an independently protected attestor job");
 assert.match(

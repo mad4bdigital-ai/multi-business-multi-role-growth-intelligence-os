@@ -3,6 +3,9 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { execFileSync } from "node:child_process";
+import os from "node:os";
+import { assertDocsOnlyPaths, inspectDocsOnlyGit } from "./scripts/maintenance-tools/work-map-docs-only-guard.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const workflowPath = path.resolve(HERE, "..", ".github", "workflows", "spec-kit-work-map-autofix.yml");
@@ -176,3 +179,65 @@ assert.doesNotMatch(workflow, /git push[^\n]*(?:--force|-f)(?:\s|$)/u);
 assert.match(workflow, /test "\$\{remote_head_sha\}" = "\$\{EXPECTED_HEAD_SHA\}"/u);
 
 console.log("Work Map autofix registry-refresh scope regression tests passed.");
+
+// Exact-head docs-only delegated writer contract and real Git delta regression.
+const recoveryWorkflow = fs.readFileSync(path.resolve(HERE, "..", ".github", "workflows", "spec-kit-work-map-autofix-recovery-dispatch.yml"), "utf8");
+assert.ok(recoveryWorkflow.includes("write_scope:$write_scope"), "Recovery must carry scope into the dispatch payload");
+assert.ok(recoveryWorkflow.includes("work-map-autofix:authorized docs_only {0}"), "docs-only owner marker must carry exact SHA");
+assert.ok(recoveryWorkflow.includes("inputs.expected_head_sha"), "docs-only marker must bind owner approval to exact head");
+assert.ok(recoveryWorkflow.includes("write_scope=${WRITE_SCOPE} authorization_consumed=true"), "Recovery must bind scope to its one-time grant");
+assert.ok(recoveryWorkflow.includes('--arg scope "${WRITE_SCOPE}"'), "Retry must provide the requested write scope to grant lookup");
+assert.ok(recoveryWorkflow.includes('contains(" write_scope=" + $scope + " ")'), "Retry must never restore a different-scope writer grant");
+assert.ok(recoveryWorkflow.includes('write_scope:$write_scope,behind_by:$behind_by'), "Recovery report must bind audited scope");
+assert.ok(workflow.includes("write_scope=${WRITE_SCOPE} authorization_consumed=true"), "Writer must verify exact delegated scope");
+assert.ok(workflow.includes('node http-generic-api/scripts/maintenance-tools/work-map-docs-only-guard.mjs --expected-head-sha "${EXPECTED_HEAD_SHA}"'));
+assert.ok(workflow.includes('if [[ "${WRITE_SCOPE}" == "docs_only" ]]; then'));
+assert.doesNotThrow(() => assertDocsOnlyPaths(["docs/work-maps/README.md", "docs/work-maps/repository-automation-map.md"]));
+for (const file of ["specs/014-retail-commerce-operations-growth-os/work-map-integration.json", ".github/workflows/ci.yml", "docs/work-maps/../secret", "docs/work-maps\\escape"]) {
+  assert.throws(() => assertDocsOnlyPaths([file]), /docs_only_scope_violation/u);
+}
+assert.throws(() => inspectDocsOnlyGit({ expectedHeadSha: "invalid" }), /docs_only_expected_head_invalid/u);
+const fixture = fs.mkdtempSync(path.join(os.tmpdir(), "mad4b-work-map-docs-only-"));
+const git = (...args) => execFileSync("git", args, { cwd: fixture, encoding: "utf8" }).trim();
+try {
+  git("init", "-q");
+  git("config", "user.email", "test@example.invalid");
+  git("config", "user.name", "Fixture");
+  fs.mkdirSync(path.join(fixture, "docs", "work-maps"), { recursive: true });
+  fs.writeFileSync(path.join(fixture, "docs", "work-maps", "README.md"), "old\n");
+  git("add", "--all");
+  git("commit", "-qm", "baseline");
+  const base = git("rev-parse", "HEAD");
+  fs.writeFileSync(path.join(fixture, "docs", "work-maps", "README.md"), "new\n");
+  assert.deepEqual(inspectDocsOnlyGit({ root: fixture, expectedHeadSha: base }).changed_paths, ["docs/work-maps/README.md"]);
+  fs.mkdirSync(path.join(fixture, "specs", "014-test"), { recursive: true });
+  const forbidden = path.join(fixture, "specs", "014-test", "work-map-integration.json");
+  fs.writeFileSync(forbidden, "{}\n");
+  assert.throws(() => inspectDocsOnlyGit({ root: fixture, expectedHeadSha: base }), /docs_only_scope_violation/u, "untracked specs file rejected");
+  git("add", "--all");
+  assert.throws(() => inspectDocsOnlyGit({ root: fixture, expectedHeadSha: base }), /docs_only_scope_violation/u, "staged specs file rejected");
+  git("commit", "-qm", "forbidden committed output");
+  assert.throws(() => inspectDocsOnlyGit({ root: fixture, expectedHeadSha: base }), /docs_only_scope_violation/u, "committed specs diff rejected");
+} finally {
+  fs.rmSync(fixture, { recursive: true, force: true });
+}
+const renameFixture = fs.mkdtempSync(path.join(os.tmpdir(), "mad4b-docs-only-rename-"));
+const renameGit = (...args) => execFileSync("git", args, { cwd: renameFixture, encoding: "utf8" }).trim();
+try {
+  renameGit("init", "-q");
+  renameGit("config", "user.email", "test@example.invalid");
+  renameGit("config", "user.name", "Fixture");
+  fs.mkdirSync(path.join(renameFixture, "specs"), { recursive: true });
+  fs.mkdirSync(path.join(renameFixture, "docs", "work-maps"), { recursive: true });
+  fs.writeFileSync(path.join(renameFixture, "specs", "original.md"), "tracked origin\n");
+  renameGit("add", "--all");
+  renameGit("commit", "-qm", "baseline with protected origin");
+  const renameBase = renameGit("rev-parse", "HEAD");
+  renameGit("mv", "specs/original.md", "docs/work-maps/new.md");
+  assert.throws(() => inspectDocsOnlyGit({ root: renameFixture, expectedHeadSha: renameBase }), /docs_only_scope_violation:specs\/original\.md/u, "rename source outside docs blocked before commit");
+  renameGit("commit", "-qm", "move protected original into docs");
+  assert.throws(() => inspectDocsOnlyGit({ root: renameFixture, expectedHeadSha: renameBase }), /docs_only_scope_violation:specs\/original\.md/u, "rename source outside docs blocked after commit");
+} finally {
+  fs.rmSync(renameFixture, { recursive: true, force: true });
+}
+console.log("Work Map docs-only scope and delegated grant regression tests passed.");

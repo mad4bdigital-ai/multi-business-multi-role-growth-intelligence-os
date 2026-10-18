@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import YAML from "yaml";
 import { readFileSync } from "node:fs";
 
 const ciWorkflow = readFileSync("../.github/workflows/ci.yml", "utf8");
@@ -36,13 +37,25 @@ assert.match(writerWorkflow, /new Date\(Date\.now\(\) - 5000\)/u);
 assert.match(writerWorkflow, /\[\[ "\$\{ci_run_id\}" =~ \^\[1-9\]\[0-9\]\*\$ \]\]/u);
 assert.match(writerWorkflow, /\[\[ "\$\{integration_run_id\}" =~ \^\[1-9\]\[0-9\]\*\$ \]\]/u);
 
-const exactCiCheckout = "ref: ${{ github.event.pull_request.head.sha || github.sha }}";
-const exactCiCheckoutCount = ciWorkflow.split(exactCiCheckout).length - 1;
-assert.equal(
-  exactCiCheckoutCount,
-  5,
-  "Every load-bearing CI job must check out the exact PR head or workflow-dispatch event SHA; the canonical CI matrix currently has five such jobs.",
-);
+const exactCiCheckout = "${{ github.event.pull_request.head.sha || github.sha }}";
+const ciJobs = YAML.parse(ciWorkflow)?.jobs;
+assert.ok(ciJobs && typeof ciJobs === "object", "Canonical CI must declare jobs");
+const jobEntries = Object.entries(ciJobs);
+assert.ok(jobEntries.length > 0, "Canonical CI must retain load-bearing jobs");
+for (const [jobId, job] of jobEntries) {
+  assert.ok(Array.isArray(job.steps) && job.steps.length > 0, `CI job ${jobId} must have checkable steps`);
+  const checkoutSteps = job.steps.filter(
+    (step) => typeof step.uses === "string" && step.uses.startsWith("actions/checkout@"),
+  );
+  assert.ok(checkoutSteps.length > 0, `CI job ${jobId} must check out the exact candidate source`);
+  for (const checkout of checkoutSteps) {
+    assert.equal(
+      checkout.with?.ref,
+      exactCiCheckout,
+      `CI job ${jobId} must check out the exact PR head or workflow-dispatch SHA`,
+    );
+  }
+}
 assert.ok(
   ciWorkflow.includes('DEPLOYMENT_COMMIT_SHA: "${{ github.event.pull_request.head.sha || github.sha }}"'),
   "Deployment evidence must bind to the same exact CI identity.",

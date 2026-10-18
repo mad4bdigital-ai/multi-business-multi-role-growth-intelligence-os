@@ -30,6 +30,11 @@ concurrency:
 jobs:
   closure:
     name: Derived State Closure Detector
+    # Main-only derived evidence: Production reviews use independent source-pin admission.
+    # Skipping this job never grants Production release or merge authority.
+    if: >-
+      github.event_name != 'pull_request_review' ||
+      github.event.pull_request.base.ref == 'main'
     runs-on: ubuntu-24.04
     timeout-minutes: 40
     steps:
@@ -277,7 +282,8 @@ jobs:
           matched=""
           while [[ -z "$matched" && $(date +%s) -lt $deadline ]]; do
             runs="$RUNNER_TEMP/policy-objection-runs.json"
-            gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/policy-objection-ci.yml/runs?event=pull_request&per_page=30" > "$runs"
+            # Filter by the exact source HEAD to avoid losing trusted producer evidence in a busy repository.
+            gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/policy-objection-ci.yml/runs?event=pull_request&head_sha=${SOURCE_HEAD_SHA}&per_page=100" > "$runs"
             while read -r run_id; do
               dir="$RUNNER_TEMP/producer-$run_id"
               rm -rf "$dir" && mkdir -p "$dir"
