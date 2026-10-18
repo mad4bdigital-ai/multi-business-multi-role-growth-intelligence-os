@@ -78,8 +78,8 @@
             {
               "id": "device-native-mcp-loopback-http-boundaries",
               "runner": "node",
-              "working_directory": "local-connector",
-              "path": "test-device-runtime-http.mjs",
+              "working_directory": ".",
+              "path": "local-connector/test-device-runtime-http.mjs",
               "args": []
             }
           ],
