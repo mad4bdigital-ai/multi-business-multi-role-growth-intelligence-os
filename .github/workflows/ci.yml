@@ -40,7 +40,28 @@ jobs:
         env:
           CREDENTIAL_PROVENANCE_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before || '' }}
           CREDENTIAL_PROVENANCE_EVENT: ${{ github.event_name }}
-        run: node http-generic-api/scripts/credential-environment-scope-ratchet.mjs
+        shell: bash
+        run: |
+          set -euo pipefail
+          # GitHub sends an all-zero "before" SHA for the first push to a new
+          # branch. Anchor the credential diff to the common ancestor with
+          # the immutable checked-out default-branch history, never to 0000.
+          if [[ "$CREDENTIAL_PROVENANCE_EVENT" == "push" &&
+                "$CREDENTIAL_PROVENANCE_BASE_SHA" == "0000000000000000000000000000000000000000" ]]; then
+            case "$GITHUB_REF" in
+              refs/heads/main|refs/heads/Production)
+                echo "::error::Protected-branch push has no immutable baseline"; exit 1 ;;
+            esac
+            git show-ref --verify --quiet refs/remotes/origin/main || {
+              echo "::error::Default-branch history is unavailable"; exit 1;
+            }
+            baseline="$(git merge-base HEAD refs/remotes/origin/main)"
+            [[ "$baseline" =~ ^[0-9a-f]{40}$ ]] || {
+              echo "::error::No verified default-branch common ancestor"; exit 1;
+            }
+            export CREDENTIAL_PROVENANCE_BASE_SHA="$baseline"
+          fi
+          node http-generic-api/scripts/credential-environment-scope-ratchet.mjs
 
       - name: Enforce Runtime data lifecycle classification
         working-directory: http-generic-api

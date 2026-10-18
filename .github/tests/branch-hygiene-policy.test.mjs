@@ -9,6 +9,7 @@ import {
   renderBranchMarkdown,
   sortBranchesForTriage,
   summarizeBranches,
+  isSupersededPrCiRun,
 } from "../../http-generic-api/scripts/maintenance-tools/branch-hygiene-policy.mjs";
 
 const policy = JSON.parse(fs.readFileSync(new URL("../branch-hygiene-policy.json", import.meta.url), "utf8"));
@@ -192,4 +193,23 @@ test("policy v2 declares age bands and the canonical triage sort order", () => {
     "name_asc",
   ]);
   assert.equal(policy.age_band_days.review, 45);
+});
+
+
+test("CI hygiene preserves current-head runs and rejects unrelated or writer events", () => {
+  const run = (sha, extra = {}) => ({
+    head_sha: sha, head_branch: "feature", event: "pull_request",
+    status: "queued", pull_requests: [{ number: 8581 }], ...extra,
+  });
+  assert.equal(isSupersededPrCiRun(run("old"), 8581, "current", "feature"), true);
+  for (const candidate of [
+    run("current"), run("old", { pull_requests: [{ number: 8582 }] }),
+    run("old", { event: "workflow_dispatch" }),
+    run("old", { event: "pull_request_target" }),
+    run("old", { status: "completed" }),
+    run("old", { head_branch: "unrelated" }),
+    run("old", { pull_requests: [] }),
+  ]) {
+    assert.equal(isSupersededPrCiRun(candidate, 8581, "current", "feature"), false);
+  }
 });

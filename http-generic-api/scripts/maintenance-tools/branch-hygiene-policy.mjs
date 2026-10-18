@@ -210,6 +210,8 @@ function parseArgs(argv) {
     else if (token === "--repo") args.repo = argv[++index];
     else if (token === "--confirm") args.confirm = argv[++index];
     else if (token === "--fixture") args.fixture = argv[++index];
+    else if (token === "--ci-pr-number") args.ciPrNumber = argv[++index];
+    else if (token === "--ci-expected-head") args.ciExpectedHead = argv[++index];
     else throw new Error(`Unknown argument: ${token}`);
   }
   return args;
@@ -375,8 +377,67 @@ function requireDirname(filePath) {
   return slash >= 0 ? String(filePath).slice(0, slash) || "." : ".";
 }
 
+
+export function isSupersededPrCiRun(item, prNumber, sha, branch) {
+  return item?.event === "pull_request"
+    && ["queued", "in_progress", "waiting"].includes(item?.status)
+    && item?.head_branch === branch && item?.head_sha !== sha
+    && (item?.pull_requests ?? []).some((pr) => pr?.number === prNumber);
+}
+
+function governedCiRunCleanup(args) {
+  const repo = args.repo;
+  const number = Number(args.ciPrNumber);
+  const head = args.ciExpectedHead;
+  const mode = args.mode ?? "dry_run";
+  if (repo !== "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os"
+      || !process.env.GH_TOKEN || !Number.isSafeInteger(number) || number < 1
+      || !/^[a-f0-9]{40}$/.test(head) || !["dry_run", "apply"].includes(mode)) {
+    throw new Error("CI_HYGIENE_AUTHORITY_OR_INPUT_INVALID");
+  }
+  if (mode === "apply" && args.confirm !== "CANCEL_SUPERSEDED_PR_CHECKS") {
+    throw new Error("CI_HYGIENE_TYPED_CONFIRMATION_REQUIRED");
+  }
+  const verify = () => {
+    const pr = runJson("gh", ["api", "repos/" + repo + "/pulls/" + number]);
+    if (pr?.state !== "open" || pr?.base?.ref !== "main"
+        || pr?.head?.repo?.full_name !== repo || pr?.head?.sha !== head) {
+      throw new Error("CI_HYGIENE_EXACT_HEAD_DRIFT");
+    }
+    return pr.head.ref;
+  };
+  const branch = verify();
+  const oldRuns = new Map();
+  for (const state of ["queued", "in_progress", "waiting"]) {
+    for (let page = 1; page <= 15; page += 1) {
+      const query = "branch=" + encodeURIComponent(branch) + "&status=" + state
+        + "&per_page=100&page=" + page;
+      const response = runJson("gh", ["api", "repos/" + repo + "/actions/runs?" + query]);
+      const runs = response?.workflow_runs ?? [];
+      for (const item of runs) {
+        if (isSupersededPrCiRun(item, number, head, branch)) oldRuns.set(item.id, item);
+      }
+      if (runs.length < 100) break;
+      if (page === 15) throw new Error("CI_HYGIENE_TRUNCATED_RUN_WINDOW");
+    }
+  }
+  const result = { contract: "mad4b.branch-hygiene-ci.v1", mode, pr_number: number,
+    expected_head_sha: head, stale_run_ids: [...oldRuns.keys()], cancel_requested: 0 };
+  if (mode === "apply") {
+    for (const item of oldRuns.values()) {
+      verify();
+      run("gh", ["api", "--method", "POST",
+        "repos/" + repo + "/actions/runs/" + item.id + "/cancel"]);
+      result.cancel_requested += 1;
+    }
+  }
+  process.stdout.write(JSON.stringify(result) + "\n");
+  return result;
+}
+
 function main() {
   const args = parseArgs(process.argv.slice(2));
+  if (args.ciPrNumber) return governedCiRunCleanup(args);
   const policy = JSON.parse(fs.readFileSync(args.policy, "utf8"));
   const mode = args.mode ?? policy.default_mode ?? "dry_run";
   if (!new Set(["dry_run", "apply"]).has(mode)) throw new Error(`Unsupported mode: ${mode}`);
