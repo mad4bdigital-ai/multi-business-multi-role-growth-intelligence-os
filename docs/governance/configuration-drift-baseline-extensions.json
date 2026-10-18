@@ -3192,6 +3192,50 @@
       "contains_secret_value": false,
       "grants_runtime_mutation": false,
       "grants_production_activation": false
+    },
+    {
+      "fingerprint": "local-connector/device-files-engine.mjs|mode|literal_declaration|mode",
+      "owner": "device-files-runtime",
+      "reason": "The local search operation's filename/content discriminator is supplied by a bounded request parser; it is not a standalone runtime configuration source or execution grant.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "local-connector/device-mcp-resource.mjs|NO_CACHE|literal_declaration|no.cache",
+      "owner": "device-mcp-runtime",
+      "reason": "Fixed no-store, nosniff, JSON HTTP response headers prevent caching and sniffing; the constant is not an editable configuration value.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "local-connector/device-terminal-engine.mjs|SESSION_TTL_MS|literal_declaration|session.ttl.ms",
+      "owner": "device-terminal-runtime",
+      "reason": "Fixed one-hour upper TTL for device terminal sessions, fail-closed capacity control. Code-scanner metadata only; actual policy is not configurable here. Shadow classification separately registered in the Platform Configuration Entry Registry; no authority is granted.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "local-connector/test-device-mcp-resource.mjs|scopes|literal_declaration|scopes",
+      "owner": "device-mcp-test-governance",
+      "reason": "Test-only OAuth permission string used solely to verify real-terminal cross-principal denial; not a source of production OAuth grants or an operational policy.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
     }
   ],
   "safety": {

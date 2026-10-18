@@ -1276,6 +1276,23 @@
       "secrets_included": false
     },
     {
+      "config_key": "session.ttl.ms",
+      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
+      "owner": "device-terminal-runtime",
+      "risk_class": "medium",
+      "scope_types": [
+        "platform",
+        "staging"
+      ],
+      "binding_ref": "local-connector/device-terminal-engine.mjs",
+      "resolver_ref": "local-connector/device-terminal-engine.mjs",
+      "readback_ref": "local-connector/test-device-terminal-engine.mjs",
+      "shadow_evidence_ref": "docs/runbooks/desktop-device-workspace-20261018.md",
+      "classification": "runtime_setting",
+      "status": "shadow",
+      "secrets_included": false
+    },
+    {
       "config_key": "session.ttl.seconds",
       "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
       "owner": "identity-platform",
@@ -1646,5 +1663,5 @@
     "production_activation_allowed": false
   },
   "$schema": "../../.specify/schemas/platform-configuration-entry-registry.schema.json",
-  "entry_count": 91
+  "entry_count": 93
 }
