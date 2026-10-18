@@ -99,15 +99,16 @@ if (event === "pull_request" || event === "push") {
     const baselineYaml = existed
       ? execFileSync("git", ["show", baseSha + ":" + file], { encoding: "utf8" })
       : "";
-    // The three-dot diff also reports deleted workflows. Validate their
-    // provenance using Git objects; never read a path absent from HEAD.
-    const presentAtHead = execFileSync("git", ["ls-tree", "--name-only", "HEAD", "--", file],
+    // Check the committed HEAD tree, not the worktree: deleted workflows have no
+    // HEAD blob and must not crash a read-only credential ratchet. Changes to
+    // existing/new credential-consuming jobs still undergo full inspection.
+    const presentAtHead = execFileSync("git",
+      ["ls-tree", "--name-only", "HEAD", "--", file],
       { encoding: "utf8" }).trim() === file;
-    if (!presentAtHead) {
-      assert.equal(existed, true, file + ": missing from both baseline and HEAD");
-      continue;
-    }
-    ratchetJobs += inspectChangedWorkflow(file, readFileSync(file, "utf8"), baselineYaml);
+    const currentYaml = presentAtHead
+      ? execFileSync("git", ["show", "HEAD:" + file], { encoding: "utf8" })
+      : "";
+    ratchetJobs += inspectChangedWorkflow(file, currentYaml, baselineYaml);
   }
 }
 
@@ -127,13 +128,15 @@ assert.throws(() => inspectChangedWorkflow("changed-legacy", legacyFixture + "  
   /Production Environment binding required/);
 const inert = "\njobs:\n  fixture:\n    run: echo 'secrets.BACKEND_API_KEY'\n";
 assert.equal(inspectChangedWorkflow("inert-reference-fixture", inert), 0);
+// A deleted credential-consuming workflow is a valid reduction of authority.
+assert.equal(inspectChangedWorkflow("deleted-workflow-fixture", "", good), 0);
 
 console.log(JSON.stringify({
   ok: true,
   contract: "mad4b.credential-environment-scope-ratchet.v1",
   governed_production_jobs_checked: governedJobs,
   changed_secret_consuming_jobs_checked: ratchetJobs,
-  fixture_cases_passed: 6,
+  fixture_cases_passed: 7,
   secret_values_accessed: false,
   provider_requests_performed: false,
   repository_mutation_performed: false,
