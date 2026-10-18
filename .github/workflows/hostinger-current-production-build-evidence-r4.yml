@@ -19,6 +19,9 @@ concurrency:
 
 jobs:
   collect-build-evidence:
+    environment:
+      name: Production
+      deployment: false
     name: Collect governed current Production build evidence
     if: >-
       (github.event_name == 'workflow_dispatch' && github.actor == github.repository_owner) ||
