@@ -19,6 +19,8 @@ import {
   validateBrowser4Url,
 } from './browser4-adapter.mjs';
 import { createLocalAgentRuntimeHandler } from './local-agent-runtime.mjs';
+import { createStagingRecoveryBridge, stagingRecoveryCapabilities } from './connector-staging-recovery.mjs';
+import { createDeveloperSessionManager } from './connector-developer-sessions.mjs';
 
 // ---------------------------------------------------------------------------
 // Bootstrap â€” manual .env parse (no dotenv dependency)
@@ -1852,6 +1854,50 @@ async function handleCf(req, res) {
   }
 }
 
+// Admin-only failover: never accept a legacy backend key as the connector credential.
+const stagingRecoveryDispatch = createStagingRecoveryBridge();
+const developerSessions = createDeveloperSessionManager();
+function requireRecoveryAuth(req, res) {
+  const header = String(req.headers['authorization'] || '');
+  const bearer = header.startsWith('Bearer ') ? header.slice(7).trim() : '';
+  const candidate = [bearer, String(req.headers['x-connector-secret'] || '').trim()];
+  const approved = [CONNECTOR_SECRET, CONNECTOR_LOCAL_API_KEY].filter(Boolean);
+  if (approved.length && candidate.some((value) => value && approved.includes(value))) return true;
+  err(res, 401, 'CONNECTOR_RECOVERY_AUTH_REQUIRED',
+    'Admin Recovery requires a device-scoped connector credential, not a Production backend key');
+  return false;
+}
+async function handleStagingRecovery(req, res) {
+  if (!requireRecoveryAuth(req, res)) return;
+  if (req.url !== '/recovery/staging') return err(res, 400, 'QUERY_NOT_ALLOWED', 'Recovery does not accept query credentials or routing');
+  let body;
+  try { body = await readBody(req); } catch { return err(res, 400, 'BAD_BODY', 'Invalid recovery request'); }
+  const result = await stagingRecoveryDispatch(body, {
+    stagingBearer: String(req.headers['x-mad4b-staging-mcp-bearer'] || ''),
+  });
+  console.log(JSON.stringify({
+    ts: new Date().toISOString(), method: 'POST', path: '/recovery/staging',
+    action: typeof body.action === 'string' ? body.action.slice(0, 48) : 'invalid',
+    outcome: result.ok ? 'ok' : result.code || 'not_ready',
+    selected_environment: result.selected_environment || null,
+    secrets_included: false,
+  }));
+  return json(res, result.http_status || 500, result);
+}
+async function handleDeveloperSession(req, res) {
+  if (!requireRecoveryAuth(req, res)) return;
+  if (req.url !== '/developer/sessions') return err(res, 400, 'QUERY_NOT_ALLOWED', 'Developer sessions do not accept query credentials');
+  let body;
+  try { body = await readBody(req); } catch { return err(res, 400, 'BAD_BODY', 'Invalid developer request'); }
+  const result = developerSessions.dispatch(body);
+  console.log(JSON.stringify({
+    ts: new Date().toISOString(), method: 'POST', path: '/developer/sessions',
+    action: typeof body.action === 'string' ? body.action.slice(0, 32) : 'invalid',
+    outcome: result.ok ? 'ok' : result.code || 'not_ready',
+  }));
+  return json(res, result.http_status || 500, result);
+}
+
 const server = http.createServer(async (req, res) => {
   const url = req.url?.split('?')[0] ?? '/';
   const method = req.method ?? 'GET';
@@ -1861,6 +1907,14 @@ const server = http.createServer(async (req, res) => {
       audit(req, { action: 'health' });
       return json(res, 200, healthBody());
     }
+
+    if (method === 'GET' && url === '/recovery/capabilities') {
+      if (!requireRecoveryAuth(req, res)) return;
+      if (req.url !== '/recovery/capabilities') return err(res, 400, 'QUERY_NOT_ALLOWED', 'No query credentials');
+      return json(res, 200, { ok: true, staging: stagingRecoveryCapabilities(), developer: developerSessions.capabilities });
+    }
+    if (method === 'POST' && url === '/recovery/staging') return await handleStagingRecovery(req, res);
+    if (method === 'POST' && url === '/developer/sessions') return await handleDeveloperSession(req, res);
 
     if (method === 'GET' && url === '/policy') { if (!requireAuth(req, res)) return; await refreshShellPolicy(); audit(req, { action: 'policy' }); return json(res, 200, policyBody()); }
 
