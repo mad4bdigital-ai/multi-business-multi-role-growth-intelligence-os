@@ -91,7 +91,7 @@ function boundedRead(absolute, maxBytes) {
   try {
     const before = fs.fstatSync(fd);
     const named = fs.lstatSync(absolute);
-    if (!before.isFile() || named.isSymbolicLink() ||
+    if (!before.isFile() || before.nlink !== 1 || named.isSymbolicLink() ||
         before.dev !== named.dev || before.ino !== named.ino)
       return { denied: true };
     if (before.size > maxBytes) return { tooLarge: true };
@@ -107,8 +107,9 @@ function boundedRead(absolute, maxBytes) {
     if (length > maxBytes) return { tooLarge: true };
     const namedAfter = fs.lstatSync(absolute);
     const openedAfter = fs.fstatSync(fd);
-    if (namedAfter.isSymbolicLink() || namedAfter.dev !== openedAfter.dev ||
-        namedAfter.ino !== openedAfter.ino) return { denied: true };
+    if (namedAfter.isSymbolicLink() || openedAfter.nlink !== 1 ||
+        namedAfter.dev !== openedAfter.dev || namedAfter.ino !== openedAfter.ino)
+      return { denied: true };
     return { bytes: Buffer.concat(parts, length) };
   } finally { fs.closeSync(fd); }
 }
@@ -247,7 +248,8 @@ export function createDeviceFilesEngine({ env = process.env } = {}) {
     const target = destination(to);
     if (!source || !target || !isText(from) || !isText(to)) return failure("path_denied");
     if (!/^[a-f0-9]{64}$/i.test(input.expected_sha256 || "")) return failure("digest_required");
-    if (!fs.statSync(source).isFile()) return failure("not_file");
+    const sourceStat = fs.lstatSync(source);
+    if (!sourceStat.isFile() || sourceStat.nlink !== 1) return failure("path_denied");
     if (fs.statSync(source).size > MAX_FILE_BYTES) return failure("file_too_large");
     const before = fs.readFileSync(source);
     if (before.length > MAX_FILE_BYTES) return failure("file_too_large");
@@ -365,7 +367,8 @@ export function createDeviceFilesEngine({ env = process.env } = {}) {
     const relative = input.relative_path;
     const absolute = resolve(root, relative);
     if (!absolute || !isText(relative)) return failure("path_denied");
-    if (!fs.statSync(absolute).isFile()) return failure("not_file");
+    const originalStat = fs.lstatSync(absolute);
+    if (!originalStat.isFile() || originalStat.nlink !== 1) return failure("path_denied");
     if (!/^[a-f0-9]{64}$/i.test(input.expected_sha256 || "")) return failure("digest_required");
     if (typeof input.old_text !== "string" || !input.old_text ||
       typeof input.new_text !== "string") return failure("invalid_content");

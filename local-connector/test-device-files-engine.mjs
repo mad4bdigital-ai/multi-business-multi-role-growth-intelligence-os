@@ -271,3 +271,17 @@ test("failed patch preparation does not retain a false rollback receipt", () => 
     assert.equal(fs.readFileSync(file, "utf8"), content);
   } finally { fs.renameSync = actualRename; f.cleanup(); }
 });
+
+test("hardlinked files outside the approved tree are not readable", t => {
+  const f = fixture(true);
+  const outer = path.join(f.base, "outer.js"), linked = path.join(f.root, "src", "linked.js");
+  fs.writeFileSync(outer, "unscoped-data");
+  try {
+    try { fs.linkSync(outer, linked); } catch (error) { t.diagnostic(error.code); return; }
+    assert.equal(f.engine.dispatch({ action: "read", relative_path: "src/linked.js" }).code, "path_denied");
+    assert.equal(f.engine.dispatch({ action: "stat", relative_path: "src/linked.js" }).code, "path_denied");
+    assert.equal(f.engine.dispatch({ action: "search", query: "unscoped-data" }).matches.length, 0);
+    assert.equal(f.engine.dispatch({ action: "copy", relative_path: "src/linked.js", target_path: "src/new.js",
+      expected_sha256: hash("unscoped-data"), approval_token: "local-approval-only" }).code, "path_denied");
+  } finally { f.cleanup(); }
+});
