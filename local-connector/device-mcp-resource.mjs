@@ -225,11 +225,13 @@ export function createDeviceMcpResource({ env = process.env, files, terminal, ap
           files: {
             enabled: files?.capabilities?.enabled === true,
             read_enabled: files?.capabilities?.read_enabled === true,
-            write_enabled: false,
+            write_enabled: Boolean(approvals?.capabilities?.enabled && files?.capabilities?.write_enabled),
+            local_consent_required: true,
           },
           terminal: {
             enabled: terminal?.capabilities?.enabled === true,
-            interactive_enabled: false,
+            interactive_enabled: Boolean(approvals?.capabilities?.enabled && terminal?.capabilities?.interactive_enabled),
+            local_consent_required: true,
             pty: terminal?.capabilities?.pty === true,
           },
           secrets_included: false,
