@@ -3139,6 +3139,17 @@
       "grants_production_activation": false
     },
     {
+      "fingerprint": "http-generic-api/scripts/maintenance-tools/branch-hygiene-policy.mjs|GH_TOKEN|environment_reference|gh.token",
+      "owner": "branch-hygiene-governance",
+      "reason": "GitHub Actions supplies GH_TOKEN at execution time for same-repository PR run inspection and narrowly scoped, explicitly confirmed cancellation. This entry registers only the non-secret environment variable reference, never its value; it does not confer token access, repository write permission, protected-ref modification, or Production authority.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
       "fingerprint": "local-connector/connector-developer-sessions.mjs|SESSION_TTL_MS|literal_declaration|session.ttl.ms",
       "owner": "developer-runtime-governance",
       "reason": "Fixed 30-minute upper session lifetime inside an opt-in repo-bound developer adapter. Static resource limit, not user-configurable or a runtime credential.",

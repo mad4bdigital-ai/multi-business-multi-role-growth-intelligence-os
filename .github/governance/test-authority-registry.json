@@ -829,6 +829,12 @@
       "test_paths": [
         "http-generic-api/test-runtime-guards.mjs"
       ]
+    },
+    {
+      "id": "branch_hygiene_exact_head_ci_run_safety",
+      "test_paths": [
+        ".github/tests/branch-hygiene-policy.test.mjs"
+      ]
     }
   ],
   "discovery": {
