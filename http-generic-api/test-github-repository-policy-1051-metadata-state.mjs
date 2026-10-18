@@ -216,14 +216,17 @@ assert.equal(RECONCILED_APPLY_CONFIRM, "APPLY_1051_GITHUB_REPOSITORY_POLICY_AFTE
 // Environment scope selects the Production credential; it is not Apply authority.
 // Preserve the issue-comment confirmation gates and workflow ordering for all
 // five Migration 1051 jobs, including the two mutation-capable Apply paths.
-const migrationJobs = [...workflow.matchAll(/^  ([a-z][a-z0-9_]*):\n/gm)];
+const jobsStart = workflow.indexOf("\njobs:\n");
+assert.ok(jobsStart >= 0, "Migration 1051 workflow jobs section required");
+const jobSection = workflow.slice(jobsStart + "\njobs:\n".length);
+const migrationJobs = [...jobSection.matchAll(/^  ([a-z][a-z0-9_]*):\n/gm)];
 const expectedMigrationJobs = [
   "readiness", "reconcile_record_only", "apply_after_record_only_reconcile", "apply", "verify",
 ];
 assert.deepEqual(migrationJobs.map((match) => match[1]), expectedMigrationJobs);
 const blocks = new Map(migrationJobs.map((match, index) => [
   match[1],
-  workflow.slice(match.index, migrationJobs[index + 1]?.index ?? workflow.length),
+  jobSection.slice(match.index, migrationJobs[index + 1]?.index ?? jobSection.length),
 ]));
 const jobsContract = {
   readiness: {
