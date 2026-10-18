@@ -9,7 +9,7 @@ const staging = read("autopilot-portable-staging/Repair-LocalConnectorTunnel.ps1
 const smoke = read("http-generic-api/scripts/connector-agent-smoke-test.mjs");
 const canonical = read("canonicals/openapi/local-connector.openapi.yaml");
 const generated = read("http-generic-api/openapi/openapi.gpt-action.local-connector.yaml");
-for (const file of ["connector-staging-recovery.mjs", "connector-developer-sessions.mjs"]) {
+for (const file of ["connector-staging-recovery.mjs", "connector-developer-sessions.mjs", "device-files-engine.mjs"]) {
   assert.ok(server.includes(file), "Local Connector server must import " + file);
   assert.ok(agent.includes("local-connector/" + file), "Agent manifest must package " + file);
   assert.ok(agent.includes("Get-Mad4BManifestFile -Name '" + file + "'"), "Signed installer must fetch " + file);
@@ -23,7 +23,7 @@ assert.ok(legacy.includes("Get-Mad4BManifestFile -Name 'connector-admin-recovery
 assert.ok(upgrader.includes('Name = "connector-admin-recovery.openapi.yaml"'));
 assert.ok(server.includes("installedSchema"), "Connector must serve packaged schema");
 assert.ok(smoke.includes('"connector-admin-recovery.openapi.yaml"'));
-for (const marker of ["/recovery/capabilities:", "/recovery/staging:", "/developer/sessions:"]) {
+for (const marker of ["/recovery/capabilities:", "/recovery/staging:", "/developer/sessions:", "/device/files:"]) {
   assert.ok(canonical.includes(marker), "Canonical schema missing " + marker);
   assert.ok(generated.includes(marker), "Generated schema missing " + marker);
   assert.ok(server.includes(marker.slice(0, -1)), "Server route missing " + marker);
@@ -44,5 +44,9 @@ assert.ok(canonical.includes("cursor: { type: integer"), "Developer session curs
 assert.match(server, /requireRecoveryAuth/);
 assert.match(server, /createStagingRecoveryBridge/);
 assert.match(server, /createDeveloperSessionManager/);
+assert.match(server, /createDeviceFilesEngine/);
+assert.match(server, /DEVICE_SCOPE_REQUIRED/);
+assert.match(server, /x-mad4b-device-write-approval/);
+assert.match(server, /readDeviceBody/);
 console.log(JSON.stringify({ ok: true, test: "connector_staging_mcp_developer_distribution",
   signed_assets: 2, openapi_routes: 3, production_mutation: false }));

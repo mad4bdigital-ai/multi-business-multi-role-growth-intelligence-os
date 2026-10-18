@@ -1,0 +1,112 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { createHash } from "node:crypto";
+import { createDeviceFilesEngine } from "./device-files-engine.mjs";
+
+const hash = (s) => createHash("sha256").update(s).digest("hex");
+function fixture(write = false) {
+  const base = fs.mkdtempSync(path.join(os.tmpdir(), "mad4b-device-files-"));
+  const root = path.join(base, "project");
+  const state = path.join(base, "state");
+  fs.mkdirSync(root);
+  fs.mkdirSync(state, { mode: 0o700 });
+  fs.mkdirSync(path.join(root, "src"));
+  fs.writeFileSync(path.join(root, "src", "index.js"), "const greeting = 'hello';\n");
+  fs.writeFileSync(path.join(root, ".env"), "SHOULD_NOT_BE_READ=secret\n");
+  const env = {
+    CONNECTOR_DEVICE_FILES_ENABLED: "true",
+    CONNECTOR_DEVICE_FILE_ROOT: root,
+    CONNECTOR_FILE_PATHS: root,
+    CONNECTOR_DEVICE_STATE_DIR: state,
+    CONNECTOR_DEVICE_FILE_WRITES_ENABLED: write ? "true" : "false",
+    CONNECTOR_DEVICE_FILE_APPROVAL_TOKEN: write ? "local-approval-only" : "",
+  };
+  return { base, root, state, env, engine: createDeviceFilesEngine({ env }),
+    cleanup: () => fs.rmSync(base, { recursive: true, force: true }) };
+}
+test("files engine is disabled by default and requires exact allowlist binding", () => {
+  assert.equal(createDeviceFilesEngine().dispatch({ action: "read", relative_path: "src/index.js" }).code, "disabled");
+  const f = fixture();
+  try {
+    assert.equal(f.engine.capabilities.enabled, true);
+    assert.equal(createDeviceFilesEngine({ env: { ...f.env, CONNECTOR_FILE_PATHS: f.base } }).capabilities.enabled, false);
+    assert.equal(f.engine.capabilities.write_enabled, false);
+    assert.equal(f.engine.dispatch({ action: "patch", relative_path: "src/index.js" }).code, "write_denied");
+  } finally { f.cleanup(); }
+});
+test("scoped read, list, info and search use deterministic paged results", () => {
+  const f = fixture();
+  try {
+    const read = f.engine.dispatch({ action: "read", relative_path: "src/index.js" });
+    assert.equal(read.sha256, hash("const greeting = 'hello';\n"));
+    assert.match(read.content, /hello/);
+    const info = f.engine.dispatch({ action: "info", relative_path: "src/index.js" });
+    assert.equal(info.content, undefined);
+    const list = f.engine.dispatch({ action: "list", relative_path: ".", limit: 1 });
+    assert.equal(list.entries[0].name, "src");
+    assert.equal(list.next_cursor, null);
+    const contents = f.engine.dispatch({ action: "search", relative_path: ".", query: "greeting" });
+    assert.equal(contents.matches[0].relative_path, "src/index.js");
+    assert.equal(contents.matches[0].line, 1);
+    assert.equal(f.engine.dispatch({ action: "read", relative_path: ".env" }).code, "path_denied");
+    assert.equal(f.engine.dispatch({ action: "read", relative_path: "../secret.txt" }).code, "path_denied");
+    assert.equal(f.engine.dispatch({ action: "read", relative_path: "/etc/passwd" }).code, "path_denied");
+  } finally { f.cleanup(); }
+});
+test("symlinked paths cannot escape the bound root", (t) => {
+  const f = fixture();
+  const external = path.join(f.base, "outside.js");
+  fs.writeFileSync(external, "outside");
+  try {
+    try { fs.symlinkSync(external, path.join(f.root, "src", "linked.js")); }
+    catch (err) { t.diagnostic("symlink creation unavailable: " + err.code); return; }
+    assert.equal(f.engine.dispatch({ action: "read", relative_path: "src/linked.js" }).code, "path_denied");
+    const matches = f.engine.dispatch({ action: "search", relative_path: "src", query: "outside" });
+    assert.deepEqual(matches.matches, []);
+  } finally { f.cleanup(); }
+});
+test("atomic optimistic patch requires explicit write approval and supports rollback", () => {
+  const f = fixture(true);
+  try {
+    const existing = f.engine.dispatch({ action: "read", relative_path: "src/index.js" });
+    const request = {
+      action: "patch", relative_path: "src/index.js", old_text: "hello", new_text: "world",
+      expected_sha256: existing.sha256,
+    };
+    assert.equal(f.engine.dispatch(request).code, "approval_required");
+    assert.equal(f.engine.dispatch({ ...request, approval_token: "local-approval-only", expected_sha256: hash("x") }).code, "digest_mismatch");
+    const changed = f.engine.dispatch({ ...request, approval_token: "local-approval-only" });
+    assert.equal(changed.ok, true);
+    assert.notEqual(changed.after_sha256, changed.before_sha256);
+    assert.match(fs.readFileSync(path.join(f.root, "src", "index.js"), "utf8"), /world/);
+    assert.equal(f.engine.dispatch({ ...request, approval_token: "local-approval-only" }).code, "digest_mismatch");
+    const restored = f.engine.dispatch({ action: "rollback", transaction_id: changed.transaction_id,
+      approval_token: "local-approval-only" });
+    assert.equal(restored.ok, true);
+    assert.equal(restored.restored_sha256, existing.sha256);
+    assert.equal(f.engine.dispatch({ action: "rollback", transaction_id: changed.transaction_id,
+      approval_token: "local-approval-only" }).code, "rollback_unknown");
+  } finally { f.cleanup(); }
+});
+test("patch rejects ambiguous match and blocks rollback after independent modification", () => {
+  const f = fixture(true);
+  try {
+    const file = path.join(f.root, "src", "index.js");
+    fs.writeFileSync(file, "hello hello");
+    const unchanged = f.engine.dispatch({ action: "patch", relative_path: "src/index.js",
+      old_text: "hello", new_text: "x", expected_sha256: hash("hello hello"),
+      approval_token: "local-approval-only" });
+    assert.equal(unchanged.code, "patch_not_unique");
+    const patched = f.engine.dispatch({ action: "patch", relative_path: "src/index.js",
+      old_text: "hello hello", new_text: "updated", expected_sha256: hash("hello hello"),
+      approval_token: "local-approval-only" });
+    assert.equal(patched.ok, true);
+    fs.writeFileSync(file, "edited by another writer");
+    assert.equal(f.engine.dispatch({ action: "rollback", transaction_id: patched.transaction_id,
+      approval_token: "local-approval-only" }).code, "digest_mismatch");
+    assert.equal(fs.readFileSync(file, "utf8"), "edited by another writer");
+  } finally { f.cleanup(); }
+});

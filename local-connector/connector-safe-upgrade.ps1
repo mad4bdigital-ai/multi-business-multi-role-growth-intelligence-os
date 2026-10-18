@@ -20,6 +20,7 @@ $Browser4Path = Join-Path $Root "browser4-adapter.mjs"
 $LocalAgentRuntimePath = Join-Path $Root "local-agent-runtime.mjs"
 $StagingRecoveryBridgePath = Join-Path $Root "connector-staging-recovery.mjs"
 $DeveloperSessionsPath = Join-Path $Root "connector-developer-sessions.mjs"
+$DeviceFilesEnginePath = Join-Path $Root "device-files-engine.mjs"
 $AdminRecoverySchemaPath = Join-Path $Root "connector-admin-recovery.openapi.yaml"
 $LogPath = Join-Path $Root "safe-upgrade.log"
 $ManifestPath = Join-Path $Root "connector-agent-manifest.json"
@@ -29,6 +30,7 @@ $RuntimePackage = @(
   @{ Name = "local-agent-runtime.mjs"; Destination = $LocalAgentRuntimePath },
   @{ Name = "connector-staging-recovery.mjs"; Destination = $StagingRecoveryBridgePath },
   @{ Name = "connector-developer-sessions.mjs"; Destination = $DeveloperSessionsPath },
+  @{ Name = "device-files-engine.mjs"; Destination = $DeviceFilesEnginePath },
   @{ Name = "connector-admin-recovery.openapi.yaml"; Destination = $AdminRecoverySchemaPath }
 )
 $RuntimePackageApplied = $false

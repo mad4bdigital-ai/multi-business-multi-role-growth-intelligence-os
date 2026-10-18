@@ -21,6 +21,7 @@ import {
 import { createLocalAgentRuntimeHandler } from './local-agent-runtime.mjs';
 import { createStagingRecoveryBridge, stagingRecoveryCapabilities } from './connector-staging-recovery.mjs';
 import { createDeveloperSessionManager } from './connector-developer-sessions.mjs';
+import { createDeviceFilesEngine } from './device-files-engine.mjs';
 
 // ---------------------------------------------------------------------------
 // Bootstrap â€” manual .env parse (no dotenv dependency)
@@ -1857,6 +1858,7 @@ async function handleCf(req, res) {
 // Admin-only failover: never accept a legacy backend key as the connector credential.
 const stagingRecoveryDispatch = createStagingRecoveryBridge();
 const developerSessions = createDeveloperSessionManager();
+const deviceFiles = createDeviceFilesEngine();
 function requireRecoveryAuth(req, res) {
   const header = String(req.headers['authorization'] || '');
   const bearer = header.startsWith('Bearer ') ? header.slice(7).trim() : '';
@@ -1898,6 +1900,49 @@ async function handleDeveloperSession(req, res) {
   return json(res, result.http_status || 500, result);
 }
 
+// Separate opt-in device-files endpoint; always bound to a specific device identity.
+// File modifications additionally require local write approval in the device engine.
+function readDeviceBody(req, maxBytes = 2 * 1024 * 1024) {
+  return new Promise((resolve, reject) => {
+    let size = 0;
+    let exceeded = false;
+    const chunks = [];
+    req.on('data', (chunk) => {
+      size += chunk.byteLength;
+      if (size > maxBytes) { exceeded = true; chunks.length = 0; }
+      else if (!exceeded) chunks.push(chunk);
+    });
+    req.on('end', () => {
+      if (exceeded) return reject(Object.assign(new Error('request_too_large'), { status: 413 }));
+      try { resolve(JSON.parse(Buffer.concat(chunks).toString('utf8'))); }
+      catch { reject(Object.assign(new Error('invalid_json'), { status: 400 })); }
+    });
+    req.on('error', reject);
+  });
+}
+async function handleDeviceFiles(req, res) {
+  if (!requireRecoveryAuth(req, res)) return;
+  if (req.url !== '/device/files') return err(res, 400, 'QUERY_NOT_ALLOWED', 'Device files accepts no query arguments');
+  let body;
+  try { body = await readDeviceBody(req); }
+  catch (e) { return err(res, e.status || 400, 'BAD_DEVICE_BODY', 'Device file request rejected'); }
+  if (!body || typeof body !== 'object' || Array.isArray(body) || 'approval_token' in body)
+    return err(res, 400, 'INVALID_DEVICE_BODY', 'Write approval must be supplied via trusted header, not body');
+  if (!CONNECTOR_DEVICE_ID || String(body.device_id || '') !== CONNECTOR_DEVICE_ID) {
+    return err(res, 403, 'DEVICE_SCOPE_REQUIRED', 'Exact bound device identity is required');
+  }
+  const result = deviceFiles.dispatch({ ...body,
+    approval_token: String(req.headers['x-mad4b-device-write-approval'] || ''),
+  });
+  console.log(JSON.stringify({
+    ts: new Date().toISOString(), method: 'POST', path: '/device/files',
+    action: typeof body.action === 'string' ? body.action.slice(0, 32) : 'invalid',
+    outcome: result.ok ? 'ok' : result.code || 'denied', device_scoped: true,
+    secrets_included: false,
+  }));
+  return json(res, result.http_status || 500, result);
+}
+
 const server = http.createServer(async (req, res) => {
   const url = req.url?.split('?')[0] ?? '/';
   const method = req.method ?? 'GET';
@@ -1911,10 +1956,11 @@ const server = http.createServer(async (req, res) => {
     if (method === 'GET' && url === '/recovery/capabilities') {
       if (!requireRecoveryAuth(req, res)) return;
       if (req.url !== '/recovery/capabilities') return err(res, 400, 'QUERY_NOT_ALLOWED', 'No query credentials');
-      return json(res, 200, { ok: true, staging: stagingRecoveryCapabilities(), developer: developerSessions.capabilities });
+      return json(res, 200, { ok: true, staging: stagingRecoveryCapabilities(), developer: developerSessions.capabilities, device_files: deviceFiles.capabilities });
     }
     if (method === 'POST' && url === '/recovery/staging') return await handleStagingRecovery(req, res);
     if (method === 'POST' && url === '/developer/sessions') return await handleDeveloperSession(req, res);
+    if (method === 'POST' && url === '/device/files') return await handleDeviceFiles(req, res);
 
     if (method === 'GET' && url === '/policy') { if (!requireAuth(req, res)) return; await refreshShellPolicy(); audit(req, { action: 'policy' }); return json(res, 200, policyBody()); }
 

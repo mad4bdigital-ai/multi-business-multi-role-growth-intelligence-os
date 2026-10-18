@@ -294,6 +294,60 @@ paths:
         '429':
           description: Session concurrency limit reached
 
+  /device/files:
+    post:
+      x-openai-isConsequential: true
+      tags: [connector]
+      operationId: connectorDeviceFiles
+      summary: Inspect, search or atomically patch one bound device project root
+      description: "Exact device ID and allowlisted project root. Read, list, search, SHA-checked atomic patch and rollback. Mutations need separate local approval. Deny symlink traversal, arbitrary filesystem access, shell and Production authority."
+      security:
+        - connectorBearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [device_id, action]
+              properties:
+                device_id: { type: string }
+                action: { type: string, enum: [capabilities, list, info, read, search, patch, rollback] }
+                relative_path: { type: string, description: "Relative to the exact device bound root; never absolute." }
+                query: { type: string, description: "Literal search term, not a regular expression." }
+                mode: { type: string, enum: [filename, content] }
+                cursor: { type: integer, minimum: 0 }
+                limit: { type: integer, minimum: 1, maximum: 100 }
+                expected_sha256: { type: string, description: "Expected 64-digit SHA-256 of a file before patch." }
+                old_text: { type: string }
+                new_text: { type: string }
+                transaction_id: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Bounded file result or patch receipt
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                properties:
+                  ok: { type: boolean }
+                  http_status: { type: integer }
+                  code: { type: string }
+                  relative_path: { type: string }
+                  sha256: { type: string }
+                  transaction_id: { type: string }
+        '400':
+          description: Invalid action or relative path
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403':
+          description: Device scope, file allowlist or explicit write approval missing
+        '409':
+          description: SHA mismatch, unsafe patch or rollback conflict
+        '413':
+          description: Payload or file exceeds size limit
+
   /github:
     post:
       x-openai-isConsequential: false
