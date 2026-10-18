@@ -118,3 +118,15 @@ test("Unhealthy Staging and MCP JSON-RPC error do not produce false success", as
   assert.equal(result.code, "staging_mcp_read_failed");
   assert.equal(JSON.stringify(result).includes("denied"), false);
 });
+
+test("Bounded MCP text/event-stream tool catalog is accepted without open-ended SSE session", async () => {
+  const bridge = createStagingRecoveryBridge({ env: config, fetchImpl: async (url) => {
+    if (url === "https://auth.mad4b.com/health") return reply({ ok: false }, 503);
+    return new Response('event: message\ndata: {"jsonrpc":"2.0","id":1,"result":{"tools":[]}}\n\n', {
+      status: 200, headers: { "content-type": "text/event-stream" },
+    });
+  } });
+  const result = await bridge({ action: "mcp_catalog" }, { stagingBearer: "stage-token-123456" });
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.result.result.tools, []);
+});
