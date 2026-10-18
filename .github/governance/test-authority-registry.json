@@ -277,6 +277,7 @@
         "http-generic-api/test-connector-staging-mcp-distribution.mjs",
         "http-generic-api/test-control-plane-convergence-regressions.mjs",
         "http-generic-api/test-db-driven-connector-capability-policy.mjs",
+        "http-generic-api/test-desktop-device-workspace-wiring.mjs",
         "http-generic-api/test-device-generation-challenge-verifier.mjs",
         "http-generic-api/test-installer-credential-epoch.mjs",
         "http-generic-api/test-local-connector-capability-installer-grants.mjs",
@@ -298,8 +299,10 @@
         "http-generic-api/test-local-manager-signed-installer-exit-code.mjs",
         "http-generic-api/test-local-manager-tool-release-owner.mjs",
         "http-generic-api/test-windows-staging-bootstrap-supervisor.mjs",
+        "local-connector/connector-watchdog.ps1",
         "local-connector/Get-LocalConnectorConvergence.ps1",
-        "local-connector/connector-watchdog.ps1"
+        "local-connector/test-device-files-engine.mjs",
+        "local-connector/test-device-runtime-http.mjs"
       ]
     },
     {
