@@ -4,6 +4,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { EventEmitter } from "node:events";
+import { spawnSync } from "node:child_process";
 import {
   developerSessionCapabilities, createDeveloperSessionManager,
 } from "./connector-developer-sessions.mjs";
@@ -157,4 +158,31 @@ test("readonly Developer Git probes neutralize external repo hooks and fsmonitor
     ["-c", "core.fsmonitor=false", "-c", "core.hooksPath=" + os.devNull]);
   assert.equal(command.options.env.GIT_CONFIG_GLOBAL, os.devNull);
   assert.equal(command.options.env.GIT_CONFIG_NOSYSTEM, "1");
+});
+
+test("actual clean Git worktree is required before exact-commit Node execution", () => {
+  const { root, env } = fixture();
+  try {
+    const git = args => {
+      const run = spawnSync("git", args, { cwd: root, encoding: "utf8", timeout: 5000,
+        env: { ...process.env, GIT_CONFIG_NOSYSTEM: "1", GIT_CONFIG_GLOBAL: os.devNull } });
+      assert.equal(run.status, 0, run.stderr);
+      return run.stdout.trim();
+    };
+    git(["init", "-q"]);
+    git(["-c", "user.name=Runtime Test", "-c", "user.email=runtime@example.test",
+      "add", "check.mjs"]);
+    git(["-c", "user.name=Runtime Test", "-c", "user.email=runtime@example.test",
+      "commit", "-q", "-m", "clean baseline"]);
+    const sha = git(["rev-parse", "HEAD"]);
+    const manager = createDeveloperSessionManager({
+      env: { ...env, CONNECTOR_DEVELOPER_TESTS_ENABLED: "true" },
+      spawnImpl: fakeSpawn,
+    });
+    const request = { action: "start", task: "node_test", test_file: "check.mjs",
+      expected_head_sha: sha };
+    assert.equal(manager.dispatch(request).ok, true);
+    fs.appendFileSync(path.join(root, "check.mjs"), "\n// uncommitted change");
+    assert.equal(manager.dispatch(request).code, "repo_worktree_not_clean");
+  } finally { fs.rmSync(root, { recursive: true, force: true }); }
 });
