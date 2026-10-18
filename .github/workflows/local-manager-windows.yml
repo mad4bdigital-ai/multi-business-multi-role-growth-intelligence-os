@@ -45,6 +45,19 @@ jobs:
         with:
           dotnet-version: '8.0.x'
 
+      - name: Reject unsupported build environments at MSBuild boundary
+        shell: pwsh
+        run: |
+          # Build profiles are compile-time constants. The MSBuild guard is the
+          # authoritative validation; a runtime comparison against a constant
+          # cannot detect an unsupported build profile (CS8519).
+          $output = & dotnet msbuild apps/local-manager-windows/Mad4B.LocalManager.Windows.csproj -target:ValidateLocalManagerEnvironment -property:LocalManagerEnvironment=unsupported 2>&1 | Out-String
+          $exitCode = $LASTEXITCODE
+          if ($exitCode -eq 0 -or $output -notmatch 'LocalManagerEnvironment must be production or staging') {
+            throw "MSBuild did not explicitly reject an unsupported Local Manager environment (exit code: $exitCode)."
+          }
+          Write-Host "Unsupported build profile rejected as expected."
+
       - name: Verify profile isolation and update integrity
         run: |
           dotnet run --project apps/local-manager-windows-tests/LocalManagerProfileTests.csproj -p:LocalManagerEnvironment=production
