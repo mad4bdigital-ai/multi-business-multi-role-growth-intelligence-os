@@ -165,6 +165,9 @@ test("real loopback Connector enforces device boundaries and preserves file/term
       tool: "files_create_file", arguments: writeArgs,
     };
     assert.equal((await post("/device/mcp/approvals", approvalRequest, auth)).status, 403);
+    assert.equal((await post("/device/mcp/approvals", approvalRequest,
+      { ...auth, "x-mad4b-device-mcp-approval": "http-local-consent-strong-test-token",
+        "x-forwarded-for": "203.0.113.10" })).status, 403);
     assert.equal((await post("/device/mcp/approvals",
       { ...approvalRequest, device_id: "wrong" },
       { ...auth, "x-mad4b-device-mcp-approval": "http-local-consent-strong-test-token" })).status, 400);
