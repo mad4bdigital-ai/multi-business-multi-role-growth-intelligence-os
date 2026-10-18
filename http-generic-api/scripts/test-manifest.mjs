@@ -3,6 +3,11 @@ import { testCommands as spec012Commands } from "./manifests/test-manifest-spec0
 import { testCommands as spec017Commands } from "./manifests/test-manifest-spec017.mjs";
 import { testCommands as upstreamMainCommands } from "./manifests/test-manifest-upstream-main.mjs";
 
+const connectorRecoveryTestCommands = Object.freeze([
+  "node ../local-connector/test-connector-staging-recovery.mjs",
+  "node ../local-connector/test-connector-developer-sessions.mjs",
+]);
+
 const upstreamCommands = [
   "node test-local-connector-installer-capability.mjs",
   "node test-full-schema-metadata-census.mjs",
@@ -230,5 +235,6 @@ export const testCommands = Object.freeze([
     ...upstreamMainCommands,
     ...upstreamCommands,
     ...staticDiscoveryCommands,
+    ...connectorRecoveryTestCommands,
   ]),
 ]);
