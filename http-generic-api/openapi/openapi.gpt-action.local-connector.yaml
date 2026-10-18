@@ -188,7 +188,13 @@ paths:
           description: Capability state without credential values
           content:
             application/json:
-              schema: { type: object, additionalProperties: true }
+              schema:
+                type: object
+                additionalProperties: true
+                properties:
+                  ok: { type: boolean }
+                  http_status: { type: integer }
+                  code: { type: string }
         '401': { $ref: '#/components/responses/Unauthorized' }
 
   /recovery/staging:
@@ -229,7 +235,13 @@ paths:
           description: Bounded Staging diagnostic/read-only MCP result
           content:
             application/json:
-              schema: { type: object, additionalProperties: true }
+              schema:
+                type: object
+                additionalProperties: true
+                properties:
+                  ok: { type: boolean }
+                  http_status: { type: integer }
+                  code: { type: string }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403':
           description: Feature flag disabled or authority denied
@@ -267,7 +279,13 @@ paths:
           description: Session identifier, bounded output cursor or capability status
           content:
             application/json:
-              schema: { type: object, additionalProperties: true }
+              schema:
+                type: object
+                additionalProperties: true
+                properties:
+                  ok: { type: boolean }
+                  http_status: { type: integer }
+                  code: { type: string }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403':
           description: Developer features disabled or repo not authorized
