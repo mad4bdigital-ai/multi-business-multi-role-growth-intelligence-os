@@ -8,7 +8,7 @@
     "7eaf87af3c9df2a3aa55a9f6adbd93d4d7bc4334c58084cb382d851af888e4a2"
   ],
   "db_catalog_fingerprint_match": true,
-  "file_count": 8169,
+  "file_count": 8176,
   "route_count": 1120,
   "write_route_count": 684,
   "classified_write_surface_count": 44,
@@ -2002,8 +2002,8 @@
     },
     {
       "route_id": "http-generic-api/routes/connectorAgentRoutes.js#GET:/connector-agent/version:0",
-      "source_line": 958,
-      "source_offset": 49124,
+      "source_line": 979,
+      "source_offset": 50258,
       "method": "GET",
       "path": "/connector-agent/version",
       "file": "http-generic-api/routes/connectorAgentRoutes.js",
@@ -2011,8 +2011,8 @@
     },
     {
       "route_id": "http-generic-api/routes/connectorAgentRoutes.js#GET:/connector-agent/manifest.json:1",
-      "source_line": 988,
-      "source_offset": 50276,
+      "source_line": 1009,
+      "source_offset": 51410,
       "method": "GET",
       "path": "/connector-agent/manifest.json",
       "file": "http-generic-api/routes/connectorAgentRoutes.js",
@@ -2020,8 +2020,8 @@
     },
     {
       "route_id": "http-generic-api/routes/connectorAgentRoutes.js#GET:/connector-agent/installer.ps1:2",
-      "source_line": 1034,
-      "source_offset": 51894,
+      "source_line": 1055,
+      "source_offset": 53028,
       "method": "GET",
       "path": "/connector-agent/installer.ps1",
       "file": "http-generic-api/routes/connectorAgentRoutes.js",
@@ -2029,8 +2029,8 @@
     },
     {
       "route_id": "http-generic-api/routes/connectorAgentRoutes.js#POST:/connector-agent/installer/redeem:3",
-      "source_line": 1093,
-      "source_offset": 54987,
+      "source_line": 1114,
+      "source_offset": 56121,
       "method": "POST",
       "path": "/connector-agent/installer/redeem",
       "file": "http-generic-api/routes/connectorAgentRoutes.js",
@@ -2038,8 +2038,8 @@
     },
     {
       "route_id": "http-generic-api/routes/connectorAgentRoutes.js#GET:/connector-agent/files/:fileName:4",
-      "source_line": 1149,
-      "source_offset": 58330,
+      "source_line": 1170,
+      "source_offset": 59464,
       "method": "GET",
       "path": "/connector-agent/files/:fileName",
       "file": "http-generic-api/routes/connectorAgentRoutes.js",
@@ -2047,8 +2047,8 @@
     },
     {
       "route_id": "http-generic-api/routes/connectorAgentRoutes.js#GET:/connector-agent/policy:5",
-      "source_line": 1166,
-      "source_offset": 59139,
+      "source_line": 1187,
+      "source_offset": 60273,
       "method": "GET",
       "path": "/connector-agent/policy",
       "file": "http-generic-api/routes/connectorAgentRoutes.js",
@@ -2056,8 +2056,8 @@
     },
     {
       "route_id": "http-generic-api/routes/connectorAgentRoutes.js#POST:/connector-agent/heartbeat:6",
-      "source_line": 1243,
-      "source_offset": 62872,
+      "source_line": 1264,
+      "source_offset": 64006,
       "method": "POST",
       "path": "/connector-agent/heartbeat",
       "file": "http-generic-api/routes/connectorAgentRoutes.js",
@@ -4135,8 +4135,8 @@
     },
     {
       "route_id": "http-generic-api/routes/localConnectorInstallRoutes.js#POST:/local-connector/install/device-download-link:0",
-      "source_line": 1276,
-      "source_offset": 55315,
+      "source_line": 1282,
+      "source_offset": 55864,
       "method": "POST",
       "path": "/local-connector/install/device-download-link",
       "file": "http-generic-api/routes/localConnectorInstallRoutes.js",
@@ -4144,8 +4144,8 @@
     },
     {
       "route_id": "http-generic-api/routes/localConnectorInstallRoutes.js#POST:/local-connector/install/download-link:1",
-      "source_line": 1346,
-      "source_offset": 59333,
+      "source_line": 1352,
+      "source_offset": 59882,
       "method": "POST",
       "path": "/local-connector/install/download-link",
       "file": "http-generic-api/routes/localConnectorInstallRoutes.js",
@@ -4153,8 +4153,8 @@
     },
     {
       "route_id": "http-generic-api/routes/localConnectorInstallRoutes.js#GET:/local-connector/install/download:2",
-      "source_line": 1404,
-      "source_offset": 62455,
+      "source_line": 1410,
+      "source_offset": 63004,
       "method": "GET",
       "path": "/local-connector/install/download",
       "file": "http-generic-api/routes/localConnectorInstallRoutes.js",
@@ -4162,8 +4162,8 @@
     },
     {
       "route_id": "http-generic-api/routes/localConnectorInstallRoutes.js#POST:/local-connector/install:3",
-      "source_line": 1453,
-      "source_offset": 65087,
+      "source_line": 1459,
+      "source_offset": 65636,
       "method": "POST",
       "path": "/local-connector/install",
       "file": "http-generic-api/routes/localConnectorInstallRoutes.js",
@@ -4171,8 +4171,8 @@
     },
     {
       "route_id": "http-generic-api/routes/localConnectorInstallRoutes.js#POST:/local-connector/install:4",
-      "source_line": 1465,
-      "source_offset": 65727,
+      "source_line": 1471,
+      "source_offset": 66276,
       "method": "POST",
       "path": "/local-connector/install",
       "file": "http-generic-api/routes/localConnectorInstallRoutes.js",
@@ -4180,8 +4180,8 @@
     },
     {
       "route_id": "http-generic-api/routes/localConnectorInstallRoutes.js#GET:/local-connector/install/status:5",
-      "source_line": 1633,
-      "source_offset": 73569,
+      "source_line": 1639,
+      "source_offset": 74118,
       "method": "GET",
       "path": "/local-connector/install/status",
       "file": "http-generic-api/routes/localConnectorInstallRoutes.js",
@@ -4189,8 +4189,8 @@
     },
     {
       "route_id": "http-generic-api/routes/localConnectorInstallRoutes.js#DELETE:/local-connector/uninstall:6",
-      "source_line": 1727,
-      "source_offset": 78291,
+      "source_line": 1733,
+      "source_offset": 78840,
       "method": "DELETE",
       "path": "/local-connector/uninstall",
       "file": "http-generic-api/routes/localConnectorInstallRoutes.js",
@@ -18594,10 +18594,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/connectorAgentRoutes.js",
-        "source_line": 1093,
+        "source_line": 1114,
         "handler_window_lines": [
-          1093,
-          1147
+          1114,
+          1168
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -18669,10 +18669,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/connectorAgentRoutes.js",
-        "source_line": 1243,
+        "source_line": 1264,
         "handler_window_lines": [
-          1243,
-          1262
+          1264,
+          1283
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -27873,10 +27873,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/localConnectorInstallRoutes.js",
-        "source_line": 1276,
+        "source_line": 1282,
         "handler_window_lines": [
-          1276,
-          1345
+          1282,
+          1351
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -27947,10 +27947,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/localConnectorInstallRoutes.js",
-        "source_line": 1346,
+        "source_line": 1352,
         "handler_window_lines": [
-          1346,
-          1403
+          1352,
+          1409
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -28018,10 +28018,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/localConnectorInstallRoutes.js",
-        "source_line": 1453,
+        "source_line": 1459,
         "handler_window_lines": [
-          1453,
-          1464
+          1459,
+          1470
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -28086,10 +28086,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/localConnectorInstallRoutes.js",
-        "source_line": 1465,
+        "source_line": 1471,
         "handler_window_lines": [
-          1465,
-          1632
+          1471,
+          1638
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -28164,10 +28164,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/localConnectorInstallRoutes.js",
-        "source_line": 1727,
+        "source_line": 1733,
         "handler_window_lines": [
-          1727,
-          1767
+          1733,
+          1773
         ],
         "evidence_flags": {
           "handler_window_present": true,
