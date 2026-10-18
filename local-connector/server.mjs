@@ -1980,6 +1980,13 @@ async function handleDeviceTerminal(req, res) {
 // The local consent header is never passed to MCP or stored in an approval receipt.
 async function handleDeviceMcpApproval(req, res) {
   if (!requireRecoveryAuth(req, res)) return;
+  // Consent must originate from the local Windows UI; tunneled public
+  // requests never receive mutation authority, even with a valid OAuth bearer.
+  const peer = String(req.socket.remoteAddress || '');
+  if (!['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(peer) ||
+      ['forwarded', 'x-forwarded-for', 'cf-connecting-ip', 'cf-ray'].some(k =>
+        Object.hasOwn(req.headers, k)))
+    return err(res, 403, 'LOOPBACK_CONSENT_REQUIRED', 'Local Windows consent required');
   if (req.url !== '/device/mcp/approvals')
     return err(res, 400, 'QUERY_NOT_ALLOWED', 'Consent does not accept query arguments');
   if (!String(req.headers['content-type'] || '').toLowerCase().startsWith('application/json'))
