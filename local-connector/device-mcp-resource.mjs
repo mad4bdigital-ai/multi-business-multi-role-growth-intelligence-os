@@ -199,7 +199,8 @@ export function createDeviceMcpResource({ env = process.env, files, terminal, no
           native_mcp_enabled: true, secrets_included: false };
         else if (d.fileAction) result = files.dispatch({ ...args, action: d.fileAction });
         else result = terminal.dispatch({ ...args, action: d.terminalAction,
-          owner_principal: "oauth:" + identity.tenantId + ":" + identity.sub + ":" + identity.clientId });
+          // Encode the entire tuple so ":" inside sub/client IDs cannot collide.
+          owner_principal: "oauth:" + JSON.stringify([identity.tenantId, identity.sub, identity.clientId]) });
         response = rpc(id, { content: [{ type: "text", text: JSON.stringify(result) }],
           isError: result?.ok !== true });
       }
