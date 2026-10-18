@@ -99,6 +99,14 @@ if (event === "pull_request" || event === "push") {
     const baselineYaml = existed
       ? execFileSync("git", ["show", baseSha + ":" + file], { encoding: "utf8" })
       : "";
+    // The three-dot diff also reports deleted workflows. Validate their
+    // provenance using Git objects; never read a path absent from HEAD.
+    const presentAtHead = execFileSync("git", ["ls-tree", "--name-only", "HEAD", "--", file],
+      { encoding: "utf8" }).trim() === file;
+    if (!presentAtHead) {
+      assert.equal(existed, true, file + ": missing from both baseline and HEAD");
+      continue;
+    }
     ratchetJobs += inspectChangedWorkflow(file, readFileSync(file, "utf8"), baselineYaml);
   }
 }
