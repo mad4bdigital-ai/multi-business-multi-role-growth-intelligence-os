@@ -121,9 +121,10 @@ export function createStagingRecoveryBridge({ env = process.env, fetchImpl = fet
     if (!unavailable) return problem("production_available_or_authority_denied", 409);
     if (action === "health") {
       const staging = await limitedRequest(STAGING_API + "/health", { method: "GET" }, fetchImpl);
+      const healthy = staging.available && staging.status === 200 && staging.body?.ok === true;
       return {
-        ok: staging.available && staging.status === 200 && staging.body?.ok === true,
-        http_status: staging.available ? 200 : 502, action, selected_environment: "staging",
+        ok: healthy,
+        http_status: healthy ? 200 : 502, action, selected_environment: "staging",
         production: probeSummary(prod), staging: probeSummary(staging),
         mode: "read_only_diagnostic", execution_allowed: false,
         environment_binding_mutated: false, secrets_included: false,
@@ -161,6 +162,13 @@ export function createStagingRecoveryBridge({ env = process.env, fetchImpl = fet
         ok: false, http_status: response.status === 401 || response.status === 403 ? 403 : 502,
         code: "staging_mcp_upstream_not_ready_or_unauthorized",
         action, selected_environment: "staging", upstream: probeSummary(response),
+        secrets_included: false,
+      };
+    }
+    if (response.body.error || response.body.result?.isError === true) {
+      return {
+        ok: false, http_status: 502, code: "staging_mcp_read_failed", action,
+        selected_environment: "staging", mcp_resource: STAGING_MCP,
         secrets_included: false,
       };
     }
