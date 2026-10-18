@@ -57,6 +57,9 @@ jobs:
             throw "MSBuild did not explicitly reject an unsupported Local Manager environment (exit code: $exitCode)."
           }
           Write-Host "Unsupported build profile rejected as expected."
+          # The failed MSBuild invocation above is EXPECTED. GitHub's pwsh
+          # wrapper exits with $LASTEXITCODE unless we clear it after checking.
+          $global:LASTEXITCODE = 0
 
       - name: Verify profile isolation and update integrity
         run: |
