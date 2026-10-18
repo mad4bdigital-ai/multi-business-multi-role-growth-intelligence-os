@@ -82,6 +82,37 @@ function resolve(root, relative, { mustExist = true } = {}) {
   }
   return current;
 }
+// Bounded descriptor-based reads defend against final-component symlink
+// substitutions and a file growing after a preliminary stat. The parent tree
+// still requires a trusted local filesystem boundary (no portable openat).
+function boundedRead(absolute, maxBytes) {
+  const flags = fs.constants.O_RDONLY | (fs.constants.O_NOFOLLOW || 0);
+  const fd = fs.openSync(absolute, flags);
+  try {
+    const before = fs.fstatSync(fd);
+    const named = fs.lstatSync(absolute);
+    if (!before.isFile() || named.isSymbolicLink() ||
+        before.dev !== named.dev || before.ino !== named.ino)
+      return { denied: true };
+    if (before.size > maxBytes) return { tooLarge: true };
+    const parts = [];
+    let length = 0;
+    while (length <= maxBytes) {
+      const block = Buffer.allocUnsafe(Math.min(65536, maxBytes + 1 - length));
+      const n = fs.readSync(fd, block, 0, block.length, null);
+      if (n === 0) break;
+      parts.push(block.subarray(0, n));
+      length += n;
+    }
+    if (length > maxBytes) return { tooLarge: true };
+    const namedAfter = fs.lstatSync(absolute);
+    const openedAfter = fs.fstatSync(fd);
+    if (namedAfter.isSymbolicLink() || namedAfter.dev !== openedAfter.dev ||
+        namedAfter.ino !== openedAfter.ino) return { denied: true };
+    return { bytes: Buffer.concat(parts, length) };
+  } finally { fs.closeSync(fd); }
+}
+
 function isText(relative) {
   return TEXT_EXTENSIONS.has(path.extname(relative).toLowerCase());
 }
@@ -128,11 +159,11 @@ export function createDeviceFilesEngine({ env = process.env } = {}) {
   function readFile(relative) {
     const absolute = resolve(root, relative);
     if (!absolute) return failure("path_denied");
-    const st = fs.statSync(absolute);
-    if (!st.isFile()) return failure("not_file");
     if (!isText(relative)) return failure("not_text_file");
-    if (st.size > MAX_FILE_BYTES) return failure("file_too_large");
-    const bytes = fs.readFileSync(absolute);
+    const opened = boundedRead(absolute, MAX_FILE_BYTES);
+    if (opened.denied) return failure("path_denied");
+    if (opened.tooLarge) return failure("file_too_large");
+    const bytes = opened.bytes;
     return { ok: true, http_status: 200, relative_path: relative,
       content: bytes.toString("utf8"), sha256: digest(bytes), size: bytes.length,
       secrets_included: false };
@@ -150,7 +181,13 @@ export function createDeviceFilesEngine({ env = process.env } = {}) {
       type: stat.isDirectory() ? "directory" : "file", size: stat.size,
       created_at: stat.birthtime.toISOString(), modified_at: stat.mtime.toISOString(),
       secrets_included: false };
-    if (stat.isFile()) result.sha256 = digest(fs.readFileSync(absolute));
+    if (stat.isFile()) {
+      const opened = boundedRead(absolute, MAX_FILE_BYTES);
+      if (opened.denied) return failure("path_denied");
+      if (opened.tooLarge) return failure("file_too_large");
+      result.sha256 = digest(opened.bytes);
+      result.size = opened.bytes.length;
+    }
     return result;
   }
   function readMultiple(input) {
@@ -311,9 +348,9 @@ export function createDeviceFilesEngine({ env = process.env } = {}) {
           if (item.name.toLowerCase().includes(needle.toLowerCase())) found.push({ relative_path: rel });
           continue;
         }
-        const size = fs.statSync(abs).size;
-        if (size > MAX_SEARCH_BYTES) continue;
-        const lines = fs.readFileSync(abs, "utf8").split(/\r?\n/);
+        const opened = boundedRead(abs, MAX_SEARCH_BYTES);
+        if (!opened.bytes) continue;
+        const lines = opened.bytes.toString("utf8").split(/\r?\n/);
         const line = lines.findIndex((s) => s.toLowerCase().includes(needle.toLowerCase()));
         if (line !== -1) found.push({ relative_path: rel, line: line + 1 });
       }
@@ -347,6 +384,7 @@ export function createDeviceFilesEngine({ env = process.env } = {}) {
     const backup = path.join(stateDir, transaction + ".backup");
     const meta = path.join(stateDir, transaction + ".json");
     const temp = path.join(path.dirname(absolute), ".mad4b-" + transaction + ".tmp");
+    let committed = false;
     try {
       fs.writeFileSync(backup, before, { flag: "wx", mode: 0o600 });
       fs.writeFileSync(meta, JSON.stringify({ relative_path: relative, before: digest(before),
@@ -356,10 +394,17 @@ export function createDeviceFilesEngine({ env = process.env } = {}) {
         return failure("digest_mismatch");
       fs.chmodSync(temp, fs.statSync(absolute).mode & 0o777);
       fs.renameSync(temp, absolute);
+      committed = true;
       return { ok: true, http_status: 200, transaction_id: transaction,
         before_sha256: digest(before), after_sha256: digest(updated), secrets_included: false };
     } finally {
       try { fs.rmSync(temp, { force: true }); } catch { /* best effort */ }
+      if (!committed) {
+        // A failed prepare is not an undoable transaction: remove its receipt
+        // so Rollback cannot interpret abandoned metadata as committed work.
+        try { fs.rmSync(meta, { force: true }); } catch { /* audit cleanup best effort */ }
+        try { fs.rmSync(backup, { force: true }); } catch { /* audit cleanup best effort */ }
+      }
     }
   }
   function rollback(input) {

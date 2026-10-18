@@ -221,3 +221,53 @@ test("same-content source replacement during move cannot unlink the replacement"
     assert.equal(fs.readFileSync(saved).toString(), body.toString());
   } finally { fs.linkSync = originalLink; f.cleanup(); }
 });
+
+test("late symlink substitution cannot disclose a path outside the allowed root", t => {
+  const f = fixture();
+  const protectedPath = path.join(f.root, "src", "index.js");
+  const parked = path.join(f.root, "src", "original-parked.js");
+  const outside = path.join(f.base, "outside.js");
+  fs.writeFileSync(outside, "outside-private-content");
+  try {
+    const probe = path.join(f.base, "link-probe");
+    try { fs.symlinkSync(outside, probe, "file"); fs.rmSync(probe); }
+    catch (error) { t.diagnostic("symlinks unavailable: " + error.code); return; }
+    const actualOpen = fs.openSync;
+    let swapped = false;
+    try {
+      fs.openSync = (file, flags, mode) => {
+        if (!swapped && file === protectedPath) {
+          swapped = true;
+          fs.renameSync(protectedPath, parked);
+          fs.symlinkSync(outside, protectedPath, "file");
+        }
+        return actualOpen(file, flags, mode);
+      };
+      const result = f.engine.dispatch({ action: "read", relative_path: "src/index.js" });
+      assert.equal(swapped, true);
+      assert.equal(result.ok, false);
+      assert.equal(JSON.stringify(result).includes("outside-private-content"), false);
+    } finally { fs.openSync = actualOpen; }
+  } finally { f.cleanup(); }
+});
+
+test("failed patch preparation does not retain a false rollback receipt", () => {
+  const f = fixture(true);
+  const file = path.join(f.root, "src", "index.js");
+  const actualRename = fs.renameSync;
+  try {
+    const content = fs.readFileSync(file, "utf8");
+    fs.renameSync = (from, to) => {
+      if (to === file) throw Object.assign(new Error("injected rename failure"), { code: "EIO" });
+      return actualRename(from, to);
+    };
+    const result = f.engine.dispatch({
+      action: "patch", relative_path: "src/index.js",
+      old_text: content.slice(0, 4), new_text: "new",
+      expected_sha256: hash(content), approval_token: "local-approval-only",
+    });
+    assert.equal(result.ok, false);
+    assert.equal(fs.readdirSync(f.state).filter(name => name.endsWith(".backup") || name.endsWith(".json")).length, 0);
+    assert.equal(fs.readFileSync(file, "utf8"), content);
+  } finally { fs.renameSync = actualRename; f.cleanup(); }
+});
