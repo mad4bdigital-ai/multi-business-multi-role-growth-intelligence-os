@@ -22,6 +22,7 @@ $StagingRecoveryBridgePath = Join-Path $Root "connector-staging-recovery.mjs"
 $DeveloperSessionsPath = Join-Path $Root "connector-developer-sessions.mjs"
 $DeviceFilesEnginePath = Join-Path $Root "device-files-engine.mjs"
 $DeviceTerminalEnginePath = Join-Path $Root "device-terminal-engine.mjs"
+$DeviceMcpResourcePath = Join-Path $Root "device-mcp-resource.mjs"
 $AdminRecoverySchemaPath = Join-Path $Root "connector-admin-recovery.openapi.yaml"
 $LogPath = Join-Path $Root "safe-upgrade.log"
 $ManifestPath = Join-Path $Root "connector-agent-manifest.json"
@@ -33,6 +34,7 @@ $RuntimePackage = @(
   @{ Name = "connector-developer-sessions.mjs"; Destination = $DeveloperSessionsPath },
   @{ Name = "device-files-engine.mjs"; Destination = $DeviceFilesEnginePath },
   @{ Name = "device-terminal-engine.mjs"; Destination = $DeviceTerminalEnginePath },
+  @{ Name = "device-mcp-resource.mjs"; Destination = $DeviceMcpResourcePath },
   @{ Name = "connector-admin-recovery.openapi.yaml"; Destination = $AdminRecoverySchemaPath }
 )
 $RuntimePackageApplied = $false

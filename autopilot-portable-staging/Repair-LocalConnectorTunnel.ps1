@@ -20,7 +20,7 @@ $EnvPath = Join-Path $ConnectorRoot ".env"
 $PackageSource = Join-Path (Split-Path -Parent $PSScriptRoot) "local-connector"
 $InstallerPath = Join-Path $ConnectorRoot "install-service.ps1"
 $DefaultTunnelTokenFile = Join-Path $ConnectorRoot "secrets\cloudflared-token.txt"
-$RequiredAssets = @("server.mjs", "browser4-adapter.mjs", "local-agent-runtime.mjs", "connector-staging-recovery.mjs", "connector-developer-sessions.mjs", "device-files-engine.mjs", "device-terminal-engine.mjs", "install-service.ps1", "connector-watchdog.ps1")
+$RequiredAssets = @("server.mjs", "browser4-adapter.mjs", "local-agent-runtime.mjs", "connector-staging-recovery.mjs", "connector-developer-sessions.mjs", "device-files-engine.mjs", "device-terminal-engine.mjs", "device-mcp-resource.mjs", "install-service.ps1", "connector-watchdog.ps1")
 if ([string]::IsNullOrWhiteSpace($StatePath)) { $StatePath = Join-Path $PSScriptRoot "logs\local-connector-tunnel-state.json" }
 
 function Write-State([hashtable]$State) {

@@ -9,7 +9,7 @@ const staging = read("autopilot-portable-staging/Repair-LocalConnectorTunnel.ps1
 const smoke = read("http-generic-api/scripts/connector-agent-smoke-test.mjs");
 const canonical = read("canonicals/openapi/local-connector.openapi.yaml");
 const generated = read("http-generic-api/openapi/openapi.gpt-action.local-connector.yaml");
-for (const file of ["connector-staging-recovery.mjs", "connector-developer-sessions.mjs", "device-files-engine.mjs", "device-terminal-engine.mjs"]) {
+for (const file of ["connector-staging-recovery.mjs", "connector-developer-sessions.mjs", "device-files-engine.mjs", "device-terminal-engine.mjs", "device-mcp-resource.mjs"]) {
   assert.ok(server.includes(file), "Local Connector server must import " + file);
   assert.ok(agent.includes("local-connector/" + file), "Agent manifest must package " + file);
   assert.ok(agent.includes("Get-Mad4BManifestFile -Name '" + file + "'"), "Signed installer must fetch " + file);
@@ -46,6 +46,9 @@ assert.match(server, /createStagingRecoveryBridge/);
 assert.match(server, /createDeveloperSessionManager/);
 assert.match(server, /createDeviceFilesEngine/);
 assert.match(server, /createDeviceTerminalManager/);
+assert.match(server, /createDeviceMcpResource/);
+assert.match(server, /\/mcp\/device/);
+assert.match(server, /\.well-known\/oauth-protected-resource\/mcp\/device/);
 assert.match(server, /x-mad4b-device-terminal-approval/);
 assert.match(server, /DEVICE_SCOPE_REQUIRED/);
 assert.match(server, /x-mad4b-device-write-approval/);
