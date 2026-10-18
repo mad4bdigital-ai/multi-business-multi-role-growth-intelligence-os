@@ -9,6 +9,9 @@ permissions:
 
 jobs:
   readiness:
+    environment:
+      name: Production
+      deployment: false
     name: Authorize and dry-run Migration 1050
     if: >-
       github.event.issue.number == 6628 &&
@@ -51,6 +54,9 @@ jobs:
           retention-days: 30
 
   apply:
+    environment:
+      name: Production
+      deployment: false
     name: Apply Migration 1050 exactly once and certify
     if: >-
       github.event.issue.number == 6628 &&
@@ -93,6 +99,9 @@ jobs:
           retention-days: 30
 
   verify:
+    environment:
+      name: Production
+      deployment: false
     name: Verify Migration 1050 ledger and repaired metadata
     if: >-
       github.event.issue.number == 6628 &&

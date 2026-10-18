@@ -36,6 +36,12 @@ jobs:
       - name: Validate governed Production security-hotfix classification
         run: node http-generic-api/scripts/production-security-hotfix-candidate-self-test.mjs
 
+      - name: Verify Production Environment binding for governed runtime credentials
+        env:
+          CREDENTIAL_PROVENANCE_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before || '' }}
+          CREDENTIAL_PROVENANCE_EVENT: ${{ github.event_name }}
+        run: node http-generic-api/scripts/credential-environment-scope-ratchet.mjs
+
       - name: Enforce Runtime data lifecycle classification
         working-directory: http-generic-api
         env:
