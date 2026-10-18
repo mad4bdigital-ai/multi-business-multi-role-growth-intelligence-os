@@ -18,12 +18,16 @@ $WatchdogPath = Join-Path $Root "connector-watchdog.ps1"
 $SafeUpgradePath = Join-Path $Root "connector-safe-upgrade.ps1"
 $Browser4Path = Join-Path $Root "browser4-adapter.mjs"
 $LocalAgentRuntimePath = Join-Path $Root "local-agent-runtime.mjs"
+$StagingRecoveryBridgePath = Join-Path $Root "connector-staging-recovery.mjs"
+$DeveloperSessionsPath = Join-Path $Root "connector-developer-sessions.mjs"
 $LogPath = Join-Path $Root "safe-upgrade.log"
 $ManifestPath = Join-Path $Root "connector-agent-manifest.json"
 $RuntimePackage = @(
   @{ Name = "server.mjs"; Destination = $ServerPath },
   @{ Name = "browser4-adapter.mjs"; Destination = $Browser4Path },
-  @{ Name = "local-agent-runtime.mjs"; Destination = $LocalAgentRuntimePath }
+  @{ Name = "local-agent-runtime.mjs"; Destination = $LocalAgentRuntimePath },
+  @{ Name = "connector-staging-recovery.mjs"; Destination = $StagingRecoveryBridgePath },
+  @{ Name = "connector-developer-sessions.mjs"; Destination = $DeveloperSessionsPath }
 )
 $RuntimePackageApplied = $false
 
