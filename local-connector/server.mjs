@@ -24,6 +24,7 @@ import { createDeveloperSessionManager } from './connector-developer-sessions.mj
 import { createDeviceFilesEngine } from './device-files-engine.mjs';
 import { createDeviceTerminalManager } from './device-terminal-engine.mjs';
 import { createDeviceMcpResource } from './device-mcp-resource.mjs';
+import { createDeviceMcpApprovalBroker } from './device-mcp-approval-broker.mjs';
 
 // ---------------------------------------------------------------------------
 // Bootstrap â€” manual .env parse (no dotenv dependency)
@@ -1862,7 +1863,10 @@ const stagingRecoveryDispatch = createStagingRecoveryBridge();
 const developerSessions = createDeveloperSessionManager();
 const deviceFiles = createDeviceFilesEngine();
 const deviceTerminal = createDeviceTerminalManager();
-const deviceMcp = createDeviceMcpResource({ files: deviceFiles, terminal: deviceTerminal });
+const deviceMcpApprovals = createDeviceMcpApprovalBroker();
+const deviceMcp = createDeviceMcpResource({
+  files: deviceFiles, terminal: deviceTerminal, approvals: deviceMcpApprovals,
+});
 function requireRecoveryAuth(req, res) {
   const header = String(req.headers['authorization'] || '');
   const bearer = header.startsWith('Bearer ') ? header.slice(7).trim() : '';
@@ -1972,6 +1976,31 @@ async function handleDeviceTerminal(req, res) {
   return json(res, result.http_status || 500, result);
 }
 
+// Consent is issued only through this separately authenticated LOCAL admin path.
+// The local consent header is never passed to MCP or stored in an approval receipt.
+async function handleDeviceMcpApproval(req, res) {
+  if (!requireRecoveryAuth(req, res)) return;
+  if (req.url !== '/device/mcp/approvals')
+    return err(res, 400, 'QUERY_NOT_ALLOWED', 'Consent does not accept query arguments');
+  if (!String(req.headers['content-type'] || '').toLowerCase().startsWith('application/json'))
+    return err(res, 415, 'JSON_REQUIRED', 'Consent requires an explicit JSON body');
+  const origin = String(req.headers.origin || '');
+  if (origin && !/^http:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?$/.test(origin))
+    return err(res, 403, 'LOCAL_ORIGIN_REQUIRED', 'Remote browser origin denied');
+  let body;
+  try { body = await readDeviceBody(req, 32768); }
+  catch (e) { return err(res, e.status || 400, 'BAD_CONSENT_BODY', 'Consent request rejected'); }
+  const result = deviceMcpApprovals.issue(body,
+    String(req.headers['x-mad4b-device-mcp-approval'] || ''));
+  console.log(JSON.stringify({
+    ts: new Date().toISOString(), path: '/device/mcp/approvals',
+    event: 'local_consent_issue', tool: typeof body?.tool === 'string' ? body.tool.slice(0, 40) : null,
+    result: result.ok ? 'issued' : result.code, device_scoped: true,
+    secrets_included: false,
+  }));
+  return json(res, result.http_status, result);
+}
+
 // OAuth resource server is intentionally independent of Admin Recovery connector keys.
 async function handleNativeDeviceMcp(req, res) {
   if (req.url !== '/mcp/device') return err(res, 400, 'QUERY_NOT_ALLOWED', 'MCP does not accept query credentials');
@@ -2000,12 +2029,13 @@ const server = http.createServer(async (req, res) => {
     if (method === 'GET' && url === '/recovery/capabilities') {
       if (!requireRecoveryAuth(req, res)) return;
       if (req.url !== '/recovery/capabilities') return err(res, 400, 'QUERY_NOT_ALLOWED', 'No query credentials');
-      return json(res, 200, { ok: true, staging: stagingRecoveryCapabilities(), developer: developerSessions.capabilities, device_files: deviceFiles.capabilities, device_terminal: deviceTerminal.capabilities, device_mcp: deviceMcp.capabilities });
+      return json(res, 200, { ok: true, staging: stagingRecoveryCapabilities(), developer: developerSessions.capabilities, device_files: deviceFiles.capabilities, device_terminal: deviceTerminal.capabilities, device_mcp: deviceMcp.capabilities, device_mcp_approvals: deviceMcpApprovals.capabilities });
     }
     if (method === 'POST' && url === '/recovery/staging') return await handleStagingRecovery(req, res);
     if (method === 'POST' && url === '/developer/sessions') return await handleDeveloperSession(req, res);
     if (method === 'POST' && url === '/device/files') return await handleDeviceFiles(req, res);
     if (method === 'POST' && url === '/device/terminal') return await handleDeviceTerminal(req, res);
+    if (method === 'POST' && url === '/device/mcp/approvals') return await handleDeviceMcpApproval(req, res);
     if (method === 'GET' && url === '/.well-known/oauth-protected-resource/mcp/device') {
       const metadata = deviceMcp.metadata();
       return json(res, metadata ? 200 : 404, metadata || { error: 'native_mcp_not_configured' });
