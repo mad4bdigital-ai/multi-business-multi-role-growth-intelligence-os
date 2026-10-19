@@ -23,11 +23,14 @@ for (const file of assets) {
   const absolute = path.join(repoRoot, file);
   assert(fs.statSync(absolute).isFile() && fs.statSync(absolute).size > 0, `connector_asset_missing_or_empty:${file}`);
 }
-const ignoreRules = new Set(fs.readFileSync(path.join(repoRoot, ".dockerignore"), "utf8").split(/\r?\n/));
-assert(ignoreRules.has("!local-connector/"), "connector_asset_parent_excluded");
-assert(!ignoreRules.has("!local-connector/**"), "connector_asset_directory_wildcard_forbidden");
-const allowlisted = [...ignoreRules].filter((r) => r.startsWith("!local-connector/") && r !== "!local-connector/");
-assert.deepEqual(allowlisted.sort(), local.map((f) => `!${f}`).sort(), "connector_asset_allowlist_mismatch");
+// .dockerignore governs the sent build context but is not itself copied into the image.
+if (!imageMode) {
+  const ignoreRules = new Set(fs.readFileSync(path.join(repoRoot, ".dockerignore"), "utf8").split(/\r?\n/));
+  assert(ignoreRules.has("!local-connector/"), "connector_asset_parent_excluded");
+  assert(!ignoreRules.has("!local-connector/**"), "connector_asset_directory_wildcard_forbidden");
+  const allowlisted = [...ignoreRules].filter((r) => r.startsWith("!local-connector/") && r !== "!local-connector/");
+  assert.deepEqual(allowlisted.sort(), local.map((f) => `!${f}`).sort(), "connector_asset_allowlist_mismatch");
+}
 if (imageMode) {
   const entries = fs.readdirSync(path.join(repoRoot, "local-connector"), { withFileTypes: true });
   assert(entries.every((e) => e.isFile()), "connector_asset_image_unexpected_directory");
