@@ -10,7 +10,7 @@
     },
     {
       "path": ".dockerignore",
-      "sha256": "fdb604bcec8b927ad55a8c529564a3f602f9020207a7a206f630f25ab7692f7a"
+      "sha256": "acfe914d50f89d98ea3a6c4968484e2f54b2525f3a80aed706af626c44302db4"
     },
     {
       "path": ".gitignore",
@@ -454,7 +454,7 @@
     },
     {
       "path": "http-generic-api/scripts/verify-staging-connector-assets.mjs",
-      "sha256": "b0357395d0bcfbe8251b55652a8e6730fd7d8d9f26deb6fcd5e5f981969f7123"
+      "sha256": "31385b8d80e773461f68e2ef739bfae589171c873dc9b6893796c821df0bde79"
     }
   ],
   "safety": {
