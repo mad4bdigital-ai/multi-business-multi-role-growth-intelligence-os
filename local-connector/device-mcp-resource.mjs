@@ -139,15 +139,15 @@ const definitions = Object.freeze({
   sessions_list: { scope: "device:terminal:read", description: "List sessions owned by the OAuth principal", inputSchema: schemaEmpty, terminalAction: "list" },
   sessions_get: { scope: "device:terminal:read", description: "Read the owned session and bounded transcript", inputSchema: schemaSession, terminalAction: "status" },
   sessions_resume: { scope: "device:terminal:read", description: "Resume an owned session transcript cursor", inputSchema: schemaSession, terminalAction: "resume" },
-  sessions_close: { scope: "device:terminal:execute", description: "Close a finished session owned by this OAuth principal", inputSchema: schemaSession, terminalAction: "close" },
-  terminal_cancel: { scope: "device:terminal:execute", description: "Cancel one session owned by this OAuth principal", inputSchema: schemaSession, terminalAction: "cancel" },
+  sessions_close: { scope: "device:terminal:execute", description: "Close a finished session owned by this OAuth principal", inputSchema: schemaSession, terminalAction: "close", consent: true },
+  terminal_cancel: { scope: "device:terminal:execute", description: "Cancel one session owned by this OAuth principal", inputSchema: schemaSession, terminalAction: "cancel", consent: true },
   terminal_output: { scope: "device:terminal:read", description: "Fetch output for an owned terminal session", inputSchema: schemaSession, terminalAction: "output" },
   terminal_start_readonly: { scope: "device:terminal:execute", description: "Start an allowlisted read-only Git probe", inputSchema: schemaStart, terminalAction: "start" },
   terminal_start_interactive: { scope: "device:terminal:interactive", description: "Start a fixed-profile REPL after one-shot local consent; no arbitrary command", inputSchema: schemaStartInteractive, terminalAction: "start", consent: true },
   terminal_input: { scope: "device:terminal:interactive", description: "Send bounded input to an owned REPL after one-shot local consent", inputSchema: schemaInput, terminalAction: "input", consent: true },
   process_list: { scope: "device:terminal:read", description: "List processes started by this principal only", inputSchema: schemaEmpty, terminalAction: "process_list" },
   process_status: { scope: "device:terminal:read", description: "Read status of one owned process", inputSchema: schemaSession, terminalAction: "process_status" },
-  process_terminate_owned: { scope: "device:terminal:execute", description: "Terminate only a process started by this OAuth principal", inputSchema: schemaSession, terminalAction: "process_terminate" },
+  process_terminate_owned: { scope: "device:terminal:execute", description: "Terminate only a process started by this OAuth principal", inputSchema: schemaSession, terminalAction: "process_terminate", consent: true },
 });
 function toolAvailable(identity, d, files, terminal, approvals) {
   if (!d || !identity.scopes.has(d.scope)) return false;
