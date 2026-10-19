@@ -63,9 +63,14 @@ export function deviceHealthRoutingPolicy({ env = process.env, scope, deviceId, 
     return { allowed: false, code: "multi_device_routing_disabled" };
   if (!scope) return { allowed: false, code: "signed_device_scope_required" };
   if (typeof deviceId !== "string" ||
-      !/^[a-z0-9][a-z0-9_-]{1,127}$/i.test(deviceId))
+      !/^[a-z0-9][a-z0-9_.-]{1,63}$/i.test(deviceId))
     return { allowed: false, code: "canonical_device_id_required" };
-  if (!tool || tool.name !== "local_connector_health" || !isDeviceTagged(tool))
+  // The governed tenant registry tags this tool connector/read_only/auth_derived
+  // (not the separate device namespace). Match the exact audited read-only
+  // contract instead of expecting an absent decoration that disables health.
+  const tags = Array.isArray(tool?.tags) ? tool.tags.map(x => String(x).toLowerCase()) : [];
+  if (tool?.name !== "local_connector_health" ||
+      !["tenant_safe", "read_only", "auth_derived"].every(tag => tags.includes(tag)))
     return { allowed: false, code: "governed_device_health_tool_required" };
   return { allowed: true, deviceId };
 }
