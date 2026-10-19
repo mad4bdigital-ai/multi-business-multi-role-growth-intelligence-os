@@ -18,6 +18,7 @@ internal static class Program
         await AssertRejectedRequestAsync(pipeName);
         await AssertStalledClientTimeoutAsync(pipeName);
         await AssertSupervisorRestartAsync();
+        await AssertMutationConsentAsync();
 
         var beforeShutdown = supervisor.GetStatus();
         Assert(beforeShutdown.Running, "supervisor must be running before shutdown");
@@ -29,9 +30,67 @@ internal static class Program
         {
             ok = true,
             certification = "local_manager_sidecar_named_pipe_live",
-            checks = new[] { "success", "rejection", "timeout_recovery", "supervisor_restart", "shutdown" },
+            checks = new[] { "success", "rejection", "timeout_recovery", "supervisor_restart", "shutdown", "os_private_mutation_consent", "one_shot", "principal_isolation", "expiry", "argument_binding" },
             secrets_included = false
         }));
+    }
+
+
+    private static async Task AssertMutationConsentAsync()
+    {
+        var scopeOwner = "windows-sid-a";
+        var clock = DateTimeOffset.UtcNow;
+        var broker = new SidecarLocalConsentBroker(() => scopeOwner, () => clock);
+        var pipe = $"mad4b-consent-cert-{Guid.NewGuid():N}";
+        var server = new SidecarRpcServer(pipe, TimeSpan.FromSeconds(2), broker);
+        await using var supervisor = new SidecarLifecycleSupervisor(server, DispatchAsync);
+        supervisor.Start();
+
+        var request = new
+        {
+            protocol_version = 1,
+            request_id = "mutation-once",
+            operation = "runtime.updateSettings",
+            arguments = new { settings_update_approved = true, value = "test-only" }
+        };
+        var typed = JsonSerializer.Deserialize<SidecarRpcRequest>(
+            JsonSerializer.Serialize(request), new JsonSerializerOptions(JsonSerializerDefaults.Web))!;
+        using (var blocked = await SendRequestAsync(pipe, request))
+            Assert(blocked.RootElement.GetProperty("error").GetProperty("code").GetString() ==
+                "os_private_consent_required", "client-provided approval boolean alone must not authorize mutation");
+        Assert(!broker.ApproveLocally(typed, false), "unconfirmed local action cannot create consent");
+        Assert(broker.ApproveLocally(typed, true), "explicit in-process consent should issue once");
+
+        using (var passed = await SendRequestAsync(pipe, request))
+            Assert(passed.RootElement.GetProperty("accepted").GetBoolean(),
+                "locally approved exact request must reach dispatcher");
+        using (var replay = await SendRequestAsync(pipe, request))
+            Assert(replay.RootElement.GetProperty("error").GetProperty("code").GetString() ==
+                "os_private_consent_required", "local consent must never be reusable");
+
+        var scoped = new SidecarRpcRequest(1, "cross-principal", "runtime.updateSettings",
+            JsonSerializer.SerializeToElement(new { settings_update_approved = true }));
+        Assert(broker.ApproveLocally(scoped, true), "create principal-bound consent");
+        scopeOwner = "windows-sid-b";
+        Assert(!broker.Consume(scoped), "another OS principal must not consume issued grant");
+        scopeOwner = "windows-sid-a";
+
+        var expired = new SidecarRpcRequest(1, "expired", "runtime.updateSettings",
+            JsonSerializer.SerializeToElement(new { settings_update_approved = true }));
+        Assert(broker.ApproveLocally(expired, true), "create expiring consent");
+        clock = clock.AddSeconds(91);
+        Assert(!broker.Consume(expired), "90-second expiry must fail closed");
+
+        var substituted = new SidecarRpcRequest(1, "exact-args", "runtime.updateSettings",
+            JsonSerializer.SerializeToElement(new { settings_update_approved = true, value = "a" }));
+        Assert(broker.ApproveLocally(substituted, true), "create argument-bound consent");
+        Assert(!broker.Consume(substituted with
+        {
+            Arguments = JsonSerializer.SerializeToElement(new { settings_update_approved = true, value = "b" })
+        }), "argument substitution must fail closed");
+
+        broker.InvalidateAll(); // same behavior required on user logout / UI disposal.
+        Assert(!broker.Consume(substituted), "logout/dispose revokes all pending grants");
     }
 
     private static Task<JsonElement> DispatchAsync(
