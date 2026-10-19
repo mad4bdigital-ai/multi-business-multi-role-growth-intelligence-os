@@ -454,7 +454,7 @@
     },
     {
       "path": "http-generic-api/scripts/verify-staging-connector-assets.mjs",
-      "sha256": "c04f6b0e3204c0654fb0cc01991090df9fb122c025363c5f4d23ef6f87f8f8c7"
+      "sha256": "b0357395d0bcfbe8251b55652a8e6730fd7d8d9f26deb6fcd5e5f981969f7123"
     }
   ],
   "safety": {
