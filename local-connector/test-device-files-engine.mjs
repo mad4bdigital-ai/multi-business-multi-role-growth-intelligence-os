@@ -303,13 +303,21 @@ test("bounded document binary staging denies Production, absent scope and malfor
     assert.equal(info.sha256, hash(data));
     assert.equal(info.size, data.length);
     const chunk = staging.dispatch({ action: "binary_read",
-      relative_path: "src/sample.pdf", offset: 0 });
+      relative_path: "src/sample.pdf", offset: 0, expected_sha256: info.sha256 });
     assert.deepEqual(Buffer.from(chunk.content_base64url, "base64url"), data);
     assert.equal(chunk.eof, true);
     assert.equal(staging.dispatch({ action: "binary_read",
-      relative_path: "../other.pdf" }).code, "path_denied");
+      relative_path: "src/sample.pdf", offset: 0 }).code, "digest_required");
     assert.equal(staging.dispatch({ action: "binary_read",
-      relative_path: "src/sample.pdf", offset: -1 }).code, "invalid_request");
+      relative_path: "src/sample.pdf", offset: 0, expected_sha256: hash("bad") }).code, "digest_mismatch");
+    assert.equal(staging.dispatch({ action: "binary_read",
+      relative_path: "../other.pdf", expected_sha256: info.sha256 }).code, "path_denied");
+    assert.equal(staging.dispatch({ action: "binary_read",
+      relative_path: "src/sample.pdf", offset: -1, expected_sha256: info.sha256 }).code, "invalid_request");
+    fs.writeFileSync(path.join(f.root, "src", "sample.pdf"),
+      Buffer.from("%PDF-1.7\\nchanged-version\\n%%EOF\\n"));
+    assert.equal(staging.dispatch({ action: "binary_read",
+      relative_path: "src/sample.pdf", expected_sha256: info.sha256 }).code, "digest_mismatch");
     fs.writeFileSync(path.join(f.root, "src", "fake.docx"), "not-a-real-zip");
     assert.equal(staging.dispatch({ action: "binary_info",
       relative_path: "src/fake.docx" }).code, "invalid_document_format");
