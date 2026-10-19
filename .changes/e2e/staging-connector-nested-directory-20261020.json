@@ -2,7 +2,7 @@
   "$schema": "../../.specify/schemas/e2e-phases.schema.json",
   "schema_version": 1,
   "feature_key": "staging-connector-nested-directory-20261020",
-  "title": "Staging Connector Agent nested source directory exclusion",
+  "title": "Staging Connector Agent generic deny-by-default Docker subtree packaging",
   "delivery_mode": "single_pr",
   "current_phase": "mvp",
   "scope": {
@@ -31,7 +31,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Repair a failed Staging Docker build by excluding tracked nested n8n-workflows sources without weakening the exact Connector Agent asset image assertion or touching Production.",
+      "objective": "Reject all unmanifested Connector content generically at the Docker context boundary, avoiding per-directory exceptions while preserving exact-Git staging provenance and fail-closed image verification.",
       "e2e_journeys": [
         {
           "id": "staging-connector-image-nested-source-exclusion",
@@ -41,16 +41,16 @@
           "entrypoint": "Exact-Git-archive Docker build and Connector Agent image asset verifier",
           "terminal_outcome": "Only the manifest-declared Connector files are packaged, nested workflow sources stay excluded, and missing/extra image entries continue to fail closed.",
           "steps": [
-            "Evaluate .dockerignore against the Connector release manifest and tracked nested source directories.",
-            "Run the source-time Connector verifier and release-owner regression tests.",
-            "Build the exact Staging Docker image with BuildKit and require the image-mode asset verifier to succeed before deployment."
+            "Validate the generic local-connector/** deny rule occurs after the directory traversal exception and before all release-file exceptions.",
+            "Execute the source-time Connector asset verifier and Local Manager release-owner regression tests.",
+            "Build the exact Staging image with BuildKit and reject missing or extra Connector release assets."
           ],
           "assertions": [
-            "Nested n8n-workflows sources remain excluded even when the local-connector parent is unignored.",
-            "Every tracked nested Connector directory requires an explicit deny rule.",
-            "All manifest-listed files remain packaged, without broader Connector directory inclusion.",
-            "The image-stage assertion remains active and fails closed for extra directories or unexpected files.",
-            "No credentials, DB migrations, Staging live installation, Production changes, or authority bypass are introduced."
+            "All nested Connector directories, present and future, are denied by a generic subtree rule without hardcoded names.",
+            "Only manifest-listed top-level Connector release files override the generic deny rule.",
+            "Image-stage checks still enforce the exact file set and reject unexpected files or directories.",
+            "Exact Git archive provenance stays intact.",
+            "No changes to Production, database state, live Staging, or credentials."
           ],
           "tests": [
             {
