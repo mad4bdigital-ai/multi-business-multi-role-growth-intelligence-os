@@ -6,8 +6,8 @@
   "source": {
     "baseline_ref": "main",
     "dispatch_artifact": "http-generic-api/frontend-surface-dispatch.generated.json",
-    "dispatch_source_digest": "a61a1f80e69905460a0cb69b1e7133b294e94198c00fb60966b79f6aab0935af",
-    "dispatch_artifact_sha256": "001464dd51b29f7bc99d6951bda4feb287cacf0b77a523a5e9fbe9fb234e4e1d"
+    "dispatch_source_digest": "ae405e0ececb1e17a2806d5c48dd20632e144cbaa946ce7da568bcde4a1fbd8e",
+    "dispatch_artifact_sha256": "93d0ce574687add79caebf0632fb46293b9aeb4c4a089bc538d38b40af269897"
   },
   "coverage": {
     "operation_count": 1084,
@@ -16,7 +16,7 @@
     "auth_contract_gap_count": 0,
     "openapi_detail_gap_count": 325,
     "unresolved_surface_decision_count": 0,
-    "unresolved_operation_class_count": 1,
+    "unresolved_operation_class_count": 0,
     "untested_family_count": 1,
     "untested_operation_count": 2,
     "coverage_complete": false
@@ -1608,7 +1608,7 @@
       "detail_gap_count": 2,
       "operation_count": 4,
       "untested_operation_count": 2,
-      "unresolved_operation_count": 1,
+      "unresolved_operation_count": 0,
       "next_action": "add_detail_evidence_without_claiming_canonical_coverage",
       "activation_allowed": false,
       "evidence_refs": [

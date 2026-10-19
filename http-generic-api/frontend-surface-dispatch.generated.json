@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "a61a1f80e69905460a0cb69b1e7133b294e94198c00fb60966b79f6aab0935af",
+    "source_digest": "ae405e0ececb1e17a2806d5c48dd20632e144cbaa946ce7da568bcde4a1fbd8e",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -16,7 +16,7 @@
       },
       {
         "file": "frontend-surface-policy.json",
-        "sha256": "d26b080ceb94fc7626304728957de9c3750a9c494a868f51cddbcf117c0a38ee",
+        "sha256": "3b5096dd53921376561ac7bb37047c2f060c0f9b902475bc7d162e4706d9b1de",
         "present": true
       },
       {
@@ -1126,7 +1126,7 @@
       },
       {
         "file": "test-frontend-surface-coverage-claims.mjs",
-        "sha256": "0c1e23801419a5039e392fdee60cc1a4707da6eaac743b165a101ea71894618b",
+        "sha256": "9c2e9534958a48f4de8b8c9e4972bb1643331bcc2a15f0f3c420e32930596cc5",
         "present": true
       },
       {
@@ -1244,7 +1244,7 @@
     "auth_contract_gap_count": 0,
     "operation_policy_issue_count": 0,
     "non_get_candidate_count": 661,
-    "unresolved_operation_class_count": 1,
+    "unresolved_operation_class_count": 0,
     "classified_mutation_count": 38,
     "governed_mutation_operation_count": 38,
     "embedded_ui_family_count": 7,
@@ -92832,15 +92832,21 @@
           "delivery_kind": "api",
           "tests": [],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "read_action",
+            "classification_source": "operation_rule",
             "mutation_candidate": true,
-            "governed": false,
+            "governed": true,
             "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "scoped-device-health-read-action",
+            "owner": "local-manager",
+            "rationale": "Health-only POST dispatches the registered tenant_safe/read_only/auth_derived local_connector_health tool for a verified canonical device in Staging. Signed tenant/principal identity, exact device selection and normal dispatch grants are checked; the endpoint cannot enqueue shell commands or mutate files.",
+            "evidence_refs": [
+              "routes/deviceToolsRoutes.js",
+              "test-device-tools-diagnostics.mjs",
+              "test-frontend-surface-coverage-claims.mjs"
+            ]
           },
           "mutation_candidate": true,
           "mutation": false
@@ -93115,14 +93121,7 @@
           "test-frontend-surface-coverage-claims.mjs"
         ]
       },
-      "operation_blockers": [
-        {
-          "signature": "POST /device/tools/devices/{device_id}/health",
-          "blockers": [
-            "operation_classification_gap"
-          ]
-        }
-      ],
+      "operation_blockers": [],
       "risk": {
         "score": 5,
         "class": "medium"
@@ -102946,8 +102945,7 @@
       "wave": "F5-developer-evidence",
       "state": "blocked",
       "blockers": [
-        "test_ownership_gap",
-        "operation_classification_gap"
+        "test_ownership_gap"
       ],
       "dependencies": [
         "F0-source-baseline",
