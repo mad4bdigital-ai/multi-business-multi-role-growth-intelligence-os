@@ -7,7 +7,7 @@ const MAX_GRANTS = 32;
 const MAX_ARGS = 32 * 1024;
 export const APPROVAL_TOOLS = Object.freeze([
   "files_create_directory", "files_create_file", "files_copy", "files_move",
-  "files_patch", "files_rollback", "terminal_start_interactive", "terminal_input",
+  "files_patch", "files_rollback", "files_binary_create", "terminal_start_interactive", "terminal_input",
   "terminal_cancel", "process_terminate_owned", "sessions_close", "terminal_resize",
 ]);
 function secureEqual(a, b) {
