@@ -55,6 +55,21 @@ test("exact local consent is atomic, one-shot, principal-bound, argument-bound a
   clock += 90001;
   assert.equal(broker.consume(principal, "terminal_input", { session_id: "s", input: "help\n" }), false);
 });
+test("consent granted on device A is invalid after exact device or tenant rebind", () => {
+  const dynamic = { ...env };
+  const broker = createDeviceMcpApprovalBroker({ env: dynamic });
+  const args = { relative_path: "docs/a.md", content: "staging" };
+  const principal = 'oauth:["tenant-1","alice","chatgpt"]';
+  assert.equal(broker.issue(issueData("files_create_file", args), LOCAL_APPROVAL).ok, true);
+  dynamic.CONNECTOR_DEVICE_ID = "device-2";
+  assert.equal(broker.consume(principal, "files_create_file", args), false);
+  dynamic.CONNECTOR_DEVICE_ID = "device-1";
+  dynamic.CONNECTOR_TENANT_ID = "tenant-2";
+  assert.equal(broker.consume(principal, "files_create_file", args), false);
+  dynamic.CONNECTOR_TENANT_ID = "tenant-1";
+  assert.equal(broker.consume(principal, "files_create_file", args), true);
+  assert.equal(broker.consume(principal, "files_create_file", args), false);
+});
 test("signed OAuth read and approved write stay separate; no secrets enter MCP tool arguments", () => {
   const { publicKey, privateKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });
   const jwk = publicKey.export({ format: "jwk" });
