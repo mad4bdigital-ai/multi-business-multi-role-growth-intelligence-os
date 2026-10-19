@@ -39,10 +39,12 @@
       "local-connector/connector-safe-upgrade.ps1",
       "local-connector/device-mcp-approval-broker.mjs",
       "local-connector/device-mcp-resource.mjs",
+      "local-connector/device-terminal-engine.mjs",
       "local-connector/server.mjs",
       "local-connector/test-device-mcp-approval-broker.mjs",
       "local-connector/test-device-mcp-resource.mjs",
       "local-connector/test-device-runtime-http.mjs",
+      "local-connector/test-device-terminal-engine.mjs",
       "specs/020-platform-resource-identity-brand-governance/openapi-detail-closure-batch-full.json",
       "specs/020-platform-resource-identity-brand-governance/openapi-detail-gap-classification.json",
       "specs/020-platform-resource-identity-brand-governance/openapi-gap-closure-plan.json"
@@ -144,6 +146,13 @@
               "working_directory": "http-generic-api",
               "path": "test-connector-staging-mcp-distribution.mjs",
               "args": []
+            },
+            {
+              "id": "conpty-source-boundaries",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "local-connector/test-device-terminal-engine.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
@@ -151,7 +160,9 @@
             "apps/local-manager-windows/Program.cs",
             "http-generic-api/test-desktop-device-workspace-wiring.mjs",
             "http-generic-api/test-connector-staging-mcp-distribution.mjs",
-            "docs/runbooks/device-native-mcp-desktop-parity-20261019.md"
+            "docs/runbooks/device-native-mcp-desktop-parity-20261019.md",
+            "local-connector/device-terminal-engine.mjs",
+            "local-connector/test-device-terminal-engine.mjs"
           ]
         },
         {
