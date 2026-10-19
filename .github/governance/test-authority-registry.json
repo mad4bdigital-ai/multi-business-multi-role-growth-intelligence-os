@@ -230,6 +230,7 @@
         "http-generic-api/test-mcp-catalog-schema-guard.mjs",
         "http-generic-api/test-mcp-catalog-schema-preflight.mjs",
         "http-generic-api/test-openapi-detail-closure-batch.mjs",
+        "http-generic-api/test-openapi-projection-readiness.mjs",
         "http-generic-api/test-openapi-split-governance.mjs",
         "http-generic-api/test-production-recovery-control-store-bootstrap-workflow.mjs",
         "http-generic-api/test-production-runtime-env-key-inventory.mjs",
