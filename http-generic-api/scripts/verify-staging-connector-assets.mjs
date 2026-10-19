@@ -25,20 +25,19 @@ for (const file of assets) {
 }
 // .dockerignore governs the sent build context but is not itself copied into the image.
 if (!imageMode) {
-  const ignoreRules = new Set(fs.readFileSync(path.join(repoRoot, ".dockerignore"), "utf8").split(/\r?\n/));
-  assert(ignoreRules.has("!local-connector/"), "connector_asset_parent_excluded");
-  assert(!ignoreRules.has("!local-connector/**"), "connector_asset_directory_wildcard_forbidden");
-  const includedPaths = [...ignoreRules].filter((r) => r.startsWith("!local-connector/") && r !== "!local-connector/");
-  assert.deepEqual(includedPaths.sort(), local.map((f) => `!${f}`).sort(), "connector_asset_allowlist_mismatch");
-  // The Docker ignore parent exception can include tracked subdirectories.
-  // Every nested source directory must be explicitly excluded, while the
-  // image-mode check below still refuses *any* resulting directory.
-  const sourceFolders = fs.readdirSync(path.join(repoRoot, "local-connector"), { withFileTypes: true })
-    .filter((entry) => entry.isDirectory())
-    .map((entry) => entry.name);
-  for (const folder of sourceFolders) {
-    assert(ignoreRules.has(`local-connector/${folder}/`), `connector_asset_nested_directory_not_excluded:${folder}`);
+  const ignoreLines = fs.readFileSync(path.join(repoRoot, ".dockerignore"), "utf8")
+    .split(/\r?\n/).map((line) => line.trim()).filter((line) => line && !line.startsWith("#"));
+  const parentRule = ignoreLines.indexOf("!local-connector/");
+  const denyRule = ignoreLines.indexOf("local-connector/**");
+  assert(parentRule >= 0 && denyRule > parentRule, "connector_asset_generic_deny_rule_missing_or_out_of_order");
+  assert(!ignoreLines.includes("!local-connector/**"), "connector_asset_directory_wildcard_forbidden");
+  const includedPaths = ignoreLines.filter((rule) => rule.startsWith("!local-connector/") && rule !== "!local-connector/");
+  assert.deepEqual(includedPaths.sort(), local.map((file) => `!${file}`).sort(), "connector_asset_allowlist_mismatch");
+  for (const file of local) {
+    assert(ignoreLines.lastIndexOf(`!${file}`) > denyRule, `connector_asset_exception_must_follow_deny:${file}`);
   }
+  // Any tracked nested directory is denied by the generic subtree rule,
+  // without requiring its name in code or .dockerignore.
 }
 if (imageMode) {
   const entries = fs.readdirSync(path.join(repoRoot, "local-connector"), { withFileTypes: true });
