@@ -8,7 +8,7 @@
     "7eaf87af3c9df2a3aa55a9f6adbd93d4d7bc4334c58084cb382d851af888e4a2"
   ],
   "db_catalog_fingerprint_match": true,
-  "file_count": 8207,
+  "file_count": 8208,
   "route_count": 1122,
   "write_route_count": 685,
   "classified_write_surface_count": 44,
@@ -3037,8 +3037,8 @@
     },
     {
       "route_id": "http-generic-api/routes/deviceToolsRoutes.js#POST:/device/tools/devices/:device_id/health:0",
-      "source_line": 80,
-      "source_offset": 3444,
+      "source_line": 85,
+      "source_offset": 3828,
       "method": "POST",
       "path": "/device/tools/devices/:device_id/health",
       "file": "http-generic-api/routes/deviceToolsRoutes.js",
@@ -3046,8 +3046,8 @@
     },
     {
       "route_id": "http-generic-api/routes/deviceToolsRoutes.js#GET:/device/tools/devices:1",
-      "source_line": 120,
-      "source_offset": 5322,
+      "source_line": 125,
+      "source_offset": 5706,
       "method": "GET",
       "path": "/device/tools/devices",
       "file": "http-generic-api/routes/deviceToolsRoutes.js",
@@ -3055,8 +3055,8 @@
     },
     {
       "route_id": "http-generic-api/routes/deviceToolsRoutes.js#GET:/device/tools:2",
-      "source_line": 145,
-      "source_offset": 6380,
+      "source_line": 150,
+      "source_offset": 6764,
       "method": "GET",
       "path": "/device/tools",
       "file": "http-generic-api/routes/deviceToolsRoutes.js",
@@ -3064,8 +3064,8 @@
     },
     {
       "route_id": "http-generic-api/routes/deviceToolsRoutes.js#POST:/device/tools/call:3",
-      "source_line": 166,
-      "source_offset": 7202,
+      "source_line": 171,
+      "source_offset": 7586,
       "method": "POST",
       "path": "/device/tools/call",
       "file": "http-generic-api/routes/deviceToolsRoutes.js",
@@ -23208,10 +23208,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/deviceToolsRoutes.js",
-        "source_line": 80,
+        "source_line": 85,
         "handler_window_lines": [
-          80,
-          119
+          85,
+          124
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -23280,10 +23280,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/deviceToolsRoutes.js",
-        "source_line": 166,
+        "source_line": 171,
         "handler_window_lines": [
-          166,
-          207
+          171,
+          212
         ],
         "evidence_flags": {
           "handler_window_present": true,
