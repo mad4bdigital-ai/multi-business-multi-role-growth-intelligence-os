@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "ce33fb16116554d0305112046dda6a97225fe9edf2ef5ec9bb46e30570b6df28",
+    "source_digest": "d22393bec3fb7a4f9de5151f16e3eaed915bb27ee7bbd36a3cb375af660cba44",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -511,7 +511,7 @@
       },
       {
         "file": "routes/connectorAgentRoutes.js",
-        "sha256": "3d92c42d338e5bc21a2c53495332d742e9a0bbf741496d4e19b4f6e311725abc",
+        "sha256": "8baae4673bbf54a4dcf3c255250ddd70e4ae051a9e11f9fcc5d2616a5afb6787",
         "present": true
       },
       {
@@ -5885,7 +5885,7 @@
       "family_key": "connector-agent.developer",
       "label": "connector agent (developer)",
       "source_file": "routes/connectorAgentRoutes.js",
-      "source_digest": "3d92c42d338e5bc21a2c53495332d742e9a0bbf741496d4e19b4f6e311725abc",
+      "source_digest": "8baae4673bbf54a4dcf3c255250ddd70e4ae051a9e11f9fcc5d2616a5afb6787",
       "mount_prefix": "/",
       "mount_order": 14389,
       "split_from_mixed_scope_file": true,
@@ -6017,7 +6017,7 @@
       "family_key": "connector-agent.local_device",
       "label": "connector agent (local_device)",
       "source_file": "routes/connectorAgentRoutes.js",
-      "source_digest": "3d92c42d338e5bc21a2c53495332d742e9a0bbf741496d4e19b4f6e311725abc",
+      "source_digest": "8baae4673bbf54a4dcf3c255250ddd70e4ae051a9e11f9fcc5d2616a5afb6787",
       "mount_prefix": "/",
       "mount_order": 14389,
       "split_from_mixed_scope_file": true,
@@ -6301,7 +6301,7 @@
       "family_key": "connector-agent.public",
       "label": "connector agent (public)",
       "source_file": "routes/connectorAgentRoutes.js",
-      "source_digest": "3d92c42d338e5bc21a2c53495332d742e9a0bbf741496d4e19b4f6e311725abc",
+      "source_digest": "8baae4673bbf54a4dcf3c255250ddd70e4ae051a9e11f9fcc5d2616a5afb6787",
       "mount_prefix": "/",
       "mount_order": 14389,
       "split_from_mixed_scope_file": true,
