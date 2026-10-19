@@ -49,7 +49,7 @@ assert.deepEqual(signedDeviceRegistryScope({
 }), { user_id: "user-a", tenant_id: "tenant-a" });
 // Discovery data stays read-only; the route does not dispatch remote commands.
 
-const tool = { name: "local_connector_health", tags: ["device"] };
+const tool = { name: "local_connector_health", tags: ["connector", "tenant_safe", "auth_derived", "health", "read_only"] };
 const signedPrincipal = { user_id: "signed-u", tenant_id: "signed-t" };
 const enabled = { NODE_ENV: "staging", DEVICE_MCP_MULTI_DEVICE_HEALTH_ENABLED: "true" };
 assert.deepEqual(deviceHealthRoutingPolicy({ env: enabled, scope: signedPrincipal,
@@ -64,8 +64,15 @@ assert.deepEqual(deviceHealthRoutingPolicy({ env: enabled, scope: signedPrincipa
   deviceId: "../other-pc", tool }),
   { allowed: false, code: "canonical_device_id_required" });
 assert.deepEqual(deviceHealthRoutingPolicy({ env: enabled, scope: signedPrincipal,
-  deviceId: "canonical-pc", tool: { name: "connector_shell", tags: ["device"] } }),
+  deviceId: "canonical-pc", tool: { name: "connector_shell", tags: ["device", "read_only", "tenant_safe", "auth_derived"] } }),
   { allowed: false, code: "governed_device_health_tool_required" });
+assert.deepEqual(deviceHealthRoutingPolicy({ env: enabled, scope: signedPrincipal,
+  deviceId: "canonical-pc", tool: { name: "local_connector_health",
+    tags: ["connector", "tenant_safe", "read_only"] } }),
+  { allowed: false, code: "governed_device_health_tool_required" });
+assert.deepEqual(deviceHealthRoutingPolicy({ env: enabled, scope: signedPrincipal,
+  deviceId: "device.with.dots", tool }),
+  { allowed: true, deviceId: "device.with.dots" });
 
 console.log(JSON.stringify({
   ok: true,
