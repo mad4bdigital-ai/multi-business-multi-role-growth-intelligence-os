@@ -368,7 +368,9 @@
           "http-generic-api/scripts/credential-environment-scope-ratchet.mjs",
           "http-generic-api/scripts/connector-agent-smoke-test.mjs",
           "docs/branch-hygiene.md",
-          "http-generic-api/scripts/maintenance-tools/branch-hygiene-policy.mjs"
+          "http-generic-api/scripts/maintenance-tools/branch-hygiene-policy.mjs",
+          "http-generic-api/scripts/maintenance-tools/governed-refresh-idempotency.mjs",
+          "http-generic-api/scripts/test-governed-refresh-idempotency.mjs"
         ],
         "environments": [
           "repository"
