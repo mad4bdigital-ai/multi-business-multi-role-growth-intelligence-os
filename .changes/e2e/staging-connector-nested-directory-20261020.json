@@ -17,7 +17,8 @@
       "http-generic-api/scripts/build-staging-connector-release.mjs",
       "http-generic-api/scripts/staging-connector-release-contract.mjs",
       "http-generic-api/Dockerfile.staging",
-      "http-generic-api/test-staging-connector-release-growth.mjs"
+      "http-generic-api/test-staging-connector-release-growth.mjs",
+      ".github/governance/test-authority-registry.json"
     ]
   },
   "environment_impact": {
@@ -62,7 +63,8 @@
             "The generated release manifest has deterministic per-file SHA-256 hashes and the image verifier confirms both contents and the provenance manifest digest.",
             "The image verification rejects unexpected files and directories; BuildKit copy acceptance checks synthetic unlisted content is excluded.",
             "No production, DB, secrets, authority bypass, or live Staging deployment occurs as part of CI.",
-            "A valid newly declared release file extends the generated manifest automatically, and content tampering fails SHA-256 manifest verification."
+            "A valid newly declared release file extends the generated manifest automatically, and content tampering fails SHA-256 manifest verification.",
+            "New BuildKit and release-growth tests are registered under the existing Connector test authority, with no new waiver or bypass."
           ],
           "tests": [
             {
@@ -105,7 +107,8 @@
             "http-generic-api/scripts/prepare-staging-build-context.mjs",
             "http-generic-api/scripts/build-staging-connector-release.mjs",
             "http-generic-api/scripts/staging-connector-release-contract.mjs",
-            "http-generic-api/test-staging-connector-release-growth.mjs"
+            "http-generic-api/test-staging-connector-release-growth.mjs",
+            ".github/governance/test-authority-registry.json"
           ]
         }
       ]
