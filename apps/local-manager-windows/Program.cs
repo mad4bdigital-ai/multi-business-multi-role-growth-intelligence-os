@@ -268,6 +268,18 @@ internal static class Program
                 using var workspace = new DeviceWorkspaceForm();
                 workspace.ShowDialog(this);
             });
+#if LOCAL_MANAGER_STAGING
+            var editDocumentButton = MakeButton("Edit DOCX/XLSX (Staging)", 224, 720, 260, (_, _) =>
+            {
+                try { LocalDocumentEditForm.ShowEditor(this); }
+                catch (Exception)
+                {
+                    MessageBox.Show(this, "Local structural editing was refused or could not finish. " +
+                        "The original document was not intentionally modified.", "Document edit",
+                        MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                }
+            });
+#endif
 
             _status = new Label
             {
@@ -303,6 +315,9 @@ internal static class Program
                 shortcutButton, folderButton, updateButton, tokenStatusButton, repairButton, capabilitiesButton, repairControlsButton,
                 startN8nButton, openN8nButton, workspaceButton, _status, _progress, _output
             });
+#if LOCAL_MANAGER_STAGING
+            Controls.Add(editDocumentButton);
+#endif
 
             FormClosed += (_, _) => _pairingCancellation?.Cancel();
             Shown += async (_, _) =>
