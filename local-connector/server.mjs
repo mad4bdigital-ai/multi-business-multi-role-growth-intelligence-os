@@ -1866,6 +1866,8 @@ const deviceTerminal = createDeviceTerminalManager();
 const deviceMcpApprovals = createDeviceMcpApprovalBroker();
 const deviceMcp = createDeviceMcpResource({
   files: deviceFiles, terminal: deviceTerminal, approvals: deviceMcpApprovals,
+  // Sanitized structured authorization evidence; never log OAuth bearer or arguments.
+  onAudit: event => console.log(JSON.stringify(event)),
 });
 function requireRecoveryAuth(req, res) {
   const header = String(req.headers['authorization'] || '');
