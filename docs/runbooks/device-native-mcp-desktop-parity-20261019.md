@@ -95,10 +95,10 @@ installation. Until those gates pass, this slice is `SOURCE_ONLY`.
 
 | Workstream | Source status | Independent gate |
 | --- | --- | --- |
-| OS-private per-user Sidecar | Not delivered | OS SID/ACL, logon/logoff invalidation, no credential forwarding |
+| OS-private per-user Sidecar | Current-user Named Pipe and source one-shot OS-principal consent; mutation still gated | Live SID/ACL, OS-logoff revocation and per-client/tenant binding |
 | Windows ConPTY | Bounded opt-in adapter, source tests | Native dependency packaging, interactive PTY, process tree and crash tests on Windows |
 | Multi-device registry | Single OAuth-bound local device | Live authorized registry/heartbeat, offline and revocation, exact-device selection |
-| DOCX/XLSX/PDF editing | Not delivered | Approved scoped binary transport, format-preserving edits, rollback/data-integrity |
+| DOCX/XLSX/PDF editing | Bounded, default-off Staging binary transport; no structural editing | Certified format-preserving document adapters, transaction rollback and large-file streaming |
 | OAuth/MCP interoperability | Synthetic issuer/resource tests | Real PKCE flow, key rotation, ChatGPT + second client |
 | Windows acceptance | Not achieved | Online managed Windows Staging device; signed install/rollback and local operator |
 | Production | Blocked | Separate exact-head owner approval, CI, Staging signoff and governed promotion |
