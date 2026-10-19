@@ -120,6 +120,15 @@ const schemaInput = { type: "object", additionalProperties: false,
   required: ["session_id", "input"], properties: {
     session_id: { type: "string" }, input: { type: "string", maxLength: 2048 } } };
 
+const schemaBinaryPage = { type: "object", additionalProperties: false,
+  required: ["relative_path"], properties: {
+    relative_path: { type: "string" },
+    offset: { type: "integer", minimum: 0, maximum: 8388608 } } };
+const schemaBinaryCreate = { type: "object", additionalProperties: false,
+  required: ["relative_path", "content_base64url", "expected_sha256"], properties: {
+    relative_path: { type: "string" },
+    content_base64url: { type: "string", maxLength: 32768 },
+    expected_sha256: { type: "string", maxLength: 64 } } };
 const schemaResize = { type: "object", additionalProperties: false,
   required: ["session_id", "cols", "rows"], properties: {
     session_id: { type: "string" }, cols: { type: "integer", minimum: 20, maximum: 240 },
@@ -134,6 +143,9 @@ const definitions = Object.freeze({
   files_search: { scope: "device:files:read", description: "Bounded literal content or filename search", inputSchema: schemaSearch, fileAction: "search" },
   files_stat: { scope: "device:files:read", description: "Inspect bounded path metadata", inputSchema: schemaPath, fileAction: "stat" },
   files_read_many: { scope: "device:files:read", description: "Read up to 16 project text files", inputSchema: schemaMany, fileAction: "read_many" },
+  files_binary_info: { scope: "device:files:read", description: "Inspect a bounded Staging DOCX XLSX or PDF", inputSchema: schemaRead, fileAction: "binary_info" },
+  files_binary_read: { scope: "device:files:read", description: "Read 16KiB digest-locked Staging document chunks", inputSchema: schemaBinaryPage, fileAction: "binary_read" },
+  files_binary_create: { scope: "device:files:write", description: "Create a bounded document only after one-shot consent and exact digest", inputSchema: schemaBinaryCreate, fileAction: "binary_create", consent: true },
   files_create_directory: { scope: "device:files:write", description: "Create one directory after one-shot local consent", inputSchema: schemaRead, fileAction: "create_directory", consent: true },
   files_create_file: { scope: "device:files:write", description: "Create a small text file after local consent", inputSchema: schemaCreateFile, fileAction: "create_file", consent: true },
   files_copy: { scope: "device:files:write", description: "Copy one digest-locked text file after local consent", inputSchema: schemaTarget, fileAction: "copy", consent: true },
@@ -157,6 +169,10 @@ const definitions = Object.freeze({
 function toolAvailable(identity, d, files, terminal, approvals) {
   if (!d || !identity.scopes.has(d.scope)) return false;
   if (d.fileAction && !files?.capabilities?.enabled) return false;
+  if (d.fileAction?.startsWith("binary_") &&
+      (files?.capabilities?.binary_enabled !== true ||
+       (d.fileAction === "binary_create" && files?.capabilities?.binary_write_enabled !== true)))
+    return false;
   if (d.terminalAction && !terminal?.capabilities?.enabled) return false;
   if (d.terminalAction === "resize" && terminal?.capabilities?.pty !== true) return false;
   if (d.consent && (!approvals?.capabilities?.enabled ||
