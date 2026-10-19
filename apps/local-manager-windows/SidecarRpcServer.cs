@@ -17,6 +17,7 @@ internal sealed class SidecarRpcServer : ISidecarRpcServer
     private const int MaxRequestBytes = 256 * 1024;
     private readonly string _pipeName;
     private readonly TimeSpan _requestTimeout;
+    private readonly SidecarLocalConsentBroker? _localConsent;
 
     private readonly JsonSerializerOptions _json = new(JsonSerializerDefaults.Web)
     {
@@ -25,8 +26,10 @@ internal sealed class SidecarRpcServer : ISidecarRpcServer
 
     internal SidecarRpcServer(
         string? pipeName = null,
-        TimeSpan? requestTimeout = null)
+        TimeSpan? requestTimeout = null,
+        SidecarLocalConsentBroker? localConsent = null)
     {
+        _localConsent = localConsent;
         _pipeName = string.IsNullOrWhiteSpace(pipeName) ? SidecarRpcContracts.PipeName : pipeName;
         _requestTimeout = requestTimeout ?? TimeSpan.FromSeconds(30);
     }
@@ -117,6 +120,18 @@ internal sealed class SidecarRpcServer : ISidecarRpcServer
         if (!validation.Accepted)
         {
             await WriteResponseAsync(writer, validation);
+            return;
+        }
+
+        // An untrusted named-pipe client cannot authorize a mutation by setting
+        // a boolean in JSON. Approval must be issued in-process by the UI,
+        // exact-scoped to this OS principal, request, action and arguments.
+        if (validation.Policy?.RequiresFreshApproval == true &&
+            (_localConsent is null || !_localConsent.Consume(request)))
+        {
+            await WriteResponseAsync(writer, SidecarRpcResponse.Rejected(
+                request.RequestId, "os_private_consent_required",
+                "Separate local user consent is required for this exact action."));
             return;
         }
 
