@@ -3,6 +3,7 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { createReleaseManifest, RELEASE_DIRECTORY } from "./staging-connector-release-contract.mjs";
 
 function option(name) {
@@ -29,7 +30,7 @@ export function buildRelease(sourceRoot, destination) {
   return manifest;
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(new URL(import.meta.url).pathname)) {
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const sourceRoot = option("--source-root");
   const destination = option("--output-dir");
   const manifest = buildRelease(sourceRoot, destination);
