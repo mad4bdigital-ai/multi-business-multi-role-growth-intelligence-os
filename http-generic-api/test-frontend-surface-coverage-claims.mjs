@@ -1056,6 +1056,14 @@ const apiRoot = path.dirname(fileURLToPath(import.meta.url));
 const plan = JSON.parse(fs.readFileSync(path.join(apiRoot, "frontend-surface-dispatch.generated.json"), "utf8"));
 const families = Array.isArray(plan.families) ? plan.families : [];
 const operations = families.flatMap((family) => Array.isArray(family.operations) ? family.operations : []);
+// POST is used for a strictly scoped remote health read, not for a state mutation.
+const scopedDeviceHealth = operations.find((operation) =>
+  operation.signature === "POST /device/tools/devices/{device_id}/health" &&
+  operation.source_file === "routes/deviceToolsRoutes.js");
+assert.ok(scopedDeviceHealth, "exact-device health route must be discovered");
+assert.equal(scopedDeviceHealth.governance?.classification, "read_action", "health route must remain read-only");
+assert.equal(scopedDeviceHealth.governance?.governed, true, "health route must have explicit owner and evidence");
+assert.equal(scopedDeviceHealth.governance?.rule_id, "scoped-device-health-read-action");
 assert.ok(operations.length > 0, "frontend route inventory must not be empty");
 assert.equal(operations.filter((operation) => operation.governance?.classification === "unresolved").length, 0, "all non-GET operations require explicit classification");
 assert.equal(families.filter((family) => family.surface_decision?.decision === "requires_review").length, 0, "all route families require explicit surface policy");
