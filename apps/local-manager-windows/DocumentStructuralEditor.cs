@@ -37,7 +37,8 @@ internal static class DocumentStructuralEditor
         string expectedText, string newText)
     {
         ValidateInput(input, expectedSha256, expectedText, newText);
-        if (!Regex.IsMatch(sheetPath ?? "", @"^xl/worksheets/sheet[1-9][0-9]{0,2}\.xml$", RegexOptions.CultureInvariant) ||
+        if (string.IsNullOrEmpty(sheetPath) ||
+            !Regex.IsMatch(sheetPath, @"^xl/worksheets/sheet[1-9][0-9]{0,2}\.xml$", RegexOptions.CultureInvariant) ||
             !Regex.IsMatch(cellAddress ?? "", @"^[A-Z]{1,3}[1-9][0-9]{0,6}$", RegexOptions.CultureInvariant))
             throw new InvalidDataException("Exact worksheet path and A1 address are required.");
 
@@ -63,7 +64,8 @@ internal static class DocumentStructuralEditor
     private static void ValidateInput(byte[] input, string expectedSha256, string oldText, string newText)
     {
         if (input is null || input.Length < 22 || input.Length > MaxPackageBytes ||
-            !Regex.IsMatch(expectedSha256 ?? "", "^[a-fA-F0-9]{64}$", RegexOptions.CultureInvariant) ||
+            string.IsNullOrEmpty(expectedSha256) ||
+            !Regex.IsMatch(expectedSha256, "^[a-fA-F0-9]{64}$", RegexOptions.CultureInvariant) ||
             !CryptographicOperations.FixedTimeEquals(
                 Convert.FromHexString(expectedSha256), SHA256.HashData(input)))
             throw new InvalidDataException("Document size or exact SHA-256 mismatch.");

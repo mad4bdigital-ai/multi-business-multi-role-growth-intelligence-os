@@ -2,6 +2,8 @@ using System.Security.Cryptography;
 using System.Drawing;
 using System.Windows.Forms;
 
+// This entire UI is excluded from Production at compile time.
+#if LOCAL_MANAGER_STAGING
 namespace Mad4B.LocalManager.Windows;
 
 // Staging-only local operator workflow. Never receives OAuth bearer or remote
@@ -11,9 +13,6 @@ internal static class LocalDocumentEditForm
 {
     internal static void ShowEditor(IWin32Window owner)
     {
-        if (LocalManagerEnvironment.Name != "staging")
-            throw new InvalidOperationException("Structural document editing is Staging-only.");
-
         using var sourcePicker = new OpenFileDialog {
             Title = "Choose a local DOCX, XLSX or PDF document",
             Filter = "Word / Excel / PDF (*.docx;*.xlsx;*.pdf)|*.docx;*.xlsx;*.pdf",
@@ -143,3 +142,4 @@ internal static class LocalDocumentEditForm
             "Staging document edit", MessageBoxButtons.OK, MessageBoxIcon.Information);
     }
 }
+#endif

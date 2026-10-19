@@ -18,8 +18,9 @@ internal static class PdfStructuralEditor
     {
         if (source is null || source.Length < 16 || source.Length > MaximumPdfBytes ||
             !source.AsSpan(0, 5).SequenceEqual("%PDF-"u8) ||
+            string.IsNullOrEmpty(expectedSha256) ||
             !System.Text.RegularExpressions.Regex.IsMatch(
-                expectedSha256 ?? "", "^[a-fA-F0-9]{64}$") ||
+                expectedSha256, "^[a-fA-F0-9]{64}$") ||
             !CryptographicOperations.FixedTimeEquals(
                 SHA256.HashData(source), Convert.FromHexString(expectedSha256)))
             throw new InvalidDataException("Source is not a bounded PDF with the expected digest.");
