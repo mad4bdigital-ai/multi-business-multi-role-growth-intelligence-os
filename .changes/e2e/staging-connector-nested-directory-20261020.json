@@ -11,7 +11,8 @@
       ".dockerignore",
       "http-generic-api/scripts/verify-staging-connector-assets.mjs",
       "http-generic-api/test-local-manager-tool-release-owner.mjs",
-      "autopilot-portable-staging/manifest.json"
+      "autopilot-portable-staging/manifest.json",
+      "http-generic-api/test-staging-connector-build-context.mjs"
     ]
   },
   "environment_impact": {
@@ -43,14 +44,16 @@
           "steps": [
             "Validate the generic local-connector/** deny rule occurs after the directory traversal exception and before all release-file exceptions.",
             "Execute the source-time Connector asset verifier and Local Manager release-owner regression tests.",
-            "Build the exact Staging image with BuildKit and reject missing or extra Connector release assets."
+            "Build the exact Staging image with BuildKit and reject missing or extra Connector release assets.",
+            "Execute a real Docker BuildKit COPY on the checked-out candidate and require exact release-file set parity."
           ],
           "assertions": [
             "All nested Connector directories, present and future, are denied by a generic subtree rule without hardcoded names.",
             "Only manifest-listed top-level Connector release files override the generic deny rule.",
             "Image-stage checks still enforce the exact file set and reject unexpected files or directories.",
             "Exact Git archive provenance stays intact.",
-            "No changes to Production, database state, live Staging, or credentials."
+            "No changes to Production, database state, live Staging, or credentials.",
+            "Real Docker BuildKit context smoke test must package exactly the API manifest's Connector release files, with no unknown nested directories or additional files."
           ],
           "tests": [
             {
@@ -66,6 +69,13 @@
               "working_directory": "http-generic-api",
               "path": "test-local-manager-tool-release-owner.mjs",
               "args": []
+            },
+            {
+              "id": "staging-connector-buildkit-context",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-staging-connector-build-context.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
@@ -74,7 +84,8 @@
             "http-generic-api/scripts/verify-staging-connector-assets.mjs",
             "http-generic-api/test-local-manager-tool-release-owner.mjs",
             "http-generic-api/Dockerfile.staging",
-            "autopilot-portable-staging/manifest.json"
+            "autopilot-portable-staging/manifest.json",
+            "http-generic-api/test-staging-connector-build-context.mjs"
           ]
         }
       ]
