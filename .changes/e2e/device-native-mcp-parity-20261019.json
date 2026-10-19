@@ -70,7 +70,10 @@
       "http-generic-api/frontend-surface-policy.json",
       "specs/020-platform-resource-identity-brand-governance/openapi-projection-readiness.json",
       "specs/020-platform-resource-identity-brand-governance/e2e-phases.json",
-      "http-generic-api/test-openapi-projection-readiness.mjs"
+      "http-generic-api/test-openapi-projection-readiness.mjs",
+      ".dockerignore",
+      "http-generic-api/Dockerfile.staging",
+      "http-generic-api/scripts/verify-staging-connector-assets.mjs"
     ]
   },
   "environment_impact": {
