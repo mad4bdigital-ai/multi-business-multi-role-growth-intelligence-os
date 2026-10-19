@@ -1,3 +1,8 @@
+// Verified route-scoped test ownership; these comments are consumed by the
+// deterministic Frontend Surface Dispatch inventory.
+// frontend-surface-operation: post /device/tools/devices/{device_id}/health
+// frontend-surface-operation: get /device/tools/devices
+
 import assert from "node:assert/strict";
 
 import { deviceToolsDiagnostics, signedDeviceRegistryScope, deviceHealthRoutingPolicy } from "./routes/deviceToolsRoutes.js";
@@ -73,6 +78,16 @@ assert.deepEqual(deviceHealthRoutingPolicy({ env: enabled, scope: signedPrincipa
 assert.deepEqual(deviceHealthRoutingPolicy({ env: enabled, scope: signedPrincipal,
   deviceId: "device.with.dots", tool }),
   { allowed: true, deviceId: "device.with.dots" });
+
+// A future route rename or missing credential guard must invalidate the
+// associated coverage evidence instead of silently retaining ownership.
+import { readFileSync } from "node:fs";
+const routeSource = readFileSync(new URL("./routes/deviceToolsRoutes.js", import.meta.url), "utf8");
+assert.match(routeSource, /router\.post\("\/device\/tools\/devices\/:device_id\/health", requireBackendApiKey/);
+assert.match(routeSource, /router\.get\("\/device\/tools\/devices", requireBackendApiKey/);
+assert.match(routeSource, /resolveAdminConnectorTarget\(\{/);
+assert.match(routeSource, /includeCredentials: false/);
+assert.match(routeSource, /discovery_only: true, execution_allowed: false/);
 
 console.log(JSON.stringify({
   ok: true,
