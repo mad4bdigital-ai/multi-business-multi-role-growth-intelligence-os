@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "ae405e0ececb1e17a2806d5c48dd20632e144cbaa946ce7da568bcde4a1fbd8e",
+    "source_digest": "ce33fb16116554d0305112046dda6a97225fe9edf2ef5ec9bb46e30570b6df28",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -11,7 +11,7 @@
       },
       {
         "file": "frontend-operation-governance.generated.json",
-        "sha256": "722a840b10ab9d88a9c134890a33c0a2d63270c2010e2cf0f7e2ac5295e39afe",
+        "sha256": "dde152881a0e77a2684c78721b311c0e53d8f8cbe0f214a927b9f5d287d9c0d7",
         "present": true
       },
       {
@@ -1101,7 +1101,7 @@
       },
       {
         "file": "scripts/test-manifest.mjs",
-        "sha256": "10601d84b1ef24b56b68c23df84fd97da4091a13dd9a11b27d56aada25b6cde5",
+        "sha256": "0a4a3edc4f65fdc77db8867f9672dbf32379b5c8a2fbbec276e1697deec74d6c",
         "present": true
       },
       {
@@ -1112,6 +1112,11 @@
       {
         "file": "test-brand-core-asset-materialization-operation-governance.mjs",
         "sha256": "5e65352dc86807126990492e713af860939408d040338ae3725d9ab8a3b0a225",
+        "present": true
+      },
+      {
+        "file": "test-device-tools-diagnostics.mjs",
+        "sha256": "3791604d7f7365ebc117271b1cf5e31f68e4a01f51fa9c1eb4c6837e827b30af",
         "present": true
       },
       {
@@ -1249,13 +1254,13 @@
     "governed_mutation_operation_count": 38,
     "embedded_ui_family_count": 7,
     "unresolved_surface_decision_count": 0,
-    "test_owned_family_count": 176,
-    "untested_family_count": 1,
-    "test_owned_operation_count": 1082,
-    "untested_operation_count": 2,
-    "ready_task_count": 176,
-    "blocked_task_count": 1,
-    "coverage_complete": false
+    "test_owned_family_count": 177,
+    "untested_family_count": 0,
+    "test_owned_operation_count": 1084,
+    "untested_operation_count": 0,
+    "ready_task_count": 177,
+    "blocked_task_count": 0,
+    "coverage_complete": true
   },
   "waves": [
     {
@@ -92830,7 +92835,9 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-device-tools-diagnostics.mjs"
+          ],
           "governance": {
             "classification": "read_action",
             "classification_source": "operation_rule",
@@ -92905,7 +92912,9 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-device-tools-diagnostics.mjs"
+          ],
           "governance": {
             "classification": "read",
             "classification_source": "http_method",
@@ -93074,12 +93083,10 @@
         "POST /device/tools/devices/{device_id}/health"
       ],
       "tests": [
+        "test-device-tools-diagnostics.mjs",
         "test-frontend-surface-coverage-claims.mjs"
       ],
-      "untested_operations": [
-        "POST /device/tools/devices/{device_id}/health",
-        "GET /device/tools/devices"
-      ],
+      "untested_operations": [],
       "resources": [],
       "embedded_ui": false,
       "embedded_ui_operations": [],
@@ -93106,6 +93113,7 @@
         "routes/deviceToolsRoutes.js",
         "routes/index.js",
         "scripts/test-manifest.mjs",
+        "test-device-tools-diagnostics.mjs",
         "test-frontend-surface-coverage-claims.mjs"
       ],
       "surface_decision": {
@@ -93123,7 +93131,7 @@
       },
       "operation_blockers": [],
       "risk": {
-        "score": 5,
+        "score": 3,
         "class": "medium"
       },
       "wave": "F5-developer-evidence"
@@ -101515,6 +101523,58 @@
       ]
     },
     {
+      "task_key": "frontend.device-tools",
+      "title": "Resolve and deliver device tools",
+      "wave": "F5-developer-evidence",
+      "state": "ready",
+      "blockers": [],
+      "dependencies": [
+        "F0-source-baseline",
+        "F1-tenant-workspace-context",
+        "operation-classification"
+      ],
+      "source_refs": [
+        "frontend-operation-governance.generated.json",
+        "frontend-surface-policy.json",
+        "openapi-route-coverage.allowlist.json",
+        "openapi.yaml",
+        "openapi/brand-core-asset-materialization.yaml",
+        "openapi/container-authority-override-governance-smoke.yaml",
+        "openapi/container-authority.yaml",
+        "openapi/frontend-runtime-routes.generated.yaml",
+        "openapi/hostinger-storage-tenant-runtime.yaml",
+        "openapi/openapi-registry-sync.yaml",
+        "openapi/openapi.custom-gpt.staging-act-as-user-control.yaml",
+        "openapi/openapi.custom-gpt.staging-admin.yaml",
+        "openapi/sql-cache-policy.yaml",
+        "openapi/support-ticket-admin-brand.yaml",
+        "openapi/support-ticket-admin-execution.yaml",
+        "openapi/support-ticket-admin-remaining.yaml",
+        "openapi/support-ticket-runtime-completion.yaml",
+        "openapi/support-tickets.yaml",
+        "resource-api-coverage.manifest.json",
+        "routes/deviceToolsRoutes.js",
+        "routes/index.js",
+        "scripts/test-manifest.mjs",
+        "test-device-tools-diagnostics.mjs",
+        "test-frontend-surface-coverage-claims.mjs"
+      ],
+      "acceptance_gates": [
+        "source_baseline_unchanged",
+        "scope_and_auth_explicit",
+        "openapi_or_explicit_exemption",
+        "surface_policy_resolved",
+        "tests_registered",
+        "operation_classification_explicit"
+      ],
+      "verification": [
+        "node scripts/frontend-surface-dispatch.mjs --check",
+        "node scripts/resource-api-coverage-audit.mjs --changed",
+        "node test-device-tools-diagnostics.mjs",
+        "node test-frontend-surface-coverage-claims.mjs"
+      ]
+    },
+    {
       "task_key": "frontend.dispatch",
       "title": "Resolve and deliver dispatch",
       "wave": "F5-developer-evidence",
@@ -102922,58 +102982,6 @@
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/workflowOrchestrationRoutes.js",
-        "scripts/test-manifest.mjs",
-        "test-frontend-surface-coverage-claims.mjs"
-      ],
-      "acceptance_gates": [
-        "source_baseline_unchanged",
-        "scope_and_auth_explicit",
-        "openapi_or_explicit_exemption",
-        "surface_policy_resolved",
-        "tests_registered",
-        "operation_classification_explicit"
-      ],
-      "verification": [
-        "node scripts/frontend-surface-dispatch.mjs --check",
-        "node scripts/resource-api-coverage-audit.mjs --changed",
-        "node test-frontend-surface-coverage-claims.mjs"
-      ]
-    },
-    {
-      "task_key": "frontend.device-tools",
-      "title": "Resolve and deliver device tools",
-      "wave": "F5-developer-evidence",
-      "state": "blocked",
-      "blockers": [
-        "test_ownership_gap"
-      ],
-      "dependencies": [
-        "F0-source-baseline",
-        "F1-tenant-workspace-context",
-        "operation-classification"
-      ],
-      "source_refs": [
-        "frontend-operation-governance.generated.json",
-        "frontend-surface-policy.json",
-        "openapi-route-coverage.allowlist.json",
-        "openapi.yaml",
-        "openapi/brand-core-asset-materialization.yaml",
-        "openapi/container-authority-override-governance-smoke.yaml",
-        "openapi/container-authority.yaml",
-        "openapi/frontend-runtime-routes.generated.yaml",
-        "openapi/hostinger-storage-tenant-runtime.yaml",
-        "openapi/openapi-registry-sync.yaml",
-        "openapi/openapi.custom-gpt.staging-act-as-user-control.yaml",
-        "openapi/openapi.custom-gpt.staging-admin.yaml",
-        "openapi/sql-cache-policy.yaml",
-        "openapi/support-ticket-admin-brand.yaml",
-        "openapi/support-ticket-admin-execution.yaml",
-        "openapi/support-ticket-admin-remaining.yaml",
-        "openapi/support-ticket-runtime-completion.yaml",
-        "openapi/support-tickets.yaml",
-        "resource-api-coverage.manifest.json",
-        "routes/deviceToolsRoutes.js",
-        "routes/index.js",
         "scripts/test-manifest.mjs",
         "test-frontend-surface-coverage-claims.mjs"
       ],

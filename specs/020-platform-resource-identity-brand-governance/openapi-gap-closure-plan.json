@@ -6,8 +6,8 @@
   "source": {
     "baseline_ref": "main",
     "dispatch_artifact": "http-generic-api/frontend-surface-dispatch.generated.json",
-    "dispatch_source_digest": "ae405e0ececb1e17a2806d5c48dd20632e144cbaa946ce7da568bcde4a1fbd8e",
-    "dispatch_artifact_sha256": "93d0ce574687add79caebf0632fb46293b9aeb4c4a089bc538d38b40af269897"
+    "dispatch_source_digest": "ce33fb16116554d0305112046dda6a97225fe9edf2ef5ec9bb46e30570b6df28",
+    "dispatch_artifact_sha256": "b02f13fe02096e323250df772c6f2f5c9142528e01ad693e193014999ea64ec6"
   },
   "coverage": {
     "operation_count": 1084,
@@ -17,9 +17,9 @@
     "openapi_detail_gap_count": 325,
     "unresolved_surface_decision_count": 0,
     "unresolved_operation_class_count": 0,
-    "untested_family_count": 1,
-    "untested_operation_count": 2,
-    "coverage_complete": false
+    "untested_family_count": 0,
+    "untested_operation_count": 0,
+    "coverage_complete": true
   },
   "closure_summary": {
     "blocking_contract_gaps": 0,
@@ -1607,7 +1607,7 @@
       "priority": "P2_detail_traceability",
       "detail_gap_count": 2,
       "operation_count": 4,
-      "untested_operation_count": 2,
+      "untested_operation_count": 0,
       "unresolved_operation_count": 0,
       "next_action": "add_detail_evidence_without_claiming_canonical_coverage",
       "activation_allowed": false,
@@ -1634,6 +1634,7 @@
         "routes/deviceToolsRoutes.js",
         "routes/index.js",
         "scripts/test-manifest.mjs",
+        "test-device-tools-diagnostics.mjs",
         "test-frontend-surface-coverage-claims.mjs"
       ]
     },
