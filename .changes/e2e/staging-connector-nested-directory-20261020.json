@@ -1,0 +1,83 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-connector-nested-directory-20261020",
+  "title": "Staging Connector Agent nested source directory exclusion",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-connector-nested-directory-20261020.json",
+      ".dockerignore",
+      "http-generic-api/scripts/verify-staging-connector-assets.mjs",
+      "http-generic-api/test-local-manager-tool-release-owner.mjs",
+      "autopilot-portable-staging/manifest.json"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "secrets_included": false,
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Repair a failed Staging Docker build by excluding tracked nested n8n-workflows sources without weakening the exact Connector Agent asset image assertion or touching Production.",
+      "e2e_journeys": [
+        {
+          "id": "staging-connector-image-nested-source-exclusion",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Staging release engineer",
+          "entrypoint": "Exact-Git-archive Docker build and Connector Agent image asset verifier",
+          "terminal_outcome": "Only the manifest-declared Connector files are packaged, nested workflow sources stay excluded, and missing/extra image entries continue to fail closed.",
+          "steps": [
+            "Evaluate .dockerignore against the Connector release manifest and tracked nested source directories.",
+            "Run the source-time Connector verifier and release-owner regression tests.",
+            "Build the exact Staging Docker image with BuildKit and require the image-mode asset verifier to succeed before deployment."
+          ],
+          "assertions": [
+            "Nested n8n-workflows sources remain excluded even when the local-connector parent is unignored.",
+            "Every tracked nested Connector directory requires an explicit deny rule.",
+            "All manifest-listed files remain packaged, without broader Connector directory inclusion.",
+            "The image-stage assertion remains active and fails closed for extra directories or unexpected files.",
+            "No credentials, DB migrations, Staging live installation, Production changes, or authority bypass are introduced."
+          ],
+          "tests": [
+            {
+              "id": "staging-connector-source-and-nested-exclusions",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/scripts/verify-staging-connector-assets.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-connector-release-owner-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-local-manager-tool-release-owner.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/staging-connector-nested-directory-20261020.json",
+            ".dockerignore",
+            "http-generic-api/scripts/verify-staging-connector-assets.mjs",
+            "http-generic-api/test-local-manager-tool-release-owner.mjs",
+            "http-generic-api/Dockerfile.staging",
+            "autopilot-portable-staging/manifest.json"
+          ]
+        }
+      ]
+    }
+  ]
+}
