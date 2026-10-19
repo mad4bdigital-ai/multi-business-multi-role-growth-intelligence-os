@@ -104,7 +104,8 @@
       "http-generic-api/scripts/single-owner-review-gate.mjs",
       "http-generic-api/scripts/spec-kit-work-map-integration-gate.mjs",
       "scripts/test-ai-agent-instruction-reference-integrity.mjs",
-      "http-generic-api/test-recovery-kernel-routes.mjs"
+      "http-generic-api/test-recovery-kernel-routes.mjs",
+      "http-generic-api/test-device-tools-diagnostics.mjs"
     ]
   },
   "merge_contract": {
@@ -147,7 +148,8 @@
             "MCP catalog schema startup preflight is read-only, non-blocking, secret-free, and reports schema_contract_not_ready with migration_apply_performed=false when mcp_catalog_level is unavailable.",
             "GET /gpt/tools and POST /gpt/tools/call map MCP catalog schema drift to bounded HTTP 503 structured errors without exposing raw SQL messages on modern and legacy route builders.",
             "Production R7 classification strings are asserted from the authoritative decision module and its runtime readback remains public GET-only.",
-            "Production Promotion Rehearsal classifies ancestry/CAS blockers fail-closed without relaxing mutation policy, and emits a bounded read-only dry-run report with stale_authorization_reusable=false and all mutation flags false."
+            "Production Promotion Rehearsal classifies ancestry/CAS blockers fail-closed without relaxing mutation policy, and emits a bounded read-only dry-run report with stale_authorization_reusable=false and all mutation flags false.",
+            "The exact-head Frontend/OpenAPI projection covers every mounted operation with registered tests, leaves no operation unclassified, and classifies the Staging-only exact-device health POST as a read action; neither discovery nor health grants file/terminal mutation or Production authority."
           ],
           "tests": [
             {
@@ -303,6 +305,13 @@
               "working_directory": "http-generic-api",
               "path": "test-recovery-kernel-routes.mjs",
               "args": []
+            },
+            {
+              "id": "spec020-device-tools-scoped-health-coverage",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-device-tools-diagnostics.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
@@ -404,7 +413,8 @@
             ".github/workflows/pr-risk-labeler.yml",
             "http-generic-api/scripts/single-owner-review-gate.mjs",
             "scripts/test-ai-agent-instruction-reference-integrity.mjs",
-            "http-generic-api/test-recovery-kernel-routes.mjs"
+            "http-generic-api/test-recovery-kernel-routes.mjs",
+            "http-generic-api/test-device-tools-diagnostics.mjs"
           ],
           "secrets_included": false
         }

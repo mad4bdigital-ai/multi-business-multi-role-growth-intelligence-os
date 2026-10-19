@@ -66,7 +66,10 @@
       "local-connector/test-device-terminal-engine.mjs",
       "specs/020-platform-resource-identity-brand-governance/openapi-detail-closure-batch-full.json",
       "specs/020-platform-resource-identity-brand-governance/openapi-detail-gap-classification.json",
-      "specs/020-platform-resource-identity-brand-governance/openapi-gap-closure-plan.json"
+      "specs/020-platform-resource-identity-brand-governance/openapi-gap-closure-plan.json",
+      "http-generic-api/frontend-surface-policy.json",
+      "specs/020-platform-resource-identity-brand-governance/openapi-projection-readiness.json",
+      "specs/020-platform-resource-identity-brand-governance/e2e-phases.json"
     ]
   },
   "environment_impact": {
