@@ -122,7 +122,7 @@
     },
     {
       "path": "http-generic-api/config/deployment-branch-policy.json",
-      "sha256": "7a72cc37f212aa32c034d7593316131b8504275cbf6b431d2f294d23d9185ffa"
+      "sha256": "6b03d1fb8e66ea468e69d16fe795f5cb460618e919ed98c13fa110c5e96343bd"
     },
     {
       "path": "http-generic-api/config/domain-family-policy.json",
@@ -426,7 +426,7 @@
     },
     {
       "path": "local-connector/server.mjs",
-      "sha256": "df3dd191d6191500d621375614799cb74e0248df7cb5c90b4ce5f9a17f989632"
+      "sha256": "6b0151d1fdd2ccb0457205706110dfd75679c7e70e4d7fa1e8936aaace0f3ead"
     },
     {
       "path": "autopilot-portable-staging/Invoke-StagingPrHeadCertification.ps1",
