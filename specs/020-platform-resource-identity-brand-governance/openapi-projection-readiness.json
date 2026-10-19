@@ -36,7 +36,7 @@
     "auth_contract_gap_count": 0,
     "unresolved_operation_class_count": 0,
     "unresolved_surface_decision_count": 0,
-    "untested_operation_count": 2,
+    "untested_operation_count": 0,
     "blocked_task_count": 0,
     "coverage_complete": true,
     "captured_from": "http-generic-api/frontend-surface-dispatch.generated.json"
