@@ -418,7 +418,7 @@
     },
     {
       "path": "local-connector/install-service.ps1",
-      "sha256": "acc174f7071ab664081fcbd1b72da67ebfd02ef91f49fb5112f18c5e808a7f70"
+      "sha256": "23230021bb36ea6358ee9abf4ced21bb24b9f15b8f7f77a488a5bd238c988a5c"
     },
     {
       "path": "local-connector/connector-watchdog.ps1",
