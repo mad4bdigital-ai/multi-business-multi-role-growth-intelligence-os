@@ -17,6 +17,7 @@
       "apps/local-manager-windows/Program.cs",
       "autopilot-portable-staging/Repair-LocalConnectorTunnel.ps1",
       "autopilot-portable-staging/manifest.json",
+      "docs/governance/configuration-drift-baseline-extensions.json",
       "docs/remote-mcp-write-scope-inventory.md",
       "docs/runbooks/device-native-mcp-desktop-parity-20261019.md",
       "http-generic-api/frontend-operation-governance.generated.json",
