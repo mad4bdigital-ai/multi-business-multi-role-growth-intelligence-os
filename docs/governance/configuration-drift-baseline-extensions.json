@@ -3269,6 +3269,17 @@
       "contains_secret_value": false,
       "grants_runtime_mutation": false,
       "grants_production_activation": false
+    },
+    {
+      "fingerprint": "local-connector/test-device-mcp-resource.mjs|approvals|literal_declaration|approvals",
+      "owner": "device-mcp-test-governance",
+      "reason": "Test-scoped in-memory broker fixture used to verify Native MCP consent boundaries. This binding is synthetic and does not register a deploy-time setting, token, permission or authority. Actual operator approval remains local and one-shot.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
     }
   ],
   "safety": {
