@@ -230,3 +230,20 @@ test("ConPTY owned session provides cursor output and bounded resize with approv
     assert.equal(alice.dispatch({ action: "status", session_id: started.session_id }).status, "completed");
   } finally { f.done(); }
 });
+
+test("Runtime ConPTY discovery requires signed addon metadata before loading", () => {
+  const f = fixture(true);
+  try {
+    const env = { ...f.env,
+      CONNECTOR_DEVICE_TERMINAL_CONPTY_ENABLED: "true",
+      CONNECTOR_DEVICE_MCP_ENVIRONMENT: "staging" };
+    // ptyImpl is deliberately NOT injected: follow the production verifier path.
+    const manager = createDeviceTerminalManager({ env, platform: "win32",
+      spawnImpl: fakeSpawn().create });
+    assert.equal(manager.capabilities.pty_requested, true);
+    assert.equal(manager.capabilities.pty, false);
+    assert.equal(manager.capabilities.interactive_enabled, false);
+    assert.equal(owner(manager).dispatch({ action: "start", profile: "node_repl",
+      approval_token: "private-local-approval" }).code, "pty_unavailable");
+  } finally { f.done(); }
+});
