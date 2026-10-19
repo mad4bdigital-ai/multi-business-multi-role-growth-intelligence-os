@@ -15,8 +15,8 @@ internal static class LocalDocumentEditForm
             throw new InvalidOperationException("Structural document editing is Staging-only.");
 
         using var sourcePicker = new OpenFileDialog {
-            Title = "Choose a local DOCX or XLSX document",
-            Filter = "Word / Excel (*.docx;*.xlsx)|*.docx;*.xlsx",
+            Title = "Choose a local DOCX, XLSX or PDF document",
+            Filter = "Word / Excel / PDF (*.docx;*.xlsx;*.pdf)|*.docx;*.xlsx;*.pdf",
             CheckFileExists = true,
             Multiselect = false,
         };
@@ -24,8 +24,8 @@ internal static class LocalDocumentEditForm
 
         var source = Path.GetFullPath(sourcePicker.FileName);
         var extension = Path.GetExtension(source).ToLowerInvariant();
-        if (extension is not (".docx" or ".xlsx"))
-            throw new InvalidOperationException("Only DOCX and XLSX files are supported.");
+        if (extension is not (".docx" or ".xlsx" or ".pdf"))
+            throw new InvalidOperationException("Only DOCX, XLSX and PDF files are supported.");
 
         // Read a source opened without following an attacker-supplied junction
         // in a remote RPC. This workflow is explicitly local and operator-driven.
@@ -52,19 +52,20 @@ internal static class LocalDocumentEditForm
         var instructions = new Label {
             Text = extension == ".docx"
                 ? "Replace ONE exact Word text run. Split runs are refused."
-                : "Replace ONE existing inline-string cell. Formula cells are refused.",
+                : extension == ".xlsx" ? "Replace ONE existing inline-string cell. Formula cells are refused."
+                : "Edit PDF title and optional page rotation. Signed and protected PDFs are refused.",
             Location = new Point(16, 14), Size = new Size(520, 45),
         };
-        var sheetLabel = new Label { Text = "Worksheet XML path / Cell (Excel only)", Location = new Point(16, 65),
+        var sheetLabel = new Label { Text = extension == ".pdf" ? "Page number (0 = none) / Rotation degrees (0, 90, 180, 270)" : "Worksheet XML path / Cell (Excel only)", Location = new Point(16, 65),
             Size = new Size(520, 21) };
-        var sheet = new TextBox { Text = "xl/worksheets/sheet1.xml", Location = new Point(16, 88),
-            Width = 350, Enabled = extension == ".xlsx", MaxLength = 80 };
-        var cell = new TextBox { Text = "A1", Location = new Point(382, 88), Width = 140,
-            Enabled = extension == ".xlsx", MaxLength = 12 };
-        var oldLabel = new Label { Text = "Exact existing text", Location = new Point(16, 126),
+        var sheet = new TextBox { Text = extension == ".pdf" ? "0" : "xl/worksheets/sheet1.xml", Location = new Point(16, 88),
+            Width = 350, Enabled = extension != ".docx", MaxLength = 80 };
+        var cell = new TextBox { Text = extension == ".pdf" ? "0" : "A1", Location = new Point(382, 88), Width = 140,
+            Enabled = extension != ".docx", MaxLength = 12 };
+        var oldLabel = new Label { Text = extension == ".pdf" ? "Existing PDF title (blank if none)" : "Exact existing text", Location = new Point(16, 126),
             Size = new Size(520, 22) };
         var oldText = new TextBox { Location = new Point(16, 150), Width = 506, MaxLength = 2048 };
-        var newLabel = new Label { Text = "New text", Location = new Point(16, 190),
+        var newLabel = new Label { Text = extension == ".pdf" ? "New PDF title" : "New text", Location = new Point(16, 190),
             Size = new Size(520, 22) };
         var newText = new TextBox { Location = new Point(16, 214), Width = 506, MaxLength = 2048 };
         var apply = new Button { Text = "Prepare local copy", DialogResult = DialogResult.OK,
@@ -82,10 +83,14 @@ internal static class LocalDocumentEditForm
             updated = extension == ".docx"
                 ? DocumentStructuralEditor.ReplaceDocxRun(
                     original, expected, oldText.Text, newText.Text)
-                : DocumentStructuralEditor.ReplaceXlsxInlineCell(
-                    original, expected, sheet.Text, cell.Text, oldText.Text, newText.Text);
+                : extension == ".xlsx"
+                    ? DocumentStructuralEditor.ReplaceXlsxInlineCell(
+                        original, expected, sheet.Text, cell.Text, oldText.Text, newText.Text)
+                    : PdfStructuralEditor.ChangeTitleAndRotation(
+                        original, expected, oldText.Text, newText.Text,
+                        int.Parse(sheet.Text), int.Parse(cell.Text));
         }
-        catch (Exception ex) when (ex is InvalidDataException or NotSupportedException)
+        catch (Exception ex) when (ex is InvalidDataException or NotSupportedException or FormatException or OverflowException or InvalidOperationException)
         {
             MessageBox.Show(owner, "The document cannot be edited with the restricted structural editor. " +
                 "Only an exact unambiguous edit is accepted.", "Edit refused",
@@ -103,7 +108,8 @@ internal static class LocalDocumentEditForm
         using var outputPicker = new SaveFileDialog {
             Title = "Save a new edited copy (original is preserved)",
             Filter = extension == ".docx" ? "Word document (*.docx)|*.docx"
-                                         : "Excel workbook (*.xlsx)|*.xlsx",
+                   : extension == ".xlsx" ? "Excel workbook (*.xlsx)|*.xlsx"
+                   : "PDF document (*.pdf)|*.pdf",
             AddExtension = true, OverwritePrompt = true,
             FileName = Path.GetFileNameWithoutExtension(source) + ".edited" + extension,
         };
