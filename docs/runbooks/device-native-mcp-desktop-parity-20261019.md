@@ -91,6 +91,39 @@ process-tree teardown and logout/crash behavior. Node tests using an injected
 ConPTY adapter are **synthetic** and do not certify a real Windows ConPTY
 installation. Until those gates pass, this slice is `SOURCE_ONLY`.
 
+### Native ConPTY package promotion gate (source-ready, no signed package)
+
+For the opt-in Staging connector, keep
+`CONNECTOR_DEVICE_TERMINAL_CONPTY_ENABLED=false` until an independently
+approved Windows `node-pty@1.1.0` package has been supplied under the
+connector's `node_modules/node-pty` directory. Activation also requires
+`CONNECTOR_DEVICE_CONPTY_NATIVE_ADDON_PATH` (the actual native `.node`),
+`CONNECTOR_DEVICE_CONPTY_NATIVE_SHA256` (the exact package addon digest),
+and `CONNECTOR_DEVICE_CONPTY_SIGNER_THUMBPRINT` (the approved signing
+certificate). An empty, unsigned, wrong-version or wrong-digest artifact
+fails closed **before service installation** and is checked again **before
+the connector loads node-pty at runtime** by
+`Test-ConptyNativePackage.ps1`.
+
+The Windows CI negative test proves only that an uncertified package is
+rejected. It does not create a signed `node-pty`, validate the
+positive-signature path, or install the native addon on a live machine.
+Real ConPTY acceptance requires signed artifact custody, code-signing
+identity attestation, Windows process-tree and teardown tests, and
+Staging operator confirmation; Production remains independently blocked.
+
+### Bounded binary document replacement (not structural editing)
+
+`files_binary_info` establishes the expected SHA; every
+`files_binary_read` page must send that exact SHA to avoid cross-version
+mixes. `files_binary_replace` accepts a small fully formed DOCX/XLSX/PDF
+binary only with source and target SHA, an exact-root path and separate
+one-shot local consent. A private transaction backup enables
+`files_rollback`, which rejects if the document was edited meanwhile.
+All such actions are default-off and Staging-only. They **do not** edit
+Word paragraphs, spreadsheet formulas/cells or PDF annotations; a trusted
+format-aware adapter and positive ZIP/PDF fidelity tests remain required.
+
 ### Remaining independent acceptance gates for Issue #8606
 
 | Workstream | Source status | Independent gate |
