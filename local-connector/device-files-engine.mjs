@@ -195,6 +195,11 @@ export function createDeviceFilesEngine({ env = process.env } = {}) {
     const response = { ok: true, http_status: 200, relative_path: relative,
       mime_type: mime, size: data.length, sha256, secrets_included: false };
     if (infoOnly) return response;
+    // Require the SHA observed from binary_info on EVERY page. Reject
+    // document replacement instead of silently mixing pages from revisions.
+    if (typeof input.expected_sha256 !== "string" ||
+        !/^[a-f0-9]{64}$/i.test(input.expected_sha256)) return failure("digest_required");
+    if (input.expected_sha256.toLowerCase() !== sha256) return failure("digest_mismatch");
     const offset = input.offset ?? 0;
     if (!Number.isSafeInteger(offset) || offset < 0 || offset > data.length)
       return failure("invalid_request");
