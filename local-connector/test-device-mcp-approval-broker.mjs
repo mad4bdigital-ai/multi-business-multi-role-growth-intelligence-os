@@ -63,11 +63,13 @@ test("signed OAuth read and approved write stay separate; no secrets enter MCP t
   const now = Date.now();
   const broker = createDeviceMcpApprovalBroker({ env: fullEnv, now: () => now });
   const calls = [];
+  const audits = [];
   const files = { capabilities: { enabled: true, write_enabled: true },
     dispatch: payload => { calls.push(payload); return { ok: true, action: payload.action }; } };
   const terminal = { capabilities: { enabled: true, interactive_enabled: true },
     dispatch: payload => { calls.push(payload); return { ok: true, action: payload.action }; } };
-  const gateway = createDeviceMcpResource({ env: fullEnv, files, terminal, approvals: broker, now: () => now });
+  const gateway = createDeviceMcpResource({ env: fullEnv, files, terminal, approvals: broker,
+    now: () => now, onAudit: event => audits.push(event) });
   function signed(subject = "alice", scope = "device:files:write device:terminal:interactive") {
     const encode = x => Buffer.from(JSON.stringify(x)).toString("base64url");
     const h = encode({ alg: "RS256", kid: "test", typ: "at+jwt" });
@@ -115,4 +117,11 @@ test("signed OAuth read and approved write stay separate; no secrets enter MCP t
     assert.equal(JSON.parse(request(executeGrant, tool, sessionArgs).body.result.content[0].text).code,
       "local_consent_required", tool + " consent must be one-shot");
   }
+  assert.ok(audits.some(x => x.outcome === "scope_denied"));
+  assert.ok(audits.some(x => x.outcome === "success" && x.tool === "files_create_file"));
+  assert.ok(audits.some(x => x.outcome === "rejected_or_failed" && x.tool === "terminal_cancel"));
+  assert.ok(audits.every(x => /^[a-f0-9]{64}$/.test(x.principal_hash)));
+  assert.equal(JSON.stringify(audits).includes(LOCAL_APPROVAL), false);
+  assert.equal(JSON.stringify(audits).includes(env.CONNECTOR_DEVICE_FILE_APPROVAL_TOKEN), false);
+  assert.equal(JSON.stringify(audits).includes("alice"), false);
 });
