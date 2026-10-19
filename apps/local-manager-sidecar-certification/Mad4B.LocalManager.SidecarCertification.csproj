@@ -15,6 +15,7 @@
   <ItemGroup>
     <Compile Include="..\local-manager-windows\LocalManagerEnvironment.cs" Link="LocalManagerEnvironment.cs" />
     <Compile Include="..\local-manager-windows\SidecarRpcContracts.cs" Link="SidecarRpcContracts.cs" />
+    <Compile Include="..\local-manager-windows\DocumentStructuralEditor.cs" Link="DocumentStructuralEditor.cs" />
     <Compile Include="..\local-manager-windows\SidecarRpcServer.cs" Link="SidecarRpcServer.cs" />
     <Compile Include="..\local-manager-windows\SidecarLifecycleSupervisor.cs" Link="SidecarLifecycleSupervisor.cs" />
   </ItemGroup>
