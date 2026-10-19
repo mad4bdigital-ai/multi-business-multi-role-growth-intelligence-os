@@ -16,7 +16,7 @@
 
 import { Router } from "express";
 import { getPool } from "../db.js";
-import { adminConnectorInventory } from "../adminLocalConnectorTarget.js";
+import { adminConnectorInventory, resolveAdminConnectorTarget } from "../adminLocalConnectorTarget.js";
 import {
   resolveCallerTypeForRequest,
   fetchToolsForCaller,
@@ -55,9 +55,65 @@ export function signedDeviceRegistryScope(req = {}) {
   return { user_id: auth.user_id.trim(), tenant_id: auth.tenant_id.trim() };
 }
 
+// Read-only allowlisted multi-device target selection.  No caller-supplied
+// user/tenant scope is ever forwarded to Connector; those come from signed JWT.
+export function deviceHealthRoutingPolicy({ env = process.env, scope, deviceId, tool }) {
+  if (env.NODE_ENV !== "staging" ||
+      env.DEVICE_MCP_MULTI_DEVICE_HEALTH_ENABLED !== "true")
+    return { allowed: false, code: "multi_device_routing_disabled" };
+  if (!scope) return { allowed: false, code: "signed_device_scope_required" };
+  if (typeof deviceId !== "string" ||
+      !/^[a-z0-9][a-z0-9_-]{1,127}$/i.test(deviceId))
+    return { allowed: false, code: "canonical_device_id_required" };
+  if (!tool || tool.name !== "local_connector_health" || !isDeviceTagged(tool))
+    return { allowed: false, code: "governed_device_health_tool_required" };
+  return { allowed: true, deviceId };
+}
+
 export function buildDeviceToolsRoutes(deps) {
   const { requireBackendApiKey } = deps;
   const router = Router();
+
+  // Limited execution path: a read-only health probe against an exact, fresh
+  // scoped device. Registered tool dispatch rechecks normal grants; no arbitrary
+  // tools, shell, file mutations, alias resolution, or direct tunnel calls.
+  router.post("/device/tools/devices/:device_id/health", requireBackendApiKey, async (req, res) => {
+    res.setHeader("Cache-Control", "no-store");
+    const scope = signedDeviceRegistryScope(req);
+    try {
+      const caller = resolveCallerTypeForRequest(req);
+      if (caller !== "tenant") return res.status(403).json({
+        ok: false, code: "signed_tenant_principal_required", secrets_included: false,
+      });
+      const registered = await fetchToolsForCaller(caller);
+      const tool = registered.find(t => t.name === "local_connector_health");
+      const check = deviceHealthRoutingPolicy({
+        scope, deviceId: req.params.device_id, tool,
+      });
+      if (!check.allowed) return res.status(403).json({
+        ok: false, code: check.code, secrets_included: false,
+      });
+      const target = await resolveAdminConnectorTarget({
+        pool: getPool(), scope, requestedDeviceId: check.deviceId,
+        intent: "execution", includeCredentials: false,
+      });
+      if (!target.execution_allowed || target.selection_source !== "explicit_canonical_id")
+        return res.status(409).json({
+          ok: false, code: "device_not_verified_for_health",
+          secrets_included: false,
+        });
+      // No user_id, tenant_id, raw route, credential or arbitrary command in args.
+      const dispatched = await dispatchToolForCaller(
+        caller, "local_connector_health", { device_id: target.row.device_id }, req,
+      );
+      return res.status(dispatched.status).json(dispatched.body);
+    } catch (error) {
+      return res.status(error.status || 503).json({
+        ok: false, code: error.code || "scoped_device_health_unavailable",
+        secrets_included: false,
+      });
+    }
+  });
 
   // Credential-free multi-device discovery ONLY. Device execution still
   // requires a separate exact-device grant and live heartbeat verification.
