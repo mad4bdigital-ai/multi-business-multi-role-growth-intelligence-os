@@ -68,14 +68,18 @@ jobs:
         run: |
           # Negative integration proof only. This does not install or sign node-pty.
           $missingAddon = Join-Path $PWD 'node_modules/node-pty/prebuilds/win32-x64/pty.node'
-          $output = & ./local-connector/Test-ConptyNativePackage.ps1 `
-            -ConnectorRoot (Join-Path $PWD 'local-connector') `
-            -NativeAddonPath $missingAddon `
-            -ExpectedSha256 ('0' * 64) `
-            -AllowedSignerThumbprint ('0' * 40) 2>&1 | Out-String
-          if ($output -notmatch 'ConPTY' -and $output -notmatch 'native') {
-            throw "Missing/unsigned ConPTY package rejection is not explicit."
+          $rejected = $false
+          try {
+            & ./local-connector/Test-ConptyNativePackage.ps1 `
+              -ConnectorRoot (Join-Path $PWD 'local-connector') `
+              -NativeAddonPath $missingAddon `
+              -ExpectedSha256 ('0' * 64) `
+              -AllowedSignerThumbprint ('0' * 40) | Out-Null
+          } catch {
+            if ($_.Exception.Message -notmatch '(ConPTY|native)') { throw }
+            $rejected = $true
           }
+          if (-not $rejected) { throw "Unsigned ConPTY was not rejected." }
           Write-Host "Uncertified ConPTY package rejected (expected)."
 
       - name: Reject unsupported build environments at MSBuild boundary
