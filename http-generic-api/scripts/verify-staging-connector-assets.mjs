@@ -30,6 +30,15 @@ if (!imageMode) {
   assert(!ignoreRules.has("!local-connector/**"), "connector_asset_directory_wildcard_forbidden");
   const includedPaths = [...ignoreRules].filter((r) => r.startsWith("!local-connector/") && r !== "!local-connector/");
   assert.deepEqual(includedPaths.sort(), local.map((f) => `!${f}`).sort(), "connector_asset_allowlist_mismatch");
+  // The Docker ignore parent exception can include tracked subdirectories.
+  // Every nested source directory must be explicitly excluded, while the
+  // image-mode check below still refuses *any* resulting directory.
+  const sourceFolders = fs.readdirSync(path.join(repoRoot, "local-connector"), { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => entry.name);
+  for (const folder of sourceFolders) {
+    assert(ignoreRules.has(`local-connector/${folder}/`), `connector_asset_nested_directory_not_excluded:${folder}`);
+  }
 }
 if (imageMode) {
   const entries = fs.readdirSync(path.join(repoRoot, "local-connector"), { withFileTypes: true });
