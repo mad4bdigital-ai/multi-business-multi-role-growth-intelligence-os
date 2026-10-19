@@ -135,6 +135,7 @@
           "http-generic-api/stagingActivationGatewayApplyAdapter.js",
           "http-generic-api/staging-governance-authority-seed-recovery-contract.mjs",
           "http-generic-api/scripts/staging-*.mjs",
+          "http-generic-api/scripts/verify-staging-connector-assets.mjs",
           "http-generic-api/scripts/validate-staging-canonical-semantic-repair-plan.mjs",
           "http-generic-api/scripts/build-staging-worker.mjs",
           "http-generic-api/scripts/install-staging-activation-trust.mjs",
