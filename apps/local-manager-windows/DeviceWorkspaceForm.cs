@@ -62,7 +62,8 @@ internal sealed class DeviceWorkspaceForm : Form
         _profile.SelectedIndex = 0;
         _mcpTool.Items.AddRange(new object[] { "files_create_directory", "files_create_file",
             "files_copy", "files_move", "files_patch", "files_rollback",
-            "terminal_start_interactive", "terminal_input" });
+            "terminal_start_interactive", "terminal_input",
+            "terminal_cancel", "process_terminate_owned", "sessions_close" });
         _mcpTool.SelectedIndex = 0;
         _mcpArguments.Text = @"{""relative_path"":""src/new-folder""}";
 
