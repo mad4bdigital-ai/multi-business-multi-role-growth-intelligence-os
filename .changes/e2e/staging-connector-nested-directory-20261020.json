@@ -18,7 +18,10 @@
       "http-generic-api/scripts/staging-connector-release-contract.mjs",
       "http-generic-api/Dockerfile.staging",
       "http-generic-api/test-staging-connector-release-growth.mjs",
-      ".github/governance/test-authority-registry.json"
+      ".github/governance/test-authority-registry.json",
+      "local-connector/n8n-workflows/inspect-workflow-sources.mjs",
+      "http-generic-api/test-n8n-workflow-source-inventory.mjs",
+      "docs/n8n-workflow-runtime.md"
     ]
   },
   "environment_impact": {
@@ -53,7 +56,8 @@
             "Run source verifier and Local Manager release-owner regression tests, verifying no duplicated per-file .dockerignore allowlist.",
             "Build a real Docker BuildKit fixture with future nested and unlisted Connector sources and require only manifest-listed release assets.",
             "Verify the generated manifest hash is sealed in build provenance and enforced in the final Staging image.",
-            "Verify a newly declared safe Connector file is auto-packaged without any Docker ignore edit; reject subsequent file tampering."
+            "Verify a newly declared safe Connector file is auto-packaged without any Docker ignore edit; reject subsequent file tampering.",
+            "Run the read-only n8n source inventory test, including simulated new backups, safety-flag rejection and proof that Connector FILES registry remains independent."
           ],
           "assertions": [
             "The FILES registry in connectorAgentRoutes.js is the only release file-list authority; adding a valid new file requires no .dockerignore update.",
@@ -64,7 +68,8 @@
             "The image verification rejects unexpected files and directories; BuildKit copy acceptance checks synthetic unlisted content is excluded.",
             "No production, DB, secrets, authority bypass, or live Staging deployment occurs as part of CI.",
             "A valid newly declared release file extends the generated manifest automatically, and content tampering fails SHA-256 manifest verification.",
-            "New BuildKit and release-growth tests are registered under the existing Connector test authority, with no new waiver or bypass."
+            "New BuildKit and release-growth tests are registered under the existing Connector test authority, with no new waiver or bypass.",
+            "Historical n8n backup templates and paired restore scripts remain discoverable via a read-only source inventory, independent of Connector image packaging and without restoring or changing live n8n workflows."
           ],
           "tests": [
             {
@@ -94,6 +99,13 @@
               "working_directory": ".",
               "path": "http-generic-api/test-staging-connector-build-context.mjs",
               "args": []
+            },
+            {
+              "id": "n8n-historical-workflow-source-separation",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-n8n-workflow-source-inventory.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
@@ -108,7 +120,10 @@
             "http-generic-api/scripts/build-staging-connector-release.mjs",
             "http-generic-api/scripts/staging-connector-release-contract.mjs",
             "http-generic-api/test-staging-connector-release-growth.mjs",
-            ".github/governance/test-authority-registry.json"
+            ".github/governance/test-authority-registry.json",
+            "local-connector/n8n-workflows/inspect-workflow-sources.mjs",
+            "http-generic-api/test-n8n-workflow-source-inventory.mjs",
+            "docs/n8n-workflow-runtime.md"
           ]
         }
       ]
