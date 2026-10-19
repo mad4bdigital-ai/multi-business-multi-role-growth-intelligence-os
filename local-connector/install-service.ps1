@@ -78,6 +78,27 @@ Write-Host ""
 Write-Host "=== Growth Intelligence Platform - Local Connector Install ==="
 $environmentBinding = Assert-ConnectorEnvironmentBinding
 $tunnelTokenFile = Resolve-ConnectorTunnelTokenFile
+# Native ConPTY never silently installs from npm or accepts unsigned binaries.
+# Only the exact per-user Staging profile can opt in with pinned addon evidence.
+if ((Get-DotEnvValue "CONNECTOR_DEVICE_TERMINAL_CONPTY_ENABLED") -eq "true") {
+    if ($environmentBinding.environment -ne "staging" -or
+        (Get-DotEnvValue "CONNECTOR_DEVICE_MCP_ENVIRONMENT") -ne "staging") {
+        throw "Native ConPTY is Staging-only and requires both environment bindings."
+    }
+    $validator = Join-Path $ConnectorDir "Test-ConptyNativePackage.ps1"
+    if (-not (Test-Path -LiteralPath $validator -PathType Leaf)) {
+        throw "ConPTY supply-chain validator is missing."
+    }
+    & $validator -ConnectorRoot $ConnectorDir `
+      -NativeAddonPath (Get-DotEnvValue "CONNECTOR_DEVICE_CONPTY_NATIVE_ADDON_PATH") `
+      -ExpectedSha256 (Get-DotEnvValue "CONNECTOR_DEVICE_CONPTY_NATIVE_SHA256") `
+      -AllowedSignerThumbprint (Get-DotEnvValue "CONNECTOR_DEVICE_CONPTY_SIGNER_THUMBPRINT") |
+      Out-Null
+    if ($LASTEXITCODE -and $LASTEXITCODE -ne 0) {
+        throw "ConPTY supply-chain verification did not complete."
+    }
+    Write-Host "  Native ConPTY artifact integrity and signer: VERIFIED (Staging only)"
+}
 Write-Host "  Environment binding: $($environmentBinding.environment) -> $($environmentBinding.control_plane_host) [OK]"
 Write-Host "  Tunnel credential mode: token_file [OK]"
 
