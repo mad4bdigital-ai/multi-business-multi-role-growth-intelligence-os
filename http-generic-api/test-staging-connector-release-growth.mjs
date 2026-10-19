@@ -25,6 +25,7 @@ try {
   const after = routes.replace(/(const FILES = \{)([\s\S]*?)(\n\};)/u, (whole, start, body, end) =>
     start + body + '\n  "future-mcp-module.mjs": {\n    relativePath: "local-connector/future-mcp-module.mjs",\n    contentType: "text/javascript; charset=utf-8",\n    executable: false,\n  },' + end);
   assert.notEqual(after, routes, "future_release_fixture_registry_injection_failed");
+  fs.mkdirSync(path.dirname(path.join(fixture, routesPath)), { recursive: true });
   fs.writeFileSync(path.join(fixture, routesPath), after);
   const content = "export const futureMcpModule = true;\n";
   fs.writeFileSync(path.join(fixture, newPath), content);
