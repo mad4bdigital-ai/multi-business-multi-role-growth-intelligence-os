@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 
-import { deviceToolsDiagnostics } from "./routes/deviceToolsRoutes.js";
+import { deviceToolsDiagnostics, signedDeviceRegistryScope } from "./routes/deviceToolsRoutes.js";
 
 assert.deepEqual(
   deviceToolsDiagnostics("sql", 0),
@@ -37,6 +37,17 @@ assert.deepEqual(
     reason_code: null,
   },
 );
+
+assert.equal(signedDeviceRegistryScope({}), null);
+assert.equal(signedDeviceRegistryScope({ auth: { mode: "api_credential",
+  user_id: "alice", tenant_id: "tenant1" }, query: { device_id: "other" } }), null);
+assert.equal(signedDeviceRegistryScope({ auth: { mode: "user_jwt", user_id: "", tenant_id: "t" } }), null);
+assert.equal(signedDeviceRegistryScope({ auth: { mode: "user_jwt", user_id: "u", tenant_id: "" } }), null);
+assert.deepEqual(signedDeviceRegistryScope({
+  auth: { mode: "user_jwt", user_id: "user-a", tenant_id: "tenant-a" },
+  query: { user_id: "victim", tenant_id: "other-tenant" },
+}), { user_id: "user-a", tenant_id: "tenant-a" });
+// Discovery data stays read-only; the route does not dispatch remote commands.
 
 console.log(JSON.stringify({
   ok: true,
