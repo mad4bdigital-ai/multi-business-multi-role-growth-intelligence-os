@@ -31,6 +31,7 @@
       "http-generic-api/frontend-surface-dispatch.generated.json",
       "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
       "http-generic-api/routes/connectorAgentRoutes.js",
+      "http-generic-api/routes/deviceToolsRoutes.js",
       "http-generic-api/routes/localConnectorInstallRoutes.js",
       "http-generic-api/scripts/connector-agent-smoke-test.mjs",
       "http-generic-api/scripts/maintenance-tools/governed-refresh-idempotency.mjs",
@@ -38,6 +39,7 @@
       "http-generic-api/scripts/test-manifest.mjs",
       "http-generic-api/test-connector-staging-mcp-distribution.mjs",
       "http-generic-api/test-desktop-device-workspace-wiring.mjs",
+      "http-generic-api/test-device-tools-diagnostics.mjs",
       "http-generic-api/test-governed-generated-artifact-refresh-apply-context.mjs",
       "http-generic-api/test-local-manager-sidecar-lifecycle-supervision.mjs",
       "local-connector/.env.example",
@@ -178,6 +180,13 @@
               "working_directory": ".",
               "path": "http-generic-api/test-admin-local-connector-target.mjs",
               "args": []
+            },
+            {
+              "id": "signed-tenant-multi-device-discovery",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-device-tools-diagnostics.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
@@ -195,7 +204,9 @@
             ".github/governance/test-authority-registry.json",
             "http-generic-api/test-admin-local-connector-target.mjs",
             "local-connector/Test-ConptyNativePackage.ps1",
-            "local-connector/install-service.ps1"
+            "local-connector/install-service.ps1",
+            "http-generic-api/routes/deviceToolsRoutes.js",
+            "http-generic-api/test-device-tools-diagnostics.mjs"
           ]
         },
         {
