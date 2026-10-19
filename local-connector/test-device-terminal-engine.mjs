@@ -185,3 +185,48 @@ test("ConPTY requires a Windows Staging native adapter; disabled modes reject in
     assert.equal(spawned.children.length, 0);
   } finally { f.done(); }
 });
+
+test("ConPTY owned session provides cursor output and bounded resize with approval", () => {
+  const f = fixture(true), children = [];
+  f.env.CONNECTOR_DEVICE_TERMINAL_CONPTY_ENABLED = "true";
+  f.env.CONNECTOR_DEVICE_MCP_ENVIRONMENT = "staging";
+  const ptyImpl = { spawn(command, args, options) {
+    const child = { pid: 10831, command, args, options, writes: [], sizes: [],
+      write(data) { this.writes.push(data); },
+      resize(cols, rows) { this.sizes.push([cols, rows]); },
+      onData(fn) { this.output = fn; },
+      onExit(fn) { this.exited = fn; },
+      kill() {} };
+    children.push(child);
+    return child;
+  } };
+  try {
+    const manager = createDeviceTerminalManager({ env: f.env, ptyImpl,
+      platform: "win32", spawnImpl: fakeSpawn().create });
+    assert.equal(manager.capabilities.pty, true);
+    assert.equal(manager.capabilities.process_reattach_after_restart, false);
+    const alice = owner(manager, "owner-a"), bob = owner(manager, "owner-b");
+    const started = alice.dispatch({ action: "start", profile: "node_repl",
+      approval_token: "private-local-approval" });
+    assert.equal(started.ok, true);
+    assert.equal(started.conpty, true);
+    assert.equal(children[0].options.useConpty, true);
+    assert.equal(children[0].options.env.CONNECTOR_DEVICE_TERMINAL_APPROVAL_TOKEN, undefined);
+    children[0].output("pty output");
+    assert.match(alice.dispatch({ action: "output", session_id: started.session_id }).output, /pty output/);
+    assert.equal(bob.dispatch({ action: "resize", session_id: started.session_id,
+      cols: 90, rows: 30 }).code, "session_not_found");
+    assert.equal(alice.dispatch({ action: "resize", session_id: started.session_id,
+      cols: 90, rows: 30 }).code, "approval_required");
+    assert.equal(alice.dispatch({ action: "resize", session_id: started.session_id,
+      cols: 90, rows: 81, approval_token: "private-local-approval" }).code, "invalid_request");
+    assert.equal(alice.dispatch({ action: "resize", session_id: started.session_id,
+      cols: 90, rows: 30, approval_token: "private-local-approval" }).ok, true);
+    assert.deepEqual(children[0].sizes, [[90, 30]]);
+    assert.equal(alice.dispatch({ action: "input", session_id: started.session_id, input: "2+2\\n",
+      approval_token: "private-local-approval" }).ok, true);
+    assert.deepEqual(children[0].writes, ["2+2\\n"]);
+    children[0].exited({ exitCode: 0 });
+    assert.equal(alice.dispatch({ action: "status", session_id: started.session_id }).status, "completed");
+  } finally { f.done(); }
+});
