@@ -488,6 +488,69 @@ export function createDeviceFilesEngine({ env = process.env } = {}) {
       }
     }
   }
+
+  function replaceDocument(input) {
+    if (!binaryEnabled) return failure("binary_disabled");
+    const denied = requireWrite(input);
+    if (denied) return denied;
+    const relative = input.relative_path;
+    if (typeof relative !== "string" ||
+        !Object.hasOwn(DOCUMENT_MIMES, path.extname(relative).toLowerCase()))
+      return failure("invalid_document_format");
+    if (!/^[a-f0-9]{64}$/i.test(input.expected_sha256 || "") ||
+        !/^[a-f0-9]{64}$/i.test(input.new_sha256 || ""))
+      return failure("digest_required");
+    if (typeof input.content_base64url !== "string" ||
+        !/^[A-Za-z0-9_-]+$/.test(input.content_base64url) ||
+        input.content_base64url.length > 32768)
+      return failure("invalid_content");
+    const updated = Buffer.from(input.content_base64url, "base64url");
+    if (!updated.length || updated.length > MAX_BINARY_WRITE_BYTES ||
+        updated.toString("base64url") !== input.content_base64url ||
+        !documentFormat(relative, updated)) return failure("invalid_document_format");
+    if (digest(updated) !== input.new_sha256.toLowerCase()) return failure("digest_mismatch");
+    const absolute = resolve(root, relative);
+    if (!absolute) return failure("path_denied");
+    const named = fs.lstatSync(absolute);
+    if (!named.isFile() || named.isSymbolicLink() || named.nlink !== 1)
+      return failure("path_denied");
+    const read = boundedRead(absolute, MAX_DOCUMENT_BYTES);
+    if (read.denied) return failure("path_denied");
+    if (read.tooLarge) return failure("file_too_large");
+    const before = read.bytes;
+    if (!documentFormat(relative, before)) return failure("invalid_document_format");
+    if (digest(before) !== input.expected_sha256.toLowerCase())
+      return failure("digest_mismatch");
+    const transaction = randomUUID();
+    const backup = path.join(stateDir, transaction + ".backup");
+    const meta = path.join(stateDir, transaction + ".json");
+    const temp = path.join(path.dirname(absolute), ".mad4b-" + transaction + ".tmp");
+    let committed = false;
+    try {
+      fs.writeFileSync(backup, before, { flag: "wx", mode: 0o600 });
+      fs.writeFileSync(meta, JSON.stringify({ kind: "document", relative_path: relative,
+        before: digest(before), after: digest(updated),
+        created_at: new Date().toISOString() }), { flag: "wx", mode: 0o600 });
+      fs.writeFileSync(temp, updated, { flag: "wx", mode: 0o600 });
+      const live = fs.lstatSync(absolute);
+      if (!live.isFile() || live.isSymbolicLink() || live.nlink !== 1 ||
+          live.dev !== named.dev || live.ino !== named.ino ||
+          digest(boundedRead(absolute, MAX_DOCUMENT_BYTES).bytes || Buffer.alloc(0)) !== digest(before))
+        return failure("digest_mismatch");
+      fs.chmodSync(temp, named.mode & 0o777);
+      fs.renameSync(temp, absolute);
+      committed = true;
+      return { ok: true, http_status: 200, transaction_id: transaction,
+        before_sha256: digest(before), after_sha256: digest(updated),
+        rollback_supported: true, secrets_included: false };
+    } finally {
+      try { fs.rmSync(temp, { force: true }); } catch { /* best effort */ }
+      if (!committed) {
+        try { fs.rmSync(meta, { force: true }); } catch { /* best effort */ }
+        try { fs.rmSync(backup, { force: true }); } catch { /* best effort */ }
+      }
+    }
+  }
   function rollback(input) {
     const denied = requireWrite(input);
     if (denied) return denied;
@@ -499,12 +562,25 @@ export function createDeviceFilesEngine({ env = process.env } = {}) {
     if (fs.lstatSync(metaPath).isSymbolicLink() || fs.lstatSync(backupPath).isSymbolicLink())
       return failure("backup_unavailable");
     const record = JSON.parse(fs.readFileSync(metaPath, "utf8"));
+    const document = record.kind === "document";
+    if (document && !binaryEnabled) return failure("binary_disabled");
     const absolute = resolve(root, record.relative_path);
-    if (!absolute || !isText(record.relative_path)) return failure("path_denied");
-    if (fs.statSync(backupPath).size > MAX_FILE_BYTES) return failure("backup_unavailable");
-    const before = fs.readFileSync(backupPath);
-    if (digest(before) !== record.before) return failure("backup_unavailable");
-    const current = fs.readFileSync(absolute);
+    if (!absolute || !(document
+      ? Object.hasOwn(DOCUMENT_MIMES, path.extname(record.relative_path).toLowerCase())
+      : isText(record.relative_path))) return failure("path_denied");
+    const named = fs.lstatSync(absolute);
+    if (!named.isFile() || named.isSymbolicLink() || named.nlink !== 1) return failure("path_denied");
+    const limit = document ? MAX_DOCUMENT_BYTES : MAX_FILE_BYTES;
+    if (fs.statSync(backupPath).size > limit) return failure("backup_unavailable");
+    const opened = boundedRead(backupPath, limit);
+    if (opened.denied || opened.tooLarge) return failure("backup_unavailable");
+    const before = opened.bytes;
+    if (digest(before) !== record.before ||
+        (document && !documentFormat(record.relative_path, before)))
+      return failure("backup_unavailable");
+    const active = boundedRead(absolute, limit);
+    if (active.denied || active.tooLarge) return failure("path_denied");
+    const current = active.bytes;
     if (digest(current) !== record.after) return failure("digest_mismatch");
     const temp = path.join(path.dirname(absolute), ".mad4b-" + randomUUID() + ".tmp");
     try {
@@ -531,6 +607,7 @@ export function createDeviceFilesEngine({ env = process.env } = {}) {
       if (input.action === "binary_info") return readDocument(input, true);
       if (input.action === "binary_read") return readDocument(input, false);
       if (input.action === "binary_create") return createDocument(input);
+      if (input.action === "binary_replace") return replaceDocument(input);
       if (input.action === "create_directory") return createDirectory(input);
       if (input.action === "create_file") return createFile(input);
       if (input.action === "copy") return copyOrMove(input, false);
