@@ -47,14 +47,17 @@ internal static class PdfStructuralEditor
             throw new InvalidDataException("PDF title changed since the preview.");
         document.Info.Title = replacementTitle;
         if (pageNumber > 0) document.Pages[pageNumber - 1].Rotate = rotationDegrees;
+        // PDFsharp invalidates its mutable object graph after Save.
+        // Record the expected page count before writing the stream.
+        var originalPageCount = document.PageCount;
         using var output = new MemoryStream();
         document.Save(output, false);
         if (output.Length > MaximumPdfBytes)
             throw new InvalidDataException("Result PDF exceeded the size limit.");
         // Reparse output to ensure structural validity; no acceptance on magic alone.
         output.Position = 0;
-        using var verification = PdfReader.Open(output, PdfDocumentOpenMode.ReadOnly);
-        if (verification.PageCount != document.PageCount ||
+        using var verification = PdfReader.Open(output, PdfDocumentOpenMode.Import);
+        if (verification.PageCount != originalPageCount ||
             verification.Info.Title != replacementTitle ||
             (pageNumber > 0 && verification.Pages[pageNumber - 1].Rotate != rotationDegrees))
             throw new InvalidDataException("PDF structural roundtrip verification failed.");
