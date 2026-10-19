@@ -155,8 +155,10 @@ format-aware adapter and positive ZIP/PDF fidelity tests remain required.
   on **stdin** containing `a,b,aId,bId,deviceId,tenantId` (two actual
   independently issued bearer tokens, client IDs and the exact device scope).
   The harness tests OAuth S256 metadata, separate issuer/audience/client
-  bindings and MCP `initialize` plus `tools/list`. No bearer, private key
-  or JWT claims are printed or saved; live acceptance can only be claimed
+  bindings and MCP `initialize`, `tools/list` and read-only
+  `tools/call(devices_list)`. Both clients must independently receive exactly
+  the authorized device/tenant/Staging identity; discovery alone does not pass.
+  No bearer, private key or JWT claims are printed or saved; live acceptance can only be claimed
   when the **real** two-client path succeeds on an authorized, connected host.
   Synthetic mock tests are in `test-device-oauth-live-acceptance.mjs`.
 

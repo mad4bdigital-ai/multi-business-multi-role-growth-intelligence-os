@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { pathToFileURL } from "node:url";
-// Live, externally authorized dual-client acceptance. Read-only MCP tools/list only.
+// Live, externally authorized dual-client acceptance. Read-only MCP discovery and exact-bound devices_list call.
 // Explicit --live requires two real OAuth client tokens from the authorized host.
 // No secrets, tokens, user names, or JWT claims are logged or persisted.
 const ISSUER = "https://dev.mad4b.com";
@@ -75,13 +75,39 @@ export async function verifyTwoClients(options,{fetchImpl=fetch}={}) {
     });
     if(!Array.isArray(tools?.result?.tools) || tools.error)
       throw new Error("mcp_scoped_tool_discovery_rejected");
-    return tools.result.tools.map(x=>x.name);
+    const names=tools.result.tools.map(x=>x?.name);
+    if(!names.includes("devices_list"))
+      throw new Error("mcp_device_status_scope_missing");
+    // The resource must actually return the same single authorized device for
+    // both independent clients. Discovery alone cannot prove device routing.
+    const called=await request(fetchImpl,RESOURCE,"POST",token,{
+      jsonrpc:"2.0",id:3,method:"tools/call",
+      params:{name:"devices_list",arguments:{}}
+    });
+    const item=called?.result?.content?.[0];
+    let result;
+    try {
+      if(called?.jsonrpc!=="2.0" || called.error || called.result?.isError!==false ||
+         item?.type!=="text" || typeof item.text!=="string")
+        throw new Error("invalid rpc response");
+      result=JSON.parse(item.text);
+    } catch {
+      throw new Error("mcp_readonly_device_binding_unverified");
+    }
+    if(result?.ok!==true || result.secrets_included!==false ||
+       !Array.isArray(result.devices) || result.devices.length!==1 ||
+       result.devices[0]?.device_id!==options.deviceId ||
+       result.devices[0]?.tenant_id!==options.tenantId ||
+       result.devices[0]?.environment!=="staging")
+      throw new Error("mcp_readonly_device_binding_unverified");
+    return names.length;
   };
   const [a,b]=await Promise.all([verify(options.a),verify(options.b)]);
-  // Tool names only; no scopes or identities are emitted.
+  // Only counts and boolean acceptance evidence are emitted; never token data.
   return {contract:"mad4b.device-mcp.two-real-clients-acceptance.v1",
     success:true,client_count:2,device_binding_verified:true,
-    client_a_tool_count:a.length,client_b_tool_count:b.length,
+    readonly_tools_call_verified:true,
+    client_a_tool_count:a,client_b_tool_count:b,
     secrets_included:false,production_mutation:false};
 }
 if(process.argv[1] && import.meta.url===pathToFileURL(process.argv[1]).href) {

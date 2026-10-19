@@ -10,10 +10,12 @@ function clients(){
   return {a:encoded({...common,azp:"client-a"}),b:encoded({...common,azp:"client-b"}),
     aId:"client-a",bId:"client-b",deviceId:"device-a",tenantId:"tenant-a"};
 }
-function mocked(){
+function mocked({wrongDevice=false,omitStatusTool=false,rpcDenied=false}={}){
   const calls=[];
   const fetchImpl=async(url,options={})=>{
-    calls.push({url,method:options.method||"GET",redirect:options.redirect});
+    const payload=options.body?JSON.parse(options.body):null;
+    calls.push({url,method:options.method||"GET",redirect:options.redirect,
+      rpcMethod:payload?.method,tool:payload?.params?.name});
     let value;
     if(url.endsWith("/.well-known/oauth-protected-resource/mcp/device")){
       value={resource,authorization_servers:[issuer]};
@@ -23,17 +25,26 @@ function mocked(){
     } else if(url===resource){
       if(!options.headers?.Authorization?.startsWith("Bearer synthetic."))
         throw Error("bearer absent");
-      const body=JSON.parse(options.body);
+      const body=payload;
       if(body.method==="initialize")value={jsonrpc:"2.0",id:1,result:{protocolVersion:"2025-03-26"}};
-      else if(body.method==="tools/list")value={jsonrpc:"2.0",id:2,result:{tools:[
-        {name:"devices_list"},{name:"devices_health"}]}};
+      else if(body.method==="tools/list")value={jsonrpc:"2.0",id:2,result:{tools:
+        omitStatusTool?[{name:"devices_health"}]:[{name:"devices_list"},{name:"devices_health"}]}};
+      else if(body.method==="tools/call"&&body.params?.name==="devices_list"){
+        value={jsonrpc:"2.0",id:3,result:{
+          isError:rpcDenied,
+          content:[{type:"text",text:JSON.stringify({
+            ok:true,devices:[{device_id:wrongDevice?"unrelated-device":"device-a",
+              tenant_id:"tenant-a",environment:"staging"}],secrets_included:false
+          })}]
+        }};
+      }
       else throw Error("unexpected method");
     } else throw Error("unexpected origin");
     return {ok:true,status:200,text:async()=>JSON.stringify(value)};
   };
   return {fetchImpl,calls};
 }
-test("synthetic two-client acceptance exercises only pinned metadata and read-only MCP methods",async()=>{
+test("synthetic two-client acceptance verifies pinned metadata, scoped tools and exact single-device tools/call",async()=>{
   const mock=mocked();
   assert.deepEqual(await verifyDiscovery(mock.fetchImpl),
     {resource_bound:true,issuer_bound:true,pkce_s256:true});
@@ -41,9 +52,20 @@ test("synthetic two-client acceptance exercises only pinned metadata and read-on
   assert.equal(output.success,true);
   assert.equal(output.client_count,2);
   assert.equal(output.client_a_tool_count,2);
+  assert.equal(output.readonly_tools_call_verified,true);
   assert(!JSON.stringify(output).includes("synthetic."));
   assert(mock.calls.every(x=>x.redirect==="manual"));
-  assert(mock.calls.filter(x=>x.method==="POST").length===4);
+  assert.equal(mock.calls.filter(x=>x.method==="POST").length,6);
+  assert.deepEqual(mock.calls.filter(x=>x.rpcMethod==="tools/call").map(x=>x.tool),
+    ["devices_list","devices_list"]);
+});
+test("live acceptance fails closed on wrong device, missing status grant and MCP errors",async()=>{
+  await assert.rejects(verifyTwoClients(clients(),{fetchImpl:mocked({wrongDevice:true}).fetchImpl}),
+    /mcp_readonly_device_binding_unverified/);
+  await assert.rejects(verifyTwoClients(clients(),{fetchImpl:mocked({omitStatusTool:true}).fetchImpl}),
+    /mcp_device_status_scope_missing/);
+  await assert.rejects(verifyTwoClients(clients(),{fetchImpl:mocked({rpcDenied:true}).fetchImpl}),
+    /mcp_readonly_device_binding_unverified/);
 });
 test("client consent and scope cannot be substituted",()=>{
   const sample=clients();
