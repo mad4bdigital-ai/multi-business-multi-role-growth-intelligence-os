@@ -124,6 +124,47 @@ All such actions are default-off and Staging-only. They **do not** edit
 Word paragraphs, spreadsheet formulas/cells or PDF annotations; a trusted
 format-aware adapter and positive ZIP/PDF fidelity tests remain required.
 
+### 19 Oct 2026 — format-aware source, selected-device health, native signing, OAuth acceptance
+
+- `apps/local-manager-windows/DocumentStructuralEditor.cs` adds **pure in-memory**
+  structural edits for one exact DOCX `w:t` text run and one existing XLSX
+  `inlineStr` cell, with expected full-file SHA-256, DTD-disabled XML parsing,
+  conservative ZIP entry/path/decompression limits, split-run/formula refusal,
+  and no filesystem writes. Its tests run in
+  `apps/local-manager-sidecar-certification/Program.cs`. This module has
+  **not yet been wired to the approved, one-shot consented Desktop UI writer**;
+  it is not an end-to-end document editor. PDF structural operations fail
+  closed pending an independently vetted PDF parser.
+- `POST /device/tools/devices/:device_id/health` is a **Staging-only**,
+  default-off and **read-only** selected-device health path. It requires signed
+  tenant-user identity, a canonical device ID, an active fresh heartbeat,
+  existing device-tagged `local_connector_health` registration and the
+  governed dispatcher's ordinary grants. It cannot forward arbitrary tools,
+  write files, start shells or target a historical alias. Activate only after
+  independently checking `DEVICE_MCP_MULTI_DEVICE_HEALTH_ENABLED=true`
+  in the approved Staging deployment.
+- `local-connector/Sign-ConptyNativeStaging.ps1` is an **operator-only signing
+  candidate**, not a generated signed package. It requires exact source
+  digests for `node-pty@1.1.0`, a real CurrentUser Code Signing certificate,
+  Windows SDK `signtool.exe`, and a pinned HTTPS timestamp endpoint. It
+  prepares a separate Staging directory and signature manifest but never
+  installs the package. Neither the private certificate nor the package
+  signature exists in this repository.
+- `local-connector/device-mcp-oauth-live-acceptance.mjs` supports metadata
+  preflight by default and `--live` with a bounded ephemeral JSON object
+  on **stdin** containing `a,b,aId,bId,deviceId,tenantId` (two actual
+  independently issued bearer tokens, client IDs and the exact device scope).
+  The harness tests OAuth S256 metadata, separate issuer/audience/client
+  bindings and MCP `initialize` plus `tools/list`. No bearer, private key
+  or JWT claims are printed or saved; live acceptance can only be claimed
+  when the **real** two-client path succeeds on an authorized, connected host.
+  Synthetic mock tests are in `test-device-oauth-live-acceptance.mjs`.
+
+Do not enable new Staging flags, issue user credentials, claim native signing,
+merge PR #8610 or promote Production based on source tests. Current-head
+CI, independent owner approval and positive real-device acceptance remain
+separate mandatory gates.
+
 ### Remaining independent acceptance gates for Issue #8606
 
 | Workstream | Source status | Independent gate |
