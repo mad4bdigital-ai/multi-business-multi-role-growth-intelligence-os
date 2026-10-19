@@ -68,6 +68,10 @@ export function createDeviceMcpApprovalBroker({ env = process.env, now = Date.no
     const id = randomUUID(), expires_at = now() + TTL_MS;
     receipts.set(id, {
       principal: "oauth:" + JSON.stringify(principal),
+      // Bound to the exact locally enrolled device and tenant at issue time.
+      // Rebinding this Connector instance must invalidate pending approvals.
+      device_id: env.CONNECTOR_DEVICE_ID,
+      tenant_id: env.CONNECTOR_TENANT_ID,
       tool: body.tool, digest, expires_at,
     });
     // The receipt ID is for local auditing, never a bearer credential or MCP argument.
@@ -83,6 +87,8 @@ export function createDeviceMcpApprovalBroker({ env = process.env, now = Date.no
     purge();
     for (const [id, receipt] of receipts) {
       if (receipt.principal !== principal || receipt.tool !== tool ||
+          !secureEqual(receipt.device_id, env.CONNECTOR_DEVICE_ID) ||
+          !secureEqual(receipt.tenant_id, env.CONNECTOR_TENANT_ID) ||
           !secureEqual(receipt.digest, digest)) continue;
       receipts.delete(id); // Atomic consume before privileged dispatch.
       return true;
