@@ -48,6 +48,7 @@
       "local-connector/connector-safe-upgrade.ps1",
       "local-connector/device-files-engine.mjs",
       "local-connector/device-mcp-approval-broker.mjs",
+      "local-connector/device-mcp-oauth-live-acceptance.mjs",
       "local-connector/device-mcp-resource.mjs",
       "local-connector/device-terminal-engine.mjs",
       "local-connector/install-service.ps1",
@@ -56,6 +57,7 @@
       "local-connector/test-device-files-engine.mjs",
       "local-connector/test-device-mcp-approval-broker.mjs",
       "local-connector/test-device-mcp-resource.mjs",
+      "local-connector/test-device-oauth-live-acceptance.mjs",
       "local-connector/test-device-runtime-http.mjs",
       "local-connector/test-device-terminal-engine.mjs",
       "specs/020-platform-resource-identity-brand-governance/openapi-detail-closure-batch-full.json",
@@ -123,6 +125,13 @@
               "working_directory": ".",
               "path": "local-connector/test-device-files-engine.mjs",
               "args": []
+            },
+            {
+              "id": "oauth-dual-client-conformance-synthetic",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "local-connector/test-device-oauth-live-acceptance.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
@@ -132,7 +141,9 @@
             "local-connector/test-device-mcp-approval-broker.mjs",
             "local-connector/test-device-runtime-http.mjs",
             "local-connector/device-files-engine.mjs",
-            "local-connector/test-device-files-engine.mjs"
+            "local-connector/test-device-files-engine.mjs",
+            "local-connector/device-mcp-oauth-live-acceptance.mjs",
+            "local-connector/test-device-oauth-live-acceptance.mjs"
           ]
         },
         {
