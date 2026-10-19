@@ -85,7 +85,11 @@ export function createDeviceTerminalManager({ env = process.env, spawnImpl = spa
   const interactiveEnabled = enabled && env.CONNECTOR_DEVICE_TERMINAL_INTERACTIVE_ENABLED === "true" &&
     Boolean(env.CONNECTOR_DEVICE_TERMINAL_APPROVAL_TOKEN);
   const conptyRequested = env.CONNECTOR_DEVICE_TERMINAL_CONPTY_ENABLED === "true";
-  const ptyBackend = ptyImpl === undefined ? detectConpty(platform) : ptyImpl;
+  // Disabled and non-Staging instances never load a native PTY addon.
+  const ptyBackend = ptyImpl === undefined
+    ? (conptyRequested && platform === "win32" &&
+       env.CONNECTOR_DEVICE_MCP_ENVIRONMENT === "staging" ? detectConpty(platform) : null)
+    : ptyImpl;
   const conptyEnabled = conptyRequested && platform === "win32" &&
     env.CONNECTOR_DEVICE_MCP_ENVIRONMENT === "staging" && interactiveEnabled &&
     typeof ptyBackend?.spawn === "function";
@@ -278,6 +282,8 @@ export function createDeviceTerminalManager({ env = process.env, spawnImpl = spa
       return inspect(s);
     } catch {
       finish(s, "failed", -1);
+      sessions.delete(s.id);
+      eraseSessionArtifacts(s);
       return denied("process_start_failed");
     }
   }
