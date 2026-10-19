@@ -189,6 +189,13 @@
               "working_directory": ".",
               "path": "http-generic-api/test-device-tools-diagnostics.mjs",
               "args": []
+            },
+            {
+              "id": "signed-device-health-routing-policy",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-device-tools-diagnostics.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
