@@ -101,4 +101,18 @@ test("signed OAuth read and approved write stay separate; no secrets enter MCP t
   assert.equal(calls.at(-1).owner_principal, 'oauth:["tenant-1","alice","chatgpt"]');
   assert.equal(calls.at(-1).approval_token, env.CONNECTOR_DEVICE_TERMINAL_APPROVAL_TOKEN);
   assert.equal(request(signed(), "terminal_input", { ...input, approval_token: "leak" }).body.error.code, -32602);
+
+  const sessionArgs = { session_id: "owned-id" };
+  for (const tool of ["terminal_cancel", "process_terminate_owned", "sessions_close"]) {
+    const executeGrant = signed("alice", "device:terminal:execute");
+    assert.equal(JSON.parse(request(executeGrant, tool, sessionArgs).body.result.content[0].text).code,
+      "local_consent_required", tool + " must fail closed without local consent");
+    assert.equal(broker.issue(issueData(tool, sessionArgs), LOCAL_APPROVAL).ok, true);
+    assert.equal(JSON.parse(request(signed("bob", "device:terminal:execute"), tool, sessionArgs).body.result.content[0].text).code,
+      "local_consent_required", "a different OAuth subject cannot use " + tool + " consent");
+    assert.equal(request(executeGrant, tool, sessionArgs).body.result.isError, false);
+    assert.equal(calls.at(-1).owner_principal, 'oauth:["tenant-1","alice","chatgpt"]');
+    assert.equal(JSON.parse(request(executeGrant, tool, sessionArgs).body.result.content[0].text).code,
+      "local_consent_required", tool + " consent must be one-shot");
+  }
 });
