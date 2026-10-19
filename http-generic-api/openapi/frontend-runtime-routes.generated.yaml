@@ -6450,6 +6450,36 @@ paths:
         configuration_dependencies:
           - BACKEND_API_KEY
           - JWT_SECRET
+  /device/tools/devices/{device_id}/health:
+    post:
+      operationId: postDeviceToolsDevicesByDeviceIdHealthee77a3dc
+      summary: POST /device/tools/devices/{device_id}/health (runtime operation index)
+      description: Machine-generated operation presence and authentication index. Request and response schemas require a reviewed canonical contract before frontend dispatch.
+      tags:
+        - runtime-route-index
+      security:
+        - backendBearerAuth: []
+        - backendApiKeyAuth: []
+      parameters:
+        - name: device_id
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+      responses:
+        default:
+          description: Runtime response shape is not yet captured by a reviewed canonical schema.
+      x-contract-completeness: operation-index-only
+      x-source-file: routes/deviceToolsRoutes.js
+      x-mad4b-runtime-auth:
+        profile: backend_or_user
+        principal: authenticated
+        guard_chain:
+          - requireBackendApiKey
+        configuration_dependencies:
+          - BACKEND_API_KEY
+          - JWT_SECRET
   /dispatch:
     post:
       operationId: postDispatche01b6080

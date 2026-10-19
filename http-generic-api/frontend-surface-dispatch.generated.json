@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "e250f844af76eca584fc70e909619960f7630489843f8733a9100eb3e464b38e",
+    "source_digest": "20cce0012c32cf803dbabdabba9f179b1fbb7ab9728db4864ea3bbd023ac4a6f",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -76,7 +76,7 @@
       },
       {
         "file": "openapi/frontend-runtime-routes.generated.yaml",
-        "sha256": "277e4f8763f9026fb346ed5f52f2dce59e56878de4388690945c761e848578b8",
+        "sha256": "92b64d97e1355141eab5264b9b35a9949f5653656c149b83a6d9a52ed799f181",
         "present": true
       },
       {
@@ -566,7 +566,7 @@
       },
       {
         "file": "routes/deviceToolsRoutes.js",
-        "sha256": "2b9ba2ce86a65e18fd4f6820e87c70f3727d5eb3cb86701620ff765ecefa5af5",
+        "sha256": "5f4eba8574df3ae708feca671f91356806a58dd43d2bba239220d8b5d471971b",
         "present": true
       },
       {
@@ -1229,22 +1229,22 @@
     "mounted_family_count": 177,
     "mounted_route_file_count": 147,
     "mixed_scope_route_file_count": 26,
-    "operation_count": 1083,
-    "openapi_documented_count": 1067,
+    "operation_count": 1084,
+    "openapi_documented_count": 1068,
     "openapi_canonical_documented_count": 743,
-    "openapi_generated_index_count": 324,
+    "openapi_generated_index_count": 325,
     "openapi_exemption_count": 16,
     "openapi_gap_count": 0,
-    "openapi_detail_gap_count": 324,
+    "openapi_detail_gap_count": 325,
     "openapi_detail_gap_policy": "accepted_generated_index_only",
     "auth_parity_counts": {
-      "equivalent": 1067,
+      "equivalent": 1068,
       "exempt": 16
     },
     "auth_contract_gap_count": 0,
     "operation_policy_issue_count": 0,
-    "non_get_candidate_count": 660,
-    "unresolved_operation_class_count": 0,
+    "non_get_candidate_count": 661,
+    "unresolved_operation_class_count": 1,
     "classified_mutation_count": 38,
     "governed_mutation_operation_count": 38,
     "embedded_ui_family_count": 7,
@@ -1252,7 +1252,7 @@
     "test_owned_family_count": 176,
     "untested_family_count": 1,
     "test_owned_operation_count": 1082,
-    "untested_operation_count": 1,
+    "untested_operation_count": 2,
     "ready_task_count": 176,
     "blocked_task_count": 1,
     "coverage_complete": false
@@ -92767,7 +92767,7 @@
       "family_key": "device-tools",
       "label": "device tools",
       "source_file": "routes/deviceToolsRoutes.js",
-      "source_digest": "2b9ba2ce86a65e18fd4f6820e87c70f3727d5eb3cb86701620ff765ecefa5af5",
+      "source_digest": "5f4eba8574df3ae708feca671f91356806a58dd43d2bba239220d8b5d471971b",
       "mount_prefix": "/",
       "mount_order": 24044,
       "split_from_mixed_scope_file": false,
@@ -92776,6 +92776,75 @@
       "group": "local-manager",
       "scope": "developer",
       "operations": [
+        {
+          "method": "POST",
+          "path": "/device/tools/devices/{device_id}/health",
+          "signature": "POST /device/tools/devices/{device_id}/health",
+          "source_file": "routes/deviceToolsRoutes.js",
+          "scope": "developer",
+          "runtime_auth": {
+            "state": "resolved",
+            "profile": "backend_or_user",
+            "alternatives": [
+              [
+                "backendBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "principal": "authenticated",
+            "guard_chain": [
+              "requireBackendApiKey"
+            ],
+            "evidence": [
+              "route:requireBackendApiKey"
+            ],
+            "configuration_dependencies": [
+              "BACKEND_API_KEY",
+              "JWT_SECRET"
+            ]
+          },
+          "openapi_auth": {
+            "source_file": "openapi/frontend-runtime-routes.generated.yaml",
+            "security_declared": true,
+            "security_alternatives": [
+              [
+                "backendApiKeyAuth"
+              ],
+              [
+                "backendBearerAuth"
+              ]
+            ],
+            "unknown_security_schemes": []
+          },
+          "auth_parity": {
+            "state": "equivalent",
+            "reasons": []
+          },
+          "openapi_documented": true,
+          "openapi_canonical_documented": false,
+          "openapi_exempt": false,
+          "openapi_contract_level": "operation-index-only",
+          "evidence_candidate": true,
+          "embedded_ui": false,
+          "embedded_ui_evidence": [],
+          "delivery_kind": "api",
+          "tests": [],
+          "governance": {
+            "classification": "unresolved",
+            "classification_source": "fail_closed",
+            "mutation_candidate": true,
+            "governed": false,
+            "controls": null,
+            "blockers": [
+              "operation_classification_gap"
+            ],
+            "rule_id": null
+          },
+          "mutation_candidate": true,
+          "mutation": false
+        },
         {
           "method": "GET",
           "path": "/device/tools/devices",
@@ -92991,14 +93060,18 @@
       "openapi_gaps": [],
       "openapi_exemptions": [],
       "openapi_detail_gaps": [
+        "POST /device/tools/devices/{device_id}/health",
         "GET /device/tools/devices"
       ],
       "auth_contract_gaps": [],
-      "evidence_routes": [],
+      "evidence_routes": [
+        "POST /device/tools/devices/{device_id}/health"
+      ],
       "tests": [
         "test-frontend-surface-coverage-claims.mjs"
       ],
       "untested_operations": [
+        "POST /device/tools/devices/{device_id}/health",
         "GET /device/tools/devices"
       ],
       "resources": [],
@@ -93042,7 +93115,14 @@
           "test-frontend-surface-coverage-claims.mjs"
         ]
       },
-      "operation_blockers": [],
+      "operation_blockers": [
+        {
+          "signature": "POST /device/tools/devices/{device_id}/health",
+          "blockers": [
+            "operation_classification_gap"
+          ]
+        }
+      ],
       "risk": {
         "score": 5,
         "class": "medium"
@@ -102866,7 +102946,8 @@
       "wave": "F5-developer-evidence",
       "state": "blocked",
       "blockers": [
-        "test_ownership_gap"
+        "test_ownership_gap",
+        "operation_classification_gap"
       ],
       "dependencies": [
         "F0-source-baseline",

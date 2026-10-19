@@ -6,17 +6,17 @@
   "source": {
     "baseline_ref": "main",
     "dispatch_artifact": "http-generic-api/frontend-surface-dispatch.generated.json",
-    "dispatch_source_digest": "e250f844af76eca584fc70e909619960f7630489843f8733a9100eb3e464b38e",
-    "dispatch_artifact_sha256": "e58d28d1cf18d42083c31e6185a943e006cbc20b25ae2d81bf333666bcaac5c8"
+    "dispatch_source_digest": "20cce0012c32cf803dbabdabba9f179b1fbb7ab9728db4864ea3bbd023ac4a6f",
+    "dispatch_artifact_sha256": "5071b26eda611907192bad02b21c3b695551a0aa88e7366089f9ffdf0b163fb5"
   },
   "coverage": {
-    "operation_count": 1083,
-    "openapi_documented_count": 1067,
+    "operation_count": 1084,
+    "openapi_documented_count": 1068,
     "openapi_canonical_documented_count": 743,
-    "openapi_generated_index_count": 324,
+    "openapi_generated_index_count": 325,
     "openapi_gap_count": 0,
     "auth_contract_gap_count": 0,
-    "openapi_detail_gap_count": 324,
+    "openapi_detail_gap_count": 325,
     "unresolved_surface_decision_count": 0,
     "coverage_complete": false
   },
@@ -46,7 +46,7 @@
     "detail_gap_entries_by_surface_decision": [
       {
         "decision": "internal_only",
-        "count": 280
+        "count": 281
       },
       {
         "decision": "api_only",
@@ -64,7 +64,7 @@
     "detail_gap_entries_by_method": [
       {
         "method": "POST",
-        "count": 150
+        "count": 151
       },
       {
         "method": "GET",
@@ -225,6 +225,10 @@
         "count": 2
       },
       {
+        "path_first_segment": "device",
+        "count": 2
+      },
+      {
         "path_first_segment": "dispatch",
         "count": 2
       },
@@ -270,10 +274,6 @@
       },
       {
         "path_first_segment": "dev",
-        "count": 1
-      },
-      {
-        "path_first_segment": "device",
         "count": 1
       },
       {
@@ -495,6 +495,10 @@
         "count": 2
       },
       {
+        "family_key": "device-tools",
+        "count": 2
+      },
+      {
         "family_key": "dispatch",
         "count": 2
       },
@@ -536,10 +540,6 @@
       },
       {
         "family_key": "dev-db-restore",
-        "count": 1
-      },
-      {
-        "family_key": "device-tools",
         "count": 1
       },
       {
@@ -667,7 +667,7 @@
   "priority_summary": {
     "blocking_contract_gap_count": 0,
     "surface_decision_required_family_count": 0,
-    "documentation_only_detail_gap_count": 324,
+    "documentation_only_detail_gap_count": 325,
     "top_surface_decision_families": []
   },
   "scope_boundary": {
