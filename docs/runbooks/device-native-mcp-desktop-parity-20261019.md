@@ -65,6 +65,47 @@ Acceptance must include: disabled-by-default, Production denial, wrong device/te
 
 **Running source tests is not live device certification.** Confirm against a real OAuth issuer (Authorization Code + PKCE), ChatGPT MCP discovery, an actual signed Windows package, and two independent principals before moving beyond this stage.
 
+
+## Windows ConPTY source slice (opt-in; not live accepted)
+
+The local terminal manager has an **optional** native `node-pty` adapter for
+Windows ConPTY sessions. It stays off unless
+`CONNECTOR_DEVICE_TERMINAL_CONPTY_ENABLED=true` **and**
+the device is explicitly Staging, terminal interactive authority is enabled,
+and the Windows runtime can resolve a working native `node-pty` binding.
+When ConPTY is requested but unavailable, interactive start returns
+`pty_unavailable`; it **must not** silently fall back to pipes.
+
+The native adapter starts only existing allowlisted REPL profiles in the
+pre-authorized project root, with a scrubbed process environment and bounded
+recorded output. It supports a per-principal streaming cursor, input capped
+at 2048 bytes, consented `terminal_resize` (20–240 columns, 10–80 rows),
+and owned-session termination. The local consent broker must issue a distinct
+one-shot approval for **each resize and each input**; no OAuth token,
+approval secret or arbitrary PID belongs in tool arguments.
+
+Source tests: `node --test local-connector/test-device-terminal-engine.mjs`.
+The native Windows binary must still be independently packaged, provenance-
+verified, exercised in a signed Staging EXE/MSI, and tested against actual
+process-tree teardown and logout/crash behavior. Node tests using an injected
+ConPTY adapter are **synthetic** and do not certify a real Windows ConPTY
+installation. Until those gates pass, this slice is `SOURCE_ONLY`.
+
+### Remaining independent acceptance gates for Issue #8606
+
+| Workstream | Source status | Independent gate |
+| --- | --- | --- |
+| OS-private per-user Sidecar | Not delivered | OS SID/ACL, logon/logoff invalidation, no credential forwarding |
+| Windows ConPTY | Bounded opt-in adapter, source tests | Native dependency packaging, interactive PTY, process tree and crash tests on Windows |
+| Multi-device registry | Single OAuth-bound local device | Live authorized registry/heartbeat, offline and revocation, exact-device selection |
+| DOCX/XLSX/PDF editing | Not delivered | Approved scoped binary transport, format-preserving edits, rollback/data-integrity |
+| OAuth/MCP interoperability | Synthetic issuer/resource tests | Real PKCE flow, key rotation, ChatGPT + second client |
+| Windows acceptance | Not achieved | Online managed Windows Staging device; signed install/rollback and local operator |
+| Production | Blocked | Separate exact-head owner approval, CI, Staging signoff and governed promotion |
+
+Do not infer Desktop Commander parity or Production readiness from these
+source-level checks.
+
 ## Deferred Desktop Commander parity
 
 These gaps are **not** silently considered complete: true ConPTY/PTTY and robust REPL control; owned process recovery/reattachment after connector restart; secure OS-private Sidecar credential delegation and consent UX; multi-device discovery and routing; dedicated DOCX/XLSX/PDF editing; large/binary file transfer; broad directory move/rename; cross-client compatibility certification; hardening of simultaneous non-cooperating file writers.
