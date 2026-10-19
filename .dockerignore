@@ -29,6 +29,11 @@
 !local-connector/device-mcp-resource.mjs
 !local-connector/device-mcp-approval-broker.mjs
 
+# This tracked nested workflow-template directory is NOT an Agent release asset.
+# Exclude it *after* the parent directory is unignored, so no nested source
+# or future runtime material can enter the immutable Staging image.
+local-connector/n8n-workflows/
+
 # Staging repo_inspect source snapshot. These are repository-owned knowledge
 # roots required by the Admin/Recovery instructions and are copied only from
 # the exact Git-archive staging build context.
