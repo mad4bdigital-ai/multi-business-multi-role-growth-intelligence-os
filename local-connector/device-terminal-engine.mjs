@@ -4,13 +4,29 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { randomUUID, timingSafeEqual } from "node:crypto";
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
 const requireNative = createRequire(import.meta.url);
-function detectConpty(platform) {
-  if (platform !== "win32") return null;
+function detectConpty(platform, env) {
+  if (platform !== "win32" || env.CONNECTOR_DEVICE_MCP_ENVIRONMENT !== "staging") return null;
+  // This check is repeated on EVERY native-enabled process start, not only
+  // during install-service.ps1. A manual restart must not bypass provenance.
+  const addon = String(env.CONNECTOR_DEVICE_CONPTY_NATIVE_ADDON_PATH || "").trim();
+  const sha = String(env.CONNECTOR_DEVICE_CONPTY_NATIVE_SHA256 || "").trim();
+  const thumbprint = String(env.CONNECTOR_DEVICE_CONPTY_SIGNER_THUMBPRINT || "").trim();
+  if (!addon || !/^[a-f0-9]{64}$/i.test(sha) || !/^[a-f0-9]{40}$/i.test(thumbprint))
+    return null;
+  const localRoot = path.dirname(fileURLToPath(import.meta.url));
+  const result = spawnSync("powershell.exe", [
+    "-NoProfile", "-NonInteractive",
+    "-File", path.join(localRoot, "Test-ConptyNativePackage.ps1"),
+    "-ConnectorRoot", localRoot, "-NativeAddonPath", addon,
+    "-ExpectedSha256", sha, "-AllowedSignerThumbprint", thumbprint,
+  ], { windowsHide: true, timeout: 12000, stdio: "ignore" });
+  if (result.error || result.status !== 0) return null;
   try { const pty = requireNative("node-pty"); return typeof pty?.spawn === "function" ? pty : null; }
-  catch { return null; } // never emulate a missing ConPTY with normal pipes
+  catch { return null; } // never emulate unsigned ConPTY over ordinary pipes
 }
 
 const PAGE = 8192;
@@ -88,7 +104,7 @@ export function createDeviceTerminalManager({ env = process.env, spawnImpl = spa
   // Disabled and non-Staging instances never load a native PTY addon.
   const ptyBackend = ptyImpl === undefined
     ? (conptyRequested && platform === "win32" &&
-       env.CONNECTOR_DEVICE_MCP_ENVIRONMENT === "staging" ? detectConpty(platform) : null)
+       env.CONNECTOR_DEVICE_MCP_ENVIRONMENT === "staging" ? detectConpty(platform, env) : null)
     : ptyImpl;
   const conptyEnabled = conptyRequested && platform === "win32" &&
     env.CONNECTOR_DEVICE_MCP_ENVIRONMENT === "staging" && interactiveEnabled &&
