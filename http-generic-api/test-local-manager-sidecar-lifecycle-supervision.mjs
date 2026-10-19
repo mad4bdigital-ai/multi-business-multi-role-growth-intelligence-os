@@ -44,10 +44,10 @@ assert.match(program, /#if LOCAL_MANAGER_STAGING\s+var editDocumentButton/);
 assert.match(program, /LocalDocumentEditForm\.ShowEditor\(this\)/);
 const project = readFileSync(
   new URL("../apps/local-manager-windows/Mad4B.LocalManager.Windows.csproj", import.meta.url), "utf8");
-assert.match(project, /<LocalManagerEnvironment Condition="'\\$\\(LocalManagerEnvironment\\)' == ''">production<\\/LocalManagerEnvironment>/);
-assert.match(project, /<DefineConstants Condition="'\\$\\(LocalManagerEnvironment\\)' == 'staging'">\\$\\(DefineConstants\\);LOCAL_MANAGER_STAGING<\\/DefineConstants>/);
-assert.match(localEditor, /#if LOCAL_MANAGER_STAGING\\s+namespace Mad4B\\.LocalManager\\.Windows;/);
-assert.match(localEditor, /#endif\\s*$/);
+assert.match(project, /<LocalManagerEnvironment Condition="'\$\(LocalManagerEnvironment\)' == ''">production<\/LocalManagerEnvironment>/);
+assert.match(project, /<DefineConstants Condition="'\$\(LocalManagerEnvironment\)' == 'staging'">\$\(DefineConstants\);LOCAL_MANAGER_STAGING<\/DefineConstants>/);
+assert.match(localEditor, /#if LOCAL_MANAGER_STAGING\s+namespace Mad4B\.LocalManager\.Windows;/);
+assert.match(localEditor, /#endif\s*$/);
 assert.match(localEditor, /DocumentStructuralEditor\.ReplaceDocxRun/);
 assert.match(localEditor, /DocumentStructuralEditor\.ReplaceXlsxInlineCell/);
 assert.match(localEditor, /MessageBoxButtons\.OKCancel/);
