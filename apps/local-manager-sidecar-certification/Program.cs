@@ -19,6 +19,7 @@ internal static class Program
         await AssertStalledClientTimeoutAsync(pipeName);
         await AssertSupervisorRestartAsync();
         await AssertMutationConsentAsync();
+        AssertStructuralEditors();
 
         var beforeShutdown = supervisor.GetStatus();
         Assert(beforeShutdown.Running, "supervisor must be running before shutdown");
@@ -35,6 +36,81 @@ internal static class Program
         }));
     }
 
+
+
+    private static byte[] BuildOoxml(params (string Name, string Xml)[] parts)
+    {
+        using var memory = new MemoryStream();
+        using (var archive = new System.IO.Compression.ZipArchive(memory,
+            System.IO.Compression.ZipArchiveMode.Create, leaveOpen: true))
+        {
+            foreach (var (name, xml) in parts)
+            {
+                var item = archive.CreateEntry(name);
+                using var writer = new StreamWriter(item.Open(), new UTF8Encoding(false));
+                writer.Write(xml);
+            }
+        }
+        return memory.ToArray();
+    }
+
+    private static void AssertStructuralEditors()
+    {
+        var contentTypes = "<Types xmlns=\"http://schemas.openxmlformats.org/package/2006/content-types\"/>";
+        var word = "<w:document xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\">" +
+            "<w:body><w:p><w:r><w:t>Old value</w:t></w:r></w:p></w:body></w:document>";
+        var input = BuildOoxml(
+            ("[Content_Types].xml", contentTypes),
+            ("word/document.xml", word),
+            ("_rels/.rels", "<Relationships/>"));
+        var checksum = Convert.ToHexString(
+            System.Security.Cryptography.SHA256.HashData(input));
+        var changed = DocumentStructuralEditor.ReplaceDocxRun(input, checksum, "Old value", "New & value");
+        using (var stream = new MemoryStream(changed))
+        using (var archive = new System.IO.Compression.ZipArchive(stream,
+            System.IO.Compression.ZipArchiveMode.Read))
+        using (var reader = new StreamReader(archive.GetEntry("word/document.xml")!.Open()))
+        {
+            var xml = reader.ReadToEnd();
+            Assert(xml.Contains("New &amp; value"), "DOCX must escape XML content");
+            Assert(!xml.Contains("Old value"), "DOCX must update exactly the intended run");
+        }
+        Assert(!input.SequenceEqual(changed), "DOCX source bytes must remain immutable");
+        var digestRejected = false;
+        try { DocumentStructuralEditor.ReplaceDocxRun(input, new string('0', 64), "Old value", "x"); }
+        catch (InvalidDataException) { digestRejected = true; }
+        Assert(digestRejected, "DOCX expected checksum must reject stale content");
+
+        var sheet = "<worksheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\">" +
+            "<sheetData><row r=\"1\"><c r=\"A1\" t=\"inlineStr\"><is><t>Before</t></is></c>" +
+            "<c r=\"B1\"><f>1+1</f><v>2</v></c></row></sheetData></worksheet>";
+        var xlsx = BuildOoxml(
+            ("[Content_Types].xml", contentTypes),
+            ("xl/workbook.xml", "<workbook/>"),
+            ("xl/worksheets/sheet1.xml", sheet));
+        var xsha = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(xlsx));
+        var revised = DocumentStructuralEditor.ReplaceXlsxInlineCell(
+            xlsx, xsha, "xl/worksheets/sheet1.xml", "A1", "Before", "After");
+        using (var stream = new MemoryStream(revised))
+        using (var archive = new System.IO.Compression.ZipArchive(stream,
+            System.IO.Compression.ZipArchiveMode.Read))
+        using (var reader = new StreamReader(archive.GetEntry("xl/worksheets/sheet1.xml")!.Open()))
+        {
+            var xml = reader.ReadToEnd();
+            Assert(xml.Contains("After"), "XLSX inline cell must change");
+            Assert(xml.Contains("<f>1+1</f>"), "XLSX unrelated formula must be preserved");
+        }
+        var formulaRejected = false;
+        try {
+            DocumentStructuralEditor.ReplaceXlsxInlineCell(xlsx, xsha,
+                "xl/worksheets/sheet1.xml", "B1", "2", "3");
+        } catch (InvalidDataException) { formulaRejected = true; }
+        Assert(formulaRejected, "formula cells must not be rewritten as strings");
+        var pdfRejected = false;
+        try { DocumentStructuralEditor.RejectPdfStructuralEdit(); }
+        catch (NotSupportedException) { pdfRejected = true; }
+        Assert(pdfRejected, "uncertified PDF structural mutation must fail closed");
+    }
 
     private static async Task AssertMutationConsentAsync()
     {
