@@ -1,3 +1,4 @@
+import { pathToFileURL } from "node:url";
 // Live, externally authorized dual-client acceptance. Read-only MCP tools/list only.
 // Explicit --live requires two real OAuth client tokens from the authorized host.
 // No secrets, tokens, user names, or JWT claims are logged or persisted.
@@ -82,7 +83,7 @@ export async function verifyTwoClients(options,{fetchImpl=fetch}={}) {
     client_a_tool_count:a.length,client_b_tool_count:b.length,
     secrets_included:false,production_mutation:false};
 }
-if(process.argv[1] && import.meta.url===new URL("file://"+process.argv[1]).href) {
+if(process.argv[1] && import.meta.url===pathToFileURL(process.argv[1]).href) {
   const live=process.argv.includes("--live");
   (async()=>{
     const discovery=await verifyDiscovery();
@@ -102,7 +103,7 @@ if(process.argv[1] && import.meta.url===new URL("file://"+process.argv[1]).href)
     console.log(JSON.stringify(result));
   })().catch(e=>{
     console.error(JSON.stringify({contract:"mad4b.device-mcp.oauth-acceptance.v1",
-      success:false,reason:String(e.message||"unknown").slice(0,100),
+      success:false,reason:"oauth_acceptance_not_verified",
       secrets_included:false}));
     process.exitCode=1;
   });
