@@ -166,3 +166,22 @@ test("readonly Git terminal profiles do not enable repository-defined Git hooks 
     assert.equal(spawned.children[0].options.env.GIT_CONFIG_NOSYSTEM, "1");
   } finally { f.done(); }
 });
+
+test("ConPTY requires a Windows Staging native adapter; disabled modes reject interactive start", () => {
+  const f = fixture(true), spawned = fakeSpawn();
+  try {
+    f.env.CONNECTOR_DEVICE_TERMINAL_CONPTY_ENABLED = "true";
+    for (const [platform, ptyImpl, environment] of [
+      ["linux", null, "staging"], ["win32", null, "staging"], ["win32", { spawn() {} }, "production"],
+    ]) {
+      const manager = owner(createDeviceTerminalManager({
+        env: { ...f.env, CONNECTOR_DEVICE_MCP_ENVIRONMENT: environment },
+        spawnImpl: spawned.create, platform, ptyImpl,
+      }));
+      assert.equal(manager.capabilities.pty, false);
+      assert.equal(manager.dispatch({ action: "start", profile: "node_repl",
+        approval_token: "private-local-approval" }).code, "pty_unavailable");
+    }
+    assert.equal(spawned.children.length, 0);
+  } finally { f.done(); }
+});
