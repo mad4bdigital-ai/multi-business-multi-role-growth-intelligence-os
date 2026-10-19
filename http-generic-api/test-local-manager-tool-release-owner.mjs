@@ -39,7 +39,14 @@ assert(localManager.includes(`Mad4B-Local-Manager-Setup-${advertisedWindowsVersi
 assert(connectorAgent.includes('const AGENT_VERSION = "2026.10.18.1"'), 'connector agent version must move for DB-driven shell policy release');
 assert(connectorAgent.includes('"browser4-adapter.mjs"'), 'Browser4 adapter must be shipped by connector-agent manifest');
 assert(connectorAgent.includes('"local-agent-runtime.mjs"'), 'Local agent runtime must be shipped by connector-agent manifest');
-assert(connectorAgent.includes('const ROOT = path.resolve(MODULE_DIR, "../..");'), 'connector-agent manifest must resolve local-connector assets from the repository root');
+assert(
+  connectorAgent.includes('const ROOT = PACKAGED_REPO_ROOT') &&
+  connectorAgent.includes('if (PACKAGED_REPO_ROOT && !path.isAbsolute(PACKAGED_REPO_ROOT))') &&
+  connectorAgent.includes('throw new Error("connector_agent_source_root_not_absolute")') &&
+  connectorAgent.includes('  ? path.resolve(PACKAGED_REPO_ROOT)') &&
+  connectorAgent.includes('  : path.resolve(MODULE_DIR, "../..");'),
+  'connector-agent manifest must use the validated absolute Staging snapshot root and preserve local checkout fallback'
+);
 assert(connectorAgent.includes('$Root = Split-Path -Parent $MyInvocation.MyCommand.Path'), 'canonical installer must remain in the Local Manager owned update root across UAC identity changes');
 assert(connectorAgent.includes("contract='mad4b.local-connector-installer-state.v1'"), 'canonical installer must emit structured secret-safe failure evidence');
 assert(connectorAgent.includes("$InstallerStage = 'credential_redemption'"), 'canonical installer must classify credential redemption failures without exposing credentials');
