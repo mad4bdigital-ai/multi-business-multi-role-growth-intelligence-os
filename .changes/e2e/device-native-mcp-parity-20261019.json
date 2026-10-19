@@ -53,6 +53,7 @@
       "local-connector/device-terminal-engine.mjs",
       "local-connector/install-service.ps1",
       "local-connector/server.mjs",
+      "local-connector/Sign-ConptyNativeStaging.ps1",
       "local-connector/Test-ConptyNativePackage.ps1",
       "local-connector/test-device-files-engine.mjs",
       "local-connector/test-device-mcp-approval-broker.mjs",
@@ -228,7 +229,8 @@
             "http-generic-api/routes/deviceToolsRoutes.js",
             "http-generic-api/test-device-tools-diagnostics.mjs",
             "apps/local-manager-windows/DocumentStructuralEditor.cs",
-            "apps/local-manager-sidecar-certification/Mad4B.LocalManager.SidecarCertification.csproj"
+            "apps/local-manager-sidecar-certification/Mad4B.LocalManager.SidecarCertification.csproj",
+            "local-connector/Sign-ConptyNativeStaging.ps1"
           ]
         },
         {
