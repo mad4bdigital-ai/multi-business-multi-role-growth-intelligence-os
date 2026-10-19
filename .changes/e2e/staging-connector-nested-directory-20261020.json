@@ -16,7 +16,8 @@
       "http-generic-api/scripts/prepare-staging-build-context.mjs",
       "http-generic-api/scripts/build-staging-connector-release.mjs",
       "http-generic-api/scripts/staging-connector-release-contract.mjs",
-      "http-generic-api/Dockerfile.staging"
+      "http-generic-api/Dockerfile.staging",
+      "http-generic-api/test-staging-connector-release-growth.mjs"
     ]
   },
   "environment_impact": {
@@ -50,7 +51,8 @@
             "Confirm raw local-connector files are excluded and only the generated bundle crosses the Docker build-context boundary.",
             "Run source verifier and Local Manager release-owner regression tests, verifying no duplicated per-file .dockerignore allowlist.",
             "Build a real Docker BuildKit fixture with future nested and unlisted Connector sources and require only manifest-listed release assets.",
-            "Verify the generated manifest hash is sealed in build provenance and enforced in the final Staging image."
+            "Verify the generated manifest hash is sealed in build provenance and enforced in the final Staging image.",
+            "Verify a newly declared safe Connector file is auto-packaged without any Docker ignore edit; reject subsequent file tampering."
           ],
           "assertions": [
             "The FILES registry in connectorAgentRoutes.js is the only release file-list authority; adding a valid new file requires no .dockerignore update.",
@@ -59,7 +61,8 @@
             "Only .staging-connector-release/** is admitted to Docker context; raw local-connector/** remains denied.",
             "The generated release manifest has deterministic per-file SHA-256 hashes and the image verifier confirms both contents and the provenance manifest digest.",
             "The image verification rejects unexpected files and directories; BuildKit copy acceptance checks synthetic unlisted content is excluded.",
-            "No production, DB, secrets, authority bypass, or live Staging deployment occurs as part of CI."
+            "No production, DB, secrets, authority bypass, or live Staging deployment occurs as part of CI.",
+            "A valid newly declared release file extends the generated manifest automatically, and content tampering fails SHA-256 manifest verification."
           ],
           "tests": [
             {
@@ -67,6 +70,13 @@
               "runner": "node",
               "working_directory": ".",
               "path": "http-generic-api/scripts/verify-staging-connector-assets.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-connector-dynamic-release-growth",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-staging-connector-release-growth.mjs",
               "args": []
             },
             {
@@ -94,7 +104,8 @@
             "http-generic-api/test-staging-connector-build-context.mjs",
             "http-generic-api/scripts/prepare-staging-build-context.mjs",
             "http-generic-api/scripts/build-staging-connector-release.mjs",
-            "http-generic-api/scripts/staging-connector-release-contract.mjs"
+            "http-generic-api/scripts/staging-connector-release-contract.mjs",
+            "http-generic-api/test-staging-connector-release-growth.mjs"
           ]
         }
       ]
