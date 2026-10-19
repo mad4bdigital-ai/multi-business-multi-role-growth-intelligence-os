@@ -38,6 +38,7 @@
       "http-generic-api/test-connector-staging-mcp-distribution.mjs",
       "http-generic-api/test-desktop-device-workspace-wiring.mjs",
       "http-generic-api/test-governed-generated-artifact-refresh-apply-context.mjs",
+      "http-generic-api/test-local-manager-sidecar-lifecycle-supervision.mjs",
       "local-connector/.env.example",
       "local-connector/connector-safe-upgrade.ps1",
       "local-connector/device-files-engine.mjs",
@@ -179,7 +180,8 @@
             "local-connector/test-device-terminal-engine.mjs",
             "apps/local-manager-windows/SidecarRpcContracts.cs",
             "apps/local-manager-windows/SidecarRpcServer.cs",
-            "apps/local-manager-sidecar-certification/Program.cs"
+            "apps/local-manager-sidecar-certification/Program.cs",
+            "http-generic-api/test-local-manager-sidecar-lifecycle-supervision.mjs"
           ]
         },
         {
