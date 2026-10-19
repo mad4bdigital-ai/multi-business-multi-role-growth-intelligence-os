@@ -15,6 +15,8 @@
  */
 
 import { Router } from "express";
+import { getPool } from "../db.js";
+import { adminConnectorInventory } from "../adminLocalConnectorTarget.js";
 import {
   resolveCallerTypeForRequest,
   fetchToolsForCaller,
@@ -43,9 +45,46 @@ export function deviceToolsDiagnostics(catalogSourceMode, count) {
   };
 }
 
+// Only identity claims verified by the signed user-JWT middleware can select
+// a tenant device inventory. Never take a principal from query/body/API key.
+export function signedDeviceRegistryScope(req = {}) {
+  const auth = req.auth || {};
+  if (auth.mode !== "user_jwt" ||
+      typeof auth.user_id !== "string" || !auth.user_id.trim() ||
+      typeof auth.tenant_id !== "string" || !auth.tenant_id.trim()) return null;
+  return { user_id: auth.user_id.trim(), tenant_id: auth.tenant_id.trim() };
+}
+
 export function buildDeviceToolsRoutes(deps) {
   const { requireBackendApiKey } = deps;
   const router = Router();
+
+  // Credential-free multi-device discovery ONLY. Device execution still
+  // requires a separate exact-device grant and live heartbeat verification.
+  router.get("/device/tools/devices", requireBackendApiKey, async (req, res) => {
+    res.setHeader("Cache-Control", "no-store");
+    const scope = signedDeviceRegistryScope(req);
+    if (!scope) return res.status(403).json({
+      ok: false, error: { code: "signed_device_scope_required",
+        message: "Signed user and tenant identity is required." },
+      secrets_included: false,
+    });
+    try {
+      const inventory = await adminConnectorInventory({ pool: getPool(), scope });
+      return res.status(200).json({
+        ...inventory, discovery_only: true, execution_allowed: false,
+        explicit_device_selection_required: inventory.devices.filter(
+          item => item.state === "ACTIVE").length !== 1,
+        secrets_included: false,
+      });
+    } catch (error) {
+      return res.status(error.status || 503).json({
+        ok: false, error: { code: error.code || "device_inventory_unavailable",
+          message: "Device inventory is unavailable for this signed principal." },
+        secrets_included: false,
+      });
+    }
+  });
 
   router.get("/device/tools", requireBackendApiKey, async (req, res) => {
     try {
