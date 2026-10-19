@@ -1,6 +1,6 @@
 // Native, stateless Streamable HTTP MCP resource with pinned OAuth JWT validation.
 // NO connector Admin Recovery secret, backend API key, or token-forwarding fallback.
-import { createPublicKey, verify as verifySignature } from "node:crypto";
+import { createHash, createPublicKey, verify as verifySignature } from "node:crypto";
 
 const PROTOCOL = "2025-06-18";
 const MAX_TOKEN = 8192;
@@ -98,6 +98,48 @@ const schemaSession = { type: "object", additionalProperties: false,
 const schemaStart = { type: "object", additionalProperties: false, required: ["profile"],
   properties: { profile: { type: "string", enum: ["git_status", "git_log"] } } };
 const schemaEmpty = { type: "object", additionalProperties: false, properties: {} };
+const schemaMany = { type: "object", additionalProperties: false,
+  required: ["paths"], properties: { paths: { type: "array", minItems: 1,
+    maxItems: 8, items: { type: "string", maxLength: 512 } } } };
+const schemaCreateFile = { type: "object", additionalProperties: false,
+  required: ["relative_path", "content"], properties: {
+    relative_path: { type: "string" }, content: { type: "string", maxLength: 16000 } } };
+const schemaTarget = { type: "object", additionalProperties: false,
+  required: ["relative_path", "target_path", "expected_sha256"], properties: {
+    relative_path: { type: "string" }, target_path: { type: "string" },
+    expected_sha256: { type: "string", maxLength: 64 } } };
+const schemaPatch = { type: "object", additionalProperties: false,
+  required: ["relative_path", "expected_sha256", "old_text", "new_text"], properties: {
+    relative_path: { type: "string" }, expected_sha256: { type: "string", maxLength: 64 },
+    old_text: { type: "string", maxLength: 16000 }, new_text: { type: "string", maxLength: 16000 } } };
+const schemaRollback = { type: "object", additionalProperties: false,
+  required: ["transaction_id"], properties: { transaction_id: { type: "string", maxLength: 64 } } };
+const schemaStartInteractive = { type: "object", additionalProperties: false, required: ["profile"],
+  properties: { profile: { type: "string", enum: ["node_repl", "python_repl", "powershell", "cmd"] } } };
+const schemaInput = { type: "object", additionalProperties: false,
+  required: ["session_id", "input"], properties: {
+    session_id: { type: "string" }, input: { type: "string", maxLength: 2048 } } };
+
+const schemaBinaryPage = { type: "object", additionalProperties: false,
+  required: ["relative_path", "expected_sha256"], properties: {
+    relative_path: { type: "string" },
+    expected_sha256: { type: "string", pattern: "^[a-fA-F0-9]{64}$" },
+    offset: { type: "integer", minimum: 0, maximum: 8388608 } } };
+const schemaBinaryCreate = { type: "object", additionalProperties: false,
+  required: ["relative_path", "content_base64url", "expected_sha256"], properties: {
+    relative_path: { type: "string" },
+    content_base64url: { type: "string", maxLength: 32768 },
+    expected_sha256: { type: "string", maxLength: 64 } } };
+const schemaBinaryReplace = { type: "object", additionalProperties: false,
+  required: ["relative_path", "content_base64url", "expected_sha256", "new_sha256"],
+  properties: { relative_path: { type: "string" },
+    content_base64url: { type: "string", maxLength: 32768 },
+    expected_sha256: { type: "string", pattern: "^[a-fA-F0-9]{64}$" },
+    new_sha256: { type: "string", pattern: "^[a-fA-F0-9]{64}$" } } };
+const schemaResize = { type: "object", additionalProperties: false,
+  required: ["session_id", "cols", "rows"], properties: {
+    session_id: { type: "string" }, cols: { type: "integer", minimum: 20, maximum: 240 },
+    rows: { type: "integer", minimum: 10, maximum: 80 } } };
 const definitions = Object.freeze({
   devices_health: { scope: "device:status:read", description: "Read local device capability status", inputSchema: schemaEmpty },
   devices_list: { scope: "device:status:read", description: "List the single OAuth-bound local device", inputSchema: schemaEmpty },
@@ -106,21 +148,49 @@ const definitions = Object.freeze({
   files_read: { scope: "device:files:read", description: "Read one allowlisted text file", inputSchema: schemaRead, fileAction: "read" },
   files_info: { scope: "device:files:read", description: "Read file metadata and SHA-256 without content", inputSchema: schemaRead, fileAction: "info" },
   files_search: { scope: "device:files:read", description: "Bounded literal content or filename search", inputSchema: schemaSearch, fileAction: "search" },
+  files_stat: { scope: "device:files:read", description: "Inspect bounded path metadata", inputSchema: schemaPath, fileAction: "stat" },
+  files_read_many: { scope: "device:files:read", description: "Read up to 16 project text files", inputSchema: schemaMany, fileAction: "read_many" },
+  files_binary_info: { scope: "device:files:read", description: "Inspect a bounded Staging DOCX XLSX or PDF", inputSchema: schemaRead, fileAction: "binary_info" },
+  files_binary_read: { scope: "device:files:read", description: "Read 16KiB digest-locked Staging document chunks", inputSchema: schemaBinaryPage, fileAction: "binary_read" },
+  files_binary_create: { scope: "device:files:write", description: "Create a bounded document only after one-shot consent and exact digest", inputSchema: schemaBinaryCreate, fileAction: "binary_create", consent: true },
+  files_binary_replace: { scope: "device:files:write", description: "Replace a small document with optimistic source and target SHA, rollback receipt and one-shot consent", inputSchema: schemaBinaryReplace, fileAction: "binary_replace", consent: true },
+  files_create_directory: { scope: "device:files:write", description: "Create one directory after one-shot local consent", inputSchema: schemaRead, fileAction: "create_directory", consent: true },
+  files_create_file: { scope: "device:files:write", description: "Create a small text file after local consent", inputSchema: schemaCreateFile, fileAction: "create_file", consent: true },
+  files_copy: { scope: "device:files:write", description: "Copy one digest-locked text file after local consent", inputSchema: schemaTarget, fileAction: "copy", consent: true },
+  files_move: { scope: "device:files:write", description: "Move one digest-locked text file after local consent", inputSchema: schemaTarget, fileAction: "move", consent: true },
+  files_patch: { scope: "device:files:write", description: "Patch exact text with SHA guard and local consent", inputSchema: schemaPatch, fileAction: "patch", consent: true },
+  files_rollback: { scope: "device:files:write", description: "Rollback a patch receipt after local consent", inputSchema: schemaRollback, fileAction: "rollback", consent: true },
   sessions_list: { scope: "device:terminal:read", description: "List sessions owned by the OAuth principal", inputSchema: schemaEmpty, terminalAction: "list" },
   sessions_get: { scope: "device:terminal:read", description: "Read the owned session and bounded transcript", inputSchema: schemaSession, terminalAction: "status" },
   sessions_resume: { scope: "device:terminal:read", description: "Resume an owned session transcript cursor", inputSchema: schemaSession, terminalAction: "resume" },
-  sessions_close: { scope: "device:terminal:execute", description: "Close a finished session owned by this OAuth principal", inputSchema: schemaSession, terminalAction: "close" },
-  terminal_cancel: { scope: "device:terminal:execute", description: "Cancel one session owned by this OAuth principal", inputSchema: schemaSession, terminalAction: "cancel" },
+  sessions_close: { scope: "device:terminal:execute", description: "Close a finished session owned by this OAuth principal", inputSchema: schemaSession, terminalAction: "close", consent: true },
+  terminal_cancel: { scope: "device:terminal:execute", description: "Cancel one session owned by this OAuth principal", inputSchema: schemaSession, terminalAction: "cancel", consent: true },
   terminal_output: { scope: "device:terminal:read", description: "Fetch output for an owned terminal session", inputSchema: schemaSession, terminalAction: "output" },
   terminal_start_readonly: { scope: "device:terminal:execute", description: "Start an allowlisted read-only Git probe", inputSchema: schemaStart, terminalAction: "start" },
+  terminal_start_interactive: { scope: "device:terminal:interactive", description: "Start a fixed-profile REPL after one-shot local consent; no arbitrary command", inputSchema: schemaStartInteractive, terminalAction: "start", consent: true },
+  terminal_input: { scope: "device:terminal:interactive", description: "Send bounded input to an owned REPL after one-shot local consent", inputSchema: schemaInput, terminalAction: "input", consent: true },
+  terminal_resize: { scope: "device:terminal:interactive", description: "Resize an owned Windows ConPTY session after independent local consent", inputSchema: schemaResize, terminalAction: "resize", consent: true },
   process_list: { scope: "device:terminal:read", description: "List processes started by this principal only", inputSchema: schemaEmpty, terminalAction: "process_list" },
   process_status: { scope: "device:terminal:read", description: "Read status of one owned process", inputSchema: schemaSession, terminalAction: "process_status" },
-  process_terminate_owned: { scope: "device:terminal:execute", description: "Terminate only a process started by this OAuth principal", inputSchema: schemaSession, terminalAction: "process_terminate" },
+  process_terminate_owned: { scope: "device:terminal:execute", description: "Terminate only a process started by this OAuth principal", inputSchema: schemaSession, terminalAction: "process_terminate", consent: true },
 });
-function allowedTools(identity, files, terminal) {
-  return Object.entries(definitions).filter(([, d]) => identity.scopes.has(d.scope) &&
-    (!d.fileAction || files?.capabilities?.enabled) &&
-    (!d.terminalAction || terminal?.capabilities?.enabled))
+function toolAvailable(identity, d, files, terminal, approvals) {
+  if (!d || !identity.scopes.has(d.scope)) return false;
+  if (d.fileAction && !files?.capabilities?.enabled) return false;
+  if (d.fileAction?.startsWith("binary_") &&
+      (files?.capabilities?.binary_enabled !== true ||
+       (["binary_create", "binary_replace"].includes(d.fileAction) && files?.capabilities?.binary_write_enabled !== true)))
+    return false;
+  if (d.terminalAction && !terminal?.capabilities?.enabled) return false;
+  if (d.terminalAction === "resize" && terminal?.capabilities?.pty !== true) return false;
+  if (d.consent && (!approvals?.capabilities?.enabled ||
+      d.fileAction && !files?.capabilities?.write_enabled ||
+      d.terminalAction && ["start", "input", "resize"].includes(d.terminalAction) && !terminal?.capabilities?.interactive_enabled)) return false;
+  return true;
+}
+function allowedTools(identity, files, terminal, approvals) {
+  return Object.entries(definitions).filter(([, d]) =>
+    toolAvailable(identity, d, files, terminal, approvals))
     .map(([name, d]) => ({ name, description: d.description, inputSchema: d.inputSchema }));
 }
 function validArgs(value, schema) {
@@ -129,8 +199,11 @@ function validArgs(value, schema) {
   if ((schema.required || []).some(key => !Object.hasOwn(value, key))) return false;
   for (const [name, v] of Object.entries(value)) {
     const p = schema.properties[name];
-    if (p.type === "string" && (typeof v !== "string" || v.length > 512)) return false;
+    if (p.type === "string" && (typeof v !== "string" || v.length > (p.maxLength ?? 512))) return false;
     if (p.type === "integer" && (!Number.isSafeInteger(v) || v < (p.minimum ?? 0) || v > (p.maximum ?? 100000))) return false;
+    if (p.type === "array" && (!Array.isArray(v) || v.length < (p.minItems ?? 0) ||
+        v.length > (p.maxItems ?? 16) || v.some(item => typeof item !== "string" ||
+          item.length > (p.items?.maxLength ?? 512)))) return false;
     if (p.enum && !p.enum.includes(v)) return false;
   }
   return true;
@@ -138,11 +211,11 @@ function validArgs(value, schema) {
 function rpc(id, result) { return { jsonrpc: "2.0", id, result }; }
 function rpcError(id, code, message) { return { jsonrpc: "2.0", id, error: { code, message } }; }
 
-export function createDeviceMcpResource({ env = process.env, files, terminal, now = Date.now } = {}) {
+export function createDeviceMcpResource({ env = process.env, files, terminal, approvals = null, now = Date.now, onAudit = null } = {}) {
   const setting = config(env);
   const metadata = () => setting.enabled ? {
     resource: setting.resource, authorization_servers: [setting.issuer],
-    scopes_supported: ["device:status:read", "device:files:read", "device:terminal:read", "device:terminal:execute"],
+    scopes_supported: ["device:status:read", "device:files:read", "device:files:write", "device:terminal:read", "device:terminal:execute", "device:terminal:interactive"],
     bearer_methods_supported: ["header"], resource_documentation: "https://connector.mad4b.com",
   } : null;
   function handle({ authorization = "", body, contentLength = 0 } = {}) {
@@ -161,20 +234,31 @@ export function createDeviceMcpResource({ env = process.env, files, terminal, no
     if (body.method === "initialize") response = rpc(id, {
       protocolVersion: PROTOCOL, capabilities: { tools: { listChanged: false } },
       serverInfo: { name: "mad4b-device-gateway", version: "0.1.0" },
-      instructions: "Only OAuth-scoped, device-bound capabilities. Interactive shell, file writes and arbitrary process termination are not exposed.",
+      instructions: "OAuth controls discovery. Mutating tools additionally require exact, one-shot local consent outside the MCP channel. Arbitrary shell commands and PIDs are not supported.",
     });
     else if (body.method === "ping") response = rpc(id, {});
     else if (body.method === "notifications/initialized") return { http_status: 202, headers: NO_CACHE, body: null };
-    else if (body.method === "tools/list") response = rpc(id, { tools: allowedTools(identity, files, terminal) });
+    else if (body.method === "tools/list") response = rpc(id, { tools: allowedTools(identity, files, terminal, approvals) });
     else if (body.method === "tools/call") {
       const name = body.params?.name;
-      const d = Object.hasOwn(definitions, name) ? definitions[name] : null;
-      if (!d || !identity.scopes.has(d.scope) ||
-          d.fileAction && !files?.capabilities?.enabled ||
-          d.terminalAction && !terminal?.capabilities?.enabled) {
+      const d = typeof name === "string" && Object.hasOwn(definitions, name) ? definitions[name] : null;
+      const auditResult = (outcome) => {
+        if (typeof onAudit !== "function") return;
+        // An opaque principal identifier is enough to correlate requests without
+        // emitting OAuth tokens, subject IDs, content or exact arguments.
+        const principal_hash = createHash("sha256")
+          .update(JSON.stringify([identity.tenantId, identity.sub, identity.clientId]))
+          .digest("hex");
+        try { onAudit({ event: "native_mcp_tool_call", device_id: setting.deviceId,
+          principal_hash, tool: d ? name : "unknown", outcome,
+          secrets_included: false }); } catch { /* Never leak audit backend errors to MCP */ }
+      };
+      if (!toolAvailable(identity, d, files, terminal, approvals)) {
         response = rpcError(id, -32601, "Tool is not available for this OAuth grant");
+        auditResult("scope_denied");
       } else if (!validArgs(body.params?.arguments ?? {}, d.inputSchema)) {
         response = rpcError(id, -32602, "Invalid tool arguments");
+        auditResult("invalid_arguments");
       } else {
         const args = body.params?.arguments || {};
         let result;
@@ -184,11 +268,13 @@ export function createDeviceMcpResource({ env = process.env, files, terminal, no
           files: {
             enabled: files?.capabilities?.enabled === true,
             read_enabled: files?.capabilities?.read_enabled === true,
-            write_enabled: false,
+            write_enabled: Boolean(approvals?.capabilities?.enabled && files?.capabilities?.write_enabled),
+            local_consent_required: true,
           },
           terminal: {
             enabled: terminal?.capabilities?.enabled === true,
-            interactive_enabled: false,
+            interactive_enabled: Boolean(approvals?.capabilities?.enabled && terminal?.capabilities?.interactive_enabled),
+            local_consent_required: true,
             pty: terminal?.capabilities?.pty === true,
           },
           secrets_included: false,
@@ -197,12 +283,24 @@ export function createDeviceMcpResource({ env = process.env, files, terminal, no
           ok: true, device_id: setting.deviceId, files_enabled: Boolean(files?.capabilities?.enabled),
           terminal_enabled: Boolean(terminal?.capabilities?.enabled),
           native_mcp_enabled: true, secrets_included: false };
-        else if (d.fileAction) result = files.dispatch({ ...args, action: d.fileAction });
-        else result = terminal.dispatch({ ...args, action: d.terminalAction,
-          // Encode the entire tuple so ":" inside sub/client IDs cannot collide.
-          owner_principal: "oauth:" + JSON.stringify([identity.tenantId, identity.sub, identity.clientId]) });
+        else {
+          // Approval receipts are local-only and bound to exact OAuth identity,
+          // tool name and JSON arguments. No approval token crosses JSON-RPC.
+          const principal = "oauth:" + JSON.stringify([identity.tenantId, identity.sub, identity.clientId]);
+          if (d.consent && !approvals.consume(principal, name, args)) {
+            result = { ok: false, code: "local_consent_required", secrets_included: false };
+          } else if (d.fileAction) {
+            result = files.dispatch({ ...args, action: d.fileAction,
+              ...(d.consent ? { approval_token: env.CONNECTOR_DEVICE_FILE_APPROVAL_TOKEN } : {}) });
+          } else {
+            result = terminal.dispatch({ ...args, action: d.terminalAction,
+              owner_principal: principal,
+              ...(d.consent ? { approval_token: env.CONNECTOR_DEVICE_TERMINAL_APPROVAL_TOKEN } : {}) });
+          }
+        }
         response = rpc(id, { content: [{ type: "text", text: JSON.stringify(result) }],
           isError: result?.ok !== true });
+        auditResult(result?.ok === true ? "success" : "rejected_or_failed");
       }
     } else response = rpcError(id, -32601, "Method not found");
     return { http_status: 200, headers: NO_CACHE, body: response };
@@ -212,7 +310,8 @@ export function createDeviceMcpResource({ env = process.env, files, terminal, no
     authorization_server: setting.enabled ? setting.issuer : null,
     native_mcp_protocol: PROTOCOL, stateless_http: true,
     token_binding: "RS256_pinned_jwks_issuer_audience_device_tenant_principal",
-    remote_interactive_shell: false, remote_file_write: false,
+    remote_interactive_shell: false, remote_file_write: Boolean(approvals?.capabilities?.enabled && files?.capabilities?.write_enabled),
+    local_consent_receipts: Boolean(approvals?.capabilities?.enabled),
     secrets_included: false,
   } };
 }

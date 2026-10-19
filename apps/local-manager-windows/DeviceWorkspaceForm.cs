@@ -20,6 +20,12 @@ internal sealed class DeviceWorkspaceForm : Form
     private readonly TextBox _connectorSecret = Field(220, secret: true);
     private readonly TextBox _terminalApproval = Field(180, secret: true);
     private readonly TextBox _fileApproval = Field(180, secret: true);
+    private readonly TextBox _mcpApproval = Field(180, secret: true);
+    private readonly TextBox _tenantId = Field(160);
+    private readonly TextBox _oauthSubject = Field(160);
+    private readonly TextBox _oauthClient = Field(160);
+    private readonly TextBox _mcpArguments = Field(500);
+    private readonly ComboBox _mcpTool = new() { Width = 230, DropDownStyle = ComboBoxStyle.DropDownList };
     private readonly Label _status = new()
     {
         AutoSize = true, ForeColor = Color.FromArgb(30, 70, 100),
@@ -54,6 +60,12 @@ internal sealed class DeviceWorkspaceForm : Form
         _profile.Items.AddRange(new object[] { "git_status", "git_log", "node_repl",
             "python_repl", "powershell", "cmd" });
         _profile.SelectedIndex = 0;
+        _mcpTool.Items.AddRange(new object[] { "files_create_directory", "files_create_file",
+            "files_copy", "files_move", "files_patch", "files_rollback",
+            "terminal_start_interactive", "terminal_input",
+            "terminal_cancel", "process_terminate_owned", "sessions_close" });
+        _mcpTool.SelectedIndex = 0;
+        _mcpArguments.Text = @"{""relative_path"":""src/new-folder""}";
 
         var header = new FlowLayoutPanel
         {
@@ -102,6 +114,22 @@ internal sealed class DeviceWorkspaceForm : Form
             AddField(panel, "Transaction ID", _transaction);
             panel.Controls.Add(ActionButton("Rollback", async () => await FilesAsync("rollback")));
         });
+        AddTab("MCP Local Consent", panel =>
+        {
+            panel.Controls.Add(new Label
+            {
+                AutoSize = true, Padding = new Padding(8, 12, 8, 0),
+                Text = "Approve exactly one operation for an OAuth subject/client. " +
+                    "Consent is local, single-use, expires in 90 seconds, and never sends the approval secret to AI."
+            });
+            AddField(panel, "MCP local approval secret", _mcpApproval);
+            AddField(panel, "OAuth tenant ID", _tenantId);
+            AddField(panel, "OAuth subject (sub)", _oauthSubject);
+            AddField(panel, "OAuth client (azp)", _oauthClient);
+            AddField(panel, "Tool", _mcpTool);
+            AddField(panel, "Exact JSON arguments", _mcpArguments);
+            panel.Controls.Add(ActionButton("Approve exact operation once", ApproveMcpAsync));
+        });
         AddTab("Terminal & Sessions", panel =>
         {
             AddField(panel, "Profile", _profile);
@@ -136,6 +164,11 @@ internal sealed class DeviceWorkspaceForm : Form
             _connectorSecret.Clear();
             _terminalApproval.Clear();
             _fileApproval.Clear();
+            _mcpApproval.Clear();
+            _tenantId.Clear();
+            _oauthSubject.Clear();
+            _oauthClient.Clear();
+            _mcpArguments.Clear();
             _terminalInput.Clear();
             _client.Dispose();
         };
@@ -247,6 +280,46 @@ internal sealed class DeviceWorkspaceForm : Form
         if (action == "input") _terminalInput.Clear();
     }
 
+    private async Task ApproveMcpAsync()
+    {
+        if (_mcpTool.SelectedItem is not string tool ||
+            string.IsNullOrWhiteSpace(_oauthSubject.Text) ||
+            string.IsNullOrWhiteSpace(_oauthClient.Text))
+        {
+            _status.Text = "Tool, OAuth subject and OAuth client are required.";
+            return;
+        }
+        JsonElement args;
+        try
+        {
+            using var document = JsonDocument.Parse(_mcpArguments.Text);
+            if (document.RootElement.ValueKind != JsonValueKind.Object)
+                throw new JsonException("Arguments must be an object");
+            args = document.RootElement.Clone();
+        }
+        catch (JsonException)
+        {
+            _status.Text = "Provide an exact JSON object for MCP tool arguments.";
+            return;
+        }
+        var actionSummary = $"Device: {_deviceId.Text.Trim()}\\n" +
+            $"OAuth subject: {_oauthSubject.Text.Trim()}\\n" +
+            $"Client: {_oauthClient.Text.Trim()}\\nTool: {tool}\\n" +
+            $"Arguments: {_mcpArguments.Text}\\n\\nAuthorize this exact operation ONCE?";
+        if (MessageBox.Show(this, actionSummary, "MAD4B exact local MCP consent",
+            MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes) return;
+        var payload = new Dictionary<string, object?>
+        {
+            ["action"] = "issue", ["device_id"] = _deviceId.Text.Trim(),
+            ["tenant_id"] = _tenantId.Text.Trim(),
+            ["subject"] = _oauthSubject.Text.Trim(),
+            ["client_id"] = _oauthClient.Text.Trim(),
+            ["tool"] = tool, ["arguments"] = args
+        };
+
+        await SendAsync("/device/mcp/approvals", payload, "POST", "mcp");
+    }
+
     private async Task SendAsync(
         string endpoint, Dictionary<string, object?>? payload, string method,
         string? approvalType = null)
@@ -267,6 +340,8 @@ internal sealed class DeviceWorkspaceForm : Form
             request.Headers.Accept.ParseAdd("application/json");
             if (approvalType == "terminal" && !string.IsNullOrWhiteSpace(_terminalApproval.Text))
                 request.Headers.TryAddWithoutValidation("x-mad4b-device-terminal-approval", _terminalApproval.Text);
+            if (approvalType == "mcp" && !string.IsNullOrWhiteSpace(_mcpApproval.Text))
+                request.Headers.TryAddWithoutValidation("x-mad4b-device-mcp-approval", _mcpApproval.Text);
             if (approvalType == "files" && !string.IsNullOrWhiteSpace(_fileApproval.Text))
                 request.Headers.TryAddWithoutValidation("x-mad4b-device-write-approval", _fileApproval.Text);
             if (payload is not null)

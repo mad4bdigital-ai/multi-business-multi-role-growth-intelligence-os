@@ -480,7 +480,9 @@
       ".changes/e2e/device-native-mcp-oauth-20261018.json",
       ".changes/e2e/device-runtime-files-engine-20261018.json",
       ".changes/e2e/device-runtime-safe-file-ops-20261018.json",
-      ".changes/e2e/device-runtime-terminal-sessions-20261018.json"
+      ".changes/e2e/device-runtime-terminal-sessions-20261018.json",
+      ".changes/e2e/device-native-mcp-parity-20261019.json",
+      ".github/workflows/governed-generated-artifact-refresh-dispatch-v2.yml"
     ],
     "automerge_opt_out_labels": [
       "do-not-auto-merge",

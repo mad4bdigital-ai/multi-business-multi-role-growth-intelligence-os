@@ -14,6 +14,9 @@ on:
       - 'http-generic-api/localManagerReleaseRegistry.js'
       - 'http-generic-api/test-local-manager-tool-release-owner.mjs'
       - '.github/workflows/local-manager-windows.yml'
+      - 'local-connector/device-terminal-engine.mjs'
+      - 'local-connector/test-device-terminal-engine.mjs'
+      - 'local-connector/device-mcp-resource.mjs'
   pull_request:
     paths:
       - 'apps/local-manager-windows/**'
@@ -23,6 +26,9 @@ on:
       - 'http-generic-api/localManagerReleaseRegistry.js'
       - 'http-generic-api/test-local-manager-tool-release-owner.mjs'
       - '.github/workflows/local-manager-windows.yml'
+      - 'local-connector/device-terminal-engine.mjs'
+      - 'local-connector/test-device-terminal-engine.mjs'
+      - 'local-connector/device-mcp-resource.mjs'
 
 permissions:
   contents: read
@@ -44,6 +50,53 @@ jobs:
         uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
         with:
           dotnet-version: '8.0.x'
+
+      - name: Setup Node.js for native-device source checks
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '22'
+
+      - name: Verify Windows ConPTY synthetic source contract
+        shell: pwsh
+        run: |
+          node --check local-connector/device-terminal-engine.mjs
+          node --check local-connector/device-mcp-resource.mjs
+          node --test local-connector/test-device-terminal-engine.mjs
+
+      - name: Reject unsigned or missing native ConPTY artifacts
+        shell: pwsh
+        run: |
+          # Negative integration proof only. This does not install or sign node-pty.
+          $missingAddon = Join-Path $PWD 'node_modules/node-pty/prebuilds/win32-x64/pty.node'
+          $rejected = $false
+          try {
+            & ./local-connector/Test-ConptyNativePackage.ps1 `
+              -ConnectorRoot (Join-Path $PWD 'local-connector') `
+              -NativeAddonPath $missingAddon `
+              -ExpectedSha256 ('0' * 64) `
+              -AllowedSignerThumbprint ('0' * 40) | Out-Null
+          } catch {
+            if ($_.Exception.Message -notmatch '(ConPTY|native)') { throw }
+            $rejected = $true
+          }
+          if (-not $rejected) { throw "Unsigned ConPTY was not rejected." }
+          Write-Host "Uncertified ConPTY package rejected (expected)."
+
+      - name: Reject unsupported build environments at MSBuild boundary
+        shell: pwsh
+        run: |
+          # Build profiles are compile-time constants. The MSBuild guard is the
+          # authoritative validation; a runtime comparison against a constant
+          # cannot detect an unsupported build profile (CS8519).
+          $output = & dotnet msbuild apps/local-manager-windows/Mad4B.LocalManager.Windows.csproj -target:ValidateLocalManagerEnvironment -property:LocalManagerEnvironment=unsupported 2>&1 | Out-String
+          $exitCode = $LASTEXITCODE
+          if ($exitCode -eq 0 -or $output -notmatch 'LocalManagerEnvironment must be production or staging') {
+            throw "MSBuild did not explicitly reject an unsupported Local Manager environment (exit code: $exitCode)."
+          }
+          Write-Host "Unsupported build profile rejected as expected."
+          # The failed MSBuild invocation above is EXPECTED. GitHub's pwsh
+          # wrapper exits with $LASTEXITCODE unless we clear it after checking.
+          $global:LASTEXITCODE = 0
 
       - name: Verify profile isolation and update integrity
         run: |

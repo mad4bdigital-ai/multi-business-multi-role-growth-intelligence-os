@@ -21,8 +21,10 @@ permissions:
   pull-requests: read
 
 concurrency:
-  group: governed-generated-artifact-refresh-dispatch-${{ github.event.issue.number || inputs.target_ref || github.run_id }}
-  cancel-in-progress: true
+  # One serialized, non-cancelling dispatcher lane shared with workflow_run requester.
+  group: governed-generated-artifact-dispatch-${{ github.repository }}
+  cancel-in-progress: false
+  queue: max
 
 jobs:
   dispatch:
@@ -151,10 +153,62 @@ jobs:
             exit 0
           fi
           echo "pr_number=${pr_number}" >> "$GITHUB_OUTPUT"
+          echo "target_ref=${TARGET_REF}" >> "$GITHUB_OUTPUT"
+          echo "expected_head_sha=${EXPECTED_HEAD_SHA}" >> "$GITHUB_OUTPUT"
           echo "eligible=true" >> "$GITHUB_OUTPUT"
 
-      - name: Dispatch registered exact-head refresh workflow and observe delegated run
+      - name: Check exact PR, head and recipe against existing writer runs
+        id: idempotency
         if: steps.candidate.outputs.eligible == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ steps.candidate.outputs.pr_number }}
+          TARGET_REF: ${{ steps.candidate.outputs.target_ref }}
+          EXPECTED_HEAD_SHA: ${{ steps.candidate.outputs.expected_head_sha }}
+        run: |
+          set -euo pipefail
+          mkdir -p "${REPORT_DIR}"
+          # Keep the bounded API inventory out of published CI artifacts.
+          pages="${RUNNER_TEMP}/governed-writer-runs-${GITHUB_RUN_ID}.jsonl"
+          run_file="${RUNNER_TEMP}/governed-writer-runs-${GITHUB_RUN_ID}.json"
+          trap 'rm -f "${pages}" "${run_file}"' EXIT
+          : > "${pages}"
+          for page in $(seq 1 5); do
+            response="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/governed-generated-artifact-refresh.yml/runs?event=workflow_dispatch&per_page=100&page=${page}")"
+            jq -ce '.workflow_runs | if type == "array" then . else error("invalid writer run inventory") end' <<<"${response}" >> "${pages}"
+            count="$(jq -r '.workflow_runs | length' <<<"${response}")"
+            if (( count < 100 )); then break; fi
+            if (( page == 5 )); then
+              echo "::error::Writer inventory exceeded bounded 500-run scan; refusing non-idempotent dispatch"
+              exit 1
+            fi
+          done
+          jq -sc 'add' "${pages}" > "${run_file}"
+          node http-generic-api/scripts/maintenance-tools/governed-refresh-idempotency.mjs \
+            --runs "${run_file}" \
+            --pr "${PR_NUMBER}" \
+            --ref "${TARGET_REF}" \
+            --head "${EXPECTED_HEAD_SHA}" \
+            --recipe "auto" \
+            --output "${REPORT_DIR}/idempotency.json"
+          verdict="$(jq -er '.decision' "${REPORT_DIR}/idempotency.json")"
+          if [[ "${verdict}" == "already_requested" ]]; then
+            jq -cn \
+              --arg contract "mad4b.governed-generated-artifact-refresh-dispatch.v1" \
+              --argjson replay "$(cat "${REPORT_DIR}/idempotency.json")" \
+              '{contract:$contract,outcome:"skipped",reason:"duplicate_exact_pr_sha_recipe",pr_number:$replay.pr_number,target_ref:$replay.target_ref,expected_head_sha:$replay.expected_head_sha,recipe:$replay.recipe,idempotency_key:$replay.key,matched_run_id:$replay.matched_run_id,matched_run_url:$replay.matched_run_url,dispatch_requested:false,delegated_run_observed:true,direct_repository_mutation:false,protected_branch_mutation:false,force_push:false,source_of_truth:"structured_report",job_logs_role:"diagnostic_only",consult_job_logs:false,secrets_included:false}' \
+              > "${REPORT_DIR}/dispatch.json"
+            echo "duplicate=true" >> "${GITHUB_OUTPUT}"
+          elif [[ "${verdict}" == "dispatch" ]]; then
+            echo "duplicate=false" >> "${GITHUB_OUTPUT}"
+          else
+            echo "::error::Unknown idempotency verdict: ${verdict}"
+            exit 1
+          fi
+
+      - name: Dispatch registered exact-head refresh workflow and observe delegated run
+        if: steps.candidate.outputs.eligible == 'true' && steps.idempotency.outputs.duplicate != 'true'
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
@@ -190,6 +244,7 @@ jobs:
           fi
 
           dispatch_started_at="$(date -u -d '5 seconds ago' +'%Y-%m-%dT%H:%M:%SZ')"
+          expected_title="Governed Generated Artifact Refresh · auto · ${TARGET_REF} · ${EXPECTED_HEAD_SHA}"
           payload="$(jq -cn \
             --arg ref "main" \
             --arg target_ref "${TARGET_REF}" \
@@ -232,8 +287,8 @@ jobs:
               -H 'Accept: application/vnd.github+json' \
               -H 'X-GitHub-Api-Version: 2022-11-28' \
               "repos/${GITHUB_REPOSITORY}/actions/workflows/governed-generated-artifact-refresh.yml/runs?event=workflow_dispatch&branch=main&per_page=20")"
-            delegated_run_id="$(jq -r --arg started "${dispatch_started_at}" \
-              '[.workflow_runs[] | select(.created_at >= $started)] | sort_by(.created_at) | last | .id // empty' <<<"${runs}")"
+            delegated_run_id="$(jq -r --arg started "${dispatch_started_at}" --arg title "${expected_title}" \
+              '[.workflow_runs[] | select(.created_at >= $started and .display_title == $title)] | sort_by(.created_at) | last | .id // empty' <<<"${runs}")"
             if [[ "${delegated_run_id}" =~ ^[1-9][0-9]*$ ]]; then
               delegated_run_url="$(jq -r --argjson run_id "${delegated_run_id}" '.workflow_runs[] | select(.id == $run_id) | .html_url' <<<"${runs}")"
               delegated_run_status="$(jq -r --argjson run_id "${delegated_run_id}" '.workflow_runs[] | select(.id == $run_id) | .status' <<<"${runs}")"

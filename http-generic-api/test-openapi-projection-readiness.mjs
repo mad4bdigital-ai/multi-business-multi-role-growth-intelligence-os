@@ -20,6 +20,27 @@ assert.equal(readiness.status, "readiness_only");
 assert.equal(readiness.review_state, "requires_separate_surface_activation_decision");
 for (const [key, value] of Object.entries(readiness.scope_boundary)) assert.equal(value, false, `readiness boundary ${key} must remain false`);
 for (const [key, value] of Object.entries(readiness.safety)) assert.equal(value, false, `readiness safety ${key} must remain false`);
+const parityCounters = [
+  "operation_count",
+  "openapi_documented_count",
+  "openapi_canonical_documented_count",
+  "openapi_generated_index_count",
+  "openapi_exemption_count",
+  "openapi_gap_count",
+  "openapi_detail_gap_count",
+  "auth_contract_gap_count",
+  "unresolved_operation_class_count",
+  "unresolved_surface_decision_count",
+  "untested_operation_count",
+  "blocked_task_count",
+  "coverage_complete",
+];
+for (const field of parityCounters) {
+  assert.equal(readiness.repository_openapi_baseline[field], plan.coverage[field],
+    `Spec020 readiness baseline ${field} must match the exact-source dispatch projection`);
+}
+assert.equal(plan.coverage.untested_operation_count, 0, "every discovered operation needs registered test ownership");
+
 assert.equal(readiness.repository_openapi_baseline.openapi_gap_count, 0);
 assert.equal(readiness.repository_openapi_baseline.openapi_gap_count, plan.coverage.openapi_gap_count);
 assert.equal(readiness.repository_openapi_baseline.auth_contract_gap_count, plan.coverage.auth_contract_gap_count);

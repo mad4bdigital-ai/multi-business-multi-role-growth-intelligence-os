@@ -6,6 +6,7 @@ import { testCommands as upstreamMainCommands } from "./manifests/test-manifest-
 const connectorRecoveryTestCommands = Object.freeze([
   "node ../local-connector/test-connector-staging-recovery.mjs",
   "node ../local-connector/test-connector-developer-sessions.mjs",
+  "node ../local-connector/test-device-mcp-approval-broker.mjs",
   "node test-connector-staging-mcp-distribution.mjs",
 ]);
 
@@ -75,6 +76,7 @@ const upstreamCommands = [
 // this source file without executing imports. Keep these literals discoverable
 // here while Set-based composition prevents duplicate runtime execution.
 const staticDiscoveryCommands = [
+  "node test-device-tools-diagnostics.mjs",
   "node test-derived-state-converged-automerge-source-event.mjs",
   "node scripts/activation-surface-coverage-check.mjs --changed",
   "node test-activation-deployment-projection-service.mjs",
@@ -146,6 +148,7 @@ const staticDiscoveryCommands = [
   "node test-remote-mcp-disabled-startup-boundary.mjs",
   "node scripts/test-generated-artifact-refresh-maintenance-tool.mjs",
   "node scripts/test-generated-artifact-refresh-pr-publisher.mjs",
+  "node scripts/test-governed-refresh-idempotency.mjs",
   "node test-github-file-patch-plan-runtime.mjs",
   "node test-github-list-issue-comments-endpoint.mjs",
   "node test-github-issue-comment-exact-response-parity.mjs",

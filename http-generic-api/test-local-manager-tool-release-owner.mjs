@@ -39,7 +39,31 @@ assert(localManager.includes(`Mad4B-Local-Manager-Setup-${advertisedWindowsVersi
 assert(connectorAgent.includes('const AGENT_VERSION = "2026.10.18.1"'), 'connector agent version must move for DB-driven shell policy release');
 assert(connectorAgent.includes('"browser4-adapter.mjs"'), 'Browser4 adapter must be shipped by connector-agent manifest');
 assert(connectorAgent.includes('"local-agent-runtime.mjs"'), 'Local agent runtime must be shipped by connector-agent manifest');
-assert(connectorAgent.includes('const ROOT = path.resolve(MODULE_DIR, "../..");'), 'connector-agent manifest must resolve local-connector assets from the repository root');
+assert(
+  connectorAgent.includes('const ROOT = PACKAGED_REPO_ROOT') &&
+  connectorAgent.includes('if (PACKAGED_REPO_ROOT && !path.isAbsolute(PACKAGED_REPO_ROOT))') &&
+  connectorAgent.includes('throw new Error("connector_agent_source_root_not_absolute")') &&
+  connectorAgent.includes('  ? path.resolve(PACKAGED_REPO_ROOT)') &&
+  connectorAgent.includes('  : path.resolve(MODULE_DIR, "../..");'),
+  'connector-agent manifest must use the validated absolute Staging snapshot root and preserve local checkout fallback'
+);
+const connectorDockerignore = readFileSync('../.dockerignore', 'utf8');
+const connectorStagingDockerfile = readFileSync('Dockerfile.staging', 'utf8');
+const connectorReleaseRegistry = connectorAgent.match(/const FILES = \{([\s\S]*?)\n\};/);
+assert(connectorReleaseRegistry, 'Connector Agent release registry must be inspectable');
+const connectorAssetPaths = [...connectorReleaseRegistry[1].matchAll(/relativePath: "(local-connector\/[^"]+)"/g)].map((m) => m[1]);
+assert(connectorAssetPaths.length >= 14, 'Connector Agent release registry unexpectedly incomplete');
+const connectorIgnoreRules = new Set(connectorDockerignore.split(/\r?\n/));
+assert(connectorIgnoreRules.has('!local-connector/'), 'Staging image must include allowlisted Connector directory');
+assert(!connectorIgnoreRules.has('!local-connector/**'), 'Staging image must not include arbitrary Connector files');
+const includedConnectorRules = [...connectorIgnoreRules].filter((x) => x.startsWith('!local-connector/') && x !== '!local-connector/');
+assert.deepEqual(includedConnectorRules.sort(), connectorAssetPaths.map((x) => `!${x}`).sort(), 'Staging Connector release allowlist must exactly match the API manifest');
+for (const file of connectorAssetPaths) {
+  assert(readFileSync(`../${file}`).length > 0, `Connector release file missing or empty: ${file}`);
+}
+assert(connectorStagingDockerfile.includes('COPY . /app/repo-inspect/'), 'Staging Dockerfile must copy exact-commit source snapshot');
+assert(connectorStagingDockerfile.includes('RUN node scripts/verify-staging-connector-assets.mjs --image'), 'Staging Dockerfile must enforce Connector manifest asset verification');
+
 assert(connectorAgent.includes('$Root = Split-Path -Parent $MyInvocation.MyCommand.Path'), 'canonical installer must remain in the Local Manager owned update root across UAC identity changes');
 assert(connectorAgent.includes("contract='mad4b.local-connector-installer-state.v1'"), 'canonical installer must emit structured secret-safe failure evidence');
 assert(connectorAgent.includes("$InstallerStage = 'credential_redemption'"), 'canonical installer must classify credential redemption failures without exposing credentials');

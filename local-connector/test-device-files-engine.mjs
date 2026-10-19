@@ -285,3 +285,120 @@ test("hardlinked files outside the approved tree are not readable", t => {
       expected_sha256: hash("unscoped-data"), approval_token: "local-approval-only" }).code, "path_denied");
   } finally { f.cleanup(); }
 });
+
+test("bounded document binary staging denies Production, absent scope and malformed headers", () => {
+  const f = fixture(true);
+  try {
+    const data = Buffer.from("%PDF-1.7\nportable-fixture\n%%EOF\n");
+    fs.writeFileSync(path.join(f.root, "src", "sample.pdf"), data);
+    assert.equal(f.engine.dispatch({ action: "binary_info",
+      relative_path: "src/sample.pdf" }).code, "binary_disabled");
+    const prod = createDeviceFilesEngine({ env: { ...f.env,
+      CONNECTOR_DEVICE_BINARY_ENABLED: "true", CONNECTOR_DEVICE_MCP_ENVIRONMENT: "production" } });
+    assert.equal(prod.capabilities.binary_enabled, false);
+    const staging = createDeviceFilesEngine({ env: { ...f.env,
+      CONNECTOR_DEVICE_BINARY_ENABLED: "true", CONNECTOR_DEVICE_MCP_ENVIRONMENT: "staging" } });
+    assert.equal(staging.capabilities.binary_enabled, true);
+    const info = staging.dispatch({ action: "binary_info", relative_path: "src/sample.pdf" });
+    assert.equal(info.sha256, hash(data));
+    assert.equal(info.size, data.length);
+    const chunk = staging.dispatch({ action: "binary_read",
+      relative_path: "src/sample.pdf", offset: 0, expected_sha256: info.sha256 });
+    assert.deepEqual(Buffer.from(chunk.content_base64url, "base64url"), data);
+    assert.equal(chunk.eof, true);
+    assert.equal(staging.dispatch({ action: "binary_read",
+      relative_path: "src/sample.pdf", offset: 0 }).code, "digest_required");
+    assert.equal(staging.dispatch({ action: "binary_read",
+      relative_path: "src/sample.pdf", offset: 0, expected_sha256: hash("bad") }).code, "digest_mismatch");
+    assert.equal(staging.dispatch({ action: "binary_read",
+      relative_path: "../other.pdf", expected_sha256: info.sha256 }).code, "path_denied");
+    assert.equal(staging.dispatch({ action: "binary_read",
+      relative_path: "src/sample.pdf", offset: -1, expected_sha256: info.sha256 }).code, "invalid_request");
+    fs.writeFileSync(path.join(f.root, "src", "sample.pdf"),
+      Buffer.from("%PDF-1.7\\nchanged-version\\n%%EOF\\n"));
+    assert.equal(staging.dispatch({ action: "binary_read",
+      relative_path: "src/sample.pdf", expected_sha256: info.sha256 }).code, "digest_mismatch");
+    fs.writeFileSync(path.join(f.root, "src", "fake.docx"), "not-a-real-zip");
+    assert.equal(staging.dispatch({ action: "binary_info",
+      relative_path: "src/fake.docx" }).code, "invalid_document_format");
+  } finally { f.cleanup(); }
+});
+
+test("binary creation requires exact digest, existing parent and separate approval", () => {
+  const f = fixture(true);
+  const env = { ...f.env, CONNECTOR_DEVICE_BINARY_ENABLED: "true",
+    CONNECTOR_DEVICE_MCP_ENVIRONMENT: "staging" };
+  const engine = createDeviceFilesEngine({ env });
+  const data = Buffer.from("%PDF-1.7\nsmall-document\n%%EOF\n");
+  const req = { action: "binary_create", relative_path: "src/new.pdf",
+    content_base64url: data.toString("base64url"), expected_sha256: hash(data) };
+  try {
+    assert.equal(engine.dispatch(req).code, "approval_required");
+    assert.equal(engine.dispatch({ ...req, approval_token: "local-approval-only",
+      expected_sha256: hash("different") }).code, "digest_mismatch");
+    const result = engine.dispatch({ ...req, approval_token: "local-approval-only" });
+    assert.equal(result.ok, true);
+    assert.deepEqual(fs.readFileSync(path.join(f.root, "src", "new.pdf")), data);
+    assert.equal(engine.dispatch({ ...req, approval_token: "local-approval-only" }).code, "path_exists");
+    assert.equal(engine.dispatch({ ...req, relative_path: "src/outside.txt",
+      approval_token: "local-approval-only" }).code, "invalid_content");
+  } finally { f.cleanup(); }
+});
+
+test("binary replacement is digest-locked and rollback restores the prior document", () => {
+  const f = fixture(true);
+  try {
+    const engine = createDeviceFilesEngine({ env: { ...f.env,
+      CONNECTOR_DEVICE_BINARY_ENABLED: "true", CONNECTOR_DEVICE_MCP_ENVIRONMENT: "staging" } });
+    const before = Buffer.from("%PDF-1.7\\nold revision\\n%%EOF\\n");
+    const after = Buffer.from("%PDF-1.7\\nnew revision\\n%%EOF\\n");
+    const pathname = path.join(f.root, "src", "revisions.pdf");
+    fs.writeFileSync(pathname, before);
+    const req = { action: "binary_replace", relative_path: "src/revisions.pdf",
+      expected_sha256: hash(before), new_sha256: hash(after),
+      content_base64url: after.toString("base64url") };
+    assert.equal(engine.dispatch(req).code, "approval_required");
+    assert.equal(engine.dispatch({ ...req, approval_token: "local-approval-only",
+      expected_sha256: hash("wrong") }).code, "digest_mismatch");
+    const result = engine.dispatch({ ...req, approval_token: "local-approval-only" });
+    assert.equal(result.ok, true);
+    assert.equal(result.rollback_supported, true);
+    assert.deepEqual(fs.readFileSync(pathname), after);
+    assert.equal(engine.dispatch({ ...req, approval_token: "local-approval-only" }).code, "digest_mismatch");
+    assert.equal(engine.dispatch({ action: "rollback", transaction_id: result.transaction_id }).code,
+      "approval_required");
+    const reverted = engine.dispatch({ action: "rollback", transaction_id: result.transaction_id,
+      approval_token: "local-approval-only" });
+    assert.equal(reverted.ok, true);
+    assert.deepEqual(fs.readFileSync(pathname), before);
+    assert.equal(engine.dispatch({ action: "rollback", transaction_id: result.transaction_id,
+      approval_token: "local-approval-only" }).code, "rollback_unknown");
+    assert.equal(fs.readdirSync(f.state).filter(x => x.endsWith(".backup") ||
+      x.endsWith(".json")).length, 0);
+  } finally { f.cleanup(); }
+});
+
+test("binary rollback blocks concurrent edits and refuses when disabled", () => {
+  const f = fixture(true);
+  try {
+    const env = { ...f.env, CONNECTOR_DEVICE_BINARY_ENABLED: "true",
+      CONNECTOR_DEVICE_MCP_ENVIRONMENT: "staging" };
+    const engine = createDeviceFilesEngine({ env });
+    const before = Buffer.from("%PDF-1.7\\nfirst revision\\n%%EOF\\n");
+    const after = Buffer.from("%PDF-1.7\\nsecond revision\\n%%EOF\\n");
+    const filename = path.join(f.root, "src", "conflicted.pdf");
+    fs.writeFileSync(filename, before);
+    const changed = engine.dispatch({ action: "binary_replace", relative_path: "src/conflicted.pdf",
+      content_base64url: after.toString("base64url"), expected_sha256: hash(before),
+      new_sha256: hash(after), approval_token: "local-approval-only" });
+    assert.equal(changed.ok, true);
+    const production = createDeviceFilesEngine({ env: { ...env,
+      CONNECTOR_DEVICE_MCP_ENVIRONMENT: "production" } });
+    assert.equal(production.dispatch({ action: "rollback", transaction_id: changed.transaction_id,
+      approval_token: "local-approval-only" }).code, "binary_disabled");
+    fs.writeFileSync(filename, Buffer.from("%PDF-1.7\\nthird revision\\n%%EOF\\n"));
+    assert.equal(engine.dispatch({ action: "rollback", transaction_id: changed.transaction_id,
+      approval_token: "local-approval-only" }).code, "digest_mismatch");
+    assert.match(fs.readFileSync(filename, "utf8"), /third revision/);
+  } finally { f.cleanup(); }
+});

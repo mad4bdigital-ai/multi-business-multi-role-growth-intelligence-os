@@ -23,13 +23,18 @@ assert.match(
 );
 assert.match(
   workflow,
-  /cancel-in-progress:\s*true/u,
-  "the latest exact-head request must supersede stale queued or running requests for the same branch",
+  /cancel-in-progress:\s*false/u,
+  "a duplicate or later request must never cancel an active governed writer",
+);
+assert.match(
+  workflow,
+  /^\s*queue:\s*max\s*$/mu,
+  "same-branch writer requests must use the explicit serialized GitHub Actions queue",
 );
 assert.doesNotMatch(
   workflow,
-  /cancel-in-progress:\s*false/u,
-  "stale generated-artifact requests must not form an unbounded branch queue",
+  /cancel-in-progress:\s*true/u,
+  "stale-head requests must fail exact-head verification, not cancel an applying writer",
 );
 assert.match(
   workflow,
@@ -115,7 +120,7 @@ console.log(JSON.stringify({
   cases: 47,
   workflow_dispatch_only: true,
   exact_run_identity_visible: true,
-  stale_requests_cancelled: true,
+  active_writer_preserved: true,
   trusted_repository_writer_identity: true,
   github_token_writer_fallback: false,
   remote_mcp_write_scope_recipe_registered: true,

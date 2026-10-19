@@ -53,8 +53,10 @@ permissions:
   contents: write
 
 concurrency:
+  # A later duplicate must never cancel a writer midway through a governed write.
   group: governed-generated-artifact-refresh-${{ inputs.target_ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
+  queue: max
 
 jobs:
   apply:

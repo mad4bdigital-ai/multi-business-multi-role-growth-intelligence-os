@@ -78,6 +78,31 @@ Write-Host ""
 Write-Host "=== Growth Intelligence Platform - Local Connector Install ==="
 $environmentBinding = Assert-ConnectorEnvironmentBinding
 $tunnelTokenFile = Resolve-ConnectorTunnelTokenFile
+# Native ConPTY never silently installs from npm or accepts unsigned binaries.
+# Only the exact per-user Staging profile can opt in with pinned addon evidence.
+if ((Get-DotEnvValue "CONNECTOR_DEVICE_TERMINAL_CONPTY_ENABLED") -eq "true") {
+    if ($environmentBinding.environment -ne "staging" -or
+        (Get-DotEnvValue "CONNECTOR_DEVICE_MCP_ENVIRONMENT") -ne "staging") {
+        throw "Native ConPTY is Staging-only and requires both environment bindings."
+    }
+    $validator = Join-Path $ConnectorDir "Test-ConptyNativePackage.ps1"
+    if (-not (Test-Path -LiteralPath $validator -PathType Leaf)) {
+        throw "ConPTY supply-chain validator is missing."
+    }
+    $addonPath = Get-DotEnvValue "CONNECTOR_DEVICE_CONPTY_NATIVE_ADDON_PATH"
+    $expectedSha = Get-DotEnvValue "CONNECTOR_DEVICE_CONPTY_NATIVE_SHA256"
+    $signerThumbprint = Get-DotEnvValue "CONNECTOR_DEVICE_CONPTY_SIGNER_THUMBPRINT"
+    if ([string]::IsNullOrWhiteSpace($addonPath) -or
+        $expectedSha -notmatch '^[A-Fa-f0-9]{64}$' -or
+        $signerThumbprint -notmatch '^[A-Fa-f0-9]{40}$') {
+        throw "ConPTY must have a local addon path, SHA-256 and signer thumbprint before installation."
+    }
+    & $validator -ConnectorRoot $ConnectorDir `
+      -NativeAddonPath $addonPath `
+      -ExpectedSha256 $expectedSha `
+      -AllowedSignerThumbprint $signerThumbprint | Out-Null
+    Write-Host "  Native ConPTY artifact integrity and signer: VERIFIED (Staging only)"
+}
 Write-Host "  Environment binding: $($environmentBinding.environment) -> $($environmentBinding.control_plane_host) [OK]"
 Write-Host "  Tunnel credential mode: token_file [OK]"
 

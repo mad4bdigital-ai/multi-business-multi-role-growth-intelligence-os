@@ -166,3 +166,84 @@ test("readonly Git terminal profiles do not enable repository-defined Git hooks 
     assert.equal(spawned.children[0].options.env.GIT_CONFIG_NOSYSTEM, "1");
   } finally { f.done(); }
 });
+
+test("ConPTY requires a Windows Staging native adapter; disabled modes reject interactive start", () => {
+  const f = fixture(true), spawned = fakeSpawn();
+  try {
+    f.env.CONNECTOR_DEVICE_TERMINAL_CONPTY_ENABLED = "true";
+    for (const [platform, ptyImpl, environment] of [
+      ["linux", null, "staging"], ["win32", null, "staging"], ["win32", { spawn() {} }, "production"],
+    ]) {
+      const manager = owner(createDeviceTerminalManager({
+        env: { ...f.env, CONNECTOR_DEVICE_MCP_ENVIRONMENT: environment },
+        spawnImpl: spawned.create, platform, ptyImpl,
+      }));
+      assert.equal(manager.capabilities.pty, false);
+      assert.equal(manager.dispatch({ action: "start", profile: "node_repl",
+        approval_token: "private-local-approval" }).code, "pty_unavailable");
+    }
+    assert.equal(spawned.children.length, 0);
+  } finally { f.done(); }
+});
+
+test("ConPTY owned session provides cursor output and bounded resize with approval", () => {
+  const f = fixture(true), children = [];
+  f.env.CONNECTOR_DEVICE_TERMINAL_CONPTY_ENABLED = "true";
+  f.env.CONNECTOR_DEVICE_MCP_ENVIRONMENT = "staging";
+  const ptyImpl = { spawn(command, args, options) {
+    const child = { pid: 10831, command, args, options, writes: [], sizes: [],
+      write(data) { this.writes.push(data); },
+      resize(cols, rows) { this.sizes.push([cols, rows]); },
+      onData(fn) { this.output = fn; },
+      onExit(fn) { this.exited = fn; },
+      kill() {} };
+    children.push(child);
+    return child;
+  } };
+  try {
+    const manager = createDeviceTerminalManager({ env: f.env, ptyImpl,
+      platform: "win32", spawnImpl: fakeSpawn().create });
+    assert.equal(manager.capabilities.pty, true);
+    assert.equal(manager.capabilities.process_reattach_after_restart, false);
+    const alice = owner(manager, "owner-a"), bob = owner(manager, "owner-b");
+    const started = alice.dispatch({ action: "start", profile: "node_repl",
+      approval_token: "private-local-approval" });
+    assert.equal(started.ok, true);
+    assert.equal(started.conpty, true);
+    assert.equal(children[0].options.useConpty, true);
+    assert.equal(children[0].options.env.CONNECTOR_DEVICE_TERMINAL_APPROVAL_TOKEN, undefined);
+    children[0].output("pty output");
+    assert.match(alice.dispatch({ action: "output", session_id: started.session_id }).output, /pty output/);
+    assert.equal(bob.dispatch({ action: "resize", session_id: started.session_id,
+      cols: 90, rows: 30 }).code, "session_not_found");
+    assert.equal(alice.dispatch({ action: "resize", session_id: started.session_id,
+      cols: 90, rows: 30 }).code, "approval_required");
+    assert.equal(alice.dispatch({ action: "resize", session_id: started.session_id,
+      cols: 90, rows: 81, approval_token: "private-local-approval" }).code, "invalid_request");
+    assert.equal(alice.dispatch({ action: "resize", session_id: started.session_id,
+      cols: 90, rows: 30, approval_token: "private-local-approval" }).ok, true);
+    assert.deepEqual(children[0].sizes, [[90, 30]]);
+    assert.equal(alice.dispatch({ action: "input", session_id: started.session_id, input: "2+2\\n",
+      approval_token: "private-local-approval" }).ok, true);
+    assert.deepEqual(children[0].writes, ["2+2\\n"]);
+    children[0].exited({ exitCode: 0 });
+    assert.equal(alice.dispatch({ action: "status", session_id: started.session_id }).status, "completed");
+  } finally { f.done(); }
+});
+
+test("Runtime ConPTY discovery requires signed addon metadata before loading", () => {
+  const f = fixture(true);
+  try {
+    const env = { ...f.env,
+      CONNECTOR_DEVICE_TERMINAL_CONPTY_ENABLED: "true",
+      CONNECTOR_DEVICE_MCP_ENVIRONMENT: "staging" };
+    // ptyImpl is deliberately NOT injected: follow the production verifier path.
+    const manager = createDeviceTerminalManager({ env, platform: "win32",
+      spawnImpl: fakeSpawn().create });
+    assert.equal(manager.capabilities.pty_requested, true);
+    assert.equal(manager.capabilities.pty, false);
+    assert.equal(manager.capabilities.interactive_enabled, false);
+    assert.equal(owner(manager).dispatch({ action: "start", profile: "node_repl",
+      approval_token: "private-local-approval" }).code, "pty_unavailable");
+  } finally { f.done(); }
+});

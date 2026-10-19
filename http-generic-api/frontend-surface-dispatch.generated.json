@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "ef6d543b929d6bde691d30e8f9d23db0e4ccb468a94686c99d3c645e0556596c",
+    "source_digest": "d22393bec3fb7a4f9de5151f16e3eaed915bb27ee7bbd36a3cb375af660cba44",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -11,12 +11,12 @@
       },
       {
         "file": "frontend-operation-governance.generated.json",
-        "sha256": "dce6003b9c8947031e92237a0e462b96df8a9c2a35778508897ba60726f36878",
+        "sha256": "dde152881a0e77a2684c78721b311c0e53d8f8cbe0f214a927b9f5d287d9c0d7",
         "present": true
       },
       {
         "file": "frontend-surface-policy.json",
-        "sha256": "d26b080ceb94fc7626304728957de9c3750a9c494a868f51cddbcf117c0a38ee",
+        "sha256": "3b5096dd53921376561ac7bb37047c2f060c0f9b902475bc7d162e4706d9b1de",
         "present": true
       },
       {
@@ -76,7 +76,7 @@
       },
       {
         "file": "openapi/frontend-runtime-routes.generated.yaml",
-        "sha256": "5d190142b9fcf5d12fa3c8b060d6ce58fd3a7676e3101946b2b1b9647cb71b56",
+        "sha256": "92b64d97e1355141eab5264b9b35a9949f5653656c149b83a6d9a52ed799f181",
         "present": true
       },
       {
@@ -511,7 +511,7 @@
       },
       {
         "file": "routes/connectorAgentRoutes.js",
-        "sha256": "a57d8d1103a988bf7ccaf29b0ad80e36bb52b07f377b415d0c2d4869be4be996",
+        "sha256": "8baae4673bbf54a4dcf3c255250ddd70e4ae051a9e11f9fcc5d2616a5afb6787",
         "present": true
       },
       {
@@ -566,7 +566,7 @@
       },
       {
         "file": "routes/deviceToolsRoutes.js",
-        "sha256": "b4eacff76824cce7134139eeed56295cf43ae8f4ef4d7d75419615cab7a2b6dd",
+        "sha256": "b0ce8e431e08f8c64d2383400072116678e82b9a1beb6968032fb8483b06185b",
         "present": true
       },
       {
@@ -661,7 +661,7 @@
       },
       {
         "file": "routes/localConnectorInstallRoutes.js",
-        "sha256": "940c5de225a3c765a9f66dd6bfe5b4a3e848c794adc781a98f3069b580e7f90f",
+        "sha256": "ea27858c1fd1a216a37157905a386128892adb4e878494cecf9985831de31245",
         "present": true
       },
       {
@@ -1101,7 +1101,7 @@
       },
       {
         "file": "scripts/test-manifest.mjs",
-        "sha256": "f5695cdfc8803f717112344fb9c5e9632bf097f3a56cd8345148e47c90e38a1d",
+        "sha256": "0a4a3edc4f65fdc77db8867f9672dbf32379b5c8a2fbbec276e1697deec74d6c",
         "present": true
       },
       {
@@ -1112,6 +1112,11 @@
       {
         "file": "test-brand-core-asset-materialization-operation-governance.mjs",
         "sha256": "5e65352dc86807126990492e713af860939408d040338ae3725d9ab8a3b0a225",
+        "present": true
+      },
+      {
+        "file": "test-device-tools-diagnostics.mjs",
+        "sha256": "3791604d7f7365ebc117271b1cf5e31f68e4a01f51fa9c1eb4c6837e827b30af",
         "present": true
       },
       {
@@ -1126,7 +1131,7 @@
       },
       {
         "file": "test-frontend-surface-coverage-claims.mjs",
-        "sha256": "0c1e23801419a5039e392fdee60cc1a4707da6eaac743b165a101ea71894618b",
+        "sha256": "9c2e9534958a48f4de8b8c9e4972bb1643331bcc2a15f0f3c420e32930596cc5",
         "present": true
       },
       {
@@ -1229,21 +1234,21 @@
     "mounted_family_count": 177,
     "mounted_route_file_count": 147,
     "mixed_scope_route_file_count": 26,
-    "operation_count": 1082,
-    "openapi_documented_count": 1066,
+    "operation_count": 1084,
+    "openapi_documented_count": 1068,
     "openapi_canonical_documented_count": 743,
-    "openapi_generated_index_count": 323,
+    "openapi_generated_index_count": 325,
     "openapi_exemption_count": 16,
     "openapi_gap_count": 0,
-    "openapi_detail_gap_count": 323,
+    "openapi_detail_gap_count": 325,
     "openapi_detail_gap_policy": "accepted_generated_index_only",
     "auth_parity_counts": {
-      "equivalent": 1066,
+      "equivalent": 1068,
       "exempt": 16
     },
     "auth_contract_gap_count": 0,
     "operation_policy_issue_count": 0,
-    "non_get_candidate_count": 660,
+    "non_get_candidate_count": 661,
     "unresolved_operation_class_count": 0,
     "classified_mutation_count": 38,
     "governed_mutation_operation_count": 38,
@@ -1251,7 +1256,7 @@
     "unresolved_surface_decision_count": 0,
     "test_owned_family_count": 177,
     "untested_family_count": 0,
-    "test_owned_operation_count": 1082,
+    "test_owned_operation_count": 1084,
     "untested_operation_count": 0,
     "ready_task_count": 177,
     "blocked_task_count": 0,
@@ -5880,7 +5885,7 @@
       "family_key": "connector-agent.developer",
       "label": "connector agent (developer)",
       "source_file": "routes/connectorAgentRoutes.js",
-      "source_digest": "a57d8d1103a988bf7ccaf29b0ad80e36bb52b07f377b415d0c2d4869be4be996",
+      "source_digest": "8baae4673bbf54a4dcf3c255250ddd70e4ae051a9e11f9fcc5d2616a5afb6787",
       "mount_prefix": "/",
       "mount_order": 14389,
       "split_from_mixed_scope_file": true,
@@ -6012,7 +6017,7 @@
       "family_key": "connector-agent.local_device",
       "label": "connector agent (local_device)",
       "source_file": "routes/connectorAgentRoutes.js",
-      "source_digest": "a57d8d1103a988bf7ccaf29b0ad80e36bb52b07f377b415d0c2d4869be4be996",
+      "source_digest": "8baae4673bbf54a4dcf3c255250ddd70e4ae051a9e11f9fcc5d2616a5afb6787",
       "mount_prefix": "/",
       "mount_order": 14389,
       "split_from_mixed_scope_file": true,
@@ -6296,7 +6301,7 @@
       "family_key": "connector-agent.public",
       "label": "connector agent (public)",
       "source_file": "routes/connectorAgentRoutes.js",
-      "source_digest": "a57d8d1103a988bf7ccaf29b0ad80e36bb52b07f377b415d0c2d4869be4be996",
+      "source_digest": "8baae4673bbf54a4dcf3c255250ddd70e4ae051a9e11f9fcc5d2616a5afb6787",
       "mount_prefix": "/",
       "mount_order": 14389,
       "split_from_mixed_scope_file": true,
@@ -8780,7 +8785,7 @@
       "family_key": "local-connector-install.developer",
       "label": "local connector install (developer)",
       "source_file": "routes/localConnectorInstallRoutes.js",
-      "source_digest": "940c5de225a3c765a9f66dd6bfe5b4a3e848c794adc781a98f3069b580e7f90f",
+      "source_digest": "ea27858c1fd1a216a37157905a386128892adb4e878494cecf9985831de31245",
       "mount_prefix": "/",
       "mount_order": 14763,
       "split_from_mixed_scope_file": true,
@@ -9223,7 +9228,7 @@
       "family_key": "local-connector-install.local_device",
       "label": "local connector install (local_device)",
       "source_file": "routes/localConnectorInstallRoutes.js",
-      "source_digest": "940c5de225a3c765a9f66dd6bfe5b4a3e848c794adc781a98f3069b580e7f90f",
+      "source_digest": "ea27858c1fd1a216a37157905a386128892adb4e878494cecf9985831de31245",
       "mount_prefix": "/",
       "mount_order": 14763,
       "split_from_mixed_scope_file": true,
@@ -92767,7 +92772,7 @@
       "family_key": "device-tools",
       "label": "device tools",
       "source_file": "routes/deviceToolsRoutes.js",
-      "source_digest": "b4eacff76824cce7134139eeed56295cf43ae8f4ef4d7d75419615cab7a2b6dd",
+      "source_digest": "b0ce8e431e08f8c64d2383400072116678e82b9a1beb6968032fb8483b06185b",
       "mount_prefix": "/",
       "mount_order": 24044,
       "split_from_mixed_scope_file": false,
@@ -92776,6 +92781,152 @@
       "group": "local-manager",
       "scope": "developer",
       "operations": [
+        {
+          "method": "POST",
+          "path": "/device/tools/devices/{device_id}/health",
+          "signature": "POST /device/tools/devices/{device_id}/health",
+          "source_file": "routes/deviceToolsRoutes.js",
+          "scope": "developer",
+          "runtime_auth": {
+            "state": "resolved",
+            "profile": "backend_or_user",
+            "alternatives": [
+              [
+                "backendBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "principal": "authenticated",
+            "guard_chain": [
+              "requireBackendApiKey"
+            ],
+            "evidence": [
+              "route:requireBackendApiKey"
+            ],
+            "configuration_dependencies": [
+              "BACKEND_API_KEY",
+              "JWT_SECRET"
+            ]
+          },
+          "openapi_auth": {
+            "source_file": "openapi/frontend-runtime-routes.generated.yaml",
+            "security_declared": true,
+            "security_alternatives": [
+              [
+                "backendApiKeyAuth"
+              ],
+              [
+                "backendBearerAuth"
+              ]
+            ],
+            "unknown_security_schemes": []
+          },
+          "auth_parity": {
+            "state": "equivalent",
+            "reasons": []
+          },
+          "openapi_documented": true,
+          "openapi_canonical_documented": false,
+          "openapi_exempt": false,
+          "openapi_contract_level": "operation-index-only",
+          "evidence_candidate": true,
+          "embedded_ui": false,
+          "embedded_ui_evidence": [],
+          "delivery_kind": "api",
+          "tests": [
+            "test-device-tools-diagnostics.mjs"
+          ],
+          "governance": {
+            "classification": "read_action",
+            "classification_source": "operation_rule",
+            "mutation_candidate": true,
+            "governed": true,
+            "controls": null,
+            "parameter_bindings": null,
+            "blockers": [],
+            "rule_id": "scoped-device-health-read-action",
+            "owner": "local-manager",
+            "rationale": "Health-only POST dispatches the registered tenant_safe/read_only/auth_derived local_connector_health tool for a verified canonical device in Staging. Signed tenant/principal identity, exact device selection and normal dispatch grants are checked; the endpoint cannot enqueue shell commands or mutate files.",
+            "evidence_refs": [
+              "routes/deviceToolsRoutes.js",
+              "test-device-tools-diagnostics.mjs",
+              "test-frontend-surface-coverage-claims.mjs"
+            ]
+          },
+          "mutation_candidate": true,
+          "mutation": false
+        },
+        {
+          "method": "GET",
+          "path": "/device/tools/devices",
+          "signature": "GET /device/tools/devices",
+          "source_file": "routes/deviceToolsRoutes.js",
+          "scope": "developer",
+          "runtime_auth": {
+            "state": "resolved",
+            "profile": "backend_or_user",
+            "alternatives": [
+              [
+                "backendBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "principal": "authenticated",
+            "guard_chain": [
+              "requireBackendApiKey"
+            ],
+            "evidence": [
+              "route:requireBackendApiKey"
+            ],
+            "configuration_dependencies": [
+              "BACKEND_API_KEY",
+              "JWT_SECRET"
+            ]
+          },
+          "openapi_auth": {
+            "source_file": "openapi/frontend-runtime-routes.generated.yaml",
+            "security_declared": true,
+            "security_alternatives": [
+              [
+                "backendApiKeyAuth"
+              ],
+              [
+                "backendBearerAuth"
+              ]
+            ],
+            "unknown_security_schemes": []
+          },
+          "auth_parity": {
+            "state": "equivalent",
+            "reasons": []
+          },
+          "openapi_documented": true,
+          "openapi_canonical_documented": false,
+          "openapi_exempt": false,
+          "openapi_contract_level": "operation-index-only",
+          "evidence_candidate": false,
+          "embedded_ui": false,
+          "embedded_ui_evidence": [],
+          "delivery_kind": "api",
+          "tests": [
+            "test-device-tools-diagnostics.mjs"
+          ],
+          "governance": {
+            "classification": "read",
+            "classification_source": "http_method",
+            "mutation_candidate": false,
+            "governed": true,
+            "controls": null,
+            "blockers": [],
+            "rule_id": null
+          },
+          "mutation_candidate": false,
+          "mutation": false
+        },
         {
           "method": "GET",
           "path": "/device/tools",
@@ -92923,10 +93074,16 @@
       ],
       "openapi_gaps": [],
       "openapi_exemptions": [],
-      "openapi_detail_gaps": [],
+      "openapi_detail_gaps": [
+        "POST /device/tools/devices/{device_id}/health",
+        "GET /device/tools/devices"
+      ],
       "auth_contract_gaps": [],
-      "evidence_routes": [],
+      "evidence_routes": [
+        "POST /device/tools/devices/{device_id}/health"
+      ],
       "tests": [
+        "test-device-tools-diagnostics.mjs",
         "test-frontend-surface-coverage-claims.mjs"
       ],
       "untested_operations": [],
@@ -92941,6 +93098,7 @@
         "openapi/brand-core-asset-materialization.yaml",
         "openapi/container-authority-override-governance-smoke.yaml",
         "openapi/container-authority.yaml",
+        "openapi/frontend-runtime-routes.generated.yaml",
         "openapi/hostinger-storage-tenant-runtime.yaml",
         "openapi/openapi-registry-sync.yaml",
         "openapi/openapi.custom-gpt.staging-act-as-user-control.yaml",
@@ -92955,6 +93113,7 @@
         "routes/deviceToolsRoutes.js",
         "routes/index.js",
         "scripts/test-manifest.mjs",
+        "test-device-tools-diagnostics.mjs",
         "test-frontend-surface-coverage-claims.mjs"
       ],
       "surface_decision": {
@@ -92972,8 +93131,8 @@
       },
       "operation_blockers": [],
       "risk": {
-        "score": 2,
-        "class": "low"
+        "score": 3,
+        "class": "medium"
       },
       "wave": "F5-developer-evidence"
     },
@@ -101382,6 +101541,7 @@
         "openapi/brand-core-asset-materialization.yaml",
         "openapi/container-authority-override-governance-smoke.yaml",
         "openapi/container-authority.yaml",
+        "openapi/frontend-runtime-routes.generated.yaml",
         "openapi/hostinger-storage-tenant-runtime.yaml",
         "openapi/openapi-registry-sync.yaml",
         "openapi/openapi.custom-gpt.staging-act-as-user-control.yaml",
@@ -101396,6 +101556,7 @@
         "routes/deviceToolsRoutes.js",
         "routes/index.js",
         "scripts/test-manifest.mjs",
+        "test-device-tools-diagnostics.mjs",
         "test-frontend-surface-coverage-claims.mjs"
       ],
       "acceptance_gates": [
@@ -101409,6 +101570,7 @@
       "verification": [
         "node scripts/frontend-surface-dispatch.mjs --check",
         "node scripts/resource-api-coverage-audit.mjs --changed",
+        "node test-device-tools-diagnostics.mjs",
         "node test-frontend-surface-coverage-claims.mjs"
       ]
     },

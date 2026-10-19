@@ -22,7 +22,17 @@ import {
 
 const AGENT_VERSION = "2026.10.18.1";
 const MODULE_DIR = path.dirname(fileURLToPath(import.meta.url));
-const ROOT = path.resolve(MODULE_DIR, "../..");
+// The Staging Docker image flattens http-generic-api into /app, while the
+// immutable exact-commit repository snapshot is packaged at REPO_INSPECT_ROOT.
+// Resolve the package's source files from that snapshot, never from /.
+// Outside the managed image, retain the checked-out repository root.
+const PACKAGED_REPO_ROOT = String(process.env.REPO_INSPECT_ROOT || "").trim();
+if (PACKAGED_REPO_ROOT && !path.isAbsolute(PACKAGED_REPO_ROOT)) {
+  throw new Error("connector_agent_source_root_not_absolute");
+}
+const ROOT = PACKAGED_REPO_ROOT
+  ? path.resolve(PACKAGED_REPO_ROOT)
+  : path.resolve(MODULE_DIR, "../..");
 const CONNECTOR_PORT = 7070;
 
 const FILES = {
@@ -93,6 +103,11 @@ const FILES = {
   },
   "device-mcp-resource.mjs": {
     relativePath: "local-connector/device-mcp-resource.mjs",
+    contentType: "text/javascript; charset=utf-8",
+    executable: false,
+  },
+  "device-mcp-approval-broker.mjs": {
+    relativePath: "local-connector/device-mcp-approval-broker.mjs",
     contentType: "text/javascript; charset=utf-8",
     executable: false,
   },
@@ -558,6 +573,7 @@ function buildInstallPowerShell({ redeemToken, tunnelUrl, aliases, port, capabil
     "$DeviceFilesEngine = Join-Path $Root 'device-files-engine.mjs'",
     "$DeviceTerminalEngine = Join-Path $Root 'device-terminal-engine.mjs'",
     "$DeviceMcpResource = Join-Path $Root 'device-mcp-resource.mjs'",
+    "$DeviceMcpApprovalBroker = Join-Path $Root 'device-mcp-approval-broker.mjs'",
     "$AdminRecoverySchema = Join-Path $Root 'connector-admin-recovery.openapi.yaml'",
     "$SecretsRoot = Join-Path $Root 'secrets'",
     "$CfTokenFile = Join-Path $SecretsRoot 'cloudflared-token.txt'",
@@ -631,6 +647,7 @@ function buildInstallPowerShell({ redeemToken, tunnelUrl, aliases, port, capabil
     "Get-Mad4BManifestFile -Name 'device-files-engine.mjs' -OutFile $DeviceFilesEngine",
     "Get-Mad4BManifestFile -Name 'device-terminal-engine.mjs' -OutFile $DeviceTerminalEngine",
     "Get-Mad4BManifestFile -Name 'device-mcp-resource.mjs' -OutFile $DeviceMcpResource",
+    "Get-Mad4BManifestFile -Name 'device-mcp-approval-broker.mjs' -OutFile $DeviceMcpApprovalBroker",
     "Get-Mad4BManifestFile -Name 'connector-admin-recovery.openapi.yaml' -OutFile $AdminRecoverySchema",
     "Copy-Item -LiteralPath $ServerMjs -Destination (Join-Path $Root 'server.mjs.stable') -Force",
     "",

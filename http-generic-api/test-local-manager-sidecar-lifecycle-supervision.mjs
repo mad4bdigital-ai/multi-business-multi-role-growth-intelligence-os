@@ -29,13 +29,33 @@ assert.doesNotMatch(supervisor, /Process\.Start|ProtectedData|HttpClient|connect
 
 assert.match(program, /RunMainFormWithSidecar\(\)/);
 assert.match(program, /new SidecarReadOnlyDispatcher\(deviceIdentityStore, capabilityVerifier, runtimeClient\)/);
-assert.match(program, /new SidecarLifecycleSupervisor\(new SidecarRpcServer\(\), dispatcher\.DispatchAsync\)/);
+assert.match(program, /new SidecarLocalConsentBroker\(\)/);
+assert.match(program, /new SidecarRpcServer\(localConsent: privateConsent\)/);
+assert.match(program, /privateConsent\.InvalidateAll\(\)/);
 assert.match(program, /supervisor\.Start\(\)/);
 assert.match(program, /supervisor\.DisposeAsync\(\)\.AsTask\(\)\.GetAwaiter\(\)\.GetResult\(\)/);
 
 for (const check of ["success", "rejection", "timeout_recovery", "supervisor_restart", "shutdown"]) {
   assert.match(certification, new RegExp(`"${check}"`));
 }
+const localEditor = readFileSync(
+  new URL("../apps/local-manager-windows/LocalDocumentEditForm.cs", import.meta.url), "utf8");
+assert.match(program, /#if LOCAL_MANAGER_STAGING\s+var editDocumentButton/);
+assert.match(program, /LocalDocumentEditForm\.ShowEditor\(this\)/);
+const project = readFileSync(
+  new URL("../apps/local-manager-windows/Mad4B.LocalManager.Windows.csproj", import.meta.url), "utf8");
+assert.match(project, /<LocalManagerEnvironment Condition="'\$\(LocalManagerEnvironment\)' == ''">production<\/LocalManagerEnvironment>/);
+assert.match(project, /<DefineConstants Condition="'\$\(LocalManagerEnvironment\)' == 'staging'">\$\(DefineConstants\);LOCAL_MANAGER_STAGING<\/DefineConstants>/);
+assert.match(localEditor, /#if LOCAL_MANAGER_STAGING\s+namespace Mad4B\.LocalManager\.Windows;/);
+assert.match(localEditor, /#endif\s*$/);
+assert.match(localEditor, /DocumentStructuralEditor\.ReplaceDocxRun/);
+assert.match(localEditor, /DocumentStructuralEditor\.ReplaceXlsxInlineCell/);
+assert.match(localEditor, /MessageBoxButtons\.OKCancel/);
+assert.match(localEditor, /FileMode\.CreateNew/);
+assert.match(localEditor, /FileShare\.None/);
+assert.match(localEditor, /SHA256\.HashData\(check\)/);
+assert.doesNotMatch(localEditor, /FileMode\.Create\b|File\.WriteAllBytes|Process\.Start/);
+
 assert.match(architecture, /live named-pipe certification/i);
 
 console.log("local manager sidecar lifecycle supervision guard passed");

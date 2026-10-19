@@ -3236,6 +3236,72 @@
       "contains_secret_value": false,
       "grants_runtime_mutation": false,
       "grants_production_activation": false
+    },
+    {
+      "fingerprint": "local-connector/device-mcp-approval-broker.mjs|TTL_MS|literal_declaration|ttl.ms",
+      "owner": "device-mcp-local-consent-governance",
+      "reason": "Fixed, code-owned 90-second one-shot local consent expiry enforced by the Staging-only broker; an upper security lifetime, not a configurable setting or a grant. A stale receipt is rejected; no bearer token, credential, runtime write authority, or Production activation is registered.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "local-connector/test-device-mcp-approval-broker.mjs|LOCAL_APPROVAL|literal_declaration|local.approval",
+      "owner": "device-mcp-test-governance",
+      "reason": "Synthetic deterministic test-only local approval token fixture, used to assert wrong-principal, replay, and expired-consent denial. No live credential value is registered, copied, or authorized, and this CI declaration confers no tool or Production grant.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "test_only_secret_key_name",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "local-connector/test-device-runtime-http.mjs|writeScope|literal_declaration|writescope",
+      "owner": "device-mcp-test-governance",
+      "reason": "Fixed test-only OAuth scope fixture for native device MCP loopback HTTP negative and one-shot approval assertions. This is not an operational policy setting, a scope grant, or a Production write capability.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "local-connector/test-device-mcp-resource.mjs|approvals|literal_declaration|approvals",
+      "owner": "device-mcp-test-governance",
+      "reason": "Test-scoped in-memory broker fixture used to verify Native MCP consent boundaries. This binding is synthetic and does not register a deploy-time setting, token, permission or authority. Actual operator approval remains local and one-shot.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/routes/connectorAgentRoutes.js|PACKAGED_REPO_ROOT|environment_reference|repo.inspect.root",
+      "owner": "connector-agent-source-distribution-governance",
+      "reason": "Non-secret absolute path reference to the immutable Staging Docker repository snapshot. The path is validated as absolute before resolving signed Connector manifest source files; this CI baseline entry grants no file write, device access, runtime mutation, or Production activation.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "http-generic-api/test-connector-staging-mcp-distribution.mjs|REPO_INSPECT_ROOT|environment_reference|repo.inspect.root",
+      "owner": "connector-agent-source-distribution-test-governance",
+      "reason": "Static test-only reference checking Staging Docker's immutable repository snapshot root and absolute-path validation. It introduces no runtime configuration, credential, device permission, execution authority, or Production activation.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
     }
   ],
   "safety": {

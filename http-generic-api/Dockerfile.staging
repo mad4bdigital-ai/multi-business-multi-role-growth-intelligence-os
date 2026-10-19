@@ -33,6 +33,9 @@ COPY http-generic-api/ ./
 # The build-context proof above requires ignored/local secrets to be absent.
 COPY . /app/repo-inspect/
 RUN rm -f /app/repo-inspect/.staging-build-context.json
+# Verify every Connector Agent manifest asset in the final exact-commit image.
+# Fail closed before a Staging image can be deployed with HTTP 500 routes.
+RUN node scripts/verify-staging-connector-assets.mjs --image
 
 COPY edge/activation-gateway/generated/route-policy.staging.json ./staging-route-policy.json
 COPY canonical-manifest.mjs /canonical-manifest.mjs
