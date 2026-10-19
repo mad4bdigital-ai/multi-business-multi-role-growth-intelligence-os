@@ -67,7 +67,7 @@ internal static class Program
         var output = PdfStructuralEditor.ChangeTitleAndRotation(
             bytes, sha, "Before PDF", "After PDF", 1, 90);
         using var verify = PdfSharp.Pdf.IO.PdfReader.Open(
-            new MemoryStream(output), PdfSharp.Pdf.IO.PdfDocumentOpenMode.ReadOnly);
+            new MemoryStream(output), PdfSharp.Pdf.IO.PdfDocumentOpenMode.Import);
         Assert(verify.Info.Title == "After PDF", "PDF must persist changed metadata");
         Assert(verify.Pages[0].Rotate == 90, "PDF must persist page rotation");
         Assert(verify.PageCount == 1, "PDF must preserve all pages");
