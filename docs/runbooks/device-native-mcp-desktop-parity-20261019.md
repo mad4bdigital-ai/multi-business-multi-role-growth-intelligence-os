@@ -11,7 +11,8 @@ Device Files already supports bounded, allowlisted project-relative operations. 
 |---|---|---|---|
 | `files_list`, `files_read`, `files_info`, `files_search`, `files_stat`, `files_read_many` | read-only | `device:files:read` | No |
 | `files_create_directory`, `files_create_file`, `files_copy`, `files_move`, `files_patch`, `files_rollback` | text-only, project root | `device:files:write` | Yes, exact one-shot |
-| `terminal_start_readonly`, `terminal_cancel`, `process_terminate_owned`, `sessions_close` | fixed Git probes / owned sessions | `device:terminal:execute` | Existing fixed-profile permission |
+| `terminal_start_readonly` | fixed Git probes | `device:terminal:execute` | Fixed-profile scope; no local write/interactive authority |
+| `terminal_cancel`, `process_terminate_owned`, `sessions_close` | owned session lifecycle | `device:terminal:execute` | **Fresh, one-shot local consent** bound to subject/client and exact session ID |
 | `terminal_start_interactive`, `terminal_input` | fixed-profile REPL, scoped | `device:terminal:interactive` | Yes, exact one-shot |
 | `sessions_list`, `sessions_get`, `sessions_resume`, `terminal_output`, `process_list`, `process_status` | own principal only | `device:terminal:read` | No |
 | `devices_list`, `devices_health`, `devices_capabilities` | bound identity | `device:status:read` | No |
@@ -23,7 +24,9 @@ Device Files already supports bounded, allowlisted project-relative operations. 
 1. The Native MCP bearer proves identity and scopes, including exact issuer, audience, tenant, device, client and expiry. It is **never** a Connector admin or local consent token.
 2. The Local Manager's **MCP Local Consent** tab explicitly names the OAuth subject, client, tenant, tool and *exact JSON arguments*. It shows the operation and requires human confirmation. It submits a separate, locally generated secret over an admin-authenticated loopback endpoint. The broker stores only a hash of the operation's canonical arguments, a principal identifier and an expiry.
 
-The broker is disabled unless both MCP and broker flags are on, the Connector environment is **staging**, and a private 24+ character approval secret is present. Production can not enable Stage A write/interactive consent even by turning on the feature flag.
+The broker is disabled unless both MCP and broker flags are on, the Connector environment is **staging**, and a private 24+ character approval secret is present.
+
+Every authenticated `tools/call` emits a bounded structured local audit event with the device ID, registered tool name, outcome and a SHA-256 principal fingerprint; OAuth bearer strings, subjects, tool arguments and approval secrets are not recorded. Audit logging is best-effort and must receive an independent live Staging acceptance check before being treated as durable security evidence. Production can not enable Stage A write/interactive consent even by turning on the feature flag.
 
 Receipts:
 - expire after 90 seconds and are kept in memory only;
