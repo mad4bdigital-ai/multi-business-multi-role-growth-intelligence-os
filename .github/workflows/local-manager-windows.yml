@@ -14,6 +14,9 @@ on:
       - 'http-generic-api/localManagerReleaseRegistry.js'
       - 'http-generic-api/test-local-manager-tool-release-owner.mjs'
       - '.github/workflows/local-manager-windows.yml'
+      - 'local-connector/device-terminal-engine.mjs'
+      - 'local-connector/test-device-terminal-engine.mjs'
+      - 'local-connector/device-mcp-resource.mjs'
   pull_request:
     paths:
       - 'apps/local-manager-windows/**'
@@ -23,6 +26,9 @@ on:
       - 'http-generic-api/localManagerReleaseRegistry.js'
       - 'http-generic-api/test-local-manager-tool-release-owner.mjs'
       - '.github/workflows/local-manager-windows.yml'
+      - 'local-connector/device-terminal-engine.mjs'
+      - 'local-connector/test-device-terminal-engine.mjs'
+      - 'local-connector/device-mcp-resource.mjs'
 
 permissions:
   contents: read
@@ -44,6 +50,18 @@ jobs:
         uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
         with:
           dotnet-version: '8.0.x'
+
+      - name: Setup Node.js for native-device source checks
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '22'
+
+      - name: Verify Windows ConPTY synthetic source contract
+        shell: pwsh
+        run: |
+          node --check local-connector/device-terminal-engine.mjs
+          node --check local-connector/device-mcp-resource.mjs
+          node --test local-connector/test-device-terminal-engine.mjs
 
       - name: Reject unsupported build environments at MSBuild boundary
         shell: pwsh
