@@ -22,7 +22,17 @@ import {
 
 const AGENT_VERSION = "2026.10.18.1";
 const MODULE_DIR = path.dirname(fileURLToPath(import.meta.url));
-const ROOT = path.resolve(MODULE_DIR, "../..");
+// The Staging Docker image flattens http-generic-api into /app, while the
+// immutable exact-commit repository snapshot is packaged at REPO_INSPECT_ROOT.
+// Resolve the package's source files from that snapshot, never from /.
+// Outside the managed image, retain the checked-out repository root.
+const PACKAGED_REPO_ROOT = String(process.env.REPO_INSPECT_ROOT || "").trim();
+if (PACKAGED_REPO_ROOT && !path.isAbsolute(PACKAGED_REPO_ROOT)) {
+  throw new Error("connector_agent_source_root_not_absolute");
+}
+const ROOT = PACKAGED_REPO_ROOT
+  ? path.resolve(PACKAGED_REPO_ROOT)
+  : path.resolve(MODULE_DIR, "../..");
 const CONNECTOR_PORT = 7070;
 
 const FILES = {
