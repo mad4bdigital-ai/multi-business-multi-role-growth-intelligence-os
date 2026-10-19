@@ -121,8 +121,9 @@ const schemaInput = { type: "object", additionalProperties: false,
     session_id: { type: "string" }, input: { type: "string", maxLength: 2048 } } };
 
 const schemaBinaryPage = { type: "object", additionalProperties: false,
-  required: ["relative_path"], properties: {
+  required: ["relative_path", "expected_sha256"], properties: {
     relative_path: { type: "string" },
+    expected_sha256: { type: "string", pattern: "^[a-fA-F0-9]{64}$" },
     offset: { type: "integer", minimum: 0, maximum: 8388608 } } };
 const schemaBinaryCreate = { type: "object", additionalProperties: false,
   required: ["relative_path", "content_base64url", "expected_sha256"], properties: {
