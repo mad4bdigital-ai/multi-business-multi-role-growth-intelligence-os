@@ -38,6 +38,19 @@ assert.match(program, /supervisor\.DisposeAsync\(\)\.AsTask\(\)\.GetAwaiter\(\)\
 for (const check of ["success", "rejection", "timeout_recovery", "supervisor_restart", "shutdown"]) {
   assert.match(certification, new RegExp(`"${check}"`));
 }
+const localEditor = readFileSync(
+  new URL("../apps/local-manager-windows/LocalDocumentEditForm.cs", import.meta.url), "utf8");
+assert.match(program, /#if LOCAL_MANAGER_STAGING\s+var editDocumentButton/);
+assert.match(program, /LocalDocumentEditForm\.ShowEditor\(this\)/);
+assert.match(localEditor, /LocalManagerEnvironment\.Name != "staging"/);
+assert.match(localEditor, /DocumentStructuralEditor\.ReplaceDocxRun/);
+assert.match(localEditor, /DocumentStructuralEditor\.ReplaceXlsxInlineCell/);
+assert.match(localEditor, /MessageBoxButtons\.OKCancel/);
+assert.match(localEditor, /FileMode\.CreateNew/);
+assert.match(localEditor, /FileShare\.None/);
+assert.match(localEditor, /SHA256\.HashData\(check\)/);
+assert.doesNotMatch(localEditor, /FileMode\.Create\b|File\.WriteAllBytes|Process\.Start/);
+
 assert.match(architecture, /live named-pipe certification/i);
 
 console.log("local manager sidecar lifecycle supervision guard passed");
