@@ -63,8 +63,12 @@ for (const file of connectorAssetPaths) {
 }
 assert(connectorStagingDockerfile.includes('COPY . /app/repo-inspect/'), 'Staging Dockerfile must copy exact-commit source snapshot');
 assert(connectorStagingDockerfile.includes('RUN node scripts/verify-staging-connector-assets.mjs --image'), 'Staging Dockerfile must enforce Connector manifest asset verification');
-assert(connectorIgnoreRules.has('local-connector/n8n-workflows/'), 'Staging Docker build must exclude unmanifested nested n8n workflow sources');
-assert(readFileSync('scripts/verify-staging-connector-assets.mjs', 'utf8').includes('connector_asset_nested_directory_not_excluded'), 'Nested Connector directories must remain fail-closed in source verification');
+assert(connectorIgnoreRules.has('local-connector/**'), 'Staging Docker build must deny all unmanifested Connector contents, including future nested folders');
+assert(!connectorDockerignore.includes('local-connector/n8n-workflows/'), 'Staging Docker policy must not hardcode exclusions for individual nested source directories');
+const releaseDeny = connectorDockerignore.indexOf('local-connector/**');
+const releaseException = connectorDockerignore.indexOf('!local-connector/server.mjs');
+assert(releaseDeny >= 0 && releaseDeny < releaseException, 'Only manifest-listed Connector files can override the generic deny rule');
+assert(readFileSync('scripts/verify-staging-connector-assets.mjs', 'utf8').includes('connector_asset_generic_deny_rule_missing_or_out_of_order'), 'Nested Connector directories must remain fail-closed in source verification');
 
 assert(connectorAgent.includes('$Root = Split-Path -Parent $MyInvocation.MyCommand.Path'), 'canonical installer must remain in the Local Manager owned update root across UAC identity changes');
 assert(connectorAgent.includes("contract='mad4b.local-connector-installer-state.v1'"), 'canonical installer must emit structured secret-safe failure evidence');
