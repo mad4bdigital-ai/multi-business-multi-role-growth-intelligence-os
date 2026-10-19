@@ -22,4 +22,8 @@
   <Target Name="ValidateLocalManagerEnvironment" BeforeTargets="BeforeBuild">
     <Error Condition="'$(LocalManagerEnvironment)' != 'production' and '$(LocalManagerEnvironment)' != 'staging'" Text="LocalManagerEnvironment must be production or staging." />
   </Target>
+  <ItemGroup>
+    <!-- Explicitly pinned MIT-licensed stable version, not later AGPL line. -->
+    <PackageReference Include="PDFsharp" Version="6.2.4" />
+  </ItemGroup>
 </Project>
