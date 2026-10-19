@@ -10,7 +10,7 @@
     },
     {
       "path": ".dockerignore",
-      "sha256": "7883a97b811dc6ee510b5557bfb5d3ee78a5816980ab11e0e46884c04d2c799f"
+      "sha256": "fdb604bcec8b927ad55a8c529564a3f602f9020207a7a206f630f25ab7692f7a"
     },
     {
       "path": ".gitignore",
@@ -106,7 +106,7 @@
     },
     {
       "path": "http-generic-api/Dockerfile.staging",
-      "sha256": "dc3116b6f11e2a963d957ff9e03e3c00333e3564bbaf9f57be1880e1ecc40c8a"
+      "sha256": "87bcb05ba281509be6cb95ed56ffff3d86c3c2bf9b3fb0ff040f1b33bd63b220"
     },
     {
       "path": "http-generic-api/canonical-business-operation-parity.generated.json",
@@ -451,6 +451,10 @@
     {
       "path": "http-generic-api/stagingBackupLocalAuthorityAdapter.mjs",
       "sha256": "cfed7ac5143d2de4002f4822ed9fd6ccbf0d24e9c2d63fd075211445f7116e97"
+    },
+    {
+      "path": "http-generic-api/scripts/verify-staging-connector-assets.mjs",
+      "sha256": "48eab770ce513f001980a65669f51cfb46271afb25841ce3ddaba8c6c724f395"
     }
   ],
   "safety": {
