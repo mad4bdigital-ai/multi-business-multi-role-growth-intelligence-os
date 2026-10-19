@@ -6,6 +6,14 @@ import path from "node:path";
 import { createHash, randomUUID, timingSafeEqual } from "node:crypto";
 
 const MAX_FILE_BYTES = 1024 * 1024;
+const MAX_DOCUMENT_BYTES = 8 * 1024 * 1024;
+const MAX_BINARY_WRITE_BYTES = 24 * 1024;
+const BINARY_PAGE_BYTES = 16 * 1024;
+const DOCUMENT_MIMES = Object.freeze({
+  ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  ".pdf": "application/pdf",
+});
 const MAX_SEARCH_BYTES = 256 * 1024;
 const MAX_VISITS = 1500;
 const TEXT_EXTENSIONS = new Set([
@@ -20,6 +28,7 @@ const DENIED_SEGMENTS = new Set([
 const ERRORS = Object.freeze({
   disabled: 403, invalid_path: 400, path_denied: 403, path_not_found: 404,
   invalid_action: 400, invalid_request: 400, invalid_content: 400, file_too_large: 413,
+  binary_disabled: 403, invalid_document_format: 400,
   not_text_file: 400, not_directory: 400, not_file: 400, digest_required: 400,
   digest_mismatch: 409, patch_not_unique: 409, write_denied: 403,
   approval_required: 403, backup_unavailable: 409, rollback_unknown: 404,
@@ -144,8 +153,12 @@ export function createDeviceFilesEngine({ env = process.env } = {}) {
   const stateDir = root ? getStateDirectory(env, root) : null;
   const writes = enabled && env.CONNECTOR_DEVICE_FILE_WRITES_ENABLED === "true" &&
     Boolean(stateDir) && Boolean(env.CONNECTOR_DEVICE_FILE_APPROVAL_TOKEN);
+  const binaryEnabled = enabled && env.CONNECTOR_DEVICE_BINARY_ENABLED === "true" &&
+    env.CONNECTOR_DEVICE_MCP_ENVIRONMENT === "staging";
   const capabilities = {
     enabled, read_enabled: enabled, write_enabled: writes, root_bound: Boolean(root),
+    binary_enabled: binaryEnabled, binary_write_enabled: binaryEnabled && writes,
+    binary_page_bytes: BINARY_PAGE_BYTES, max_document_bytes: MAX_DOCUMENT_BYTES,
     state_available: Boolean(stateDir), max_file_bytes: MAX_FILE_BYTES,
     max_search_files: MAX_VISITS, atomic_patch: true, rollback: true,
     root: root || null, arbitrary_shell_allowed: false, secrets_included: false,
@@ -156,6 +169,66 @@ export function createDeviceFilesEngine({ env = process.env } = {}) {
     if (!sameSecret(input.approval_token, env.CONNECTOR_DEVICE_FILE_APPROVAL_TOKEN))
       return failure("approval_required");
     return null;
+  }
+  function documentFormat(relative, bytes) {
+    const ext = path.extname(relative).toLowerCase();
+    const mime = DOCUMENT_MIMES[ext];
+    if (!mime || bytes.length < 8) return null;
+    if (ext === ".pdf" && !bytes.subarray(0, 5).equals(Buffer.from("%PDF-"))) return null;
+    if (ext !== ".pdf" && !bytes.subarray(0, 4).equals(Buffer.from([0x50, 0x4b, 0x03, 0x04]))) return null;
+    return mime;
+  }
+  function readDocument(input, infoOnly = false) {
+    if (!binaryEnabled) return failure("binary_disabled");
+    const relative = input.relative_path;
+    if (typeof relative !== "string" || !Object.hasOwn(DOCUMENT_MIMES, path.extname(relative).toLowerCase()))
+      return failure("invalid_document_format");
+    const absolute = resolve(root, relative);
+    if (!absolute) return failure("path_denied");
+    const opened = boundedRead(absolute, MAX_DOCUMENT_BYTES);
+    if (opened.denied) return failure("path_denied");
+    if (opened.tooLarge) return failure("file_too_large");
+    const data = opened.bytes;
+    const mime = documentFormat(relative, data);
+    if (!mime) return failure("invalid_document_format");
+    const sha256 = digest(data);
+    const response = { ok: true, http_status: 200, relative_path: relative,
+      mime_type: mime, size: data.length, sha256, secrets_included: false };
+    if (infoOnly) return response;
+    const offset = input.offset ?? 0;
+    if (!Number.isSafeInteger(offset) || offset < 0 || offset > data.length)
+      return failure("invalid_request");
+    const chunk = data.subarray(offset, offset + BINARY_PAGE_BYTES);
+    return { ...response, content_base64url: chunk.toString("base64url"),
+      next_offset: offset + chunk.length, eof: offset + chunk.length === data.length };
+  }
+  function createDocument(input) {
+    if (!binaryEnabled) return failure("binary_disabled");
+    const denied = requireWrite(input);
+    if (denied) return denied;
+    const relative = input.relative_path;
+    if (typeof relative !== "string" ||
+        !Object.hasOwn(DOCUMENT_MIMES, path.extname(relative).toLowerCase()) ||
+        typeof input.content_base64url !== "string" ||
+        !/^[A-Za-z0-9_-]+$/.test(input.content_base64url) ||
+        input.content_base64url.length > 32768) return failure("invalid_content");
+    const bytes = Buffer.from(input.content_base64url, "base64url");
+    if (bytes.length > MAX_BINARY_WRITE_BYTES ||
+        bytes.toString("base64url") !== input.content_base64url ||
+        !documentFormat(relative, bytes)) return failure("invalid_document_format");
+    if (!/^[a-f0-9]{64}$/i.test(input.expected_sha256 || ""))
+      return failure("digest_required");
+    if (digest(bytes) !== input.expected_sha256.toLowerCase())
+      return failure("digest_mismatch");
+    const absolute = resolve(root, relative, { mustExist: false });
+    if (!absolute || fs.existsSync(absolute)) return failure("path_exists");
+    const parent = path.dirname(absolute);
+    if (!fs.statSync(parent).isDirectory() || fs.lstatSync(parent).isSymbolicLink())
+      return failure("path_denied");
+    fs.writeFileSync(absolute, bytes, { flag: "wx", mode: 0o600 });
+    return { ok: true, http_status: 200, relative_path: relative,
+      sha256: digest(bytes), size: bytes.length, rollback_supported: false,
+      secrets_included: false };
   }
   function readFile(relative) {
     const absolute = resolve(root, relative);
@@ -450,6 +523,9 @@ export function createDeviceFilesEngine({ env = process.env } = {}) {
       if (input.action === "list") return list(input.relative_path || ".", input);
       if (input.action === "stat") return statPath(input.relative_path || ".");
       if (input.action === "read_many") return readMultiple(input);
+      if (input.action === "binary_info") return readDocument(input, true);
+      if (input.action === "binary_read") return readDocument(input, false);
+      if (input.action === "binary_create") return createDocument(input);
       if (input.action === "create_directory") return createDirectory(input);
       if (input.action === "create_file") return createFile(input);
       if (input.action === "copy") return copyOrMove(input, false);
