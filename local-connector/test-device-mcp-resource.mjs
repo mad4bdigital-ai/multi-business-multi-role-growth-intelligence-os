@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { generateKeyPairSync, sign } from "node:crypto";
 import { createDeviceMcpResource } from "./device-mcp-resource.mjs";
+import { createDeviceMcpApprovalBroker } from "./device-mcp-approval-broker.mjs";
 import { createDeviceTerminalManager } from "./device-terminal-engine.mjs";
 import fs from "node:fs";
 import os from "node:os";
@@ -9,7 +10,7 @@ import path from "node:path";
 import { EventEmitter } from "node:events";
 
 const now = 1781762400000;
-function fixture(terminalOverride) {
+function fixture(terminalOverride, { consent = false } = {}) {
   const { publicKey, privateKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });
   const jwk = publicKey.export({ format: "jwk" });
   const env = {
@@ -20,6 +21,10 @@ function fixture(terminalOverride) {
     CONNECTOR_DEVICE_MCP_JWKS_JSON: JSON.stringify({ keys: [{ ...jwk, kid: "test-key", alg: "RS256", use: "sig" }] }),
     CONNECTOR_DEVICE_ID: "device-real-1",
     CONNECTOR_TENANT_ID: "tenant-1",
+    ...(consent ? {
+      CONNECTOR_DEVICE_MCP_APPROVAL_ENABLED: "true",
+      CONNECTOR_DEVICE_MCP_APPROVAL_TOKEN: "test-local-consent-secret-strong-123",
+    } : {}),
   };
   const claims = {
     iss: "https://dev.mad4b.com", aud: "https://connector.mad4b.com/mcp/device",
@@ -37,10 +42,11 @@ function fixture(terminalOverride) {
   const called = [];
   const files = { capabilities: { enabled: true, read_enabled: true, write_enabled: true, root: "/private/admin/project" }, dispatch: x => { called.push(x); return { ok: true, entries: [], echo: x.action }; } };
   const terminal = terminalOverride || { capabilities: { enabled: true }, dispatch: x => { called.push(x); return { ok: true, echo: x.action }; } };
-  const gateway = createDeviceMcpResource({ env, files, terminal, now: () => now });
+  const approvals = consent ? createDeviceMcpApprovalBroker({ env, now: () => now }) : null;
+  const gateway = createDeviceMcpResource({ env, files, terminal, approvals, now: () => now });
   const request = (authorization, method, params = {}, id = 1) =>
     gateway.handle({ authorization, body: { jsonrpc: "2.0", id, method, params } });
-  return { env, claims, bearer, gateway, request, called };
+  return { env, claims, bearer, gateway, request, called, approvals };
 }
 test("fails closed without explicit issuer, tenant, keys, or feature flag", () => {
   assert.equal(createDeviceMcpResource().capabilities.enabled, false);
@@ -170,20 +176,39 @@ test("signed OAuth principals are isolated using the actual terminal manager", (
   };
   try {
     const engine = createDeviceTerminalManager({ env, spawnImpl: fakeSpawn });
-    const f = fixture(engine);
+    const withoutConsent = fixture(engine);
     const scopes = "device:terminal:read device:terminal:execute";
+    assert.equal(withoutConsent.request(withoutConsent.bearer({ scope: scopes }),
+      "tools/call", { name: "terminal_cancel", arguments: { session_id: "unknown" } })
+      .body.error.code, -32601, "teardown must not be exposed without the local approval broker");
+    const f = fixture(engine, { consent: true });
     const alice = f.bearer({ sub: "alice", scope: scopes });
     const bob = f.bearer({ sub: "bob", scope: scopes });
     const call = (token, name, args = {}) =>
       f.request(token, "tools/call", { name, arguments: args });
-    const start = JSON.parse(call(alice, "terminal_start_readonly", { profile: "git_status" }).body.result.content[0].text);
+    const outcome = (token, name, args = {}) =>
+      JSON.parse(call(token, name, args).body.result.content[0].text);
+    const issue = (subject, tool, args) => f.approvals.issue({
+      action: "issue", device_id: "device-real-1", tenant_id: "tenant-1",
+      subject, client_id: "mcp-ai-client", tool, arguments: args,
+    }, "test-local-consent-secret-strong-123");
+    const start = outcome(alice, "terminal_start_readonly", { profile: "git_status" });
     assert.equal(start.ok, true);
-    assert.deepEqual(JSON.parse(call(bob, "sessions_list").body.result.content[0].text).sessions, []);
-    for (const name of ["sessions_get", "terminal_output", "terminal_cancel", "process_terminate_owned"]) {
-      const forbidden = JSON.parse(call(bob, name, { session_id: start.session_id }).body.result.content[0].text);
-      assert.equal(forbidden.code, "session_not_found", name);
+    assert.deepEqual(outcome(bob, "sessions_list").sessions, []);
+    const session = { session_id: start.session_id };
+    for (const name of ["sessions_get", "terminal_output"]) {
+      assert.equal(outcome(bob, name, session).code, "session_not_found", name);
     }
-    assert.equal(JSON.parse(call(alice, "sessions_get", { session_id: start.session_id }).body.result.content[0].text).ok, true);
-    assert.equal(JSON.parse(call(alice, "terminal_cancel", { session_id: start.session_id }).body.result.content[0].text).ok, true);
+    for (const name of ["terminal_cancel", "process_terminate_owned", "sessions_close"]) {
+      assert.equal(outcome(bob, name, session).code, "local_consent_required", name);
+      assert.equal(issue("bob", name, session).ok, true);
+      assert.equal(outcome(bob, name, session).code, "session_not_found", name);
+      assert.equal(outcome(bob, name, session).code, "local_consent_required", name + " replay");
+    }
+    assert.equal(outcome(alice, "sessions_get", session).ok, true);
+    assert.equal(outcome(alice, "terminal_cancel", session).code, "local_consent_required");
+    assert.equal(issue("alice", "terminal_cancel", session).ok, true);
+    assert.equal(outcome(alice, "terminal_cancel", session).ok, true);
+    assert.equal(outcome(alice, "terminal_cancel", session).code, "local_consent_required");
   } finally { fs.rmSync(base, { recursive: true, force: true }); }
 });
