@@ -150,9 +150,25 @@ test("real loopback Connector enforces device boundaries and preserves file/term
     assert.equal((await call("bob", "sessions_list")).sessions.length, 0);
     assert.equal((await call("bob", "terminal_output", { session_id: ownerSession.session_id })).code,
       "session_not_found");
-    assert.equal((await call("bob", "terminal_cancel", { session_id: ownerSession.session_id })).code,
+    const cancelArgs = { session_id: ownerSession.session_id };
+    // Local consent is the first guard, before the owned-session lookup.
+    assert.equal((await call("bob", "terminal_cancel", cancelArgs)).code,
+      "local_consent_required");
+    const bobApproval = {
+      action: "issue", device_id: "test-device-1", tenant_id: "http-test-tenant",
+      subject: "bob", client_id: "http-test-client",
+      tool: "terminal_cancel", arguments: cancelArgs,
+    };
+    const bobPermit = await post("/device/mcp/approvals", bobApproval,
+      { ...auth, "x-mad4b-device-mcp-approval": "http-local-consent-strong-test-token" });
+    assert.equal(bobPermit.status, 200);
+    assert.equal(bobPermit.value.one_shot, true);
+    // Even after independent exact local consent, Bob cannot cancel Alice's session.
+    assert.equal((await call("bob", "terminal_cancel", cancelArgs)).code,
       "session_not_found");
-    assert.equal((await call("alice", "sessions_get", { session_id: ownerSession.session_id })).ok, true);
+    assert.equal((await call("bob", "terminal_cancel", cancelArgs)).code,
+      "local_consent_required");
+    assert.equal((await call("alice", "sessions_get", cancelArgs)).ok, true);
     // Complete HTTP consent boundary: no implicit writes from OAuth alone,
     // approval secret never enters JSON-RPC, and the receipt cannot be replayed.
     const writeArgs = { relative_path: "mcp-new.txt", content: "one-shot write\\n" };
