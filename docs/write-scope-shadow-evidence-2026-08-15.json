@@ -8,7 +8,7 @@
     "inventory_catalog_fingerprint": "7eaf87af3c9df2a3aa55a9f6adbd93d4d7bc4334c58084cb382d851af888e4a2",
     "catalog_fingerprint": "7eaf87af3c9df2a3aa55a9f6adbd93d4d7bc4334c58084cb382d851af888e4a2",
     "write_scope_count": 6,
-    "route_count": 684
+    "route_count": 685
   },
   "scope_selection": [
     "approvals.request",
@@ -462,5 +462,5 @@
     "credential_payload_reads": false,
     "secrets_included": false
   },
-  "evidence_fingerprint": "16294e20f2105e1afcf757c623f2fbc1e81b1bb20cf398c12f7324d309545b62"
+  "evidence_fingerprint": "83745f50688e625d0d35426c697b102b8ed2da015c8660d1771f303189bcd2f7"
 }

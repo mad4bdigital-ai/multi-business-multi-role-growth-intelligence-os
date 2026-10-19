@@ -8,14 +8,14 @@
     "7eaf87af3c9df2a3aa55a9f6adbd93d4d7bc4334c58084cb382d851af888e4a2"
   ],
   "db_catalog_fingerprint_match": true,
-  "file_count": 8201,
-  "route_count": 1120,
-  "write_route_count": 684,
+  "file_count": 8207,
+  "route_count": 1122,
+  "write_route_count": 685,
   "classified_write_surface_count": 44,
-  "classified_write_route_count": 684,
+  "classified_write_route_count": 685,
   "unclassified_write_route_count": 0,
-  "intentionally_unmapped_write_route_count": 640,
-  "sensitive_intentionally_unmapped_write_route_count": 640,
+  "intentionally_unmapped_write_route_count": 641,
+  "sensitive_intentionally_unmapped_write_route_count": 641,
   "migration_count": 453,
   "registry_evidence_count": 118,
   "write_scope_count": 6,
@@ -3036,18 +3036,36 @@
       "write": true
     },
     {
-      "route_id": "http-generic-api/routes/deviceToolsRoutes.js#GET:/device/tools:0",
-      "source_line": 50,
-      "source_offset": 1713,
+      "route_id": "http-generic-api/routes/deviceToolsRoutes.js#POST:/device/tools/devices/:device_id/health:0",
+      "source_line": 80,
+      "source_offset": 3444,
+      "method": "POST",
+      "path": "/device/tools/devices/:device_id/health",
+      "file": "http-generic-api/routes/deviceToolsRoutes.js",
+      "write": true
+    },
+    {
+      "route_id": "http-generic-api/routes/deviceToolsRoutes.js#GET:/device/tools/devices:1",
+      "source_line": 120,
+      "source_offset": 5322,
+      "method": "GET",
+      "path": "/device/tools/devices",
+      "file": "http-generic-api/routes/deviceToolsRoutes.js",
+      "write": false
+    },
+    {
+      "route_id": "http-generic-api/routes/deviceToolsRoutes.js#GET:/device/tools:2",
+      "source_line": 145,
+      "source_offset": 6380,
       "method": "GET",
       "path": "/device/tools",
       "file": "http-generic-api/routes/deviceToolsRoutes.js",
       "write": false
     },
     {
-      "route_id": "http-generic-api/routes/deviceToolsRoutes.js#POST:/device/tools/call:1",
-      "source_line": 71,
-      "source_offset": 2535,
+      "route_id": "http-generic-api/routes/deviceToolsRoutes.js#POST:/device/tools/call:3",
+      "source_line": 166,
+      "source_offset": 7202,
       "method": "POST",
       "path": "/device/tools/call",
       "file": "http-generic-api/routes/deviceToolsRoutes.js",
@@ -23183,17 +23201,89 @@
       "reason": "registry_mutation_requires_live_schema_and_policy_contract"
     },
     {
-      "route_id": "http-generic-api/routes/deviceToolsRoutes.js#POST:/device/tools/call:1",
+      "route_id": "http-generic-api/routes/deviceToolsRoutes.js#POST:/device/tools/devices/:device_id/health:0",
       "classification": "intentionally_unmapped",
       "mapping_status": "blocked",
       "domain": "application_domain",
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/deviceToolsRoutes.js",
-        "source_line": 71,
+        "source_line": 80,
         "handler_window_lines": [
-          71,
-          112
+          80,
+          119
+        ],
+        "evidence_flags": {
+          "handler_window_present": true,
+          "provider_signal": true,
+          "db_registry_signal": false,
+          "authority_signal": true,
+          "readback_signal": true,
+          "mutation_signal": true
+        },
+        "signals": {
+          "provider": [
+            "request(",
+            "dispatch"
+          ],
+          "db_registry": [],
+          "authority": [
+            "scope",
+            "scope",
+            "admin"
+          ],
+          "readback": [
+            "select"
+          ],
+          "mutation": [
+            "dispatch"
+          ]
+        },
+        "static_only": true,
+        "secrets_included": false
+      },
+      "evidence_confidence": {
+        "level": "low_static",
+        "basis": "handler_window_signals_only",
+        "authorizes": false
+      },
+      "promotion_prerequisites": [
+        "explicit_resource_operation_scope_binding",
+        "live_resource_authority_binding",
+        "approval_policy_evidence",
+        "capability_envelope_evidence",
+        "lease_evidence",
+        "staging_environment",
+        "same_cycle_readback_contract",
+        "provider_adapter_allowlist",
+        "provider_idempotency",
+        "provider_rollback_or_compensation"
+      ],
+      "promotion_status": "blocked",
+      "scope_keys": [],
+      "resource_candidate": "application_domain",
+      "resource_key": null,
+      "operation_key": null,
+      "authority_required": true,
+      "provider_mutation_allowed": false,
+      "readback_required": true,
+      "owner": "application-domain-governance",
+      "classification_confidence": "heuristic_requires_manual_confirmation",
+      "risk_class": "high",
+      "reason": "registry_mutation_requires_live_schema_and_policy_contract"
+    },
+    {
+      "route_id": "http-generic-api/routes/deviceToolsRoutes.js#POST:/device/tools/call:3",
+      "classification": "intentionally_unmapped",
+      "mapping_status": "blocked",
+      "domain": "application_domain",
+      "operation_class": "create_or_request",
+      "evidence": {
+        "file": "http-generic-api/routes/deviceToolsRoutes.js",
+        "source_line": 166,
+        "handler_window_lines": [
+          166,
+          207
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -54559,18 +54649,18 @@
   ],
   "evidence_graph": {
     "node_counts": {
-      "routes": 684,
+      "routes": 685,
       "domains": 11,
       "handler_files": 137
     },
     "edge_counts": {
-      "route_to_handler_file": 684,
-      "route_to_domain": 684,
-      "route_to_provider_signal": 101,
+      "route_to_handler_file": 685,
+      "route_to_domain": 685,
+      "route_to_provider_signal": 102,
       "route_to_db_registry_signal": 0,
-      "route_to_authority_signal": 433,
-      "route_to_readback_signal": 388,
-      "route_to_mutation_signal": 391,
+      "route_to_authority_signal": 434,
+      "route_to_readback_signal": 389,
+      "route_to_mutation_signal": 392,
       "route_to_explicit_scope_candidate": 44
     },
     "execution_edges_are_non_authorizing": true,
@@ -61138,8 +61228,8 @@
     {
       "severity": "high",
       "code": "INTENTIONALLY_UNMAPPED_WRITE_ROUTES_BLOCKED",
-      "count": 640,
-      "sensitive_count": 640
+      "count": 641,
+      "sensitive_count": 641
     },
     {
       "severity": "medium",
