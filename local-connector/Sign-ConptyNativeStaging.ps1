@@ -24,6 +24,10 @@ if ($TimestampUrl -notmatch '^https://[A-Za-z0-9.-]+(/[A-Za-z0-9._/-]*)?$') {
 }
 $root = [IO.Path]::GetFullPath($ConnectorRoot)
 $package = [IO.Path]::GetFullPath((Join-Path $root 'node_modules/node-pty'))
+$rootPrefix = $root.TrimEnd('\\') + '\\'
+if (-not $package.StartsWith($rootPrefix, [StringComparison]::OrdinalIgnoreCase)) {
+  throw "The native package must be located inside the connector root."
+}
 $manifest = Join-Path $package 'package.json'
 if (-not [IO.File]::Exists($manifest)) { throw "node-pty metadata not installed." }
 if ((Get-FileHash -LiteralPath $manifest -Algorithm SHA256).Hash -ine $ExpectedPackageJsonSha256) {
@@ -49,6 +53,11 @@ if (-not $cert.HasPrivateKey -or $cert.NotAfter -lt (Get-Date) -or
 }
 $signTool = (Get-Command signtool.exe -ErrorAction Stop).Source
 $output = [IO.Path]::GetFullPath($OutputDirectory)
+if ($output.StartsWith($rootPrefix, [StringComparison]::OrdinalIgnoreCase) -or
+    $root.StartsWith($output.TrimEnd('\\') + '\\', [StringComparison]::OrdinalIgnoreCase) -or
+    $output.Equals($root, [StringComparison]::OrdinalIgnoreCase)) {
+  throw "Signing output must be outside the live Connector install tree."
+}
 if (Test-Path -LiteralPath $output) { throw "Output directory must not exist." }
 New-Item -ItemType Directory -Path $output -Force | Out-Null
 $staged = Join-Path $output "node-pty"
