@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "f043aaa43df29787b1d490896c4e1d6339fb4278ff89365b37d6e8b2ee074ff4",
+    "source_digest": "e250f844af76eca584fc70e909619960f7630489843f8733a9100eb3e464b38e",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -76,7 +76,7 @@
       },
       {
         "file": "openapi/frontend-runtime-routes.generated.yaml",
-        "sha256": "5d190142b9fcf5d12fa3c8b060d6ce58fd3a7676e3101946b2b1b9647cb71b56",
+        "sha256": "277e4f8763f9026fb346ed5f52f2dce59e56878de4388690945c761e848578b8",
         "present": true
       },
       {
@@ -566,7 +566,7 @@
       },
       {
         "file": "routes/deviceToolsRoutes.js",
-        "sha256": "b4eacff76824cce7134139eeed56295cf43ae8f4ef4d7d75419615cab7a2b6dd",
+        "sha256": "2b9ba2ce86a65e18fd4f6820e87c70f3727d5eb3cb86701620ff765ecefa5af5",
         "present": true
       },
       {
@@ -1229,16 +1229,16 @@
     "mounted_family_count": 177,
     "mounted_route_file_count": 147,
     "mixed_scope_route_file_count": 26,
-    "operation_count": 1082,
-    "openapi_documented_count": 1066,
+    "operation_count": 1083,
+    "openapi_documented_count": 1067,
     "openapi_canonical_documented_count": 743,
-    "openapi_generated_index_count": 323,
+    "openapi_generated_index_count": 324,
     "openapi_exemption_count": 16,
     "openapi_gap_count": 0,
-    "openapi_detail_gap_count": 323,
+    "openapi_detail_gap_count": 324,
     "openapi_detail_gap_policy": "accepted_generated_index_only",
     "auth_parity_counts": {
-      "equivalent": 1066,
+      "equivalent": 1067,
       "exempt": 16
     },
     "auth_contract_gap_count": 0,
@@ -1249,13 +1249,13 @@
     "governed_mutation_operation_count": 38,
     "embedded_ui_family_count": 7,
     "unresolved_surface_decision_count": 0,
-    "test_owned_family_count": 177,
-    "untested_family_count": 0,
+    "test_owned_family_count": 176,
+    "untested_family_count": 1,
     "test_owned_operation_count": 1082,
-    "untested_operation_count": 0,
-    "ready_task_count": 177,
-    "blocked_task_count": 0,
-    "coverage_complete": true
+    "untested_operation_count": 1,
+    "ready_task_count": 176,
+    "blocked_task_count": 1,
+    "coverage_complete": false
   },
   "waves": [
     {
@@ -92767,7 +92767,7 @@
       "family_key": "device-tools",
       "label": "device tools",
       "source_file": "routes/deviceToolsRoutes.js",
-      "source_digest": "b4eacff76824cce7134139eeed56295cf43ae8f4ef4d7d75419615cab7a2b6dd",
+      "source_digest": "2b9ba2ce86a65e18fd4f6820e87c70f3727d5eb3cb86701620ff765ecefa5af5",
       "mount_prefix": "/",
       "mount_order": 24044,
       "split_from_mixed_scope_file": false,
@@ -92776,6 +92776,73 @@
       "group": "local-manager",
       "scope": "developer",
       "operations": [
+        {
+          "method": "GET",
+          "path": "/device/tools/devices",
+          "signature": "GET /device/tools/devices",
+          "source_file": "routes/deviceToolsRoutes.js",
+          "scope": "developer",
+          "runtime_auth": {
+            "state": "resolved",
+            "profile": "backend_or_user",
+            "alternatives": [
+              [
+                "backendBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "principal": "authenticated",
+            "guard_chain": [
+              "requireBackendApiKey"
+            ],
+            "evidence": [
+              "route:requireBackendApiKey"
+            ],
+            "configuration_dependencies": [
+              "BACKEND_API_KEY",
+              "JWT_SECRET"
+            ]
+          },
+          "openapi_auth": {
+            "source_file": "openapi/frontend-runtime-routes.generated.yaml",
+            "security_declared": true,
+            "security_alternatives": [
+              [
+                "backendApiKeyAuth"
+              ],
+              [
+                "backendBearerAuth"
+              ]
+            ],
+            "unknown_security_schemes": []
+          },
+          "auth_parity": {
+            "state": "equivalent",
+            "reasons": []
+          },
+          "openapi_documented": true,
+          "openapi_canonical_documented": false,
+          "openapi_exempt": false,
+          "openapi_contract_level": "operation-index-only",
+          "evidence_candidate": false,
+          "embedded_ui": false,
+          "embedded_ui_evidence": [],
+          "delivery_kind": "api",
+          "tests": [],
+          "governance": {
+            "classification": "read",
+            "classification_source": "http_method",
+            "mutation_candidate": false,
+            "governed": true,
+            "controls": null,
+            "blockers": [],
+            "rule_id": null
+          },
+          "mutation_candidate": false,
+          "mutation": false
+        },
         {
           "method": "GET",
           "path": "/device/tools",
@@ -92923,13 +92990,17 @@
       ],
       "openapi_gaps": [],
       "openapi_exemptions": [],
-      "openapi_detail_gaps": [],
+      "openapi_detail_gaps": [
+        "GET /device/tools/devices"
+      ],
       "auth_contract_gaps": [],
       "evidence_routes": [],
       "tests": [
         "test-frontend-surface-coverage-claims.mjs"
       ],
-      "untested_operations": [],
+      "untested_operations": [
+        "GET /device/tools/devices"
+      ],
       "resources": [],
       "embedded_ui": false,
       "embedded_ui_operations": [],
@@ -92941,6 +93012,7 @@
         "openapi/brand-core-asset-materialization.yaml",
         "openapi/container-authority-override-governance-smoke.yaml",
         "openapi/container-authority.yaml",
+        "openapi/frontend-runtime-routes.generated.yaml",
         "openapi/hostinger-storage-tenant-runtime.yaml",
         "openapi/openapi-registry-sync.yaml",
         "openapi/openapi.custom-gpt.staging-act-as-user-control.yaml",
@@ -92972,8 +93044,8 @@
       },
       "operation_blockers": [],
       "risk": {
-        "score": 2,
-        "class": "low"
+        "score": 5,
+        "class": "medium"
       },
       "wave": "F5-developer-evidence"
     },
@@ -101364,55 +101436,6 @@
       ]
     },
     {
-      "task_key": "frontend.device-tools",
-      "title": "Resolve and deliver device tools",
-      "wave": "F5-developer-evidence",
-      "state": "ready",
-      "blockers": [],
-      "dependencies": [
-        "F0-source-baseline",
-        "F1-tenant-workspace-context",
-        "operation-classification"
-      ],
-      "source_refs": [
-        "frontend-operation-governance.generated.json",
-        "frontend-surface-policy.json",
-        "openapi-route-coverage.allowlist.json",
-        "openapi.yaml",
-        "openapi/brand-core-asset-materialization.yaml",
-        "openapi/container-authority-override-governance-smoke.yaml",
-        "openapi/container-authority.yaml",
-        "openapi/hostinger-storage-tenant-runtime.yaml",
-        "openapi/openapi-registry-sync.yaml",
-        "openapi/openapi.custom-gpt.staging-act-as-user-control.yaml",
-        "openapi/openapi.custom-gpt.staging-admin.yaml",
-        "openapi/sql-cache-policy.yaml",
-        "openapi/support-ticket-admin-brand.yaml",
-        "openapi/support-ticket-admin-execution.yaml",
-        "openapi/support-ticket-admin-remaining.yaml",
-        "openapi/support-ticket-runtime-completion.yaml",
-        "openapi/support-tickets.yaml",
-        "resource-api-coverage.manifest.json",
-        "routes/deviceToolsRoutes.js",
-        "routes/index.js",
-        "scripts/test-manifest.mjs",
-        "test-frontend-surface-coverage-claims.mjs"
-      ],
-      "acceptance_gates": [
-        "source_baseline_unchanged",
-        "scope_and_auth_explicit",
-        "openapi_or_explicit_exemption",
-        "surface_policy_resolved",
-        "tests_registered",
-        "operation_classification_explicit"
-      ],
-      "verification": [
-        "node scripts/frontend-surface-dispatch.mjs --check",
-        "node scripts/resource-api-coverage-audit.mjs --changed",
-        "node test-frontend-surface-coverage-claims.mjs"
-      ]
-    },
-    {
       "task_key": "frontend.dispatch",
       "title": "Resolve and deliver dispatch",
       "wave": "F5-developer-evidence",
@@ -102820,6 +102843,58 @@
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/workflowOrchestrationRoutes.js",
+        "scripts/test-manifest.mjs",
+        "test-frontend-surface-coverage-claims.mjs"
+      ],
+      "acceptance_gates": [
+        "source_baseline_unchanged",
+        "scope_and_auth_explicit",
+        "openapi_or_explicit_exemption",
+        "surface_policy_resolved",
+        "tests_registered",
+        "operation_classification_explicit"
+      ],
+      "verification": [
+        "node scripts/frontend-surface-dispatch.mjs --check",
+        "node scripts/resource-api-coverage-audit.mjs --changed",
+        "node test-frontend-surface-coverage-claims.mjs"
+      ]
+    },
+    {
+      "task_key": "frontend.device-tools",
+      "title": "Resolve and deliver device tools",
+      "wave": "F5-developer-evidence",
+      "state": "blocked",
+      "blockers": [
+        "test_ownership_gap"
+      ],
+      "dependencies": [
+        "F0-source-baseline",
+        "F1-tenant-workspace-context",
+        "operation-classification"
+      ],
+      "source_refs": [
+        "frontend-operation-governance.generated.json",
+        "frontend-surface-policy.json",
+        "openapi-route-coverage.allowlist.json",
+        "openapi.yaml",
+        "openapi/brand-core-asset-materialization.yaml",
+        "openapi/container-authority-override-governance-smoke.yaml",
+        "openapi/container-authority.yaml",
+        "openapi/frontend-runtime-routes.generated.yaml",
+        "openapi/hostinger-storage-tenant-runtime.yaml",
+        "openapi/openapi-registry-sync.yaml",
+        "openapi/openapi.custom-gpt.staging-act-as-user-control.yaml",
+        "openapi/openapi.custom-gpt.staging-admin.yaml",
+        "openapi/sql-cache-policy.yaml",
+        "openapi/support-ticket-admin-brand.yaml",
+        "openapi/support-ticket-admin-execution.yaml",
+        "openapi/support-ticket-admin-remaining.yaml",
+        "openapi/support-ticket-runtime-completion.yaml",
+        "openapi/support-tickets.yaml",
+        "resource-api-coverage.manifest.json",
+        "routes/deviceToolsRoutes.js",
+        "routes/index.js",
         "scripts/test-manifest.mjs",
         "test-frontend-surface-coverage-claims.mjs"
       ],

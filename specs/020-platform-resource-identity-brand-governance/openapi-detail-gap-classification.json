@@ -6,19 +6,19 @@
   "source": {
     "baseline_ref": "main",
     "dispatch_artifact": "http-generic-api/frontend-surface-dispatch.generated.json",
-    "dispatch_source_digest": "f043aaa43df29787b1d490896c4e1d6339fb4278ff89365b37d6e8b2ee074ff4",
-    "dispatch_artifact_sha256": "cb712bdaf0d7b1b6627cba32421c1d82a417fcd8cd6589cbaad9399c60937f78"
+    "dispatch_source_digest": "e250f844af76eca584fc70e909619960f7630489843f8733a9100eb3e464b38e",
+    "dispatch_artifact_sha256": "e58d28d1cf18d42083c31e6185a943e006cbc20b25ae2d81bf333666bcaac5c8"
   },
   "coverage": {
-    "operation_count": 1082,
-    "openapi_documented_count": 1066,
+    "operation_count": 1083,
+    "openapi_documented_count": 1067,
     "openapi_canonical_documented_count": 743,
-    "openapi_generated_index_count": 323,
+    "openapi_generated_index_count": 324,
     "openapi_gap_count": 0,
     "auth_contract_gap_count": 0,
-    "openapi_detail_gap_count": 323,
+    "openapi_detail_gap_count": 324,
     "unresolved_surface_decision_count": 0,
-    "coverage_complete": true
+    "coverage_complete": false
   },
   "distributions": {
     "surface_decisions_by_family": [
@@ -46,7 +46,7 @@
     "detail_gap_entries_by_surface_decision": [
       {
         "decision": "internal_only",
-        "count": 279
+        "count": 280
       },
       {
         "decision": "api_only",
@@ -68,7 +68,7 @@
       },
       {
         "method": "GET",
-        "count": 118
+        "count": 119
       },
       {
         "method": "PUT",
@@ -270,6 +270,10 @@
       },
       {
         "path_first_segment": "dev",
+        "count": 1
+      },
+      {
+        "path_first_segment": "device",
         "count": 1
       },
       {
@@ -535,6 +539,10 @@
         "count": 1
       },
       {
+        "family_key": "device-tools",
+        "count": 1
+      },
+      {
         "family_key": "job.admin",
         "count": 1
       },
@@ -659,7 +667,7 @@
   "priority_summary": {
     "blocking_contract_gap_count": 0,
     "surface_decision_required_family_count": 0,
-    "documentation_only_detail_gap_count": 323,
+    "documentation_only_detail_gap_count": 324,
     "top_surface_decision_families": []
   },
   "scope_boundary": {

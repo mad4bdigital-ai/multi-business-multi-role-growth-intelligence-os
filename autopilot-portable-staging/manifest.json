@@ -150,7 +150,7 @@
     },
     {
       "path": "http-generic-api/frontend-surface-dispatch.generated.json",
-      "sha256": "cb712bdaf0d7b1b6627cba32421c1d82a417fcd8cd6589cbaad9399c60937f78"
+      "sha256": "e58d28d1cf18d42083c31e6185a943e006cbc20b25ae2d81bf333666bcaac5c8"
     },
     {
       "path": "http-generic-api/governanceDb.js",
@@ -418,7 +418,7 @@
     },
     {
       "path": "local-connector/install-service.ps1",
-      "sha256": "2af68aa9d5ef66ad2fa51c8246cd2bf83a0546e92c061fd666fcb51d9b3d7b34"
+      "sha256": "acc174f7071ab664081fcbd1b72da67ebfd02ef91f49fb5112f18c5e808a7f70"
     },
     {
       "path": "local-connector/connector-watchdog.ps1",
