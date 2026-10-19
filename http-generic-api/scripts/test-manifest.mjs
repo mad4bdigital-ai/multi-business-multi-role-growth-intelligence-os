@@ -76,6 +76,7 @@ const upstreamCommands = [
 // this source file without executing imports. Keep these literals discoverable
 // here while Set-based composition prevents duplicate runtime execution.
 const staticDiscoveryCommands = [
+  "node test-device-tools-diagnostics.mjs",
   "node test-derived-state-converged-automerge-source-event.mjs",
   "node scripts/activation-surface-coverage-check.mjs --changed",
   "node test-activation-deployment-projection-service.mjs",
