@@ -19,6 +19,7 @@
       "apps/local-manager-sidecar-certification/Program.cs",
       "apps/local-manager-windows/DeviceWorkspaceForm.cs",
       "apps/local-manager-windows/DocumentStructuralEditor.cs",
+      "apps/local-manager-windows/LocalDocumentEditForm.cs",
       "apps/local-manager-windows/Program.cs",
       "apps/local-manager-windows/SidecarRpcContracts.cs",
       "apps/local-manager-windows/SidecarRpcServer.cs",
@@ -230,7 +231,8 @@
             "http-generic-api/test-device-tools-diagnostics.mjs",
             "apps/local-manager-windows/DocumentStructuralEditor.cs",
             "apps/local-manager-sidecar-certification/Mad4B.LocalManager.SidecarCertification.csproj",
-            "local-connector/Sign-ConptyNativeStaging.ps1"
+            "local-connector/Sign-ConptyNativeStaging.ps1",
+            "apps/local-manager-windows/LocalDocumentEditForm.cs"
           ]
         },
         {
