@@ -28,8 +28,8 @@ if (!imageMode) {
   const ignoreRules = new Set(fs.readFileSync(path.join(repoRoot, ".dockerignore"), "utf8").split(/\r?\n/));
   assert(ignoreRules.has("!local-connector/"), "connector_asset_parent_excluded");
   assert(!ignoreRules.has("!local-connector/**"), "connector_asset_directory_wildcard_forbidden");
-  const allowlisted = [...ignoreRules].filter((r) => r.startsWith("!local-connector/") && r !== "!local-connector/");
-  assert.deepEqual(allowlisted.sort(), local.map((f) => `!${f}`).sort(), "connector_asset_allowlist_mismatch");
+  const includedPaths = [...ignoreRules].filter((r) => r.startsWith("!local-connector/") && r !== "!local-connector/");
+  assert.deepEqual(includedPaths.sort(), local.map((f) => `!${f}`).sort(), "connector_asset_allowlist_mismatch");
 }
 if (imageMode) {
   const entries = fs.readdirSync(path.join(repoRoot, "local-connector"), { withFileTypes: true });
