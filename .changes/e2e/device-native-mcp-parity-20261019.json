@@ -169,6 +169,13 @@
               "working_directory": ".",
               "path": "local-connector/test-device-terminal-engine.mjs",
               "args": []
+            },
+            {
+              "id": "central-multi-device-trust-registry",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-admin-local-connector-target.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
@@ -183,7 +190,8 @@
             "apps/local-manager-windows/SidecarRpcServer.cs",
             "apps/local-manager-sidecar-certification/Program.cs",
             "http-generic-api/test-local-manager-sidecar-lifecycle-supervision.mjs",
-            ".github/governance/test-authority-registry.json"
+            ".github/governance/test-authority-registry.json",
+            "http-generic-api/test-admin-local-connector-target.mjs"
           ]
         },
         {
