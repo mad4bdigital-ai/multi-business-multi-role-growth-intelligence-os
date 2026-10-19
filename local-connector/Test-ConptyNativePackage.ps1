@@ -24,6 +24,17 @@ if (-not $full.StartsWith($canonicalRoot + [IO.Path]::DirectorySeparatorChar,
     -not [IO.File]::Exists($full)) {
     throw "ConPTY native addon must be a local node-pty binary inside the approved connector root."
 }
+# Do not allow a junction/symlink under node_modules to escape the approved
+# package tree. Validate every component before evaluating the executable.
+$cursor = [IO.Path]::GetDirectoryName($full)
+while ($cursor -and $cursor.Length -ge $root.Length) {
+    $part = Get-Item -LiteralPath $cursor -Force -ErrorAction Stop
+    if (($part.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
+        throw "ConPTY native package ancestors cannot be reparse points."
+    }
+    if ($cursor.Equals($root, [StringComparison]::OrdinalIgnoreCase)) { break }
+    $cursor = [IO.Path]::GetDirectoryName($cursor)
+}
 $nodePty = Get-Item -LiteralPath $full -Force
 if (($nodePty.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
     throw "ConPTY reparse-point binaries are denied."
