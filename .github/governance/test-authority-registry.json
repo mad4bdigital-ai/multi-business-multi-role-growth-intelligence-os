@@ -300,6 +300,8 @@
         "http-generic-api/test-local-manager-signed-installer-coordinator.mjs",
         "http-generic-api/test-local-manager-signed-installer-exit-code.mjs",
         "http-generic-api/test-local-manager-tool-release-owner.mjs",
+        "http-generic-api/test-staging-connector-build-context.mjs",
+        "http-generic-api/test-staging-connector-release-growth.mjs",
         "http-generic-api/test-windows-staging-bootstrap-supervisor.mjs",
         "local-connector/connector-watchdog.ps1",
         "local-connector/Get-LocalConnectorConvergence.ps1",
