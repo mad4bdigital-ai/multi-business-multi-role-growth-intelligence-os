@@ -2,7 +2,7 @@
   "$schema": "../../.specify/schemas/e2e-phases.schema.json",
   "schema_version": 1,
   "feature_key": "staging-connector-nested-directory-20261020",
-  "title": "Staging Connector Agent generic deny-by-default Docker subtree packaging",
+  "title": "Generate exact Git Staging Connector release from API FILES manifest",
   "delivery_mode": "single_pr",
   "current_phase": "mvp",
   "scope": {
@@ -12,7 +12,11 @@
       "http-generic-api/scripts/verify-staging-connector-assets.mjs",
       "http-generic-api/test-local-manager-tool-release-owner.mjs",
       "autopilot-portable-staging/manifest.json",
-      "http-generic-api/test-staging-connector-build-context.mjs"
+      "http-generic-api/test-staging-connector-build-context.mjs",
+      "http-generic-api/scripts/prepare-staging-build-context.mjs",
+      "http-generic-api/scripts/build-staging-connector-release.mjs",
+      "http-generic-api/scripts/staging-connector-release-contract.mjs",
+      "http-generic-api/Dockerfile.staging"
     ]
   },
   "environment_impact": {
@@ -32,7 +36,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Reject all unmanifested Connector content generically at the Docker context boundary, avoiding per-directory exceptions while preserving exact-Git staging provenance and fail-closed image verification.",
+      "objective": "Eliminate duplicated Connector file allowlists by deriving a deterministic release package solely from the API FILES registry inside an exact-commit Git archive; prove source and image hashes and Docker BuildKit exclusion of unlisted files.",
       "e2e_journeys": [
         {
           "id": "staging-connector-image-nested-source-exclusion",
@@ -42,22 +46,24 @@
           "entrypoint": "Exact-Git-archive Docker build and Connector Agent image asset verifier",
           "terminal_outcome": "Only the manifest-declared Connector files are packaged, nested workflow sources stay excluded, and missing/extra image entries continue to fail closed.",
           "steps": [
-            "Validate the generic local-connector/** deny rule occurs after the directory traversal exception and before all release-file exceptions.",
-            "Execute the source-time Connector asset verifier and Local Manager release-owner regression tests.",
-            "Build the exact Staging image with BuildKit and reject missing or extra Connector release assets.",
-            "Execute a real Docker BuildKit COPY on the checked-out candidate and require exact release-file set parity."
+            "Prepare the exact Git archive Staging context and dynamically materialize a release under .staging-connector-release from the Connector Agent FILES registry.",
+            "Confirm raw local-connector files are excluded and only the generated bundle crosses the Docker build-context boundary.",
+            "Run source verifier and Local Manager release-owner regression tests, verifying no duplicated per-file .dockerignore allowlist.",
+            "Build a real Docker BuildKit fixture with future nested and unlisted Connector sources and require only manifest-listed release assets.",
+            "Verify the generated manifest hash is sealed in build provenance and enforced in the final Staging image."
           ],
           "assertions": [
-            "All nested Connector directories, present and future, are denied by a generic subtree rule without hardcoded names.",
-            "Only manifest-listed top-level Connector release files override the generic deny rule.",
-            "Image-stage checks still enforce the exact file set and reject unexpected files or directories.",
-            "Exact Git archive provenance stays intact.",
-            "No changes to Production, database state, live Staging, or credentials.",
-            "Real Docker BuildKit context smoke test must package exactly the API manifest's Connector release files, with no unknown nested directories or additional files."
+            "The FILES registry in connectorAgentRoutes.js is the only release file-list authority; adding a valid new file requires no .dockerignore update.",
+            "Source paths must be ordinary non-empty tracked file types within the trusted allowlisted prefixes, with symlink and traversal checks.",
+            "Release artifacts come from exact Git-archive sources, not locally ignored untracked Connector files or operator secrets.",
+            "Only .staging-connector-release/** is admitted to Docker context; raw local-connector/** remains denied.",
+            "The generated release manifest has deterministic per-file SHA-256 hashes and the image verifier confirms both contents and the provenance manifest digest.",
+            "The image verification rejects unexpected files and directories; BuildKit copy acceptance checks synthetic unlisted content is excluded.",
+            "No production, DB, secrets, authority bypass, or live Staging deployment occurs as part of CI."
           ],
           "tests": [
             {
-              "id": "staging-connector-source-and-nested-exclusions",
+              "id": "staging-connector-source-and-release-contract",
               "runner": "node",
               "working_directory": ".",
               "path": "http-generic-api/scripts/verify-staging-connector-assets.mjs",
@@ -71,7 +77,7 @@
               "args": []
             },
             {
-              "id": "staging-connector-buildkit-context",
+              "id": "staging-connector-generated-buildkit-context",
               "runner": "node",
               "working_directory": ".",
               "path": "http-generic-api/test-staging-connector-build-context.mjs",
@@ -85,7 +91,10 @@
             "http-generic-api/test-local-manager-tool-release-owner.mjs",
             "http-generic-api/Dockerfile.staging",
             "autopilot-portable-staging/manifest.json",
-            "http-generic-api/test-staging-connector-build-context.mjs"
+            "http-generic-api/test-staging-connector-build-context.mjs",
+            "http-generic-api/scripts/prepare-staging-build-context.mjs",
+            "http-generic-api/scripts/build-staging-connector-release.mjs",
+            "http-generic-api/scripts/staging-connector-release-contract.mjs"
           ]
         }
       ]
