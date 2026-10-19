@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 // Live, externally authorized dual-client acceptance. Read-only MCP tools/list only.
 // Explicit --live requires two real OAuth client tokens from the authorized host.
@@ -92,14 +93,14 @@ if(process.argv[1] && import.meta.url===pathToFileURL(process.argv[1]).href) {
         ...discovery,live_client_acceptance:false,secrets_included:false}));
       return;
     }
-    const result=await verifyTwoClients({
-      a:process.env.MAD4B_DEVICE_OAUTH_CLIENT_A_TOKEN,
-      b:process.env.MAD4B_DEVICE_OAUTH_CLIENT_B_TOKEN,
-      aId:process.env.MAD4B_DEVICE_OAUTH_CLIENT_A_ID,
-      bId:process.env.MAD4B_DEVICE_OAUTH_CLIENT_B_ID,
-      deviceId:process.env.MAD4B_DEVICE_OAUTH_DEVICE_ID,
-      tenantId:process.env.MAD4B_DEVICE_OAUTH_TENANT_ID,
-    });
+    // Operator-controlled, bounded stdin: do not register OAuth bearer as
+    // process environment/config catalog, CLI arguments, repository files, or logs.
+    // Invoke only on an authorized Windows client with an ephemeral private pipe.
+    if(process.stdin.isTTY)throw new Error("private_stdin_required");
+    const raw=readFileSync(0,{encoding:"utf8"});
+    if(raw.length>32768)throw new Error("acceptance_input_too_large");
+    const input=JSON.parse(raw);
+    const result=await verifyTwoClients(input);
     console.log(JSON.stringify(result));
   })().catch(e=>{
     console.error(JSON.stringify({contract:"mad4b.device-mcp.oauth-acceptance.v1",
