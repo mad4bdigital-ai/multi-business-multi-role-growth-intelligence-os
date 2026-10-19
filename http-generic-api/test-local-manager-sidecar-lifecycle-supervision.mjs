@@ -29,7 +29,9 @@ assert.doesNotMatch(supervisor, /Process\.Start|ProtectedData|HttpClient|connect
 
 assert.match(program, /RunMainFormWithSidecar\(\)/);
 assert.match(program, /new SidecarReadOnlyDispatcher\(deviceIdentityStore, capabilityVerifier, runtimeClient\)/);
-assert.match(program, /new SidecarLifecycleSupervisor\(new SidecarRpcServer\(\), dispatcher\.DispatchAsync\)/);
+assert.match(program, /new SidecarLocalConsentBroker\(\)/);
+assert.match(program, /new SidecarRpcServer\(localConsent: privateConsent\)/);
+assert.match(program, /privateConsent\.InvalidateAll\(\)/);
 assert.match(program, /supervisor\.Start\(\)/);
 assert.match(program, /supervisor\.DisposeAsync\(\)\.AsTask\(\)\.GetAwaiter\(\)\.GetResult\(\)/);
 
