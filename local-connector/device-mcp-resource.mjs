@@ -1,6 +1,6 @@
 // Native, stateless Streamable HTTP MCP resource with pinned OAuth JWT validation.
 // NO connector Admin Recovery secret, backend API key, or token-forwarding fallback.
-import { createPublicKey, verify as verifySignature } from "node:crypto";
+import { createHash, createPublicKey, verify as verifySignature } from "node:crypto";
 
 const PROTOCOL = "2025-06-18";
 const MAX_TOKEN = 8192;
@@ -181,7 +181,7 @@ function validArgs(value, schema) {
 function rpc(id, result) { return { jsonrpc: "2.0", id, result }; }
 function rpcError(id, code, message) { return { jsonrpc: "2.0", id, error: { code, message } }; }
 
-export function createDeviceMcpResource({ env = process.env, files, terminal, approvals = null, now = Date.now } = {}) {
+export function createDeviceMcpResource({ env = process.env, files, terminal, approvals = null, now = Date.now, onAudit = null } = {}) {
   const setting = config(env);
   const metadata = () => setting.enabled ? {
     resource: setting.resource, authorization_servers: [setting.issuer],
@@ -211,11 +211,24 @@ export function createDeviceMcpResource({ env = process.env, files, terminal, ap
     else if (body.method === "tools/list") response = rpc(id, { tools: allowedTools(identity, files, terminal, approvals) });
     else if (body.method === "tools/call") {
       const name = body.params?.name;
-      const d = Object.hasOwn(definitions, name) ? definitions[name] : null;
+      const d = typeof name === "string" && Object.hasOwn(definitions, name) ? definitions[name] : null;
+      const auditResult = (outcome) => {
+        if (typeof onAudit !== "function") return;
+        // An opaque principal identifier is enough to correlate requests without
+        // emitting OAuth tokens, subject IDs, content or exact arguments.
+        const principal_hash = createHash("sha256")
+          .update(JSON.stringify([identity.tenantId, identity.sub, identity.clientId]))
+          .digest("hex");
+        try { onAudit({ event: "native_mcp_tool_call", device_id: setting.deviceId,
+          principal_hash, tool: d ? name : "unknown", outcome,
+          secrets_included: false }); } catch { /* Never leak audit backend errors to MCP */ }
+      };
       if (!toolAvailable(identity, d, files, terminal, approvals)) {
         response = rpcError(id, -32601, "Tool is not available for this OAuth grant");
+        auditResult("scope_denied");
       } else if (!validArgs(body.params?.arguments ?? {}, d.inputSchema)) {
         response = rpcError(id, -32602, "Invalid tool arguments");
+        auditResult("invalid_arguments");
       } else {
         const args = body.params?.arguments || {};
         let result;
@@ -257,6 +270,7 @@ export function createDeviceMcpResource({ env = process.env, files, terminal, ap
         }
         response = rpc(id, { content: [{ type: "text", text: JSON.stringify(result) }],
           isError: result?.ok !== true });
+        auditResult(result?.ok === true ? "success" : "rejected_or_failed");
       }
     } else response = rpcError(id, -32601, "Method not found");
     return { http_status: 200, headers: NO_CACHE, body: response };
