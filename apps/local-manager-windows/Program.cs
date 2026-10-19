@@ -67,7 +67,9 @@ internal static class Program
         var capabilityVerifier = new ConnectorCapabilityVerifier(deviceControlClient);
         var runtimeClient = new LocalRuntimeClient(BaseUrl);
         var dispatcher = new SidecarReadOnlyDispatcher(deviceIdentityStore, capabilityVerifier, runtimeClient);
-        var supervisor = new SidecarLifecycleSupervisor(new SidecarRpcServer(), dispatcher.DispatchAsync);
+        var privateConsent = new SidecarLocalConsentBroker();
+        var supervisor = new SidecarLifecycleSupervisor(
+            new SidecarRpcServer(localConsent: privateConsent), dispatcher.DispatchAsync);
         supervisor.Start();
 
         try
@@ -76,6 +78,7 @@ internal static class Program
         }
         finally
         {
+            privateConsent.InvalidateAll(); // OS UI shutdown must revoke outstanding approvals.
             supervisor.DisposeAsync().AsTask().GetAwaiter().GetResult();
         }
     }
