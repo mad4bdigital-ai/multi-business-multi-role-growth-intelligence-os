@@ -124,4 +124,24 @@ test("signed OAuth read and approved write stay separate; no secrets enter MCP t
   assert.equal(JSON.stringify(audits).includes(LOCAL_APPROVAL), false);
   assert.equal(JSON.stringify(audits).includes(env.CONNECTOR_DEVICE_FILE_APPROVAL_TOKEN), false);
   assert.equal(JSON.stringify(audits).includes("alice"), false);
+
+  // Ending an owned read-only session must not require enabling an interactive REPL.
+  const readOnlyTerminal = { ...terminal, capabilities: { ...terminal.capabilities, interactive_enabled: false } };
+  const readOnlyGateway = createDeviceMcpResource({ env: fullEnv, files,
+    terminal: readOnlyTerminal, approvals: broker, now: () => now });
+  const terminalGrant = signed("alice", "device:terminal:execute device:terminal:interactive");
+  const listed = readOnlyGateway.handle({ authorization: terminalGrant,
+    body: { jsonrpc: "2.0", id: 2, method: "tools/list" } }).body.result.tools.map(x => x.name);
+  for (const tool of ["terminal_cancel", "process_terminate_owned", "sessions_close"])
+    assert.ok(listed.includes(tool), tool + " must be discoverable without interactive terminal");
+  assert.ok(!listed.includes("terminal_start_interactive"));
+  assert.ok(!listed.includes("terminal_input"));
+  const sessionOnly = { session_id: "read-only-owned" };
+  const cancelOnce = () => readOnlyGateway.handle({ authorization: terminalGrant,
+    body: { jsonrpc: "2.0", id: 3, method: "tools/call",
+      params: { name: "terminal_cancel", arguments: sessionOnly } } });
+  assert.equal(JSON.parse(cancelOnce().body.result.content[0].text).code, "local_consent_required");
+  assert.equal(broker.issue(issueData("terminal_cancel", sessionOnly), LOCAL_APPROVAL).ok, true);
+  assert.equal(cancelOnce().body.result.isError, false);
+  assert.equal(JSON.parse(cancelOnce().body.result.content[0].text).code, "local_consent_required");
 });

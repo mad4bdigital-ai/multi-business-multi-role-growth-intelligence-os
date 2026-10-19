@@ -155,7 +155,7 @@ function toolAvailable(identity, d, files, terminal, approvals) {
   if (d.terminalAction && !terminal?.capabilities?.enabled) return false;
   if (d.consent && (!approvals?.capabilities?.enabled ||
       d.fileAction && !files?.capabilities?.write_enabled ||
-      d.terminalAction && !terminal?.capabilities?.interactive_enabled)) return false;
+      d.terminalAction && ["start", "input"].includes(d.terminalAction) && !terminal?.capabilities?.interactive_enabled)) return false;
   return true;
 }
 function allowedTools(identity, files, terminal, approvals) {
