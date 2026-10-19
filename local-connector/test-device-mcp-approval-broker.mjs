@@ -66,7 +66,7 @@ test("signed OAuth read and approved write stay separate; no secrets enter MCP t
   const audits = [];
   const files = { capabilities: { enabled: true, write_enabled: true },
     dispatch: payload => { calls.push(payload); return { ok: true, action: payload.action }; } };
-  const terminal = { capabilities: { enabled: true, interactive_enabled: true },
+  const terminal = { capabilities: { enabled: true, interactive_enabled: true, pty: true },
     dispatch: payload => { calls.push(payload); return { ok: true, action: payload.action }; } };
   const gateway = createDeviceMcpResource({ env: fullEnv, files, terminal, approvals: broker,
     now: () => now, onAudit: event => audits.push(event) });
@@ -103,6 +103,18 @@ test("signed OAuth read and approved write stay separate; no secrets enter MCP t
   assert.equal(calls.at(-1).owner_principal, 'oauth:["tenant-1","alice","chatgpt"]');
   assert.equal(calls.at(-1).approval_token, env.CONNECTOR_DEVICE_TERMINAL_APPROVAL_TOKEN);
   assert.equal(request(signed(), "terminal_input", { ...input, approval_token: "leak" }).body.error.code, -32602);
+
+  const resizeArgs = { session_id: "owned-id", cols: 90, rows: 30 };
+  assert.equal(JSON.parse(request(signed(), "terminal_resize", resizeArgs).body.result.content[0].text).code,
+    "local_consent_required");
+  assert.equal(broker.issue(issueData("terminal_resize", resizeArgs), LOCAL_APPROVAL).ok, true);
+  assert.equal(JSON.parse(request(signed("bob"), "terminal_resize", resizeArgs).body.result.content[0].text).code,
+    "local_consent_required");
+  assert.equal(request(signed(), "terminal_resize", { ...resizeArgs, rows: 81 }).body.error.code, -32602);
+  assert.equal(request(signed(), "terminal_resize", resizeArgs).body.result.isError, false);
+  assert.equal(calls.at(-1).action, "resize");
+  assert.equal(JSON.parse(request(signed(), "terminal_resize", resizeArgs).body.result.content[0].text).code,
+    "local_consent_required");
 
   const sessionArgs = { session_id: "owned-id" };
   for (const tool of ["terminal_cancel", "process_terminate_owned", "sessions_close"]) {
