@@ -285,3 +285,54 @@ test("hardlinked files outside the approved tree are not readable", t => {
       expected_sha256: hash("unscoped-data"), approval_token: "local-approval-only" }).code, "path_denied");
   } finally { f.cleanup(); }
 });
+
+test("bounded document binary staging denies Production, absent scope and malformed headers", () => {
+  const f = fixture(true);
+  try {
+    const data = Buffer.from("%PDF-1.7\nportable-fixture\n%%EOF\n");
+    fs.writeFileSync(path.join(f.root, "src", "sample.pdf"), data);
+    assert.equal(f.engine.dispatch({ action: "binary_info",
+      relative_path: "src/sample.pdf" }).code, "binary_disabled");
+    const prod = createDeviceFilesEngine({ env: { ...f.env,
+      CONNECTOR_DEVICE_BINARY_ENABLED: "true", CONNECTOR_DEVICE_MCP_ENVIRONMENT: "production" } });
+    assert.equal(prod.capabilities.binary_enabled, false);
+    const staging = createDeviceFilesEngine({ env: { ...f.env,
+      CONNECTOR_DEVICE_BINARY_ENABLED: "true", CONNECTOR_DEVICE_MCP_ENVIRONMENT: "staging" } });
+    assert.equal(staging.capabilities.binary_enabled, true);
+    const info = staging.dispatch({ action: "binary_info", relative_path: "src/sample.pdf" });
+    assert.equal(info.sha256, hash(data));
+    assert.equal(info.size, data.length);
+    const chunk = staging.dispatch({ action: "binary_read",
+      relative_path: "src/sample.pdf", offset: 0 });
+    assert.deepEqual(Buffer.from(chunk.content_base64url, "base64url"), data);
+    assert.equal(chunk.eof, true);
+    assert.equal(staging.dispatch({ action: "binary_read",
+      relative_path: "../other.pdf" }).code, "path_denied");
+    assert.equal(staging.dispatch({ action: "binary_read",
+      relative_path: "src/sample.pdf", offset: -1 }).code, "invalid_request");
+    fs.writeFileSync(path.join(f.root, "src", "fake.docx"), "not-a-real-zip");
+    assert.equal(staging.dispatch({ action: "binary_info",
+      relative_path: "src/fake.docx" }).code, "invalid_document_format");
+  } finally { f.cleanup(); }
+});
+
+test("binary creation requires exact digest, existing parent and separate approval", () => {
+  const f = fixture(true);
+  const env = { ...f.env, CONNECTOR_DEVICE_BINARY_ENABLED: "true",
+    CONNECTOR_DEVICE_MCP_ENVIRONMENT: "staging" };
+  const engine = createDeviceFilesEngine({ env });
+  const data = Buffer.from("%PDF-1.7\nsmall-document\n%%EOF\n");
+  const req = { action: "binary_create", relative_path: "src/new.pdf",
+    content_base64url: data.toString("base64url"), expected_sha256: hash(data) };
+  try {
+    assert.equal(engine.dispatch(req).code, "approval_required");
+    assert.equal(engine.dispatch({ ...req, approval_token: "local-approval-only",
+      expected_sha256: hash("different") }).code, "digest_mismatch");
+    const result = engine.dispatch({ ...req, approval_token: "local-approval-only" });
+    assert.equal(result.ok, true);
+    assert.deepEqual(fs.readFileSync(path.join(f.root, "src", "new.pdf")), data);
+    assert.equal(engine.dispatch({ ...req, approval_token: "local-approval-only" }).code, "path_exists");
+    assert.equal(engine.dispatch({ ...req, relative_path: "src/outside.txt",
+      approval_token: "local-approval-only" }).code, "invalid_content");
+  } finally { f.cleanup(); }
+});
