@@ -20,6 +20,7 @@ internal static class Program
         await AssertSupervisorRestartAsync();
         await AssertMutationConsentAsync();
         AssertStructuralEditors();
+        AssertPdfStructuralEditor();
 
         var beforeShutdown = supervisor.GetStatus();
         Assert(beforeShutdown.Running, "supervisor must be running before shutdown");
@@ -52,6 +53,40 @@ internal static class Program
             }
         }
         return memory.ToArray();
+    }
+
+    private static void AssertPdfStructuralEditor()
+    {
+        using var document = new PdfSharp.Pdf.PdfDocument();
+        document.AddPage();
+        document.Info.Title = "Before PDF";
+        using var source = new MemoryStream();
+        document.Save(source, false);
+        var bytes = source.ToArray();
+        var sha = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(bytes));
+        var output = PdfStructuralEditor.ChangeTitleAndRotation(
+            bytes, sha, "Before PDF", "After PDF", 1, 90);
+        using var verify = PdfSharp.Pdf.IO.PdfReader.Open(
+            new MemoryStream(output), PdfSharp.Pdf.IO.PdfDocumentOpenMode.ReadOnly);
+        Assert(verify.Info.Title == "After PDF", "PDF must persist changed metadata");
+        Assert(verify.Pages[0].Rotate == 90, "PDF must persist page rotation");
+        Assert(verify.PageCount == 1, "PDF must preserve all pages");
+        Assert(!bytes.SequenceEqual(output), "PDF source must not be mutated");
+        var failedHash = false;
+        try { PdfStructuralEditor.ChangeTitleAndRotation(
+            bytes, new string('0', 64), "Before PDF", "Changed", 1, 90); }
+        catch (InvalidDataException) { failedHash = true; }
+        Assert(failedHash, "PDF optimistic SHA precondition must be mandatory");
+        var failedPage = false;
+        try { PdfStructuralEditor.ChangeTitleAndRotation(
+            bytes, sha, "Before PDF", "Changed", 2, 90); }
+        catch (InvalidDataException) { failedPage = true; }
+        Assert(failedPage, "PDF editing must deny page indices outside the document");
+        var failedMetadata = false;
+        try { PdfStructuralEditor.ChangeTitleAndRotation(
+            bytes, sha, "stale title", "Changed", 1, 90); }
+        catch (InvalidDataException) { failedMetadata = true; }
+        Assert(failedMetadata, "PDF metadata concurrent change must fail closed");
     }
 
     private static void AssertStructuralEditors()
