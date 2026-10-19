@@ -3236,6 +3236,39 @@
       "contains_secret_value": false,
       "grants_runtime_mutation": false,
       "grants_production_activation": false
+    },
+    {
+      "fingerprint": "local-connector/device-mcp-approval-broker.mjs|TTL_MS|literal_declaration|ttl.ms",
+      "owner": "device-mcp-local-consent-governance",
+      "reason": "Fixed, code-owned 90-second one-shot local consent expiry enforced by the Staging-only broker; an upper security lifetime, not a configurable setting or a grant. A stale receipt is rejected; no bearer token, credential, runtime write authority, or Production activation is registered.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "local-connector/test-device-mcp-approval-broker.mjs|LOCAL_APPROVAL|literal_declaration|local.approval",
+      "owner": "device-mcp-test-governance",
+      "reason": "Synthetic deterministic test-only local approval token fixture, used to assert wrong-principal, replay, and expired-consent denial. No live credential value is registered, copied, or authorized, and this CI declaration confers no tool or Production grant.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "test_only_secret_key_name",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
+    },
+    {
+      "fingerprint": "local-connector/test-device-runtime-http.mjs|writeScope|literal_declaration|writescope",
+      "owner": "device-mcp-test-governance",
+      "reason": "Fixed test-only OAuth scope fixture for native device MCP loopback HTTP negative and one-shot approval assertions. This is not an operational policy setting, a scope grant, or a Production write capability.",
+      "lifecycle": "permanent",
+      "configuration_class": "ci_governance_input",
+      "sensitivity": "non_secret_reference",
+      "contains_secret_value": false,
+      "grants_runtime_mutation": false,
+      "grants_production_activation": false
     }
   ],
   "safety": {
