@@ -1,0 +1,49 @@
+name: Production Host-local Read-only Inspection Bridge
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  actions: write
+  issues: read
+
+concurrency:
+  group: production-host-local-inspection-${{ github.event.comment.id || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  dispatch:
+    if: >-
+      github.event.issue.number == 6625 &&
+      github.event.issue.pull_request == null &&
+      github.event.comment.user.id == 271942579 &&
+      github.event.comment.author_association == 'OWNER' &&
+      startsWith(github.event.comment.body, 'RUN_PRODUCTION_HOST_LOCAL_FULL_INSPECTION expected_production_sha=')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - name: Checkout exact trusted main source
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '22'
+      - name: Enforce inspection-only bridge regression tests
+        run: node --test .github/ops/test-production-host-local-inspection-dispatch.mjs
+      - name: Dispatch single exact ref inspection only
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVIDENCE_DIR: .artifacts/host-local-readonly-dispatch
+        run: node .github/ops/production-host-local-inspection-dispatch.mjs
+      - name: Upload bounded no-secret dispatch evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: host-local-readonly-dispatch-${{ github.run_id }}
+          path: .artifacts/host-local-readonly-dispatch/decision.json
+          if-no-files-found: warn
+          retention-days: 30
