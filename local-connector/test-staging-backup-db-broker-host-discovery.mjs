@@ -17,6 +17,8 @@ const base={
 };
 const x=assess(base);
 assert.equal(x.topology_observed,true);
+assert.equal(x.broker_candidate_found,false);
+assert.equal(x.broker_candidate_running,false);
 assert.equal(x.broker_operationally_certified,false);
 assert.equal(x.db_admin_operation_authorized,false);
 assert.equal(x.owner_operation_approved,false);
@@ -34,16 +36,29 @@ for(const change of [
   assert.equal(r.topology_observed,false);
   assert.equal(r.broker_operationally_certified,false);
 }
+const stoppedService=assess({...base,windows_service_present:true,
+  windows_service_running:false,windows_service_account:"STAGING\\svc_backup_broker"});
+assert.equal(stoppedService.broker_candidate_found,true);
+assert.equal(stoppedService.broker_candidate_running,false);
+assert(stoppedService.blockers.includes("WINDOWS_BROKER_SERVICE_NOT_RUNNING"));
+assert.equal(stoppedService.broker_operationally_certified,false);
+const runningService=assess({...base,windows_service_present:true,
+  windows_service_running:true,windows_service_account:"STAGING\\svc_backup_broker"});
+assert.equal(runningService.broker_candidate_found,true);
+assert.equal(runningService.broker_candidate_running,true);
+assert.equal(runningService.broker_operationally_certified,false);
 const service=assess({...base,windows_service_present:true,windows_service_running:true,
   windows_service_account:"LocalSystem"});
 assert(service.blockers.includes("WINDOWS_BROKER_DEDICATED_OS_ACCOUNT_UNVERIFIED"));
 assert.equal(service.broker_operationally_certified,false);
 const candidate=assess({...base,docker_sidecar_present:true,docker_sidecar_running:true});
 assert.equal(candidate.broker_candidate_found,true);
+assert.equal(candidate.broker_candidate_running,true);
 assert(candidate.blockers.includes("BROKER_CANDIDATE_SANDBOX_UNVERIFIED"));
 const isolated=assess({...base,docker_sidecar_present:true,
   docker_sidecar_running:true,docker_sidecar_sandbox_verified:true});
 assert.equal(isolated.broker_candidate_found,true);
+assert.equal(isolated.broker_candidate_running,true);
 assert(!isolated.blockers.includes("BROKER_CANDIDATE_SANDBOX_UNVERIFIED"));
 assert.equal(isolated.broker_operationally_certified,false);
 assert.equal(isolated.owner_operation_approved,false);

@@ -21,6 +21,10 @@ export function assessStagingBackupBrokerHostDiscovery(e={}){
   if(e.runtime_db_host_port_exposed!==false)
     blockers.add("STAGING_DB_PORT_ISOLATION_UNVERIFIED");
   const found=e.windows_service_present===true||e.docker_sidecar_present===true;
+  // Process state is distinct from service/container existence. This is
+  // observational data only: discovery never grants broker authority.
+  const running=(e.windows_service_present===true&&e.windows_service_running===true)||
+    (e.docker_sidecar_present===true&&e.docker_sidecar_running===true);
   if(!found)blockers.add("INDEPENDENT_BROKER_PROCESS_NOT_DISCOVERED");
   else blockers.add("INDEPENDENT_BROKER_PROCESS_ATTESTATION_REQUIRED");
   if(e.windows_service_present===true){
@@ -55,6 +59,7 @@ export function assessStagingBackupBrokerHostDiscovery(e={}){
       REQUIRED.every(k=>e.containers?.[k]===true)&&
       e.runtime_db_host_port_exposed===false,
     broker_candidate_found:found,
+    broker_candidate_running:running,
     broker_operationally_certified:false,
     owner_operation_approved:false,
     db_admin_operation_authorized:false,
