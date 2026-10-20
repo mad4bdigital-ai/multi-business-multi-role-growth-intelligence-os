@@ -56,6 +56,9 @@ jobs:
     if: inputs.operation == 'verify'
     name: Verify main on dev.mad4b.com
     runs-on: ubuntu-latest
+    # Bind the Staging backend credential to the existing non-Production
+    # Environment. Verification alone never authorizes a Staging rebuild.
+    environment: staging-recovery-certification
     timeout-minutes: 25
     env:
       STAGING_BASE_URL: https://dev.mad4b.com
@@ -96,7 +99,7 @@ jobs:
             exit 1
           fi
           if [[ -z "${BACKEND_API_KEY}" ]]; then
-            echo "::error::BACKEND_API_KEY repository secret is required for staging DB verification."
+            echo "::error::Staging Environment BACKEND_API_KEY is required for staging DB verification."
             exit 1
           fi
           echo "commit=${expected_commit}" >> "${GITHUB_OUTPUT}"
