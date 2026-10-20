@@ -1,0 +1,138 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-connector-nested-directory-20261020",
+  "title": "Generate exact Git Staging Connector release from API FILES manifest",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-connector-nested-directory-20261020.json",
+      ".dockerignore",
+      "http-generic-api/scripts/verify-staging-connector-assets.mjs",
+      "http-generic-api/test-local-manager-tool-release-owner.mjs",
+      "autopilot-portable-staging/manifest.json",
+      "http-generic-api/test-staging-connector-build-context.mjs",
+      "http-generic-api/scripts/prepare-staging-build-context.mjs",
+      "http-generic-api/scripts/build-staging-connector-release.mjs",
+      "http-generic-api/scripts/staging-connector-release-contract.mjs",
+      "http-generic-api/Dockerfile.staging",
+      "http-generic-api/test-staging-connector-release-growth.mjs",
+      ".github/governance/test-authority-registry.json",
+      "local-connector/n8n-workflows/inspect-workflow-sources.mjs",
+      "http-generic-api/test-n8n-workflow-source-inventory.mjs",
+      "docs/n8n-workflow-runtime.md",
+      "http-generic-api/config/repository-governance-constitution.json",
+      ".github/derived-state-governance.json"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "secrets_included": false,
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Eliminate duplicated Connector file allowlists by deriving a deterministic release package solely from the API FILES registry inside an exact-commit Git archive; prove source and image hashes and Docker BuildKit exclusion of unlisted files.",
+      "e2e_journeys": [
+        {
+          "id": "staging-connector-image-nested-source-exclusion",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Staging release engineer",
+          "entrypoint": "Exact-Git-archive Docker build and Connector Agent image asset verifier",
+          "terminal_outcome": "Only the manifest-declared Connector files are packaged, nested workflow sources stay excluded, and missing/extra image entries continue to fail closed.",
+          "steps": [
+            "Prepare the exact Git archive Staging context and dynamically materialize a release under .staging-connector-release from the Connector Agent FILES registry.",
+            "Confirm raw local-connector files are excluded and only the generated bundle crosses the Docker build-context boundary.",
+            "Run source verifier and Local Manager release-owner regression tests, verifying no duplicated per-file .dockerignore allowlist.",
+            "Build a real Docker BuildKit fixture with future nested and unlisted Connector sources and require only manifest-listed release assets.",
+            "Verify the generated manifest hash is sealed in build provenance and enforced in the final Staging image.",
+            "Verify a newly declared safe Connector file is auto-packaged without any Docker ignore edit; reject subsequent file tampering.",
+            "Run the read-only n8n source inventory test, including simulated new backups, safety-flag rejection and proof that Connector FILES registry remains independent."
+          ],
+          "assertions": [
+            "The FILES registry in connectorAgentRoutes.js is the only release file-list authority; adding a valid new file requires no .dockerignore update.",
+            "Source paths must be ordinary non-empty tracked file types within the trusted allowlisted prefixes, with symlink and traversal checks.",
+            "Release artifacts come from exact Git-archive sources, not locally ignored untracked Connector files or operator secrets.",
+            "Only .staging-connector-release/** is admitted to Docker context; raw local-connector/** remains denied.",
+            "The generated release manifest has deterministic per-file SHA-256 hashes and the image verifier confirms both contents and the provenance manifest digest.",
+            "The image verification rejects unexpected files and directories; BuildKit copy acceptance checks synthetic unlisted content is excluded.",
+            "No production, DB, secrets, authority bypass, or live Staging deployment occurs as part of CI.",
+            "A valid newly declared release file extends the generated manifest automatically, and content tampering fails SHA-256 manifest verification.",
+            "New BuildKit and release-growth tests are registered under the existing Connector test authority, with no new waiver or bypass.",
+            "Historical n8n backup templates and paired restore scripts remain discoverable via a read-only source inventory, independent of Connector image packaging and without restoring or changing live n8n workflows.",
+            "The changed critical E2E declaration is registered in both Constitution.control_plane_paths and derived-state convergence automation_control_paths, preserving non-waiverable manual merge governance."
+          ],
+          "tests": [
+            {
+              "id": "staging-connector-source-and-release-contract",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/scripts/verify-staging-connector-assets.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-connector-dynamic-release-growth",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-staging-connector-release-growth.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-connector-release-owner-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-local-manager-tool-release-owner.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-connector-generated-buildkit-context",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-staging-connector-build-context.mjs",
+              "args": []
+            },
+            {
+              "id": "n8n-historical-workflow-source-separation",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-n8n-workflow-source-inventory.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/staging-connector-nested-directory-20261020.json",
+            ".dockerignore",
+            "http-generic-api/scripts/verify-staging-connector-assets.mjs",
+            "http-generic-api/test-local-manager-tool-release-owner.mjs",
+            "http-generic-api/Dockerfile.staging",
+            "autopilot-portable-staging/manifest.json",
+            "http-generic-api/test-staging-connector-build-context.mjs",
+            "http-generic-api/scripts/prepare-staging-build-context.mjs",
+            "http-generic-api/scripts/build-staging-connector-release.mjs",
+            "http-generic-api/scripts/staging-connector-release-contract.mjs",
+            "http-generic-api/test-staging-connector-release-growth.mjs",
+            ".github/governance/test-authority-registry.json",
+            "local-connector/n8n-workflows/inspect-workflow-sources.mjs",
+            "http-generic-api/test-n8n-workflow-source-inventory.mjs",
+            "docs/n8n-workflow-runtime.md",
+            "http-generic-api/config/repository-governance-constitution.json",
+            ".github/derived-state-governance.json"
+          ]
+        }
+      ]
+    }
+  ]
+}

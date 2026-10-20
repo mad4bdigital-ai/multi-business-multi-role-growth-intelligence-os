@@ -73,6 +73,17 @@ for (const required of [
 ]) {
   if (!fs.existsSync(path.join(outputDir, required))) fail(`exact context is missing required tracked file: ${required}`);
 }
+// Derive Connector release solely from the FILES registry in the exact
+// archived commit (never from the operator's local Connector installation).
+const releaseScript = path.join(outputDir, "http-generic-api/scripts/build-staging-connector-release.mjs");
+const releaseDir = path.join(outputDir, ".staging-connector-release");
+try {
+  execFileSync(process.execPath, [releaseScript, "--source-root", outputDir, "--output-dir", releaseDir], { stdio: "inherit" });
+} catch (error) {
+  fail(`Connector release packaging from exact Git snapshot failed: ${String(error?.message || error).slice(0, 240)}`);
+}
+const connectorReleaseManifestSha256 = sha256(path.join(releaseDir, "manifest.json"));
+
 const metadata = {
   contract: CONTRACT,
   repository: "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os",
@@ -80,10 +91,11 @@ const metadata = {
   tree_sha: treeSha,
   source: "git_archive_exact_commit",
   tracked_file_count: files.length,
+  connector_release_manifest_sha256: connectorReleaseManifestSha256,
   context_file_set_sha256: crypto.createHash("sha256").update(files.join("\n") + "\n").digest("hex"),
   local_ignored_files_included: false,
   secrets_included: false,
 };
 fs.writeFileSync(path.join(outputDir, ".staging-build-context.json"), `${JSON.stringify(metadata, null, 2)}\n`);
 
-console.log(JSON.stringify({ ok: true, contract: CONTRACT, output_dir: outputDir, commit_sha: commit, tree_sha: treeSha, tracked_file_count: files.length, context_file_set_sha256: metadata.context_file_set_sha256, local_ignored_files_included: false, secrets_included: false }));
+console.log(JSON.stringify({ ok: true, contract: CONTRACT, output_dir: outputDir, commit_sha: commit, tree_sha: treeSha, tracked_file_count: files.length, connector_release_manifest_sha256: connectorReleaseManifestSha256, context_file_set_sha256: metadata.context_file_set_sha256, local_ignored_files_included: false, secrets_included: false }));

@@ -7,7 +7,7 @@ import {
   scanRepositoryAutomationHygiene,
 } from "../repositoryAutomationPolicyFacade.js";
 import { runGithubRepositoryPolicyController } from "../githubRepositoryPolicyController.js";
-import { runGithubRepositoryGovernanceAttestation } from "../githubRepositoryGovernanceAttestation.js";
+import { readGithubRepositoryGovernanceAttestationContract, runGithubRepositoryGovernanceAttestation } from "../githubRepositoryGovernanceAttestation.js";
 import { runRepositoryReconciliationLeaseControl } from "../repositoryReconciliationLeaseControl.js";
 import { dispatchToolForCaller, resolveCallerTypeForRequest } from "./gptToolsRoutes.js";
 import { buildOperationObservabilityRoutes } from "./operationObservabilityRoutes.js";
@@ -93,6 +93,12 @@ export function buildRepositoryAutomationRoutes({ requireBackendApiKey, requireA
     } catch (error) {
       return errorResponse(res, error, "repository_automation_run_failed");
     }
+  });
+
+  // Protected, side-effect-free capability probe. Legacy Production lacks this route
+  // and must be rejected by Finalizer before any status is published.
+  router.get("/admin/repository-automation/attestor-contract", ...requireAdmin, (_req, res) => {
+    return res.status(200).json(readGithubRepositoryGovernanceAttestationContract());
   });
 
   router.post("/admin/repository-automation/policy-controller", ...requireAdmin, async (req, res) => {

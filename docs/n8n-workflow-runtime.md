@@ -153,3 +153,45 @@ Run it through:
 ```
 
 The platform creates/updates `workflow_runs`, calls the n8n webhook, validates output, and returns a structured response.
+
+## Historical workflow backups and restoration
+
+The historical Git-tracked source backups live in `local-connector/n8n-workflows/` (PRs #169, #190 and #193, May 2026).
+Each `*.template.json` has a corresponding `restore-*.mjs` script. These are recovery source files, not the live n8n execution authority.
+
+**Runtime boundary:** Platform authorization -> `workflow_runtime_bindings` -> n8n webhook.
+The runtime loads the binding from the database, resolves the credential environment-variable reference and validates experiment policies. It does not load the historical JSON backup on each call.
+
+### Read-only source audit
+
+From the repository root:
+
+```sh
+node local-connector/n8n-workflows/inspect-workflow-sources.mjs --json
+node http-generic-api/test-n8n-workflow-source-inventory.mjs
+```
+
+The inspector discovers templates and matching restore scripts, binding keys, workflow keys, source SHA-256 values and promotion restrictions.
+
+Optionally compare a locally supplied, **sanitized** JSON snapshot from the governed bindings-list response, without executing any n8n action:
+
+```sh
+node local-connector/n8n-workflows/inspect-workflow-sources.mjs --json --bindings-file ./sanitized-bindings.json
+```
+
+The snapshot must contain an array of binding records or `{ "bindings": [...] }`. Only binding identifiers, workflow identifiers, runtime type and status are compared; URLs, tokens and credentials are never printed. Results such as `metadata_match_live_not_verified`, `metadata_mismatch` and `not_in_snapshot` are advisory evidence, **not permission to restore**. Never put a raw secrets export in the repository.
+ It does not resolve secrets, connect to n8n, access platform databases, run restore scripts or update live bindings. Its `live_n8n_status` and `runtime_binding_status` fields remain `not_checked` without separate live authorization.
+
+### Governed restore procedure (not part of Connector installation)
+
+1. Inventory Git sources and SHA-256 values; select environment, workflow and binding.
+2. Using independently authorized read access, compare current `workflow_runtime_bindings` and n8n instance state against the backup source.
+3. Obtain explicit environment- and workflow-scoped operator approval before invoking any existing `restore-*.mjs` script. The scripts can create credentials, create/update workflows, deactivate and activate them.
+4. Create a target-specific backup, perform the authorized restore, run controlled smoke tests, verify binding/policy parity and preserve rollback evidence.
+5. Preserve `not_promoted` status and the `canonical_summary_write` restriction for summary experiments unless separately approved.
+
+### Connector distribution boundary
+
+The Connector Staging image includes only files declared by the Connector API `FILES` registry and placed in its immutable generated release bundle. The raw `local-connector/n8n-workflows/` directory is not copied into Connector distribution. Historical n8n backups remain in Git, independently available for controlled restoration, and must never be auto-restored by deploying/updating Connector.
+
+The separate `local-connector/n8n-restore-certifier.mjs` diagnoses legacy backup/restore readiness; it is not a template installer. Do not add workflow templates to Connector's `FILES` registry just to package them in Docker.
