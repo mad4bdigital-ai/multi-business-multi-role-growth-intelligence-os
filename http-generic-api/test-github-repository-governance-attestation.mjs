@@ -1,13 +1,30 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { validateEvidence, validateReview, validateChecks, validateCandidate, statusTarget } from "../.github/scripts/github-direct-attestor.mjs";
-import { GOVERNANCE_ATTESTATION_CONTEXTS, runGithubRepositoryGovernanceAttestation } from "./githubRepositoryGovernanceAttestation.js";
+import { GOVERNANCE_ATTESTATION_CONTEXTS, GITHUB_REPOSITORY_GOVERNANCE_ATTESTATION_VERSION, readGithubRepositoryGovernanceAttestationContract, runGithubRepositoryGovernanceAttestation } from "./githubRepositoryGovernanceAttestation.js";
 const OWNER = "mad4bdigital-ai", REPO = "multi-business-multi-role-growth-intelligence-os";
 const HEAD = "a".repeat(40), BASE = "b".repeat(40), CANDIDATE = "c".repeat(40), TREE = "e".repeat(40), EVIDENCE = "d".repeat(64), CREATOR = 991, RUN_ID = 321;
 const SOURCE = Object.freeze({
   main: { path: ".github/workflows/derived-state-closure.yml", event: "pull_request", artifact: `derived-state-closure-${RUN_ID}` },
   Production: { path: ".github/workflows/governed-production-promotion-request-launcher.yml", event: "workflow_dispatch", artifact: `governed-production-promotion-convergence-${RUN_ID}` },
 });
+// frontend-surface-operation: GET /admin/repository-automation/attestor-contract
+// Runtime protocol preflight must expose capability without any status write.
+const preflight = readGithubRepositoryGovernanceAttestationContract();
+assert.equal(GITHUB_REPOSITORY_GOVERNANCE_ATTESTATION_VERSION, "github-repository-governance-attestation-v4");
+assert.equal(preflight.contract, GITHUB_REPOSITORY_GOVERNANCE_ATTESTATION_VERSION);
+assert.equal(preflight.mode, "preflight");
+assert.equal(preflight.candidate_same_cycle_readback_supported, true);
+assert.equal(preflight.main_exact_head_status_supported, true);
+assert.equal(preflight.native_status_provider, "installed_github_app");
+assert.deepEqual(preflight.supported_branches, ["main", "Production"]);
+assert.equal(preflight.mutation_executed, false);
+assert.equal(preflight.secrets_included, false);
+assert.equal(Object.keys(preflight).some((key) => /token|password|credential|private[_-]?key/i.test(key)), false);
+const protectedRoutes = readFileSync(new URL("./routes/repositoryAutomationRoutes.js", import.meta.url), "utf8");
+assert.match(protectedRoutes, /router\.get\("\/admin\/repository-automation\/attestor-contract", \.\.\.requireAdmin/);
+assert.match(protectedRoutes, /readGithubRepositoryGovernanceAttestationContract\(\)/);
+
 function response(status, payload) { return { ok: status >= 200 && status < 300, status, async json() { return payload; } }; }
 function mockFetch({ branch = "main", candidate = CANDIDATE, tree = TREE, runConclusion = "success", sourcePath = SOURCE[branch].path, sourceEvent = SOURCE[branch].event, artifactDigest = EVIDENCE, artifactName = SOURCE[branch].artifact, runPr = 7437, runRepository = `${OWNER}/${REPO}`, headStatusSpoof = false, headWriteReject = false, headPrDriftBefore = false, headPrDriftAfter = false } = {}) {
   const calls = [];
@@ -171,6 +188,11 @@ rejected(() => validateCandidate([{ context: "other", state: "success" }], { tot
 rejected(() => validateCandidate([], { total_count: 1 }, []), "merge_candidate_check_run_conflict");
 rejected(() => validateCandidate([], { total_count: 0 }, [{ context: "Derived State Closure" }]), "existing_head_attestation_conflict");
 const wf = readFileSync(new URL("../.github/workflows/derived-state-converged-automerge.yml", import.meta.url), "utf8");
+assert.match(wf, /attestor_runtime_contract_unverified/);
+assert.match(wf, /attestor-preflight-response[.]json/);
+assert.match(wf, /github-repository-governance-attestation-v4/);
+assert.ok(wf.indexOf("attestor_runtime_contract_unverified") < wf.indexOf('response="$RUNNER_TEMP/attestation-response.json"'));
+
 assert.match(wf, /workflow_dispatch:/);
 assert.match(wf, /Governance-Direct/);
 assert.match(wf, /DIRECT_GITHUB_APP_PRIVATE_KEY/);
