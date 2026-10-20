@@ -56,6 +56,10 @@ jobs:
     if: inputs.operation == 'verify'
     name: Verify main on dev.mad4b.com
     runs-on: ubuntu-latest
+    # Match the existing Staging countersign job's protected secret scope.
+    # Historical repository-scoped BACKEND_API_KEY must not be consumed outside
+    # an explicitly bound Staging Environment.
+    environment: staging-recovery-certification
     timeout-minutes: 25
     env:
       STAGING_BASE_URL: https://dev.mad4b.com
