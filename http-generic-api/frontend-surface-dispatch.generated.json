@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "d22393bec3fb7a4f9de5151f16e3eaed915bb27ee7bbd36a3cb375af660cba44",
+    "source_digest": "f29cb8b63f6e217d826b5b9f3b2724a89e536c7c0730ed09846e2913d6d3c13e",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -11,7 +11,7 @@
       },
       {
         "file": "frontend-operation-governance.generated.json",
-        "sha256": "dde152881a0e77a2684c78721b311c0e53d8f8cbe0f214a927b9f5d287d9c0d7",
+        "sha256": "114bbcf4d6a248366a6014a10be3931db9542781f31a9ee51dc85704833671d3",
         "present": true
       },
       {
@@ -76,7 +76,7 @@
       },
       {
         "file": "openapi/frontend-runtime-routes.generated.yaml",
-        "sha256": "92b64d97e1355141eab5264b9b35a9949f5653656c149b83a6d9a52ed799f181",
+        "sha256": "8fbb8c8648c49a14811658a0783c3aab9cbd3e19340e10601b9a54dc81a1c760",
         "present": true
       },
       {
@@ -821,7 +821,7 @@
       },
       {
         "file": "routes/repositoryAutomationRoutes.js",
-        "sha256": "6096b074bbf05213b6914d2f7fe21437956fe4b21a0dc8ca5c55dfb23049e003",
+        "sha256": "fc67c22ed133ffffb0a249d596976318965a9e723ed2ed864ef5068f0cc130e7",
         "present": true
       },
       {
@@ -1234,16 +1234,16 @@
     "mounted_family_count": 177,
     "mounted_route_file_count": 147,
     "mixed_scope_route_file_count": 26,
-    "operation_count": 1084,
-    "openapi_documented_count": 1068,
+    "operation_count": 1085,
+    "openapi_documented_count": 1069,
     "openapi_canonical_documented_count": 743,
-    "openapi_generated_index_count": 325,
+    "openapi_generated_index_count": 326,
     "openapi_exemption_count": 16,
     "openapi_gap_count": 0,
-    "openapi_detail_gap_count": 325,
+    "openapi_detail_gap_count": 326,
     "openapi_detail_gap_policy": "accepted_generated_index_only",
     "auth_parity_counts": {
-      "equivalent": 1068,
+      "equivalent": 1069,
       "exempt": 16
     },
     "auth_contract_gap_count": 0,
@@ -1254,13 +1254,13 @@
     "governed_mutation_operation_count": 38,
     "embedded_ui_family_count": 7,
     "unresolved_surface_decision_count": 0,
-    "test_owned_family_count": 177,
-    "untested_family_count": 0,
+    "test_owned_family_count": 176,
+    "untested_family_count": 1,
     "test_owned_operation_count": 1084,
-    "untested_operation_count": 0,
-    "ready_task_count": 177,
-    "blocked_task_count": 0,
-    "coverage_complete": true
+    "untested_operation_count": 1,
+    "ready_task_count": 176,
+    "blocked_task_count": 1,
+    "coverage_complete": false
   },
   "waves": [
     {
@@ -32777,7 +32777,7 @@
       "family_key": "repository-automation",
       "label": "repository automation",
       "source_file": "routes/repositoryAutomationRoutes.js",
-      "source_digest": "6096b074bbf05213b6914d2f7fe21437956fe4b21a0dc8ca5c55dfb23049e003",
+      "source_digest": "fc67c22ed133ffffb0a249d596976318965a9e723ed2ed864ef5068f0cc130e7",
       "mount_prefix": "/",
       "mount_order": 18489,
       "split_from_mixed_scope_file": false,
@@ -32949,6 +32949,78 @@
             ]
           },
           "mutation_candidate": true,
+          "mutation": false
+        },
+        {
+          "method": "GET",
+          "path": "/admin/repository-automation/attestor-contract",
+          "signature": "GET /admin/repository-automation/attestor-contract",
+          "source_file": "routes/repositoryAutomationRoutes.js",
+          "scope": "admin",
+          "runtime_auth": {
+            "state": "resolved",
+            "profile": "admin_backend",
+            "alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "principal": "admin",
+            "guard_chain": [
+              "requireAdmin",
+              "requireAdminPrincipal",
+              "requireBackendApiKey"
+            ],
+            "evidence": [
+              "router.use:requireAdminPrincipal",
+              "router.use:requireBackendApiKey",
+              "route:requireAdmin",
+              "route:requireAdminPrincipal",
+              "route:requireBackendApiKey"
+            ],
+            "configuration_dependencies": [
+              "BACKEND_API_KEY"
+            ]
+          },
+          "openapi_auth": {
+            "source_file": "openapi/frontend-runtime-routes.generated.yaml",
+            "security_declared": true,
+            "security_alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "unknown_security_schemes": []
+          },
+          "auth_parity": {
+            "state": "equivalent",
+            "reasons": []
+          },
+          "openapi_documented": true,
+          "openapi_canonical_documented": false,
+          "openapi_exempt": false,
+          "openapi_contract_level": "operation-index-only",
+          "evidence_candidate": false,
+          "embedded_ui": false,
+          "embedded_ui_evidence": [],
+          "delivery_kind": "api",
+          "tests": [],
+          "governance": {
+            "classification": "read",
+            "classification_source": "http_method",
+            "mutation_candidate": false,
+            "governed": true,
+            "controls": null,
+            "blockers": [],
+            "rule_id": null
+          },
+          "mutation_candidate": false,
           "mutation": false
         },
         {
@@ -33316,6 +33388,7 @@
       "openapi_gaps": [],
       "openapi_exemptions": [],
       "openapi_detail_gaps": [
+        "GET /admin/repository-automation/attestor-contract",
         "POST /admin/repository-automation/policy-controller"
       ],
       "auth_contract_gaps": [],
@@ -33325,7 +33398,9 @@
       "tests": [
         "test-frontend-surface-coverage-claims.mjs"
       ],
-      "untested_operations": [],
+      "untested_operations": [
+        "GET /admin/repository-automation/attestor-contract"
+      ],
       "resources": [],
       "embedded_ui": false,
       "embedded_ui_operations": [],
@@ -33369,7 +33444,7 @@
       },
       "operation_blockers": [],
       "risk": {
-        "score": 10,
+        "score": 12,
         "class": "critical"
       },
       "wave": "F3-admin-workspaces"
@@ -98596,59 +98671,6 @@
       ]
     },
     {
-      "task_key": "frontend.repository-automation",
-      "title": "Resolve and deliver repository automation",
-      "wave": "F3-admin-workspaces",
-      "state": "ready",
-      "blockers": [],
-      "dependencies": [
-        "F0-source-baseline",
-        "F2-admin-bff-session",
-        "mutation-preflight",
-        "operation-classification",
-        "same-cycle-readback"
-      ],
-      "source_refs": [
-        "frontend-operation-governance.generated.json",
-        "frontend-surface-policy.json",
-        "openapi-route-coverage.allowlist.json",
-        "openapi.yaml",
-        "openapi/brand-core-asset-materialization.yaml",
-        "openapi/container-authority-override-governance-smoke.yaml",
-        "openapi/container-authority.yaml",
-        "openapi/frontend-runtime-routes.generated.yaml",
-        "openapi/hostinger-storage-tenant-runtime.yaml",
-        "openapi/openapi-registry-sync.yaml",
-        "openapi/openapi.custom-gpt.staging-act-as-user-control.yaml",
-        "openapi/repository-reconciliation-lease-control.yaml",
-        "openapi/sql-cache-policy.yaml",
-        "openapi/support-ticket-admin-brand.yaml",
-        "openapi/support-ticket-admin-execution.yaml",
-        "openapi/support-ticket-admin-remaining.yaml",
-        "openapi/support-ticket-runtime-completion.yaml",
-        "openapi/support-tickets.yaml",
-        "resource-api-coverage.manifest.json",
-        "routes/index.js",
-        "routes/repositoryAutomationRoutes.js",
-        "scripts/test-manifest.mjs",
-        "test-frontend-surface-coverage-claims.mjs"
-      ],
-      "acceptance_gates": [
-        "source_baseline_unchanged",
-        "scope_and_auth_explicit",
-        "openapi_or_explicit_exemption",
-        "surface_policy_resolved",
-        "tests_registered",
-        "operation_classification_explicit",
-        "preflight_approval_readback_rollback"
-      ],
-      "verification": [
-        "node scripts/frontend-surface-dispatch.mjs --check",
-        "node scripts/resource-api-coverage-audit.mjs --changed",
-        "node test-frontend-surface-coverage-claims.mjs"
-      ]
-    },
-    {
       "task_key": "frontend.repository-main-moved-trigger.admin",
       "title": "Resolve and deliver repository main moved trigger (admin)",
       "wave": "F3-admin-workspaces",
@@ -100312,6 +100334,61 @@
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/wordpressStagingPluginDeployRoutes.js",
+        "scripts/test-manifest.mjs",
+        "test-frontend-surface-coverage-claims.mjs"
+      ],
+      "acceptance_gates": [
+        "source_baseline_unchanged",
+        "scope_and_auth_explicit",
+        "openapi_or_explicit_exemption",
+        "surface_policy_resolved",
+        "tests_registered",
+        "operation_classification_explicit",
+        "preflight_approval_readback_rollback"
+      ],
+      "verification": [
+        "node scripts/frontend-surface-dispatch.mjs --check",
+        "node scripts/resource-api-coverage-audit.mjs --changed",
+        "node test-frontend-surface-coverage-claims.mjs"
+      ]
+    },
+    {
+      "task_key": "frontend.repository-automation",
+      "title": "Resolve and deliver repository automation",
+      "wave": "F3-admin-workspaces",
+      "state": "blocked",
+      "blockers": [
+        "test_ownership_gap"
+      ],
+      "dependencies": [
+        "F0-source-baseline",
+        "F2-admin-bff-session",
+        "mutation-preflight",
+        "operation-classification",
+        "same-cycle-readback"
+      ],
+      "source_refs": [
+        "frontend-operation-governance.generated.json",
+        "frontend-surface-policy.json",
+        "openapi-route-coverage.allowlist.json",
+        "openapi.yaml",
+        "openapi/brand-core-asset-materialization.yaml",
+        "openapi/container-authority-override-governance-smoke.yaml",
+        "openapi/container-authority.yaml",
+        "openapi/frontend-runtime-routes.generated.yaml",
+        "openapi/hostinger-storage-tenant-runtime.yaml",
+        "openapi/openapi-registry-sync.yaml",
+        "openapi/openapi.custom-gpt.staging-act-as-user-control.yaml",
+        "openapi/repository-reconciliation-lease-control.yaml",
+        "openapi/sql-cache-policy.yaml",
+        "openapi/support-ticket-admin-brand.yaml",
+        "openapi/support-ticket-admin-execution.yaml",
+        "openapi/support-ticket-admin-remaining.yaml",
+        "openapi/support-ticket-runtime-completion.yaml",
+        "openapi/support-tickets.yaml",
+        "resource-api-coverage.manifest.json",
+        "routes/index.js",
+        "routes/repositoryAutomationRoutes.js",
         "scripts/test-manifest.mjs",
         "test-frontend-surface-coverage-claims.mjs"
       ],
