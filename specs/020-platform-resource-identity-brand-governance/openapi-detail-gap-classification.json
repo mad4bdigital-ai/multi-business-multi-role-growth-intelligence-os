@@ -6,17 +6,17 @@
   "source": {
     "baseline_ref": "main",
     "dispatch_artifact": "http-generic-api/frontend-surface-dispatch.generated.json",
-    "dispatch_source_digest": "d22393bec3fb7a4f9de5151f16e3eaed915bb27ee7bbd36a3cb375af660cba44",
-    "dispatch_artifact_sha256": "45d0144339ae10e6179d18fe7f02cdaf22cbf7b3d2822e155c56c0711f7139e3"
+    "dispatch_source_digest": "d1f87cdcc2ffd7f7b7ceae43eb76f9bf16212b5ff2bfe3b88732233e727bdd4b",
+    "dispatch_artifact_sha256": "2fa27ee58417f4001af3e053916efb00a79cc6fd0d10cf5b913a39760f172aea"
   },
   "coverage": {
-    "operation_count": 1084,
-    "openapi_documented_count": 1068,
+    "operation_count": 1085,
+    "openapi_documented_count": 1069,
     "openapi_canonical_documented_count": 743,
-    "openapi_generated_index_count": 325,
+    "openapi_generated_index_count": 326,
     "openapi_gap_count": 0,
     "auth_contract_gap_count": 0,
-    "openapi_detail_gap_count": 325,
+    "openapi_detail_gap_count": 326,
     "unresolved_surface_decision_count": 0,
     "coverage_complete": true
   },
@@ -46,7 +46,7 @@
     "detail_gap_entries_by_surface_decision": [
       {
         "decision": "internal_only",
-        "count": 281
+        "count": 282
       },
       {
         "decision": "api_only",
@@ -68,7 +68,7 @@
       },
       {
         "method": "GET",
-        "count": 119
+        "count": 120
       },
       {
         "method": "PUT",
@@ -86,7 +86,7 @@
     "detail_gap_entries_by_path_first_segment": [
       {
         "path_first_segment": "admin",
-        "count": 42
+        "count": 43
       },
       {
         "path_first_segment": "dev-agent",
@@ -519,6 +519,10 @@
         "count": 2
       },
       {
+        "family_key": "repository-automation",
+        "count": 2
+      },
+      {
         "family_key": "session-insight-backlog-target-write",
         "count": 2
       },
@@ -560,10 +564,6 @@
       },
       {
         "family_key": "recovery-kernel",
-        "count": 1
-      },
-      {
-        "family_key": "repository-automation",
         "count": 1
       },
       {
@@ -667,7 +667,7 @@
   "priority_summary": {
     "blocking_contract_gap_count": 0,
     "surface_decision_required_family_count": 0,
-    "documentation_only_detail_gap_count": 325,
+    "documentation_only_detail_gap_count": 326,
     "top_surface_decision_families": []
   },
   "scope_boundary": {

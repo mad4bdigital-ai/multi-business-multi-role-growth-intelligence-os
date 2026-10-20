@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "d22393bec3fb7a4f9de5151f16e3eaed915bb27ee7bbd36a3cb375af660cba44",
+    "source_digest": "d1f87cdcc2ffd7f7b7ceae43eb76f9bf16212b5ff2bfe3b88732233e727bdd4b",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -11,7 +11,7 @@
       },
       {
         "file": "frontend-operation-governance.generated.json",
-        "sha256": "dde152881a0e77a2684c78721b311c0e53d8f8cbe0f214a927b9f5d287d9c0d7",
+        "sha256": "661a822c2be1337012fcd45c23524272aa2e497b2b62180965b9dd674943d0fb",
         "present": true
       },
       {
@@ -76,7 +76,7 @@
       },
       {
         "file": "openapi/frontend-runtime-routes.generated.yaml",
-        "sha256": "92b64d97e1355141eab5264b9b35a9949f5653656c149b83a6d9a52ed799f181",
+        "sha256": "8fbb8c8648c49a14811658a0783c3aab9cbd3e19340e10601b9a54dc81a1c760",
         "present": true
       },
       {
@@ -821,7 +821,7 @@
       },
       {
         "file": "routes/repositoryAutomationRoutes.js",
-        "sha256": "6096b074bbf05213b6914d2f7fe21437956fe4b21a0dc8ca5c55dfb23049e003",
+        "sha256": "fc67c22ed133ffffb0a249d596976318965a9e723ed2ed864ef5068f0cc130e7",
         "present": true
       },
       {
@@ -1101,7 +1101,7 @@
       },
       {
         "file": "scripts/test-manifest.mjs",
-        "sha256": "0a4a3edc4f65fdc77db8867f9672dbf32379b5c8a2fbbec276e1697deec74d6c",
+        "sha256": "1a7e34e54c2f88046af992d71f6dcc22400538cda8876fdd876a96da9524e082",
         "present": true
       },
       {
@@ -1132,6 +1132,11 @@
       {
         "file": "test-frontend-surface-coverage-claims.mjs",
         "sha256": "9c2e9534958a48f4de8b8c9e4972bb1643331bcc2a15f0f3c420e32930596cc5",
+        "present": true
+      },
+      {
+        "file": "test-github-repository-governance-attestation.mjs",
+        "sha256": "ce84ee53ebb05b6fd19133089092e437d64c040751616b41d9c439d76cfac6db",
         "present": true
       },
       {
@@ -1234,16 +1239,16 @@
     "mounted_family_count": 177,
     "mounted_route_file_count": 147,
     "mixed_scope_route_file_count": 26,
-    "operation_count": 1084,
-    "openapi_documented_count": 1068,
+    "operation_count": 1085,
+    "openapi_documented_count": 1069,
     "openapi_canonical_documented_count": 743,
-    "openapi_generated_index_count": 325,
+    "openapi_generated_index_count": 326,
     "openapi_exemption_count": 16,
     "openapi_gap_count": 0,
-    "openapi_detail_gap_count": 325,
+    "openapi_detail_gap_count": 326,
     "openapi_detail_gap_policy": "accepted_generated_index_only",
     "auth_parity_counts": {
-      "equivalent": 1068,
+      "equivalent": 1069,
       "exempt": 16
     },
     "auth_contract_gap_count": 0,
@@ -1256,7 +1261,7 @@
     "unresolved_surface_decision_count": 0,
     "test_owned_family_count": 177,
     "untested_family_count": 0,
-    "test_owned_operation_count": 1084,
+    "test_owned_operation_count": 1085,
     "untested_operation_count": 0,
     "ready_task_count": 177,
     "blocked_task_count": 0,
@@ -32777,7 +32782,7 @@
       "family_key": "repository-automation",
       "label": "repository automation",
       "source_file": "routes/repositoryAutomationRoutes.js",
-      "source_digest": "6096b074bbf05213b6914d2f7fe21437956fe4b21a0dc8ca5c55dfb23049e003",
+      "source_digest": "fc67c22ed133ffffb0a249d596976318965a9e723ed2ed864ef5068f0cc130e7",
       "mount_prefix": "/",
       "mount_order": 18489,
       "split_from_mixed_scope_file": false,
@@ -32949,6 +32954,80 @@
             ]
           },
           "mutation_candidate": true,
+          "mutation": false
+        },
+        {
+          "method": "GET",
+          "path": "/admin/repository-automation/attestor-contract",
+          "signature": "GET /admin/repository-automation/attestor-contract",
+          "source_file": "routes/repositoryAutomationRoutes.js",
+          "scope": "admin",
+          "runtime_auth": {
+            "state": "resolved",
+            "profile": "admin_backend",
+            "alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "principal": "admin",
+            "guard_chain": [
+              "requireAdmin",
+              "requireAdminPrincipal",
+              "requireBackendApiKey"
+            ],
+            "evidence": [
+              "router.use:requireAdminPrincipal",
+              "router.use:requireBackendApiKey",
+              "route:requireAdmin",
+              "route:requireAdminPrincipal",
+              "route:requireBackendApiKey"
+            ],
+            "configuration_dependencies": [
+              "BACKEND_API_KEY"
+            ]
+          },
+          "openapi_auth": {
+            "source_file": "openapi/frontend-runtime-routes.generated.yaml",
+            "security_declared": true,
+            "security_alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "unknown_security_schemes": []
+          },
+          "auth_parity": {
+            "state": "equivalent",
+            "reasons": []
+          },
+          "openapi_documented": true,
+          "openapi_canonical_documented": false,
+          "openapi_exempt": false,
+          "openapi_contract_level": "operation-index-only",
+          "evidence_candidate": false,
+          "embedded_ui": false,
+          "embedded_ui_evidence": [],
+          "delivery_kind": "api",
+          "tests": [
+            "test-github-repository-governance-attestation.mjs"
+          ],
+          "governance": {
+            "classification": "read",
+            "classification_source": "http_method",
+            "mutation_candidate": false,
+            "governed": true,
+            "controls": null,
+            "blockers": [],
+            "rule_id": null
+          },
+          "mutation_candidate": false,
           "mutation": false
         },
         {
@@ -33316,6 +33395,7 @@
       "openapi_gaps": [],
       "openapi_exemptions": [],
       "openapi_detail_gaps": [
+        "GET /admin/repository-automation/attestor-contract",
         "POST /admin/repository-automation/policy-controller"
       ],
       "auth_contract_gaps": [],
@@ -33323,7 +33403,8 @@
         "POST /admin/repository-automation/status"
       ],
       "tests": [
-        "test-frontend-surface-coverage-claims.mjs"
+        "test-frontend-surface-coverage-claims.mjs",
+        "test-github-repository-governance-attestation.mjs"
       ],
       "untested_operations": [],
       "resources": [],
@@ -33352,7 +33433,8 @@
         "routes/index.js",
         "routes/repositoryAutomationRoutes.js",
         "scripts/test-manifest.mjs",
-        "test-frontend-surface-coverage-claims.mjs"
+        "test-frontend-surface-coverage-claims.mjs",
+        "test-github-repository-governance-attestation.mjs"
       ],
       "surface_decision": {
         "decision": "internal_only",
@@ -98631,7 +98713,8 @@
         "routes/index.js",
         "routes/repositoryAutomationRoutes.js",
         "scripts/test-manifest.mjs",
-        "test-frontend-surface-coverage-claims.mjs"
+        "test-frontend-surface-coverage-claims.mjs",
+        "test-github-repository-governance-attestation.mjs"
       ],
       "acceptance_gates": [
         "source_baseline_unchanged",
@@ -98645,7 +98728,8 @@
       "verification": [
         "node scripts/frontend-surface-dispatch.mjs --check",
         "node scripts/resource-api-coverage-audit.mjs --changed",
-        "node test-frontend-surface-coverage-claims.mjs"
+        "node test-frontend-surface-coverage-claims.mjs",
+        "node test-github-repository-governance-attestation.mjs"
       ]
     },
     {

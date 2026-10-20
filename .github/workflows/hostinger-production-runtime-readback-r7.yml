@@ -251,6 +251,7 @@ jobs:
               oauth_discovery_ready: oauthDiscoveryReady,
             },
             classification,
+            blocking_conditions: decision.blockingConditions,
             production_current: productionCurrent,
             public_get_only: true,
             repository_content_mutation_performed: false,

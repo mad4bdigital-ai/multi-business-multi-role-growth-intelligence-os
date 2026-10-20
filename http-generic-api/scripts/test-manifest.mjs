@@ -78,6 +78,7 @@ const upstreamCommands = [
 const staticDiscoveryCommands = [
   "node test-device-tools-diagnostics.mjs",
   "node test-derived-state-converged-automerge-source-event.mjs",
+  "node test-github-repository-governance-attestation.mjs",
   "node scripts/activation-surface-coverage-check.mjs --changed",
   "node test-activation-deployment-projection-service.mjs",
   "node test-activation-followup-hardening.mjs",

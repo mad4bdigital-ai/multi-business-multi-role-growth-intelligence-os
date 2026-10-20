@@ -32,7 +32,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Separate unread runtime identity caused by 429 from proven SHA mismatch; record only redacted fixed-domain HTTP header signals.",
+      "objective": "Separate unread runtime identity caused by 429 from proven SHA mismatch; record only redacted fixed-domain HTTP header signals. On equal exact-SHA public readback, preserve concurrent missing runtime_environment and TRUSTED_INGRESS_ATTESTATION_REQUIRED as independent bounded blockers.",
       "e2e_journeys": [
         {
           "id": "production-r7-bounded-http-429-attribution",
@@ -46,12 +46,14 @@
             "Capture HTTP headers into ephemeral runner-only file outside artifact directory.",
             "Persist redacted server-family and header presence booleans only, erase raw headers, and never claim rate-limit origin is proven.",
             "Test five-429 case plus malicious cookies and credentials in headers.",
-            "Leave Production trusted ingress, Cloudflare, Hostinger and database mutations outside this PR."
+            "Leave Production trusted ingress, Cloudflare, Hostinger and database mutations outside this PR.",
+            "Emit blocking_conditions from independent runtime environment and trusted-ingress evidence in addition to the primary classification."
           ],
           "assertions": [
             "SHA mismatch cannot be proven when identity endpoint returned HTTP 429 and no SHA was read.",
             "Raw HTTP header content, cookies, request IDs and authorization tokens are never serialized into artifacts.",
-            "Production/current acceptance remains fail-closed and all provider/secret/write operations remain disabled."
+            "Production/current acceptance remains fail-closed and all provider/secret/write operations remain disabled.",
+            "Missing runtime_environment and trusted ingress are both included without proving false SHA mismatch or permitting Production writes."
           ],
           "tests": [
             {

@@ -115,7 +115,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Publish deterministic no-secret identity and operation contracts with a Brand shadow resolver while keeping authority, grants, credentials, migration, provider calls, and Production disabled.",
+      "objective": "Publish deterministic no-secret identity and operation contracts with a Brand shadow resolver while keeping authority, grants, credentials, migration, provider calls, and Production disabled. Keep the exact-source Spec020 OpenAPI shadow/readiness and detail-closure batch aligned after adding the authenticated Attestor v4 preflight GET endpoint.",
       "e2e_journeys": [
         {
           "id": "spec020-pure-shadow-contracts",
@@ -130,7 +130,8 @@
             "Validate tenant filtering and identity-only disclosure.",
             "Validate internal, external, destructive, and commercial operation effect floors.",
             "Verify caller input cannot lower registered risk or approval.",
-            "Re-run the governed OpenAPI projection and work-map integration readback with route wiring, runtime authority, database mutation, provider call, migration apply, and Production activation disabled."
+            "Re-run the governed OpenAPI projection and work-map integration readback with route wiring, runtime authority, database mutation, provider call, migration apply, and Production activation disabled.",
+            "Verify the registered attestor GET route is test-owned and its exact-source projection changes all Spec020 OpenAPI baseline and safe-closure counters without authorizing new runtime surfaces."
           ],
           "assertions": [
             "No identity or relationship result implies authority.",
@@ -149,7 +150,8 @@
             "GET /gpt/tools and POST /gpt/tools/call map MCP catalog schema drift to bounded HTTP 503 structured errors without exposing raw SQL messages on modern and legacy route builders.",
             "Production R7 classification strings are asserted from the authoritative decision module and its runtime readback remains public GET-only.",
             "Production Promotion Rehearsal classifies ancestry/CAS blockers fail-closed without relaxing mutation policy, and emits a bounded read-only dry-run report with stale_authorization_reusable=false and all mutation flags false.",
-            "The exact-head Frontend/OpenAPI projection covers every mounted operation with registered tests, leaves no operation unclassified, and classifies the Staging-only exact-device health POST as a read action; neither discovery nor health grants file/terminal mutation or Production authority."
+            "The exact-head Frontend/OpenAPI projection covers every mounted operation with registered tests, leaves no operation unclassified, and classifies the Staging-only exact-device health POST as a read action; neither discovery nor health grants file/terminal mutation or Production authority.",
+            "OpenAPI projection baseline equals 1085 registered operations, zero test ownership gaps, zero auth or OpenAPI contract gaps, and no Production mutation."
           ],
           "tests": [
             {
@@ -430,5 +432,15 @@
       "status": "planned",
       "objective": "Promote only after explicit authority, migration, security, canary, and exact runtime readback."
     }
-  ]
+  ],
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  }
 }

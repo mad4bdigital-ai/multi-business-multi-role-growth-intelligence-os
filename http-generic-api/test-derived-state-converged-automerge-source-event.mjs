@@ -91,6 +91,14 @@ assert.match(readiness, /allowedCheckSource\(managedBinding,/, "managed source m
 assert.match(readiness, /commits\/\$\{expectedCandidate\}\/statuses\?per_page=100/, "verifier must read exact-candidate statuses");
 assert.match(readiness, /latestSameCycleAttestorStatus\(statuses,/, "candidate success must be proven by the native tested pure predicate");
 assert.match(readiness, /safe_to_register_auto_merge: false/, "native auto-merge registration must remain forbidden");
+assert.match(attestorJob, /attestor-contract/, "finalizer must read the authenticated attestor capability before mutating state");
+assert.match(attestorJob, /attestor_runtime_contract_unverified/, "legacy or missing preflight must fail closed");
+assert.match(attestorJob, /github-repository-governance-attestation-v4/, "candidate-only legacy attestor v3 must be rejected");
+assert.match(attestorJob, /main_exact_head_status_supported == true/, "main attestor must prove native exact-head capability");
+assert.match(attestorJob, /native_status_provider == "installed_github_app"/, "untrusted status providers must be rejected");
+const capabilityProbeIndex = attestorJob.indexOf('attestor-contract');
+const attestationPostIndex = attestorJob.indexOf('policy-controller" -H "Authorization: Bearer $BACKEND_API_KEY"');
+assert.ok(capabilityProbeIndex >= 0 && attestationPostIndex > capabilityProbeIndex, "read-only v4 capability probe must precede every mutating attestation POST");
 assert.match(workflow, /error_code=attestation_transport_failed/, "transport failure must have a nonsecret, typed diagnostic");
 assert.match(workflow, /error_code=attestation_http_status_invalid/, "invalid HTTP response must fail closed");
 assert.match(workflow, /error_code=attestation_response_contract_mismatch/, "invalid successful response must fail closed with typed diagnostic");

@@ -69,7 +69,11 @@
       "scripts/repository-governance-closure.mjs",
       "scripts/repository-governance-evidence-finalizer.mjs",
       "scripts/repository-governance-objection-gate.mjs",
-      "specs/**/work-map-integration.json"
+      "specs/**/work-map-integration.json",
+      "http-generic-api/scripts/test-manifest.mjs",
+      "docs/runbooks/production-r7-trusted-ingress-and-attestor-closure-20261020.md",
+      "specs/020-platform-resource-identity-brand-governance/openapi-projection-readiness.json",
+      "specs/020-platform-resource-identity-brand-governance/e2e-phases.json"
     ]
   },
   "merge_contract": {
@@ -89,7 +93,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Close the declared MVP governance gaps as one Constitution-driven system: semantic graph and inverse deletion impact, declarative policy resolution, safe dynamic verifier registration, exact merge-candidate evidence identity, complete JavaScript executable syntax coverage, critical control-plane manual-merge enforcement, E2E ownership-scoped maintenance evaluation, CI workflow no-growth ratchet, trusted GitHub App final attestation, native auto-merge disabled by policy, exact App-bound server-rule verification, and a sole immediate non-bypass Governance Finalizer merge path for main while Production retains its separately governed promotion authority.",
+      "objective": "Close the declared MVP governance gaps as one Constitution-driven system: semantic graph and inverse deletion impact, declarative policy resolution, safe dynamic verifier registration, exact merge-candidate evidence identity, complete JavaScript executable syntax coverage, critical control-plane manual-merge enforcement, E2E ownership-scoped maintenance evaluation, CI workflow no-growth ratchet, trusted GitHub App final attestation, native auto-merge disabled by policy, exact App-bound server-rule verification, and a sole immediate non-bypass Governance Finalizer merge path for main while Production retains its separately governed promotion authority. This source-only recovery requires authenticated read-only v4 attestor capability discovery before any policy-controller attestation POST, and exact-HEAD status support with independent GitHub App identity readback; no Production mutation is included.",
       "e2e_journeys": [
         {
           "id": "semantic-exact-candidate-to-trusted-server-attestation",
@@ -117,7 +121,8 @@
             "For objection-free main only, have the central finalizer verifier require repository allow_auto_merge=false, active pull_request/required_status_checks/non_fast_forward rules, no merge_queue, exactly one active managed governance Ruleset, zero bypass actors, Derived State Closure bound to the exact attestor App id, exact base/head/candidate identity, and a success status on the exact candidate from the same-cycle attestor status creator.",
             "Allow the Governance Finalizer to execute gh pr merge only without --auto and without --admin, bound by --match-head-commit to the exact source head, then require same-cycle merged-state and merge-commit readback.",
             "Require Production's current merge-candidate tree to equal the certified executed release-candidate tree before promotion attestation; generic main finalizer merge authority never applies to Production.",
-            "Verify main any-source Rulesets using the explicit Constitution opt-in, independently attest the exact merge candidate with the GitHub App, and pass the just-published status ID plus status creator ID into the protected finalizer readiness gate."
+            "Verify main any-source Rulesets using the explicit Constitution opt-in, independently attest the exact merge candidate with the GitHub App, and pass the just-published status ID plus status creator ID into the protected finalizer readiness gate.",
+            "Probe the v4 Attestor contract using the protected Production Environment credential and fail closed before any status-writing POST if HEAD capability, app identity or nonmutating preflight cannot be proven."
           ],
           "assertions": [
             "The Constitution is the runtime source of truth for both main and Production branch policy.",
@@ -143,7 +148,8 @@
             "The executable universe remains fail-closed: changed executables require semantic classes and registered verifier authority; unsupported language-level validation is not inferred from filenames.",
             "Semantic facets such as auth_profile, db_effect, provider_effect, and route resolve through the declarative semantic-verifier-requirements registry to registered safe verifiers, with missing mappings failing closed.",
             "Test authority is registered and test removal or unregistered test paths fail closed; no live Ruleset Apply, repository-setting mutation, protected-ref mutation outside an independently authorized merge, force push, database mutation, provider mutation, Production deployment, migration, grant, or secret disclosure is performed by this PR.",
-            "Any source on main is never reported as server-side App publisher binding; governed finalizer merges require the latest exact candidate success status ID and trusted creator from the same attestation cycle, and reject stale or spoofed context updates; Production remains App-bound."
+            "Any source on main is never reported as server-side App publisher binding; governed finalizer merges require the latest exact candidate success status ID and trusted creator from the same attestation cycle, and reject stale or spoofed context updates; Production remains App-bound.",
+            "A legacy candidate-only v3 attestor cannot be called by the current Finalizer; absence of v4 capability cannot produce a HEAD or candidate status."
           ],
           "tests": [
             {
