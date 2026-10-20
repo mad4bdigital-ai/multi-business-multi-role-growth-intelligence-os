@@ -168,6 +168,26 @@ jobs:
             --arg pr "$pr_number" --arg source "$source_head_sha" --arg base "$base_sha" --arg candidate "$candidate_sha" --arg executed "$executed_sha" \
             --arg digest "$evidence_digest" --arg run "$SOURCE_RUN_ID" --arg confirm "$confirm" \
             '{mode:$mode,owner:$owner,repo:$repo,default_branch:$branch,pr_number:($pr|tonumber),source_head_sha:$source,base_sha:$base,candidate_sha:$candidate,executed_sha:$executed,evidence_sha256:$digest,source_run_id:($run|tonumber),confirm:$confirm}' > "$payload"
+          # Capability probe is authenticated and read-only. In particular, do not
+          # POST to a candidate-only legacy backend that shares the old v3 label.
+          preflight_response="$RUNNER_TEMP/attestor-preflight-response.json"
+          if ! preflight_http="$(curl --proto '=https' --tlsv1.2 -sS -o "$preflight_response" -w '%{http_code}' "$RUNTIME_BASE_URL/admin/repository-automation/attestor-contract" -H "Authorization: Bearer $BACKEND_API_KEY" -H 'Accept: application/json')"; then
+            echo "::error title=Trusted attestor preflight::error_code=attestor_contract_probe_transport_failed" >&2
+            exit 1
+          fi
+          if [[ "$preflight_http" != "200" ]] || ! jq -e --arg branch "$branch" '
+            .contract == "github-repository-governance-attestation-v4"
+            and .mode == "preflight"
+            and .candidate_same_cycle_readback_supported == true
+            and .native_status_provider == "installed_github_app"
+            and .mutation_executed == false
+            and .secrets_included == false
+            and (.supported_branches | index($branch) != null)
+            and (if $branch == "main" then .main_exact_head_status_supported == true else true end)
+          ' "$preflight_response" >/dev/null 2>&1; then
+            echo "::error title=Trusted attestor preflight::error_code=attestor_runtime_contract_unverified http_status=${preflight_http}" >&2
+            exit 1
+          fi
           response="$RUNNER_TEMP/attestation-response.json"
           # Report only an HTTP status and a bounded machine error.code; never emit the body, headers, or credential.
           if ! http="$(curl -sS -o "$response" -w '%{http_code}' -X POST "$RUNTIME_BASE_URL/admin/repository-automation/policy-controller" -H "Authorization: Bearer $BACKEND_API_KEY" -H 'Accept: application/json' -H 'Content-Type: application/json' --data-binary "@$payload")"; then
@@ -186,6 +206,7 @@ jobs:
           fi
           if ! jq -e --arg branch "$branch" --arg candidate "$candidate_sha" --arg digest "$evidence_digest" '
             .mode == "attest" and .branch == $branch and .candidate_sha == $candidate
+            and .contract == "github-repository-governance-attestation-v4"
             and .source_provenance.artifact_digest_sha256 == $digest
             and .same_cycle_readback_proven == true
           ' "$response" >/dev/null 2>&1; then
