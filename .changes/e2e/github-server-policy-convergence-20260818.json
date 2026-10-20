@@ -71,7 +71,8 @@
       "scripts/repository-governance-objection-gate.mjs",
       "specs/**/work-map-integration.json",
       "http-generic-api/scripts/test-manifest.mjs",
-      "docs/runbooks/production-r7-trusted-ingress-and-attestor-closure-20261020.md"
+      "docs/runbooks/production-r7-trusted-ingress-and-attestor-closure-20261020.md",
+      "specs/020-platform-resource-identity-brand-governance/openapi-projection-readiness.json"
     ]
   },
   "merge_contract": {
