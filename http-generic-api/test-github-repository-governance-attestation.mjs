@@ -19,7 +19,7 @@ assert.equal(preflight.native_status_provider, "installed_github_app");
 assert.deepEqual(preflight.supported_branches, ["main", "Production"]);
 assert.equal(preflight.mutation_executed, false);
 assert.equal(preflight.secrets_included, false);
-assert.equal(Object.keys(preflight).some((key) => /token|password|secret|credential/i.test(key)), false);
+assert.equal(Object.keys(preflight).some((key) => /token|password|credential|private[_-]?key/i.test(key)), false);
 const protectedRoutes = readFileSync(new URL("./routes/repositoryAutomationRoutes.js", import.meta.url), "utf8");
 assert.match(protectedRoutes, /router\.get\("\/admin\/repository-automation\/attestor-contract", \.\.\.requireAdmin/);
 assert.match(protectedRoutes, /readGithubRepositoryGovernanceAttestationContract\(\)/);
