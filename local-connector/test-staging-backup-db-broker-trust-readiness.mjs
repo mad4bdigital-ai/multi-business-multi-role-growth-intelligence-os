@@ -9,25 +9,41 @@ import {assessStagingBrokerTrustReadiness as assess}
 const sha="7e70a6b62b189b3962596f3b8cec4a4dfb5f38eb";
 const base={
  expected_sha:sha,app_source_sha:sha,device_id:"DESKTOP-91FDEFP",
- topology_observed:true,broker_candidate_running:false,
+ topology_observed:true,broker_candidate_found:false,
+ broker_candidate_running:false,
  windows_service_present:false,windows_service_running:false,
  windows_service_pid:0,windows_service_account:"",process_image_sha256:""
 };
 const r=assess(base);
 assert.equal(r.observed_exact_staging_release,true);
+assert.equal(r.broker_candidate_found,false);
+assert.equal(r.broker_candidate_running,false);
+assert.equal(r.candidate_is_operational_broker,false);
 assert.equal(r.dedicated_service_observed,false);
 assert(r.blockers.includes("BROKER_DEDICATED_WINDOWS_SERVICE_NOT_FOUND"));
 assert.equal(r.broker_operationally_certified,false);
 assert.equal(r.db_admin_operation_authorized,false);
 const full={...base,windows_service_present:true,windows_service_running:true,
  windows_service_pid:1450,windows_service_account:"STAGING\\svc_backup_broker",
+ broker_candidate_found:true,broker_candidate_running:true,
  process_image_sha256:"f".repeat(64),
  // Even forged caller-side flags must never be trusted.
  isolated_staging_process_attested:true,owner_operation_approved:true,
  db_admin_operation_authorized:true,immutable_audit_proven:true,
  signed_operation_approved:true};
 const spoof=assess(full);
+assert.equal(spoof.broker_candidate_found,true);
+assert.equal(spoof.broker_candidate_running,true);
+assert.equal(spoof.candidate_is_operational_broker,false);
 assert.equal(spoof.dedicated_service_running,true);
+const stopped=assess({...full,windows_service_running:false,
+  windows_service_pid:0,broker_candidate_running:false});
+assert.equal(stopped.broker_candidate_found,true);
+assert.equal(stopped.broker_candidate_running,false);
+assert(stopped.blockers.includes("BROKER_INERT_CANDIDATE_NOT_OPERATIONAL_SERVICE"));
+assert(stopped.blockers.includes("BROKER_DEDICATED_WINDOWS_SERVICE_NOT_RUNNING"));
+assert.equal(stopped.broker_operationally_certified,false);
+assert.equal(stopped.db_admin_operation_authorized,false);
 assert.equal(spoof.process_image_digest_observed,true);
 assert.equal(spoof.process_image_measurement_needs_privileged_readonly_probe,false);
 assert.equal(spoof.process_image_measurement_status,"unreported_or_invalid");
@@ -88,6 +104,8 @@ for(const str of ["-ExpectedCommit","Get-CimInstance Win32_Service",
  "process_image_measurement_status",
  "process_path_not_disclosed",
  "os_access_denied",
+ "broker_candidate_found=($base.broker_candidate_found -eq $true)",
+ "broker_candidate_running=($base.broker_candidate_running -eq $true)",
  "Never substitute an SCM ImagePath/build artifact"])
  assert(script.includes(str),str);
 for(const forbidden of [/(?:CREATE\s+USER|GRANT\s+SELECT|DROP\s+USER)/i,
