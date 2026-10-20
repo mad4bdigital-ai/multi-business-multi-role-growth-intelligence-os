@@ -122,15 +122,17 @@ jobs:
 
           fetch_endpoint() {
             local name="$1" url="$2" raw="${REPORT_DIR}/${1}.raw"
+            local header_raw="${RUNNER_TEMP}/r7-response-header-${1}-${GITHUB_RUN_ID}.tmp"
             local status rc
             set +e
             status="$(curl --silent --show-error --location --retry 3 --retry-delay 2 --retry-all-errors --max-time 25 \
               --proto '=https' --tlsv1.2 --header 'accept: application/json' \
-              --output "${raw}" --write-out '%{http_code}' "${url}")"
+              --dump-header "${header_raw}" --output "${raw}" --write-out '%{http_code}' "${url}")"
             rc=$?
             set -e
             [[ "${status}" =~ ^[0-9]{3}$ ]] || status=000
             persist_bounded_json "${name}" "${url}" "${raw}" "${status}" "${rc}"
+            node .github/scripts/production-r7-header-attribution.mjs "${header_raw}" "${status}" "${REPORT_DIR}/${name}.headers.json"
           }
           fetch_endpoint health https://auth.mad4b.com/health
           fetch_endpoint version https://auth.mad4b.com/version
@@ -160,6 +162,10 @@ jobs:
           const connector = readJson('connector-agent-version');
           const protectedResource = readJson('mcp-protected-resource');
           const authorizationServer = readJson('mcp-authorization-server');
+          const httpHeaderEvidence = Object.fromEntries(
+            ['health','version','deployment-info','connector-agent-version','mcp-protected-resource','mcp-authorization-server']
+              .map(name => [name, readJson(`${name}.headers`)])
+          );
           const statuses = {
             health: readStatus('health'),
             version: readStatus('version'),
@@ -192,6 +198,8 @@ jobs:
           });
           const {
             identityHttpSuccess,
+            identityHttpBlockedBy429,
+            shaMismatchProven,
             allHttpSuccess,
             versionShaExact,
             deploymentShaExact,
@@ -213,6 +221,7 @@ jobs:
             expected_branch: 'Production',
             trigger_comment_id: process.env.EVENT_COMMENT_ID || null,
             statuses,
+            http_header_attribution: httpHeaderEvidence,
             observations: {
               health_ok: health?.ok ?? null,
               connector_agent_ok: connector?.ok ?? null,
@@ -229,6 +238,8 @@ jobs:
             },
             checks: {
               identity_http_success: identityHttpSuccess,
+              identity_http_blocked_by_429: identityHttpBlockedBy429,
+              sha_mismatch_proven: shaMismatchProven,
               all_http_success: allHttpSuccess,
               version_sha_exact: versionShaExact,
               deployment_sha_exact: deploymentShaExact,

@@ -15,10 +15,14 @@ export function resolveR7Decision({
   if (!SHA_RE.test(String(expectedSha ?? ""))) throw new Error("expectedSha must be an exact lowercase SHA");
   const identityStatuses = [statuses.health, statuses.version, statuses.deployment_info, statuses.connector_agent_version];
   const identityHttpSuccess = identityStatuses.every((status) => status === 200);
+  const identityHttpBlockedBy429 = identityStatuses.some((status) => status === 429);
   const allHttpSuccess = Object.values(statuses).every((status) => status === 200);
   const normalizedRuntimeSha = String(runtimeSha || "").toLowerCase();
   const versionShaExact = versionShas.map((value) => String(value).toLowerCase()).includes(expectedSha);
   const deploymentShaExact = normalizedRuntimeSha === expectedSha;
+  // Absent SHA is unobservable, not a mismatch.
+  const shaMismatchProven = (versionShas.length > 0 && !versionShaExact)
+    || (SHA_RE.test(normalizedRuntimeSha) && !deploymentShaExact);
   const branchExact = runtimeBranch === expectedBranch;
   const runtimeIdentityReady = runtimeEnvironment?.ok === true
     && runtimeEnvironment?.environment_key === "production"
@@ -53,6 +57,8 @@ export function resolveR7Decision({
     && oauthDiscoveryReady;
   const classification = productionCurrent
     ? "production_current"
+    : identityHttpBlockedBy429
+      ? "runtime_identity_blocked_http_429"
     : !identityHttpSuccess || !versionShaExact || !deploymentShaExact
       ? "runtime_activation_pending_or_sha_mismatch"
       : !branchExact
@@ -68,6 +74,8 @@ export function resolveR7Decision({
               : "runtime_parity_incomplete";
   return {
     identityHttpSuccess,
+    identityHttpBlockedBy429,
+    shaMismatchProven,
     allHttpSuccess,
     versionShaExact,
     deploymentShaExact,
