@@ -1,0 +1,108 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-backup-broker-candidate-readback-20261021",
+  "title": "Staging backup broker candidate presence/running separation and fail-closed handoff",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-backup-broker-candidate-readback-20261021.json",
+      "autopilot-portable-staging/Inspect-StagingBackupBrokerTrustReadiness.ps1",
+      "local-connector/staging-backup-db-broker-host-discovery.mjs",
+      "local-connector/staging-backup-db-broker-trust-readiness.mjs",
+      "local-connector/test-staging-backup-db-broker-host-discovery.mjs",
+      "local-connector/test-staging-backup-db-broker-trust-readiness.mjs",
+      "local-connector/test-staging-backup-broker-candidate-handoff.mjs",
+      "docs/runbooks/staging-backup-broker-candidate-handoff-20261021.md"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Disambiguate an inert candidate's existence from running state and preserve all operational trust and DBA fail-closed barriers.",
+      "e2e_journeys": [
+        {
+          "id": "staging-broker-inert-host-state-handoff",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Staging read-only operator",
+          "entrypoint": "Observe Staging Broker candidate on the live host and pass only candidate presence/running readback to non-authoritative trust assessor.",
+          "terminal_outcome": "Five candidate states are distinct, trust remains blocked, no real broker or database operation is created.",
+          "steps": [
+            "Read exact Staging topology with zero SQL/credentials and distinguish candidate present from running.",
+            "Forward both fields from host readback to trust readiness unchanged.",
+            "Prove missing, stopped and running inert Windows/Docker candidates all fail closed.",
+            "Check signed-operation, DBA, backup/restore and Production authority remain false."
+          ],
+          "assertions": [
+            "Stopped/Manual Windows Broker is reported found=true and running=false.",
+            "Running inert host is not operational Broker even if process SHA exists.",
+            "Independent trust keys, actual DB attestation, immutable audit and one-shot signed operation approval remain mandatory.",
+            "Neither the PowerShell wrapper nor JS assessors invoke service starts, Docker mutation, SQL, owner signer or provider."
+          ],
+          "tests": [
+            {
+              "id": "staging-broker-host-discovery-state",
+              "runner": "node",
+              "path": "local-connector/test-staging-backup-db-broker-host-discovery.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-broker-trust-readiness-state",
+              "runner": "node",
+              "path": "local-connector/test-staging-backup-db-broker-trust-readiness.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-broker-candidate-handoff",
+              "runner": "node",
+              "path": "local-connector/test-staging-backup-broker-candidate-handoff.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/staging-backup-broker-candidate-readback-20261021.json",
+            "docs/runbooks/staging-backup-broker-candidate-handoff-20261021.md",
+            "local-connector/test-staging-backup-broker-candidate-handoff.mjs"
+          ]
+        }
+      ],
+      "tests": [
+        {
+          "id": "staging-broker-host-discovery-state",
+          "runner": "node",
+          "path": "local-connector/test-staging-backup-db-broker-host-discovery.mjs",
+          "args": []
+        },
+        {
+          "id": "staging-broker-trust-readiness-state",
+          "runner": "node",
+          "path": "local-connector/test-staging-backup-db-broker-trust-readiness.mjs",
+          "args": []
+        },
+        {
+          "id": "staging-broker-candidate-handoff",
+          "runner": "node",
+          "path": "local-connector/test-staging-backup-broker-candidate-handoff.mjs",
+          "args": []
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}
