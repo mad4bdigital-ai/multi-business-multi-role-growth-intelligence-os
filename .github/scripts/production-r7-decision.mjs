@@ -55,6 +55,14 @@ export function resolveR7Decision({
     && runtimeProvenanceCanonical === true
     && runtimeIdentityReady
     && oauthDiscoveryReady;
+  // Preserve every independent, observable blocker even when the single primary
+  // classification has higher-precedence identity/readback diagnostics.
+  const blockingConditions = [
+    ...(identityHttpBlockedBy429 ? ["runtime_identity_blocked_http_429"] : []),
+    ...(!runtimeIdentityReady ? ["runtime_environment_identity_not_explicit"] : []),
+    ...(trustedIngressAttestationRequired ? ["trusted_ingress_attestation_required"] : []),
+    ...(!trustedIngressAttestationRequired && !oauthDiscoveryReady ? ["oauth_discovery_not_ready"] : []),
+  ];
   const classification = productionCurrent
     ? "production_current"
     : identityHttpBlockedBy429
@@ -87,6 +95,7 @@ export function resolveR7Decision({
     trustedIngressAttestationRequired,
     oauthDiscoveryReady,
     productionCurrent,
+    blockingConditions,
     classification,
   };
 }
