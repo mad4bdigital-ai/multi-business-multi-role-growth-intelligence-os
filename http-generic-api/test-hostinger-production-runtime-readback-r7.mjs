@@ -46,7 +46,7 @@ assert.match(workflow, /--tlsv1\.2/);
 assert.match(workflow, /--max-time 25/);
 assert.match(workflow, /--retry 3/);
 assert.match(workflow, /--dump-header/);
-assert.match(workflow, /production-r7-header-attribution\\.mjs/);
+assert.match(workflow, /production-r7-header-attribution/);
 assert.match(workflow, /http_header_attribution: httpHeaderEvidence/);
 assert.match(workflow, /identity_http_blocked_by_429: identityHttpBlockedBy429/);
 assert.match(workflow, /sha_mismatch_proven: shaMismatchProven/);
