@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { summarizeR7Headers } from '../.github/scripts/production-r7-header-attribution.mjs';
+import { resolveR7Decision } from '../.github/scripts/production-r7-decision.mjs';
 
 const currentFile = fileURLToPath(import.meta.url);
 const repositoryRoot = path.resolve(path.dirname(currentFile), '..');
@@ -43,6 +45,27 @@ assert.match(workflow, /--proto '=https'/);
 assert.match(workflow, /--tlsv1\.2/);
 assert.match(workflow, /--max-time 25/);
 assert.match(workflow, /--retry 3/);
+assert.match(workflow, /--dump-header/);
+assert.match(workflow, /production-r7-header-attribution\\.mjs/);
+assert.match(workflow, /http_header_attribution: httpHeaderEvidence/);
+assert.match(workflow, /identity_http_blocked_by_429: identityHttpBlockedBy429/);
+assert.match(workflow, /sha_mismatch_proven: shaMismatchProven/);
+const observed = summarizeR7Headers('HTTP/2 200\r\nserver: fake\r\n\r\nHTTP/2 429\r\nserver: cloudflare\r\ncf-ray: PRIVATE\r\nretry-after: 17\r\nset-cookie: COOKIESECRET\r\nx-api-key: KEYSECRET\r\ncontent-type: text/html\r\n',429);
+assert.equal(observed.server_family_observed,'cloudflare');
+assert.equal(observed.cf_ray_header_present,true);
+assert.equal(observed.retry_after_header_present,true);
+assert.equal(observed.rate_limit_origin_verified,false);
+assert.equal(observed.raw_headers_stored,false);
+for (const secret of ['PRIVATE','COOKIESECRET','KEYSECRET']) assert.ok(!JSON.stringify(observed).includes(secret));
+const blocked = resolveR7Decision({
+  expectedSha:'a'.repeat(40),
+  statuses:{health:429,version:429,deployment_info:429,connector_agent_version:429,mcp_protected_resource:503,mcp_authorization_server:429},
+  versionShas:[],runtimeSha:'',runtimeBranch:''
+});
+assert.equal(blocked.classification,'runtime_identity_blocked_http_429');
+assert.equal(blocked.shaMismatchProven,false);
+assert.equal(blocked.identityHttpBlockedBy429,true);
+assert.equal(blocked.productionCurrent,false);
 assert.match(workflow, /hostinger-production-runtime-readback-r7-\$\{\{ github\.run_id \}\}/);
 assert.match(workflow, /Publish bounded read-only runtime decision/);
 assert.match(workflow, /GITHUB_STEP_SUMMARY/);
