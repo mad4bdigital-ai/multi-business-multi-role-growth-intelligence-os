@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "f29cb8b63f6e217d826b5b9f3b2724a89e536c7c0730ed09846e2913d6d3c13e",
+    "source_digest": "6ea0d39c87877d1b63360b3d098f8b8ff5bc422861c0f4d177da612469121fdb",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -11,7 +11,7 @@
       },
       {
         "file": "frontend-operation-governance.generated.json",
-        "sha256": "114bbcf4d6a248366a6014a10be3931db9542781f31a9ee51dc85704833671d3",
+        "sha256": "d01f4bd9264d0558537f12ce6e24abbe300416c799a943af0311a81c531df68f",
         "present": true
       },
       {
@@ -1101,7 +1101,7 @@
       },
       {
         "file": "scripts/test-manifest.mjs",
-        "sha256": "0a4a3edc4f65fdc77db8867f9672dbf32379b5c8a2fbbec276e1697deec74d6c",
+        "sha256": "72d909c5e11e3fcc71e465abc89a0725c438134defd6bcf9d892711056252f11",
         "present": true
       },
       {
@@ -1132,6 +1132,11 @@
       {
         "file": "test-frontend-surface-coverage-claims.mjs",
         "sha256": "9c2e9534958a48f4de8b8c9e4972bb1643331bcc2a15f0f3c420e32930596cc5",
+        "present": true
+      },
+      {
+        "file": "test-github-repository-governance-attestation.mjs",
+        "sha256": "ce84ee53ebb05b6fd19133089092e437d64c040751616b41d9c439d76cfac6db",
         "present": true
       },
       {
@@ -1254,13 +1259,13 @@
     "governed_mutation_operation_count": 38,
     "embedded_ui_family_count": 7,
     "unresolved_surface_decision_count": 0,
-    "test_owned_family_count": 176,
-    "untested_family_count": 1,
-    "test_owned_operation_count": 1084,
-    "untested_operation_count": 1,
-    "ready_task_count": 176,
-    "blocked_task_count": 1,
-    "coverage_complete": false
+    "test_owned_family_count": 177,
+    "untested_family_count": 0,
+    "test_owned_operation_count": 1085,
+    "untested_operation_count": 0,
+    "ready_task_count": 177,
+    "blocked_task_count": 0,
+    "coverage_complete": true
   },
   "waves": [
     {
@@ -33010,7 +33015,9 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-github-repository-governance-attestation.mjs"
+          ],
           "governance": {
             "classification": "read",
             "classification_source": "http_method",
@@ -33396,11 +33403,10 @@
         "POST /admin/repository-automation/status"
       ],
       "tests": [
-        "test-frontend-surface-coverage-claims.mjs"
+        "test-frontend-surface-coverage-claims.mjs",
+        "test-github-repository-governance-attestation.mjs"
       ],
-      "untested_operations": [
-        "GET /admin/repository-automation/attestor-contract"
-      ],
+      "untested_operations": [],
       "resources": [],
       "embedded_ui": false,
       "embedded_ui_operations": [],
@@ -33427,7 +33433,8 @@
         "routes/index.js",
         "routes/repositoryAutomationRoutes.js",
         "scripts/test-manifest.mjs",
-        "test-frontend-surface-coverage-claims.mjs"
+        "test-frontend-surface-coverage-claims.mjs",
+        "test-github-repository-governance-attestation.mjs"
       ],
       "surface_decision": {
         "decision": "internal_only",
@@ -33444,7 +33451,7 @@
       },
       "operation_blockers": [],
       "risk": {
-        "score": 12,
+        "score": 10,
         "class": "critical"
       },
       "wave": "F3-admin-workspaces"
@@ -98671,6 +98678,61 @@
       ]
     },
     {
+      "task_key": "frontend.repository-automation",
+      "title": "Resolve and deliver repository automation",
+      "wave": "F3-admin-workspaces",
+      "state": "ready",
+      "blockers": [],
+      "dependencies": [
+        "F0-source-baseline",
+        "F2-admin-bff-session",
+        "mutation-preflight",
+        "operation-classification",
+        "same-cycle-readback"
+      ],
+      "source_refs": [
+        "frontend-operation-governance.generated.json",
+        "frontend-surface-policy.json",
+        "openapi-route-coverage.allowlist.json",
+        "openapi.yaml",
+        "openapi/brand-core-asset-materialization.yaml",
+        "openapi/container-authority-override-governance-smoke.yaml",
+        "openapi/container-authority.yaml",
+        "openapi/frontend-runtime-routes.generated.yaml",
+        "openapi/hostinger-storage-tenant-runtime.yaml",
+        "openapi/openapi-registry-sync.yaml",
+        "openapi/openapi.custom-gpt.staging-act-as-user-control.yaml",
+        "openapi/repository-reconciliation-lease-control.yaml",
+        "openapi/sql-cache-policy.yaml",
+        "openapi/support-ticket-admin-brand.yaml",
+        "openapi/support-ticket-admin-execution.yaml",
+        "openapi/support-ticket-admin-remaining.yaml",
+        "openapi/support-ticket-runtime-completion.yaml",
+        "openapi/support-tickets.yaml",
+        "resource-api-coverage.manifest.json",
+        "routes/index.js",
+        "routes/repositoryAutomationRoutes.js",
+        "scripts/test-manifest.mjs",
+        "test-frontend-surface-coverage-claims.mjs",
+        "test-github-repository-governance-attestation.mjs"
+      ],
+      "acceptance_gates": [
+        "source_baseline_unchanged",
+        "scope_and_auth_explicit",
+        "openapi_or_explicit_exemption",
+        "surface_policy_resolved",
+        "tests_registered",
+        "operation_classification_explicit",
+        "preflight_approval_readback_rollback"
+      ],
+      "verification": [
+        "node scripts/frontend-surface-dispatch.mjs --check",
+        "node scripts/resource-api-coverage-audit.mjs --changed",
+        "node test-frontend-surface-coverage-claims.mjs",
+        "node test-github-repository-governance-attestation.mjs"
+      ]
+    },
+    {
       "task_key": "frontend.repository-main-moved-trigger.admin",
       "title": "Resolve and deliver repository main moved trigger (admin)",
       "wave": "F3-admin-workspaces",
@@ -100334,61 +100396,6 @@
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/wordpressStagingPluginDeployRoutes.js",
-        "scripts/test-manifest.mjs",
-        "test-frontend-surface-coverage-claims.mjs"
-      ],
-      "acceptance_gates": [
-        "source_baseline_unchanged",
-        "scope_and_auth_explicit",
-        "openapi_or_explicit_exemption",
-        "surface_policy_resolved",
-        "tests_registered",
-        "operation_classification_explicit",
-        "preflight_approval_readback_rollback"
-      ],
-      "verification": [
-        "node scripts/frontend-surface-dispatch.mjs --check",
-        "node scripts/resource-api-coverage-audit.mjs --changed",
-        "node test-frontend-surface-coverage-claims.mjs"
-      ]
-    },
-    {
-      "task_key": "frontend.repository-automation",
-      "title": "Resolve and deliver repository automation",
-      "wave": "F3-admin-workspaces",
-      "state": "blocked",
-      "blockers": [
-        "test_ownership_gap"
-      ],
-      "dependencies": [
-        "F0-source-baseline",
-        "F2-admin-bff-session",
-        "mutation-preflight",
-        "operation-classification",
-        "same-cycle-readback"
-      ],
-      "source_refs": [
-        "frontend-operation-governance.generated.json",
-        "frontend-surface-policy.json",
-        "openapi-route-coverage.allowlist.json",
-        "openapi.yaml",
-        "openapi/brand-core-asset-materialization.yaml",
-        "openapi/container-authority-override-governance-smoke.yaml",
-        "openapi/container-authority.yaml",
-        "openapi/frontend-runtime-routes.generated.yaml",
-        "openapi/hostinger-storage-tenant-runtime.yaml",
-        "openapi/openapi-registry-sync.yaml",
-        "openapi/openapi.custom-gpt.staging-act-as-user-control.yaml",
-        "openapi/repository-reconciliation-lease-control.yaml",
-        "openapi/sql-cache-policy.yaml",
-        "openapi/support-ticket-admin-brand.yaml",
-        "openapi/support-ticket-admin-execution.yaml",
-        "openapi/support-ticket-admin-remaining.yaml",
-        "openapi/support-ticket-runtime-completion.yaml",
-        "openapi/support-tickets.yaml",
-        "resource-api-coverage.manifest.json",
-        "routes/index.js",
-        "routes/repositoryAutomationRoutes.js",
         "scripts/test-manifest.mjs",
         "test-frontend-surface-coverage-claims.mjs"
       ],
