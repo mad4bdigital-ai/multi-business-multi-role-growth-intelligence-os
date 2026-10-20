@@ -8,6 +8,7 @@ const SOURCE = Object.freeze({
   main: { path: ".github/workflows/derived-state-closure.yml", event: "pull_request", artifact: `derived-state-closure-${RUN_ID}` },
   Production: { path: ".github/workflows/governed-production-promotion-request-launcher.yml", event: "workflow_dispatch", artifact: `governed-production-promotion-convergence-${RUN_ID}` },
 });
+// frontend-surface-operation: GET /admin/repository-automation/attestor-contract
 // Runtime protocol preflight must expose capability without any status write.
 const preflight = readGithubRepositoryGovernanceAttestationContract();
 assert.equal(GITHUB_REPOSITORY_GOVERNANCE_ATTESTATION_VERSION, "github-repository-governance-attestation-v4");
