@@ -97,8 +97,59 @@ export function inspectWorkflowSources(directory = DEFAULT_DIRECTORY) {
   };
 }
 
+// Compare with a separately supplied, sanitized read-only snapshot returned by
+// GET /workflow-runtime/bindings. This NEVER proves live n8n health or authorizes apply.
+export function compareWorkflowBindingSnapshot(inventory, snapshot) {
+  assert(inventory?.contract === CONTRACT, "n8n_source_inventory_contract_invalid");
+  const list = Array.isArray(snapshot) ? snapshot : snapshot?.bindings;
+  assert(Array.isArray(list) && list.length <= 2000, "n8n_binding_snapshot_invalid");
+  const assessment = inventory.workflows.map((workflow) => {
+    const matches = list.filter((item) => item?.binding_key === workflow.binding_key);
+    const consistent = matches.length === 1 &&
+      matches[0].runtime_type === "n8n" &&
+      matches[0].workflow_key === workflow.workflow_key;
+    const state = matches.length === 0 ? "not_in_snapshot" :
+      matches.length > 1 ? "ambiguous_multiple_bindings" :
+      consistent ? "metadata_match_live_not_verified" : "metadata_mismatch";
+    return {
+      binding_key: workflow.binding_key,
+      workflow_key: workflow.workflow_key,
+      state,
+      snapshot_binding_status: matches.length === 1 ? String(matches[0].status || "unknown") : null,
+      requires_live_readback: true,
+      restore_approval_required: true,
+    };
+  });
+  return {
+    contract: "mad4b.n8n-workflow-binding-snapshot-check.v1",
+    snapshot_only: true,
+    live_n8n_status: "not_checked",
+    database_mutation_performed: false,
+    restore_scripts_executed: false,
+    may_apply: false,
+    secrets_included: false,
+    assessment,
+  };
+}
+
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  assert(process.argv.length === 2 || (process.argv.length === 3 && process.argv[2] === "--json"),
-    "n8n_source_inspector_read_only_no_restore_options");
-  console.log(JSON.stringify(inspectWorkflowSources(), null, 2));
+  const options = process.argv.slice(2);
+  const allowed = options.every((arg, index) => arg === "--json" ||
+    arg === "--bindings-file" ||
+    (index > 0 && options[index - 1] === "--bindings-file" && !arg.startsWith("--")));
+  assert(allowed && options.filter((arg) => arg === "--bindings-file").length <= 1,
+    "n8n_source_inspector_read_only_options_only");
+  const inventory = inspectWorkflowSources();
+  if (options.includes("--bindings-file")) {
+    const at = options.indexOf("--bindings-file");
+    assert(options[at + 1] && !options[at + 1].startsWith("--"),
+      "n8n_binding_snapshot_file_required");
+    const snapshot = path.resolve(options[at + 1]);
+    const stat = fs.lstatSync(snapshot);
+    assert(stat.isFile() && !stat.isSymbolicLink() && stat.size < 2 * 1024 * 1024,
+      "n8n_binding_snapshot_file_invalid");
+    inventory.binding_snapshot_comparison = compareWorkflowBindingSnapshot(
+      inventory, JSON.parse(fs.readFileSync(snapshot, "utf8")));
+  }
+  console.log(JSON.stringify(inventory, null, 2));
 }
