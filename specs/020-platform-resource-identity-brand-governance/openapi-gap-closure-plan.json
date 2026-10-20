@@ -6,8 +6,8 @@
   "source": {
     "baseline_ref": "main",
     "dispatch_artifact": "http-generic-api/frontend-surface-dispatch.generated.json",
-    "dispatch_source_digest": "f29cb8b63f6e217d826b5b9f3b2724a89e536c7c0730ed09846e2913d6d3c13e",
-    "dispatch_artifact_sha256": "a608a6c2934f9ec43409c637151f5b2848f4447d89b1255df6161a42e6b79220"
+    "dispatch_source_digest": "d1f87cdcc2ffd7f7b7ceae43eb76f9bf16212b5ff2bfe3b88732233e727bdd4b",
+    "dispatch_artifact_sha256": "2fa27ee58417f4001af3e053916efb00a79cc6fd0d10cf5b913a39760f172aea"
   },
   "coverage": {
     "operation_count": 1085,
@@ -17,9 +17,9 @@
     "openapi_detail_gap_count": 326,
     "unresolved_surface_decision_count": 0,
     "unresolved_operation_class_count": 0,
-    "untested_family_count": 1,
-    "untested_operation_count": 1,
-    "coverage_complete": false
+    "untested_family_count": 0,
+    "untested_operation_count": 0,
+    "coverage_complete": true
   },
   "closure_summary": {
     "blocking_contract_gaps": 0,
@@ -1835,7 +1835,7 @@
       "priority": "P2_detail_traceability",
       "detail_gap_count": 2,
       "operation_count": 7,
-      "untested_operation_count": 1,
+      "untested_operation_count": 0,
       "unresolved_operation_count": 0,
       "next_action": "add_detail_evidence_without_claiming_canonical_coverage",
       "activation_allowed": false,
@@ -1862,7 +1862,8 @@
         "routes/index.js",
         "routes/repositoryAutomationRoutes.js",
         "scripts/test-manifest.mjs",
-        "test-frontend-surface-coverage-claims.mjs"
+        "test-frontend-surface-coverage-claims.mjs",
+        "test-github-repository-governance-attestation.mjs"
       ]
     },
     {
