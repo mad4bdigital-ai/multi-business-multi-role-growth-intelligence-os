@@ -171,7 +171,16 @@ node local-connector/n8n-workflows/inspect-workflow-sources.mjs --json
 node http-generic-api/test-n8n-workflow-source-inventory.mjs
 ```
 
-The inspector discovers templates and matching restore scripts, binding keys, workflow keys, source SHA-256 values and promotion restrictions. It does not resolve secrets, connect to n8n, access platform databases, run restore scripts or update live bindings. Its `live_n8n_status` and `runtime_binding_status` fields remain `not_checked` without separate live authorization.
+The inspector discovers templates and matching restore scripts, binding keys, workflow keys, source SHA-256 values and promotion restrictions.
+
+Optionally compare a locally supplied, **sanitized** JSON snapshot from the governed bindings-list response, without executing any n8n action:
+
+```sh
+node local-connector/n8n-workflows/inspect-workflow-sources.mjs --json --bindings-file ./sanitized-bindings.json
+```
+
+The snapshot must contain an array of binding records or `{ "bindings": [...] }`. Only binding identifiers, workflow identifiers, runtime type and status are compared; URLs, tokens and credentials are never printed. Results such as `metadata_match_live_not_verified`, `metadata_mismatch` and `not_in_snapshot` are advisory evidence, **not permission to restore**. Never put a raw secrets export in the repository.
+ It does not resolve secrets, connect to n8n, access platform databases, run restore scripts or update live bindings. Its `live_n8n_status` and `runtime_binding_status` fields remain `not_checked` without separate live authorization.
 
 ### Governed restore procedure (not part of Connector installation)
 
