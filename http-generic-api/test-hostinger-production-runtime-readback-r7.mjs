@@ -66,6 +66,29 @@ assert.equal(blocked.classification,'runtime_identity_blocked_http_429');
 assert.equal(blocked.shaMismatchProven,false);
 assert.equal(blocked.identityHttpBlockedBy429,true);
 assert.equal(blocked.productionCurrent,false);
+assert.deepEqual(blocked.blockingConditions,[
+  'runtime_identity_blocked_http_429',
+  'runtime_environment_identity_not_explicit',
+  'oauth_discovery_not_ready',
+]);
+const dualBlocker = resolveR7Decision({
+  expectedSha:'a'.repeat(40),
+  statuses:{health:200,version:200,deployment_info:200,connector_agent_version:200,mcp_protected_resource:503,mcp_authorization_server:503},
+  versionShas:['a'.repeat(40)],
+  runtimeSha:'a'.repeat(40),runtimeBranch:'Production',
+  runtimeProvenanceCanonical:true,
+  runtimeEnvironment:{},
+  protectedResource:{error:{code:'TRUSTED_INGRESS_ATTESTATION_REQUIRED'}},
+  authorizationServer:{error:{code:'TRUSTED_INGRESS_ATTESTATION_REQUIRED'}},
+});
+assert.equal(dualBlocker.classification,'runtime_environment_identity_not_explicit');
+assert.deepEqual(dualBlocker.blockingConditions,[
+  'runtime_environment_identity_not_explicit',
+  'trusted_ingress_attestation_required',
+]);
+assert.equal(dualBlocker.shaMismatchProven,false);
+assert.equal(dualBlocker.productionCurrent,false);
+assert.match(workflow,/blocking_conditions: decision\.blockingConditions/);
 assert.match(workflow, /hostinger-production-runtime-readback-r7-\$\{\{ github\.run_id \}\}/);
 assert.match(workflow, /Publish bounded read-only runtime decision/);
 assert.match(workflow, /GITHUB_STEP_SUMMARY/);
