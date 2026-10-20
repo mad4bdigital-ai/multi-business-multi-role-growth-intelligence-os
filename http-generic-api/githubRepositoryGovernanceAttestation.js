@@ -2,11 +2,25 @@ import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { getGitHubAppInstallationToken, resolveGitHubAppConfig } from "./githubAppAuth.js";
 
-export const GITHUB_REPOSITORY_GOVERNANCE_ATTESTATION_VERSION = "github-repository-governance-attestation-v3";
+export const GITHUB_REPOSITORY_GOVERNANCE_ATTESTATION_VERSION = "github-repository-governance-attestation-v4";
 export const GOVERNANCE_ATTESTATION_CONTEXTS = Object.freeze({
   main: Object.freeze({ context: "Derived State Closure", confirm: "ATTEST_DERIVED_STATE_CLOSURE", executed_relation: "executed_is_merge_candidate" }),
   Production: Object.freeze({ context: "Governed Production Promotion", confirm: "ATTEST_GOVERNED_PRODUCTION_PROMOTION", executed_relation: "executed_source_tree_equals_merge_candidate_tree" }),
 });
+// An authenticated read-only preflight, called before any GitHub App status POST.
+// This distinguishes the exact-HEAD capable protocol from legacy candidate-only v3.
+export function readGithubRepositoryGovernanceAttestationContract() {
+  return {
+    contract: GITHUB_REPOSITORY_GOVERNANCE_ATTESTATION_VERSION,
+    mode: "preflight",
+    supported_branches: Object.keys(GOVERNANCE_ATTESTATION_CONTEXTS),
+    candidate_same_cycle_readback_supported: true,
+    main_exact_head_status_supported: true,
+    native_status_provider: "installed_github_app",
+    mutation_executed: false,
+    secrets_included: false,
+  };
+}
 const CONSTITUTION_URL = new URL("./config/repository-governance-constitution.json", import.meta.url);
 const CONSTITUTION_CONTRACT = "mad4b.repository-governance-constitution.v1";
 const SHA_RE = /^[0-9a-f]{40}$/i;
