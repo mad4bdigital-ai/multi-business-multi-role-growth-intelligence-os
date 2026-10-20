@@ -72,7 +72,8 @@
       "specs/**/work-map-integration.json",
       "http-generic-api/scripts/test-manifest.mjs",
       "docs/runbooks/production-r7-trusted-ingress-and-attestor-closure-20261020.md",
-      "specs/020-platform-resource-identity-brand-governance/openapi-projection-readiness.json"
+      "specs/020-platform-resource-identity-brand-governance/openapi-projection-readiness.json",
+      "specs/020-platform-resource-identity-brand-governance/e2e-phases.json"
     ]
   },
   "merge_contract": {
