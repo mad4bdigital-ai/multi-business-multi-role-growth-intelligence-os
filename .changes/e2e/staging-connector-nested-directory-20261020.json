@@ -21,7 +21,9 @@
       ".github/governance/test-authority-registry.json",
       "local-connector/n8n-workflows/inspect-workflow-sources.mjs",
       "http-generic-api/test-n8n-workflow-source-inventory.mjs",
-      "docs/n8n-workflow-runtime.md"
+      "docs/n8n-workflow-runtime.md",
+      "http-generic-api/config/repository-governance-constitution.json",
+      ".github/derived-state-governance.json"
     ]
   },
   "environment_impact": {
@@ -70,7 +72,8 @@
             "No production, DB, secrets, authority bypass, or live Staging deployment occurs as part of CI.",
             "A valid newly declared release file extends the generated manifest automatically, and content tampering fails SHA-256 manifest verification.",
             "New BuildKit and release-growth tests are registered under the existing Connector test authority, with no new waiver or bypass.",
-            "Historical n8n backup templates and paired restore scripts remain discoverable via a read-only source inventory, independent of Connector image packaging and without restoring or changing live n8n workflows."
+            "Historical n8n backup templates and paired restore scripts remain discoverable via a read-only source inventory, independent of Connector image packaging and without restoring or changing live n8n workflows.",
+            "The changed critical E2E declaration is registered in both Constitution.control_plane_paths and derived-state convergence automation_control_paths, preserving non-waiverable manual merge governance."
           ],
           "tests": [
             {
@@ -124,7 +127,9 @@
             ".github/governance/test-authority-registry.json",
             "local-connector/n8n-workflows/inspect-workflow-sources.mjs",
             "http-generic-api/test-n8n-workflow-source-inventory.mjs",
-            "docs/n8n-workflow-runtime.md"
+            "docs/n8n-workflow-runtime.md",
+            "http-generic-api/config/repository-governance-constitution.json",
+            ".github/derived-state-governance.json"
           ]
         }
       ]
