@@ -32,10 +32,15 @@ COPY http-generic-api/ ./
 # list/read/search resolve repository-root references without an operator mount.
 # The build-context proof above requires ignored/local secrets to be absent.
 COPY . /app/repo-inspect/
+# Connector files are NOT copied from the source directory. They are derived
+# from the exact Git archive's FILES registry into a deterministic release.
+COPY .staging-connector-release/local-connector/ /app/repo-inspect/local-connector/
+COPY .staging-connector-release/manifest.json /app/connector-release-manifest.json
 RUN rm -f /app/repo-inspect/.staging-build-context.json
 # Verify every Connector Agent manifest asset in the final exact-commit image.
 # Fail closed before a Staging image can be deployed with HTTP 500 routes.
-RUN node scripts/verify-staging-connector-assets.mjs --image
+RUN node scripts/verify-staging-connector-assets.mjs --image \
+    && rm -rf /app/repo-inspect/.staging-connector-release
 
 COPY edge/activation-gateway/generated/route-policy.staging.json ./staging-route-policy.json
 COPY canonical-manifest.mjs /canonical-manifest.mjs
