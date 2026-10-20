@@ -423,6 +423,32 @@ assert.match(runtimePersistenceReadiness, /runtime_persistence_cli_resource_clea
 assert.match(runtimePersistenceReadiness, /cli_resource_cleanup/);
 assert.match(runtimePersistenceReadiness, /runRuntimePersistenceOperationalReadinessCli\(\)/);
 
+// Remote Runtime catalog + Hostinger allowlist discovery use the ordinary
+// Staging runtime DB principal, never the Control Plane writer or Production DB.
+// Regression: both registry reads must be explicitly SELECT-only, with no
+// broad schema grants and no changes to Production/bootstrap role policies.
+for (const table of ["remote_runtime_targets", "remote_runtime_command_allowlists"]) {
+  assert.equal(STAGING_ROLE_GRANT_POLICIES.runtime.required_tables.includes(table), true,
+    `Staging catalog must include ${table}`);
+  assert.deepEqual(STAGING_ROLE_GRANT_POLICIES.runtime.required_operations_by_table[table], ["SELECT"],
+    `Staging catalog must keep ${table} SELECT-only`);
+  assert.equal(BOOTSTRAP_ROLE_GRANT_POLICIES.runtime.required_tables.includes(table), false,
+    `Production/bootstrap must not inherit ${table}`);
+  assert.deepEqual(runtimeGrantPlanOutput.grants.filter((entry) => entry.table === table),
+    [{ table, required: true, operations: ["SELECT"] }],
+    `Staging grant-plan must contain one required SELECT-only ${table}`);
+}
+const remoteRuntimeSource = read("http-generic-api/remoteRuntime.js");
+const hostingerDiscoverySource = read("http-generic-api/hostingerRecoveryCapabilityDiscovery.js");
+assert.match(remoteRuntimeSource, /FROM remote_runtime_targets/);
+assert.match(remoteRuntimeSource, /FROM remote_runtime_command_allowlists/);
+assert.match(hostingerDiscoverySource, /FROM remote_runtime_targets/);
+assert.match(hostingerDiscoverySource, /FROM remote_runtime_command_allowlists/);
+assert.equal(runtimeGrantPlanOutput.safety.local_staging_only, true);
+assert.equal(runtimeGrantPlanOutput.safety.broad_schema_grants_allowed, false);
+assert.equal(runtimeGrantPlanOutput.safety.grant_option_allowed, false);
+assert.equal(runtimeGrantPlanOutput.safety.production_accessed, false);
+
 console.log(JSON.stringify({
   ok: true,
   contract: "mad4b.staging-database-readiness-repair.v1",
@@ -431,6 +457,7 @@ console.log(JSON.stringify({
   staging_sql_cache_policy_select_only: true,
   staging_runtime_config_select_only: true,
   staging_operational_read_surfaces_select_only: true,
+  staging_remote_runtime_discovery_select_only: true,
   staging_optional_surface_absence_non_blocking: true,
   required_surface_preflight_before_revoke: true,
   repaired_restart_state_resumable: true,
