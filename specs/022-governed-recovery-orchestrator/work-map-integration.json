@@ -3,8 +3,8 @@
   "feature_key": "022-governed-recovery-orchestrator",
   "review_state": "ready_for_implementation",
   "registry": {
-    "fingerprint": "7a8d885d7f302eab57931531ba78e9887fba5f7159254e4eb85d1e072e42f198",
-    "index_source_hash": "990c4cf31bb2049ef97c443090422ea217d3182dfe2bafb134dd7ec5bc59c726",
+    "fingerprint": "c93b72cfdabbf53090cfe7309fdecf241fe94f99efb48b5f84e453fae6d4021a",
+    "index_source_hash": "09ae91c0f96bf9edb78bd3ff9b5bc7e5b750761620ff6e3baf3e6e0442932d9f",
     "coverage_source_hash": "7d1dfc01bda5c591fad27c53913acda3273af71a1f106a16bbab30e7aeed9f47",
     "map_count": 19,
     "domain_count": 16,
