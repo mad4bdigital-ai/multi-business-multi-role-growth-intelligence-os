@@ -55,7 +55,10 @@ $e=[ordered]@{
   app_source_sha=if($base.topology_observed -eq $true){$ExpectedCommit}else{''}
   device_id=$env:COMPUTERNAME
   topology_observed=($base.topology_observed -eq $true)
-  broker_candidate_running=($base.broker_candidate_found -eq $true)
+  # Presence and running state are different. The Windows SCM host remains
+  # inert even when running; discovery must not mint operational authority.
+  broker_candidate_found=($base.broker_candidate_found -eq $true)
+  broker_candidate_running=($base.broker_candidate_running -eq $true)
   windows_service_present=($null -ne $service)
   windows_service_running=($null -ne $service -and $service.State -eq 'Running')
   windows_service_pid=if($null -ne $service){[int]$service.ProcessId}else{0}
