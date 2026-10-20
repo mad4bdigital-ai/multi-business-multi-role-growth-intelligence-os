@@ -10,8 +10,8 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 
 - Source file: `http-generic-api/openapi.yaml`
 - OpenAPI version: `3.1.0`
-- Paths: 643
-- Operations: 592
+- Paths: 657
+- Operations: 606
 - Top-level tags: 38
 
 ## Virtual Admin Tool Contract Notes
@@ -20,23 +20,23 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 
 ## Top Operation Tags
 
+- `platform-plugins`: 52
 - `connected-systems`: 51
-- `platform-plugins`: 51
 - `platform-intelligence`: 36
 - `resource-api`: 34
-- `admin-control`: 32
+- `admin-control`: 33
 - `activation`: 31
 - `customers`: 24
 - `security`: 22
 - `connector-proxy`: 18
 - `identity`: 18
+- `local-manager`: 16
 - `observability`: 16
 - `growth-dashboard`: 15
 - `platform-agent-governance`: 15
 - `tenants`: 15
-- `local-manager`: 14
 - `planner`: 14
-- `admin-operations`: 12
+- `admin-operations`: 13
 - `logic`: 12
 - `platform-evolution`: 12
 - `admin-internal`: 11
@@ -261,6 +261,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 
 - `http-generic-api/test-connector-schema-drift-compat.mjs`
 - `http-generic-api/test-custom-gpt-schemas.mjs`
+- `http-generic-api/test-database-schema-recovery-triage.mjs`
 - `http-generic-api/test-endpoint-schema-resolver.mjs`
 - `http-generic-api/test-execution-preparation-schema-overlay.mjs`
 - `http-generic-api/test-expand-schema-logic.mjs`
@@ -336,10 +337,9 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `http-generic-api/test-spec011-goal-filtered-operational-intelligence-schema.mjs`
 - `http-generic-api/test-spec011-t141-readiness-canary-schema.mjs`
 - `http-generic-api/test-staging-independent-schema-contract.mjs`
+- `http-generic-api/test-staging-mcp-oauth-openapi-gate.mjs`
 - `http-generic-api/test-staging-openapi-mcp-db-boundary.mjs`
-- `http-generic-api/test-staging-schema-bundle-builder.mjs`
-- `http-generic-api/test-staging-schema-governance-powershell-revision-contract.mjs`
-- ...and 18 more
+- ...and 20 more
 
 ## Maintenance Contract
 

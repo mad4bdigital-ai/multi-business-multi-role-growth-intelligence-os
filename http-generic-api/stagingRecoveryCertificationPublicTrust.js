@@ -6,6 +6,7 @@ export const STAGING_RECOVERY_SIGNED_RECORD_CONTRACT = "mad4b.staging-recovery-s
 
 const SHA40 = /^[a-f0-9]{40}$/u;
 const SHA256 = /^[a-f0-9]{64}$/u;
+const IMAGE_DIGEST_RE = /^sha256:[0-9a-f]{64}$/u;
 const SAFE_ID = /^[A-Za-z0-9._:-]{8,160}$/u;
 
 function fail(code, message) {
@@ -14,6 +15,11 @@ function fail(code, message) {
 
 function fingerprint(key) {
   return createHash("sha256").update(key.export({ format: "der", type: "spki" })).digest("hex");
+}
+
+function normalizePem(value) {
+  const raw = String(value || "").trim();
+  return raw.includes("\\n") ? raw.replaceAll("\\n", "\n") : raw;
 }
 
 function normalizePublicKey(value, code) {
@@ -25,7 +31,7 @@ function normalizePublicKey(value, code) {
 }
 
 export function loadStagingRecoveryCertificationPublicTrust(env = process.env) {
-  const publicKeyPem = String(env.RECOVERY_STAGING_CERTIFICATION_PUBLIC_KEY || "").trim();
+  const publicKeyPem = normalizePem(env.RECOVERY_STAGING_CERTIFICATION_PUBLIC_KEY);
   const keyId = String(env.RECOVERY_STAGING_CERTIFICATION_KEY_ID || "").trim();
   const issuer = String(env.RECOVERY_STAGING_CERTIFICATION_ISSUER || "").trim();
   const configured = [publicKeyPem, keyId, issuer].filter(Boolean).length;
@@ -35,12 +41,37 @@ export function loadStagingRecoveryCertificationPublicTrust(env = process.env) {
   if (!issuer) fail("RECOVERY_CERTIFICATION_ISSUER_INVALID", "Recovery certification issuer is invalid.");
 
   const publicKey = normalizePublicKey(publicKeyPem, "RECOVERY_CERTIFICATION_PUBLIC_KEY_INVALID");
-  const ingressPem = String(env.REMOTE_MCP_TRUSTED_INGRESS_PUBLIC_KEY || "").trim();
-  if (!ingressPem) {
-    fail("RECOVERY_CERTIFICATION_INGRESS_TRUST_UNAVAILABLE", "Activation Gateway ingress public trust is required before Phase B certification trust can be enabled.");
+  const recoveryFingerprint = fingerprint(publicKey);
+  const ingressPem = normalizePem(env.REMOTE_MCP_TRUSTED_INGRESS_PUBLIC_KEY);
+  const configuredIngressFingerprint = String(
+    env.ACTIVATION_GATEWAY_INGRESS_PUBLIC_KEY_SHA256 || "",
+  ).trim().toLowerCase();
+  let ingressFingerprint = "";
+  let ingressTrustSource = null;
+
+  if (ingressPem) {
+    const ingressKey = normalizePublicKey(ingressPem, "RECOVERY_CERTIFICATION_INGRESS_KEY_INVALID");
+    ingressFingerprint = fingerprint(ingressKey);
+    ingressTrustSource = "public_key";
+    if (configuredIngressFingerprint
+      && (!SHA256.test(configuredIngressFingerprint)
+        || configuredIngressFingerprint !== ingressFingerprint)) {
+      fail(
+        "RECOVERY_CERTIFICATION_INGRESS_TRUST_MISMATCH",
+        "Activation Gateway ingress public key and governed fingerprint disagree.",
+      );
+    }
+  } else if (SHA256.test(configuredIngressFingerprint)) {
+    ingressFingerprint = configuredIngressFingerprint;
+    ingressTrustSource = "governed_fingerprint";
+  } else {
+    fail(
+      "RECOVERY_CERTIFICATION_INGRESS_TRUST_UNAVAILABLE",
+      "Activation Gateway ingress public trust or governed fingerprint is required before Phase B certification trust can be enabled.",
+    );
   }
-  const ingressKey = normalizePublicKey(ingressPem, "RECOVERY_CERTIFICATION_INGRESS_KEY_INVALID");
-  if (fingerprint(ingressKey) === fingerprint(publicKey)) {
+
+  if (ingressFingerprint === recoveryFingerprint) {
     fail("RECOVERY_CERTIFICATION_KEY_REUSE_FORBIDDEN", "Recovery certification public trust must be distinct from Activation Gateway ingress trust.");
   }
 
@@ -49,8 +80,9 @@ export function loadStagingRecoveryCertificationPublicTrust(env = process.env) {
     publicKey: publicKeyPem,
     keyId,
     issuer,
-    public_key_sha256: fingerprint(publicKey),
-    activation_gateway_ingress_public_key_sha256: fingerprint(ingressKey),
+    public_key_sha256: recoveryFingerprint,
+    activation_gateway_ingress_public_key_sha256: ingressFingerprint,
+    activation_gateway_ingress_trust_source: ingressTrustSource,
     separate_from_activation_gateway_ingress: true,
     separation_verified: true,
     secrets_included: false,
@@ -83,6 +115,12 @@ export function verifyStagingRecoverySignedCertificationRecord(record, {
     fail("RECOVERY_CERTIFICATION_FRESHNESS_INVALID", "Recovery certification is stale or future-dated.");
   }
   if (!SHA256.test(payload.evidence_envelope_sha256 || "") || !SHA256.test(payload.verification_report_sha256 || "")) fail("RECOVERY_CERTIFICATION_BINDING_HASH_INVALID", "Recovery certification binding hashes are invalid.");
+  const artifactIntegrity = payload.stagingCertification?.artifact_integrity;
+  if (artifactIntegrity?.valid !== true
+    || !SHA256.test(String(artifactIntegrity?.manifest_sha256 || ""))
+    || !IMAGE_DIGEST_RE.test(String(artifactIntegrity?.app_image_digest || ""))) {
+    fail("RECOVERY_CERTIFICATION_ARTIFACT_INTEGRITY_INVALID", "Signed Recovery certification requires exact manifest and Staging app image digests.");
+  }
   if (payload.production_live_enabled !== false || payload.production_mutation_performed !== false || payload.local_connector_production_authority !== false) fail("RECOVERY_CERTIFICATION_PRODUCTION_BOUNDARY_INVALID", "Recovery certification attempted to cross the Production boundary.");
   if (!/^[A-Za-z0-9_-]{86}$/u.test(record.signature || "")) fail("RECOVERY_CERTIFICATION_SIGNATURE_INVALID", "Recovery certification signature encoding is invalid.");
 

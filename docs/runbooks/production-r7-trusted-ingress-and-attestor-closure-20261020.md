@@ -1,0 +1,28 @@
+# Production R7 / Trusted Ingress / GitHub Attestor — governed closure
+
+**Evidence date:** 2026-10-20. **This document authorizes no live write.** The owner must independently approve a specific release, provider configuration, ruleset mutation and rollback plan.
+
+## 1. Exact read-only baseline
+
+- Source `main@904863efafed154955eab7a15fa6cb4ac1e0ceb8`; protected `Production@e0c07f6fba431650b87d7a6f3dde76a364be6223`.
+- [R7 run 39399283717](https://github.com/mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os/actions/runs/39399283717): four identity GET endpoints returned 200, canonical Production branch/SHA/provenance matched, both OAuth discovery endpoints returned 503 `TRUSTED_INGRESS_ATTESTATION_REQUIRED`.
+- `/deployment-info.runtime_environment` is absent on the current Production release but present in the merged main source. **Do not infer a SHA mismatch** or claim current Production readiness.
+- Trusted-ingress readback: `attestation_mode=legacy_assertion`, `proxy_headers_enabled=false`, `ingress_attested=false`, `signed_attestation_configured=false`, `canonical_host_policy.host_count=0`, `failure_mode=fail_closed`.
+- [GitHub policy readback 39398047781](https://github.com/mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os/actions/runs/39398047781) reports policy drift. [Finalizer 39398698045](https://github.com/mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os/actions/runs/39398698045) rejected `required_head_status_identity_missing`.
+
+## 2. Required order (do not bypass)
+
+1. Freeze exact ref IDs and capture protected Ruleset details, live App ID, required check contexts/sources and an independently trusted rollback point. Keep `main` and `Production` authorizations separate.
+2. **Attestor:** authenticate a bounded read-only `GET /admin/repository-automation/attestor-contract` against the exact Finalizer backend with the protected Production Environment credential. Require `github-repository-governance-attestation-v4`, `mode=preflight`, `native_status_provider=installed_github_app`, `candidate_same_cycle_readback_supported=true`, `main_exact_head_status_supported=true`, `mutation_executed=false`. Reject legacy/missing capability before any attestation POST. In a separately approved non-Production test, verify distinct source-HEAD and merge-candidate status identity with exact App creator/readback.
+3. **Ruleset:** prepare a narrowly scoped `plan + live ruleset ID + source and desired policy fingerprints` for Production; ensure the trusted App-bound required status context is `Governed Production Promotion`, source pinning, PR-only promotion, no bypass, no force/direct push, correct review controls. Read-only 403 from classic protection is lack of visibility, not evidence of unprotected branch. A ruleset apply requires separate admin authority and independent readback.
+4. **Release:** plan the reviewed, pinned Production update that includes `/deployment-info.runtime_environment` and v4 attestor support; require Staging acceptance, exact source-build artifact parity, backups, independent isolated restore test and an explicit rollback checkpoint. Do not directly update the Production branch or Hostinger from this diagnostic.
+5. **Ingress:** configure the actual trusted gateway and origin as one verified boundary. Both code and gateway must support `REMOTE_MCP_TRUSTED_INGRESS_MODE=signature`, `REMOTE_MCP_TRUST_PROXY_HOST_HEADERS`, `REMOTE_MCP_TRUSTED_INGRESS_STRIP_CALLER_HEADERS`, `REMOTE_MCP_TRUSTED_INGRESS_PUBLIC_KEY`, `REMOTE_MCP_TRUSTED_INGRESS_CANONICAL_HOSTS`, `REMOTE_MCP_TRUSTED_INGRESS_AUDIENCE`, `REMOTE_MCP_TRUSTED_INGRESS_ISSUER`, and `REMOTE_MCP_EXPECTED_DEPLOYMENT_SHA` as appropriate to the reviewed gateway implementation. The gateway must strip untrusted caller-supplied attestations, sign bounded host/issuer/audience/expiry/source-SHA claims, and enforce distinct replay/expiry validation. **Never place private signing keys or raw credentials in Git, PR text, actions artifacts, chat or readback logs.** Avoid enabling proxy-header trust unless the ingress boundary and rejection of direct-origin bypass have been independently tested.
+6. **Acceptance:** re-run R7 through the owner-bound, public GET-only workflow. Require all six endpoints HTTP 200, exact runtime SHA, branch, canonical provenance, explicit `runtime_environment`, both OAuth discovery documents and `trusted_ingress.ready=true`. Verify malformed signatures, replay attempts and direct-origin headers are rejected on an isolated approved environment. Compare the complete release checklist and roll back on any mismatch.
+
+## 3. Readiness signals are independent
+
+The R7 report must include both `runtime_environment_identity_not_explicit` and `trusted_ingress_attestation_required` if both conditions are observed. A primary classification is not a waiver for other blockers. Header families (`server`, `cf-ray`, `retry-after`) are hints only: Cloudflare/Hostinger/application attribution requires independently trusted layer logs.
+
+## 4. Authority
+
+This source PR supports **tests and diagnostics only**. No Secrets or Environment-variable changes, Live App attestation POST, GitHub administrative Ruleset mutation, Production release/promotion/restart/migration, SSH, Hostinger or Cloudflare changes, and no force-push or Admin bypass are permitted as part of this PR. Issues [#8498](https://github.com/mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os/issues/8498), [#8500](https://github.com/mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os/issues/8500), [#8579](https://github.com/mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os/issues/8579) track independent live closure.

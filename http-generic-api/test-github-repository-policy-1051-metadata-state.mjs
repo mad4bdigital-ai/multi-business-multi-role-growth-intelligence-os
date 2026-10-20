@@ -213,6 +213,113 @@ assert.equal(RECORD_CONFIRM, "RECORD_1051_GITHUB_REPOSITORY_POLICY_LIVE_APPLY_AU
 assert.equal(RECONCILE_CONFIRM, "RECONCILE_1051_GITHUB_REPOSITORY_POLICY_RECORD_ONLY_LEDGER");
 assert.equal(RECONCILED_APPLY_CONFIRM, "APPLY_1051_GITHUB_REPOSITORY_POLICY_AFTER_RECORD_ONLY_RECONCILIATION");
 
+// Environment scope selects the Production credential; it is not Apply authority.
+// Preserve the issue-comment confirmation gates and workflow ordering for all
+// five Migration 1051 jobs, including the two mutation-capable Apply paths.
+const jobsStart = workflow.indexOf("\njobs:\n");
+assert.ok(jobsStart >= 0, "Migration 1051 workflow jobs section required");
+const jobSection = workflow.slice(jobsStart + "\njobs:\n".length);
+const migrationJobs = [...jobSection.matchAll(/^  ([a-z][a-z0-9_]*):\n/gm)];
+const expectedMigrationJobs = [
+  "readiness", "reconcile_record_only", "apply_after_record_only_reconcile", "apply", "verify",
+];
+assert.deepEqual(migrationJobs.map((match) => match[1]), expectedMigrationJobs);
+const blocks = new Map(migrationJobs.map((match, index) => [
+  match[1],
+  jobSection.slice(match.index, migrationJobs[index + 1]?.index ?? jobSection.length),
+]));
+const jobsContract = {
+  readiness: {
+    phase: "readiness",
+    confirm: "AUTHORIZE_GOVERNED_MIGRATION_1051_GITHUB_REPOSITORY_POLICY_LIVE_APPLY_AUTHORITY",
+    steps: [
+      "Capture Migration 225 envelope dependency diagnostic before authorization",
+      "Execute Production-bound authorization and dry-run",
+    ],
+  },
+  reconcile_record_only: {
+    phase: "readiness",
+    confirm: "RECONCILE_1051_GITHUB_REPOSITORY_POLICY_RECORD_ONLY_LEDGER",
+    steps: [
+      "Capture Migration 225 and Governance writer readiness before orphan-ledger reconciliation",
+      "Create checksum-bound authorization and dry-run before record-only reconciliation",
+      "Record exact Migration 1051 ledger without replaying SQL",
+    ],
+  },
+  apply_after_record_only_reconcile: {
+    phase: "apply",
+    confirm: "APPLY_1051_GITHUB_REPOSITORY_POLICY_AFTER_RECORD_ONLY_RECONCILIATION",
+    steps: [
+      "Recheck Migration 225 and Governance writer readiness before reconciled Apply",
+      "Verify exact record-only ledger before reconciled Apply",
+      "Execute metadata Apply only after certified record-only reconciliation",
+    ],
+  },
+  apply: {
+    phase: "apply",
+    confirm: "APPLY_1051_GITHUB_REPOSITORY_POLICY_LIVE_APPLY_AUTHORITY",
+    steps: [
+      "Enforce Migration 1051 pre-Apply metadata replay guard",
+      "Execute exactly-once metadata Apply and same-cycle certification",
+    ],
+  },
+  verify: {
+    phase: "verify",
+    confirm: "VERIFY_GOVERNED_MIGRATION_1051_GITHUB_REPOSITORY_POLICY_LIVE_APPLY_AUTHORITY",
+    steps: [
+      "Capture bounded Migration 1051 metadata diagnostic without Apply",
+      "Verify exact ledger and authority metadata without Apply",
+    ],
+  },
+};
+function assertGovernedMigrationJob(name, block, contract) {
+  assert.equal(typeof block, "string", name + ": required job missing");
+  assert.equal((block.match(/^    environment:\n      name: Production\n      deployment: false$/gm) || []).length, 1,
+    name + ": exactly one non-deploying Production Environment binding required");
+  const issueCommentGuard = [
+    "    if: >-",
+    "      github.event.issue.number == 6625 &&",
+    "      !github.event.issue.pull_request &&",
+    "      github.event.comment.body == '" + contract.confirm + "' &&",
+    '      contains(fromJSON(\'["OWNER","MEMBER","COLLABORATOR"]\'), github.event.comment.author_association)',
+  ].join("\n");
+  assert.ok(block.includes(issueCommentGuard),
+    name + ": issue, exact confirmation and author-association guard required");
+  assert.ok(block.includes("      ROLLOUT_PHASE: " + contract.phase + "\n"),
+    name + ": expected rollout phase missing");
+  assert.match(block, /^      RUNTIME_BASE_URL: https:\/\/auth\.mad4b\.com$/m,
+    name + ": pinned Production endpoint required");
+  assert.match(block, /^      BACKEND_API_KEY: \$\{\{ secrets\.BACKEND_API_KEY \}\}$/m,
+    name + ": environment-scoped backend credential required");
+  assert.match(block, /^          persist-credentials: false$/m,
+    name + ": checkout token persistence must stay disabled");
+  let lastPosition = -1;
+  for (const step of contract.steps) {
+    const position = block.indexOf("- name: " + step);
+    assert.ok(position > lastPosition,
+      name + ": required security/readback/Apply step missing or out of order: " + step);
+    lastPosition = position;
+  }
+}
+for (const [name, contract] of Object.entries(jobsContract)) {
+  assertGovernedMigrationJob(name, blocks.get(name), contract);
+}
+// Fail-closed regression cases: removing scope, broadening the issue trigger,
+// or losing the pre-Apply replay guard must fail independently.
+const applyBlock = blocks.get("apply");
+assert.throws(() => assertGovernedMigrationJob("apply",
+  applyBlock.replace("    environment:\n      name: Production\n      deployment: false\n", ""),
+  jobsContract.apply), /Production Environment binding required/);
+assert.throws(() => assertGovernedMigrationJob("apply",
+  applyBlock.replace("name: Production", "name: staging"),
+  jobsContract.apply), /Production Environment binding required/);
+assert.throws(() => assertGovernedMigrationJob("apply",
+  applyBlock.replace("github.event.issue.number == 6625", "github.event.issue.number == 6626"),
+  jobsContract.apply), /issue, exact confirmation/);
+assert.throws(() => assertGovernedMigrationJob("apply",
+  applyBlock.replace("Enforce Migration 1051 pre-Apply metadata replay guard", "Pre-Apply guard removed"),
+  jobsContract.apply), /required security\/readback\/Apply step/);
+
 assert.match(workflow, /RECONCILE_1051_GITHUB_REPOSITORY_POLICY_RECORD_ONLY_LEDGER/);
 assert.match(workflow, /APPLY_1051_GITHUB_REPOSITORY_POLICY_AFTER_RECORD_ONLY_RECONCILIATION/);
 assert.match(workflow, /ROLLOUT_PHASE: record_only/);

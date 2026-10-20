@@ -12,7 +12,9 @@
     "scripts/test-*.mjs",
     "scripts/test-*.js",
     "tests/**/*.mjs",
-    "tests/**/*.js"
+    "tests/**/*.js",
+    "reference-seeds/context-authority-business-profile-v1/runtime/*.test.mjs",
+    "reference-seeds/context-authority-business-profile-v1/tools/test_*.py"
   ],
   "invariant_authorities": [
     {
@@ -44,9 +46,10 @@
     {
       "id": "admin_tool_descriptor_binding_contract",
       "test_paths": [
-        "http-generic-api/test-admin-tool-descriptor-binding.mjs",
+        "http-generic-api/openapi.yaml",
         "http-generic-api/routes/gptToolsRoutes.js",
-        "http-generic-api/openapi.yaml"
+        "http-generic-api/test-admin-tool-descriptor-binding.mjs",
+        "http-generic-api/test-platform-tool-dispatch-binding-integrity.mjs"
       ]
     },
     {
@@ -55,8 +58,10 @@
         ".github/ops/github-main-review-policy-live-activation.mjs",
         "http-generic-api/scripts/github-review-policy-target.mjs",
         "http-generic-api/scripts/test-github-review-policy-target.mjs",
+        "http-generic-api/test-github-repository-governance-attestation.mjs",
         "http-generic-api/test-github-repository-policy-1050-governed-rollout.mjs",
         "http-generic-api/test-github-repository-policy-1051-metadata-state.mjs",
+        "http-generic-api/test-github-repository-policy-controller.mjs",
         "http-generic-api/test-github-repository-policy-live-activation-contract.mjs"
       ]
     },
@@ -64,9 +69,28 @@
       "id": "centralized_user_jwt_authentication",
       "test_paths": [
         "http-generic-api/scripts/user-jwt-auth-governance.mjs",
-        "http-generic-api/userJwtAuth.js",
+        "http-generic-api/test-activation-awareness-user-jwt-boundary.mjs",
+        "http-generic-api/test-runtime-guards.mjs",
         "http-generic-api/test-user-jwt-auth.mjs",
-        "http-generic-api/test-activation-awareness-user-jwt-boundary.mjs"
+        "http-generic-api/userJwtAuth.js"
+      ]
+    },
+    {
+      "id": "credential_resolution_secret_store_fail_closed",
+      "test_paths": [
+        "http-generic-api/test-credential-intake-platform-secret-promotion.mjs",
+        "http-generic-api/test-credential-resolution-authority.mjs",
+        "http-generic-api/test-credential-resolution-plan.mjs",
+        "http-generic-api/test-credential-resolver.mjs",
+        "http-generic-api/test-tenant-gpt-oauth-secret-ref.mjs"
+      ]
+    },
+    {
+      "id": "staging_environment_secret_generation",
+      "test_paths": [
+        "http-generic-api/scripts/staging-dual-mode-one-click-contract.mjs",
+        "http-generic-api/test-staging-environment-secret-governance.mjs",
+        "http-generic-api/test-staging-startup-mutation-policy.mjs"
       ]
     },
     {
@@ -108,21 +132,25 @@
         "http-generic-api/governanceDbPrivilegeContract.js",
         "http-generic-api/governanceDbPrivilegeReadinessRuntime.js",
         "http-generic-api/governanceDbPrivilegeReadinessService.js",
-        "http-generic-api/test-governance-db-privilege-readiness.mjs"
+        "http-generic-api/test-governance-db-privilege-readiness.mjs",
+        "http-generic-api/test-governance-db-writer-authority.mjs",
+        "http-generic-api/test-production-governance-documentation-parity.mjs"
       ]
     },
     {
       "id": "governed_execution_x0_evidence_baseline",
       "test_paths": [
         "http-generic-api/test-governed-execution-baseline-benchmark.mjs",
-        "http-generic-api/test-governed-execution-baseline-telemetry.mjs"
+        "http-generic-api/test-governed-execution-baseline-telemetry.mjs",
+        "http-generic-api/test-sink-orchestration-json-asset-lookup-failure.mjs"
       ]
     },
     {
       "id": "governed_migration_capability_envelope_authorization",
       "test_paths": [
         "http-generic-api/test-capability-resolution-envelope-ledger.mjs",
-        "http-generic-api/test-governed-migration-authorization-bootstrap.mjs"
+        "http-generic-api/test-governed-migration-authorization-bootstrap.mjs",
+        "http-generic-api/test-tenant-platform-plugin-1052-governed-readiness.mjs"
       ]
     },
     {
@@ -158,6 +186,7 @@
         "http-generic-api/config/recovery-kernel-manifest.json",
         "http-generic-api/config/runtime-bootstrap-contract.json",
         "http-generic-api/hostBreakglassCatalog.js",
+        "http-generic-api/hostBreakglassLocalRequest.js",
         "http-generic-api/hostLocalRuntimeInspection.js",
         "http-generic-api/openapi.yaml",
         "http-generic-api/openapi/openapi.custom-gpt.recovery-admin.production.yaml",
@@ -177,21 +206,34 @@
         "http-generic-api/scripts/host-breakglass-local.mjs",
         "http-generic-api/scripts/host-breakglass-ssh-capsule-executor.mjs",
         "http-generic-api/scripts/hostinger-runtime-bootstrap.mjs",
+        "http-generic-api/scripts/production-runtime-env-key-inventory.mjs",
         "http-generic-api/scripts/split-openapi.mjs",
         "http-generic-api/test-admin-control.mjs",
         "http-generic-api/test-admin-host-breakglass-routes.mjs",
         "http-generic-api/test-custom-gpt-schemas.mjs",
         "http-generic-api/test-fixed-host-local-system-tool.mjs",
         "http-generic-api/test-frontend-surface-coverage-claims.mjs",
+        "http-generic-api/test-gpt-tools-route-syntax-regression.mjs",
         "http-generic-api/test-host-breakglass-capsule-executor.mjs",
         "http-generic-api/test-host-breakglass-catalog.mjs",
+        "http-generic-api/test-host-breakglass-local-readback.mjs",
         "http-generic-api/test-host-breakglass-local-request.mjs",
         "http-generic-api/test-host-breakglass-role-selection-artifact.mjs",
         "http-generic-api/test-host-breakglass-ssh-capsule-executor.mjs",
         "http-generic-api/test-host-local-runtime-inspection.mjs",
+        "http-generic-api/test-hostinger-production-runtime-readback-r7.mjs",
+        "http-generic-api/test-hostinger-recovery-capability-discovery.mjs",
+        "http-generic-api/test-hostinger-recovery-provider-safety.mjs",
+        "http-generic-api/test-hostinger-recovery-readonly-planner.mjs",
+        "http-generic-api/test-hostinger-recovery-seed-replay.mjs",
+        "http-generic-api/test-mcp-catalog-recovery-decision.mjs",
+        "http-generic-api/test-mcp-catalog-schema-guard.mjs",
+        "http-generic-api/test-mcp-catalog-schema-preflight.mjs",
         "http-generic-api/test-openapi-detail-closure-batch.mjs",
+        "http-generic-api/test-openapi-projection-readiness.mjs",
         "http-generic-api/test-openapi-split-governance.mjs",
         "http-generic-api/test-production-recovery-control-store-bootstrap-workflow.mjs",
+        "http-generic-api/test-production-runtime-env-key-inventory.mjs",
         "http-generic-api/test-production-runtime-full-role-inspection-workflow.mjs",
         "http-generic-api/test-recovery-exception-framework.mjs",
         "http-generic-api/test-recovery-execution-ticket.mjs",
@@ -201,6 +243,8 @@
         "http-generic-api/test-role-selection-proof-contract.mjs",
         "http-generic-api/test-runtime-bootstrap-contract.mjs",
         "http-generic-api/test-runtime-gate-deployment-info-parity.mjs",
+        "http-generic-api/test-runtime-integrity.mjs",
+        "http-generic-api/test-staging-compose-bootstrap-connection-factory.mjs",
         "http-generic-api/test-staging-independent-schema-contract.mjs",
         "http-generic-api/test-tenant-gpt-operational-readiness.mjs",
         "http-generic-api/test-unsupported-recovery-broker.mjs",
@@ -226,31 +270,41 @@
       "test_paths": [
         "http-generic-api/routes/connectorAgentRoutes.js",
         "http-generic-api/routes/connectorProxyRoutes.js",
+        "http-generic-api/test-admin-local-connector-target.mjs",
+        "http-generic-api/test-admin-self-recovery-contract.mjs",
         "http-generic-api/test-connect-routes.mjs",
         "http-generic-api/test-connector-agent-installer-permission-grants.mjs",
         "http-generic-api/test-connector-local-api-key-registry.mjs",
+        "http-generic-api/test-connector-staging-mcp-distribution.mjs",
         "http-generic-api/test-control-plane-convergence-regressions.mjs",
         "http-generic-api/test-db-driven-connector-capability-policy.mjs",
+        "http-generic-api/test-desktop-device-workspace-wiring.mjs",
+        "http-generic-api/test-device-generation-challenge-verifier.mjs",
+        "http-generic-api/test-installer-credential-epoch.mjs",
         "http-generic-api/test-local-connector-capability-installer-grants.mjs",
         "http-generic-api/test-local-connector-composite-health.mjs",
         "http-generic-api/test-local-connector-convergence-inspector.mjs",
         "http-generic-api/test-local-connector-durable-self-healing.mjs",
         "http-generic-api/test-local-connector-installer-capability.mjs",
+        "http-generic-api/test-local-connector-two-phase-rebind.mjs",
         "http-generic-api/test-local-manager-chatgpt-url-capture.mjs",
         "http-generic-api/test-local-manager-cloudflare-origin-classification.mjs",
         "http-generic-api/test-local-manager-desktop-identity-resolution.mjs",
         "http-generic-api/test-local-manager-device-link-client.mjs",
         "http-generic-api/test-local-manager-device-proof-cross-runtime.mjs",
+        "http-generic-api/test-local-manager-environment-recovery.mjs",
         "http-generic-api/test-local-manager-pairing-security.mjs",
-        "http-generic-api/test-local-manager-repair-connector-command.mjs",
-        "http-generic-api/test-local-connector-two-phase-rebind.mjs",
         "http-generic-api/test-local-manager-rate-limit-persistence.mjs",
+        "http-generic-api/test-local-manager-repair-connector-command.mjs",
+        "http-generic-api/test-local-manager-sidecar-lifecycle-supervision.mjs",
         "http-generic-api/test-local-manager-signed-installer-coordinator.mjs",
         "http-generic-api/test-local-manager-signed-installer-exit-code.mjs",
         "http-generic-api/test-local-manager-tool-release-owner.mjs",
         "http-generic-api/test-windows-staging-bootstrap-supervisor.mjs",
+        "local-connector/connector-watchdog.ps1",
         "local-connector/Get-LocalConnectorConvergence.ps1",
-        "local-connector/connector-watchdog.ps1"
+        "local-connector/test-device-files-engine.mjs",
+        "local-connector/test-device-runtime-http.mjs"
       ]
     },
     {
@@ -276,6 +330,14 @@
         "http-generic-api/test-platform-admin-workspace-authority-parity.mjs",
         "http-generic-api/test-platform-admin-workspace-readiness.mjs",
         "http-generic-api/test-runtime-persistence-wiring.mjs"
+      ]
+    },
+    {
+      "id": "repository_configuration_drift_governance",
+      "test_paths": [
+        "http-generic-api/scripts/maintenance-tools/configuration-candidate-discovery.mjs",
+        "http-generic-api/scripts/maintenance-tools/configuration-drift-guard.mjs",
+        "http-generic-api/scripts/test-configuration-drift-guard.mjs"
       ]
     },
     {
@@ -306,7 +368,9 @@
         "http-generic-api/test-derived-state-converged-automerge-source-event.mjs",
         "http-generic-api/test-repo-maintenance-sync.mjs",
         "http-generic-api/test-supervisor-runtime-assurance-automation.mjs",
-        "http-generic-api/test-surface-contract-auto-remediation.mjs"
+        "http-generic-api/test-surface-contract-auto-remediation.mjs",
+        "http-generic-api/test-surface-contract-discovery.mjs",
+        "http-generic-api/test-github-finalizer-any-source-guard.mjs"
       ]
     },
     {
@@ -331,11 +395,23 @@
       ]
     },
     {
+      "id": "tenant_gpt_oauth_server_owned_correlation",
+      "test_paths": [
+        "http-generic-api/test-spec012-t030-oauth-correlation-foundation.mjs",
+        "http-generic-api/test-tenant-gpt-oauth-recovery-evidence-sink.mjs",
+        "http-generic-api/test-tenant-gpt-oauth-authorization-code-store.mjs",
+        "http-generic-api/test-tenant-gpt-oauth-operation-correlation.mjs",
+        "http-generic-api/test-tenant-gpt-oauth-token-binding-guard.mjs",
+        "http-generic-api/test-tenant-gpt-oauth-token-binding-hardening.mjs"
+      ]
+    },
+    {
       "id": "production_promotion_runtime",
       "test_paths": [
         ".github/tests/production-promotion-review-mode.test.mjs",
         ".github/tests/production-promotion-runtime.test.mjs",
         ".github/workflows/governed-production-promotion-request-launcher.yml",
+        "http-generic-api/test-production-promotion-candidate-dispatch-input-parity.mjs",
         "http-generic-api/test-production-promotion-candidate-workflow.mjs",
         "http-generic-api/test-production-promotion-convergence-workflows.mjs"
       ]
@@ -370,18 +446,22 @@
         "http-generic-api/serverManagedDeploymentIdentityProvider.js",
         "http-generic-api/serverManagedRecoveryAuthorityBinding.js",
         "http-generic-api/serverManagedRecoveryBindingProvider.js",
+        "http-generic-api/stagingImmutableArtifactIntegrity.js",
         "http-generic-api/test-activation-gateway-host-profile.mjs",
         "http-generic-api/test-activation-gateway-runtime-bundle-parity.mjs",
         "http-generic-api/test-activation-gateway.mjs",
         "http-generic-api/test-auth-oauth-routes.mjs",
         "http-generic-api/test-chatgpt-mcp-metadata-routing.mjs",
+        "http-generic-api/test-database-schema-recovery-triage.mjs",
         "http-generic-api/test-device-tools-diagnostics.mjs",
         "http-generic-api/test-frontend-surface-dispatch.mjs",
         "http-generic-api/test-github-app-installation-discovery.mjs",
         "http-generic-api/test-platform-recovery-convergence-read-adapters.mjs",
         "http-generic-api/test-platform-recovery-convergence.mjs",
         "http-generic-api/test-platform-routes.mjs",
+        "http-generic-api/test-post8461-operational-scenario-matrix.mjs",
         "http-generic-api/test-production-activation-readiness.mjs",
+        "http-generic-api/test-production-promotion-log-preflight.mjs",
         "http-generic-api/test-production-recovery-authority-foundation.mjs",
         "http-generic-api/test-production-recovery-authority-preflight.mjs",
         "http-generic-api/test-production-recovery-baseline-authority-binding.mjs",
@@ -397,6 +477,8 @@
         "http-generic-api/test-recovery-action-bridge-system-layer.mjs",
         "http-generic-api/test-recovery-activation-readiness.mjs",
         "http-generic-api/test-recovery-composition.mjs",
+        "http-generic-api/test-recovery-orchestrator-routes.mjs",
+        "http-generic-api/test-recovery-orchestrator.mjs",
         "http-generic-api/test-recovery-system-tool-overlay.mjs",
         "http-generic-api/test-recovery-system-tool-store-authority-separation.mjs",
         "http-generic-api/test-runtime-environment-resolver.mjs",
@@ -405,6 +487,7 @@
         "http-generic-api/test-staging-activation-gateway.mjs",
         "http-generic-api/test-staging-activation-oauth-profile-enabled.mjs",
         "http-generic-api/test-staging-bootstrap-readback-attestation.mjs",
+        "http-generic-api/test-staging-immutable-artifact-integrity.mjs",
         "http-generic-api/test-staging-pr-head-recovery-readiness.mjs",
         "http-generic-api/test-staging-recovery-admin-surface.mjs",
         "http-generic-api/test-staging-recovery-authority-binding.mjs",
@@ -412,11 +495,13 @@
         "http-generic-api/test-staging-recovery-certification-public-trust.mjs",
         "http-generic-api/test-staging-recovery-certification-script-surface.mjs",
         "http-generic-api/test-staging-recovery-certification-signing-authority.mjs",
+        "http-generic-api/test-staging-recovery-external-acquisition-authority.mjs",
         "http-generic-api/test-staging-recovery-gateway-preflight.mjs",
         "http-generic-api/test-staging-recovery-phase-b-approval-single-issuance.mjs",
         "http-generic-api/test-staging-recovery-phase-b-concurrency.mjs",
         "http-generic-api/test-staging-recovery-route-policy.mjs",
         "http-generic-api/test-staging-recovery-system-tools.mjs",
+        "http-generic-api/test-staging-runtime-artifact-attestation.mjs",
         "http-generic-api/test-staging-trusted-ingress-diagnostics.mjs",
         "http-generic-api/test-tenant-gpt-access-token-verifier.mjs",
         "http-generic-api/test-trusted-request-host-routing.mjs"
@@ -454,8 +539,13 @@
     {
       "id": "remote_mcp_dynamic_client_profile_registry",
       "test_paths": [
+        "http-generic-api/test-chatgpt-mcp-readonly-runtime.mjs",
+        "http-generic-api/test-remote-mcp-access-token-verifier.mjs",
         "http-generic-api/test-remote-mcp-client-profile-registry.mjs",
-        "http-generic-api/test-remote-mcp-client-provisioning.mjs"
+        "http-generic-api/test-remote-mcp-client-provisioning.mjs",
+        "http-generic-api/test-remote-mcp-oauth21-routes.mjs",
+        "http-generic-api/test-staging-mcp-oauth-openapi-gate.mjs",
+        "http-generic-api/test-staging-multi-principal-acceptance-preflight.mjs"
       ]
     },
     {
@@ -561,6 +651,7 @@
         "autopilot-portable-staging/Start-AutoPilot.ps1",
         "http-generic-api/test-managed-git-remote-transport.mjs",
         "http-generic-api/test-staging-auto-deploy-contract.mjs",
+        "http-generic-api/test-staging-autonomous-supervisor-contract.mjs",
         "http-generic-api/test-staging-autopilot-closure.mjs",
         "http-generic-api/test-staging-cloudflared-log-release.mjs",
         "http-generic-api/test-staging-convergence-acknowledgement-cli.mjs",
@@ -568,35 +659,51 @@
         "http-generic-api/test-staging-one-click-autopilot-core.mjs",
         "http-generic-api/test-staging-post-build-image-discovery.mjs",
         "http-generic-api/test-staging-schema-governance-powershell-revision-contract.mjs",
-        "http-generic-api/test-staging-smart-gateway-convergence-contract.mjs"
+        "http-generic-api/test-staging-smart-gateway-convergence-contract.mjs",
+        "http-generic-api/test-staging-coldboot-recovery.mjs"
       ]
     },
     {
       "id": "staging_database_readiness_repair",
       "test_paths": [
         "autopilot-portable-staging/Repair-StagingDatabaseReadiness.ps1",
+        "autopilot-portable-staging/Repair-StagingRuntimeRegistry.ps1",
+        "http-generic-api/config/staging-runtime-registry-reconciliation.json",
         "http-generic-api/databasePrivilegeContracts.js",
         "http-generic-api/docker-compose.staging.yml",
         "http-generic-api/environmentBranchAuthority.js",
         "http-generic-api/governanceDbPrivilegeReadinessService.js",
         "http-generic-api/scripts/staging-role-grant-plan.mjs",
+        "http-generic-api/scripts/staging-runtime-registry-reconciliation-ledger.mjs",
+        "http-generic-api/scripts/staging-runtime-registry-reconciliation-materialize-sql.mjs",
+        "http-generic-api/scripts/staging-runtime-registry-reconciliation-plan-validate.mjs",
+        "http-generic-api/scripts/staging-runtime-registry-reconciliation-runtime-check.mjs",
+        "http-generic-api/stagingRuntimeRegistryReconciliation.js",
+        "http-generic-api/stagingRuntimeRegistryReconciliationLedger.js",
+        "http-generic-api/stagingRuntimeRegistrySnapshot.js",
         "http-generic-api/test-canonical-semantic-artifact-registry.mjs",
         "http-generic-api/test-runtime-data-lifecycle-guard.mjs",
         "http-generic-api/test-runtime-persistence-operational-readiness.mjs",
         "http-generic-api/test-runtime-verification-contract.mjs",
         "http-generic-api/test-semantic-data-completeness-report.mjs",
+        "http-generic-api/test-staging-canonical-resource-registry-grant.mjs",
         "http-generic-api/test-staging-canonical-semantic-repair-cli.mjs",
         "http-generic-api/test-staging-canonical-semantic-repair-ledger.mjs",
         "http-generic-api/test-staging-canonical-semantic-repair-runner.mjs",
         "http-generic-api/test-staging-canonical-semantic-repair.mjs",
-        "http-generic-api/test-staging-canonical-resource-registry-grant.mjs",
         "http-generic-api/test-staging-database-readiness-repair.mjs",
-        "http-generic-api/test-staging-execution-policies-grant.mjs"
+        "http-generic-api/test-staging-execution-policies-grant.mjs",
+        "http-generic-api/test-staging-runtime-registry-reconciliation-ledger.mjs",
+        "http-generic-api/test-staging-runtime-registry-reconciliation-surface.mjs",
+        "http-generic-api/test-staging-runtime-registry-reconciliation.mjs",
+        "http-generic-api/test-staging-startup-mutation-policy.mjs",
+        "http-generic-api/test-staging-three-db-privilege-drift-audit.mjs"
       ]
     },
     {
       "id": "staging_schema_bundle_bootstrap",
       "test_paths": [
+        "http-generic-api/config/staging-runtime-registry-reconciliation.json",
         "http-generic-api/scripts/build-staging-schema-bundle.mjs",
         "http-generic-api/test-approval-hold-identity-collation-alignment.mjs",
         "http-generic-api/test-database-foreign-key-compatibility-policy.mjs",
@@ -609,6 +716,7 @@
         "http-generic-api/test-staging-openapi-mcp-db-boundary.mjs",
         "http-generic-api/test-staging-operations-logging-contract.mjs",
         "http-generic-api/test-staging-rebuild-empty-authority.mjs",
+        "http-generic-api/test-staging-runtime-registry-reconciliation-surface.mjs",
         "http-generic-api/test-staging-schema-bundle-builder.mjs"
       ]
     },
@@ -664,18 +772,70 @@
       ]
     },
     {
+      "id": "work_map_post_write_exact_verification_dispatch",
+      "test_paths": [
+        "http-generic-api/test-work-map-post-write-exact-verification-dispatch.mjs"
+      ]
+    },
+    {
       "id": "work_map_schema_classification_contract",
       "test_paths": [
         "http-generic-api/scripts/platform-work-map-schema-intelligence.mjs",
         "http-generic-api/scripts/work-map-schema-classification-contract.mjs",
         "http-generic-api/test-work-map-schema-classification-contract.mjs",
-        "http-generic-api/test-work-map-schema-classification.mjs"
+        "http-generic-api/test-work-map-schema-classification.mjs",
+        "http-generic-api/test-spec-kit-work-map-governance-gate.mjs"
       ]
     },
     {
       "id": "workspace_brand_core_asset_materialization",
       "test_paths": [
         "http-generic-api/test-workspace-brand-core-asset-materialization.mjs"
+      ]
+    },
+    {
+      "id": "portable_context_seed_negative_acceptance",
+      "test_paths": [
+        "reference-seeds/context-authority-business-profile-v1/runtime/context-source-guard.test.mjs",
+        "reference-seeds/context-authority-business-profile-v1/runtime/portable-content-runtime.test.mjs",
+        "reference-seeds/context-authority-business-profile-v1/runtime/resolve-deployment-context.test.mjs",
+        "reference-seeds/context-authority-business-profile-v1/runtime/deployment-dependency-evaluator.test.mjs",
+        "reference-seeds/context-authority-business-profile-v1/tools/test_seed.py",
+        "reference-seeds/context-authority-business-profile-v1/tools/test_content_fabric.py",
+        "reference-seeds/context-authority-business-profile-v1/tools/test_audit_source_media.py"
+      ]
+    },
+    {
+      "id": "central_capability_catalog_trust_authority",
+      "test_paths": [
+        "http-generic-api/test-capability-catalog-authority.mjs",
+        "http-generic-api/test-capability-catalog-persistence.mjs",
+        "http-generic-api/test-capability-catalog-tool-collector.mjs"
+      ]
+    },
+    {
+      "id": "staging_database_backup_restore_safety",
+      "test_paths": [
+        "http-generic-api/test-isolated-db-restore-safety.mjs",
+        "http-generic-api/test-staging-backup-restore-authority.mjs",
+        "http-generic-api/test-staging-governed-encrypted-backup-executor.mjs",
+        "http-generic-api/test-staging-synthetic-db-isolated-restore.mjs",
+        "http-generic-api/test-staging-backup-local-authority-adapter.mjs",
+        "http-generic-api/test-staging-backup-independent-policy-reader.mjs",
+        "http-generic-api/test-staging-backup-reader-grant-lifecycle.mjs",
+        "http-generic-api/test-staging-backup-managed-mariadb-provider.mjs"
+      ]
+    },
+    {
+      "id": "backend_api_key_and_jwt_fail_closed",
+      "test_paths": [
+        "http-generic-api/test-runtime-guards.mjs"
+      ]
+    },
+    {
+      "id": "branch_hygiene_exact_head_ci_run_safety",
+      "test_paths": [
+        ".github/tests/branch-hygiene-policy.test.mjs"
       ]
     }
   ],
@@ -703,7 +863,9 @@
       "**/*.test.mjs",
       "**/*.test.js",
       "**/*.test.ts",
-      "**/*.test.tsx"
+      "**/*.test.tsx",
+      "reference-seeds/context-authority-business-profile-v1/runtime/*.test.mjs",
+      "reference-seeds/context-authority-business-profile-v1/tools/test_*.py"
     ]
   },
   "registered_test_patterns": [
@@ -722,7 +884,8 @@
     "**/*.test.mjs",
     "**/*.test.js",
     "**/*.test.ts",
-    "**/*.test.tsx"
+    "**/*.test.tsx",
+    "reference-seeds/context-authority-business-profile-v1/tools/test_*.py"
   ],
   "governed_exclusions": [],
   "invariants": [
@@ -780,7 +943,8 @@
       "invariant_id": "work_map_schema_classification_contract",
       "protected_by_tests": [
         "http-generic-api/test-work-map-schema-classification-contract.mjs",
-        "http-generic-api/test-work-map-schema-classification.mjs"
+        "http-generic-api/test-work-map-schema-classification.mjs",
+        "http-generic-api/test-spec-kit-work-map-governance-gate.mjs"
       ],
       "protected_by_verifiers": [
         "work_map_currentness"
@@ -835,6 +999,8 @@
       "protected_by_tests": [
         "http-generic-api/test-fixed-host-local-system-tool.mjs",
         "http-generic-api/test-host-breakglass-local-request.mjs",
+        "http-generic-api/test-hostinger-recovery-readonly-planner.mjs",
+        "http-generic-api/test-mcp-catalog-recovery-decision.mjs",
         "http-generic-api/test-openapi-split-governance.mjs",
         "http-generic-api/test-recovery-kernel.mjs",
         "http-generic-api/test-role-selection-proof-contract.mjs",
@@ -858,6 +1024,8 @@
     {
       "invariant_id": "recovery_composition_wiring",
       "protected_by_tests": [
+        "http-generic-api/test-post8461-operational-scenario-matrix.mjs",
+        "http-generic-api/test-production-promotion-log-preflight.mjs",
         "http-generic-api/test-production-recovery-authority-foundation.mjs",
         "http-generic-api/test-production-recovery-baseline-authority-binding.mjs",
         "http-generic-api/test-production-recovery-baseline-rebuild-governed-workflow.mjs",
@@ -865,12 +1033,15 @@
         "http-generic-api/test-production-recovery-host-local-baseline-rebuild.mjs",
         "http-generic-api/test-recovery-activation-readiness.mjs",
         "http-generic-api/test-recovery-composition.mjs",
+        "http-generic-api/test-recovery-orchestrator-routes.mjs",
+        "http-generic-api/test-recovery-orchestrator.mjs",
         "http-generic-api/test-recovery-system-tool-store-authority-separation.mjs",
         "http-generic-api/test-server-managed-recovery-binding.mjs",
         "http-generic-api/test-staging-recovery-admin-surface.mjs",
         "http-generic-api/test-staging-recovery-certification-protocol.mjs",
         "http-generic-api/test-staging-recovery-certification-public-trust.mjs",
         "http-generic-api/test-staging-recovery-certification-signing-authority.mjs",
+        "http-generic-api/test-staging-recovery-external-acquisition-authority.mjs",
         "http-generic-api/test-staging-recovery-phase-b-concurrency.mjs",
         "http-generic-api/test-staging-recovery-route-policy.mjs"
       ],
@@ -917,7 +1088,8 @@
         "http-generic-api/test-recovery-execution-ticket.mjs",
         "http-generic-api/test-recovery-kernel-routes.mjs",
         "http-generic-api/test-recovery-kernel.mjs",
-        "http-generic-api/test-runtime-bootstrap-contract.mjs"
+        "http-generic-api/test-runtime-bootstrap-contract.mjs",
+        "http-generic-api/test-sink-orchestration-json-asset-lookup-failure.mjs"
       ],
       "protected_by_verifiers": [
         "exact_durable_run_reference",
@@ -931,6 +1103,32 @@
         "http-generic-api/test-system-tools-tenant-continuation-e2e.mjs"
       ],
       "protected_by_verifiers": []
+    },
+    {
+      "invariant_id": "portable_context_seed_negative_acceptance",
+      "protected_by_tests": [
+        "reference-seeds/context-authority-business-profile-v1/runtime/context-source-guard.test.mjs",
+        "reference-seeds/context-authority-business-profile-v1/runtime/portable-content-runtime.test.mjs",
+        "reference-seeds/context-authority-business-profile-v1/runtime/resolve-deployment-context.test.mjs",
+        "reference-seeds/context-authority-business-profile-v1/runtime/deployment-dependency-evaluator.test.mjs",
+        "reference-seeds/context-authority-business-profile-v1/tools/test_seed.py",
+        "reference-seeds/context-authority-business-profile-v1/tools/test_content_fabric.py",
+        "reference-seeds/context-authority-business-profile-v1/tools/test_audit_source_media.py"
+      ],
+      "protected_by_verifiers": [
+        "fixed_point:test_authority"
+      ]
+    },
+    {
+      "invariant_id": "central_capability_catalog_trust_authority",
+      "protected_by_tests": [
+        "http-generic-api/test-capability-catalog-authority.mjs",
+        "http-generic-api/test-capability-catalog-persistence.mjs",
+        "http-generic-api/test-capability-catalog-tool-collector.mjs"
+      ],
+      "protected_by_verifiers": [
+        "fixed_point:test_authority"
+      ]
     }
   ],
   "deleted_test_mode": "block_without_replacement",

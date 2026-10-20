@@ -1,0 +1,36 @@
+# Optional inert Staging sandbox probe. Not a MariaDB broker.
+# No database service changes, no Docker network attachment, no credentials.
+# Excluded from default Auto Deploy; opt-in profile only.
+services:
+  backup-db-broker:
+    profiles: ["backup-broker-preflight"]
+    image: node:22-slim@sha256:c3de60bf2f9dd0ac6370e6117950ff62d6e339527e7472301c9c78a017978392
+    init: true
+    restart: "no"
+    user: "65534:65534"
+    read_only: true
+    privileged: false
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    pids_limit: 32
+    mem_limit: 128m
+    tmpfs: ["/tmp:rw,noexec,nosuid,size=16m"]
+    network_mode: "none"
+    ports: !reset []
+    volumes: !reset []
+    entrypoint: ["node", "-e"]
+    command:
+      - |
+        if (typeof process.getuid !== "function" || process.getuid() === 0) process.exit(2);
+        process.stdout.write(JSON.stringify({
+          contract: "mad4b.staging.backup-broker-host-candidate.v1",
+          mode: "network-disconnected-sandbox-probe",
+          broker_operationally_certified: false,
+          admin_client_configured: false,
+          owner_operation_approved: false,
+          database_mutated: false,
+          production_mutation: false
+        }) + "\n");
+        setInterval(() => {}, 60000);
+    healthcheck:
+      disable: true

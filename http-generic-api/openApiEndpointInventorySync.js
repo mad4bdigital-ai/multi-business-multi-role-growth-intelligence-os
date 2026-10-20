@@ -1,5 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 import { promises as fs } from "node:fs";
+import { readStagingStartupMutationPolicy } from "./stagingStartupMutationPolicy.js";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import YAML from "yaml";
@@ -827,10 +828,22 @@ function logOpenApiWriteAuthorityUnavailable(error) {
 }
 
 export async function startOpenApiEndpointInventorySync(deps = {}) {
-  const pool = deps.pool || getControlPlaneWritePool();
+  // Quiescent Staging must not obtain a DB pool or consult live sync config.
+  const startupPolicy = readStagingStartupMutationPolicy(process.env);
+  if (startupPolicy.quiescent) {
+    return {
+      ok: true,
+      started: false,
+      status: "disabled_by_staging_startup_mutation_policy",
+      database_connection_performed: false,
+      database_mutation_performed: false,
+      secrets_included: false,
+    };
+  }
   if (String(process.env.OPENAPI_ENDPOINT_INVENTORY_SYNC_DISABLED || "").trim().toLowerCase() === "true") {
     return { ok: true, started: false, status: "disabled_by_environment_kill_switch", secrets_included: false };
   }
+  const pool = deps.pool || getControlPlaneWritePool();
   try {
     const config = await readConfig(pool);
     if (!config.exists) return { ok: true, started: false, status: "migration_required", secrets_included: false };

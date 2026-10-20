@@ -55,6 +55,10 @@ const liveCertification = read("http-generic-api/scripts/staging-live-certificat
 const windowsPreflight = read("autopilot-portable-staging/Staging-Windows-Preflight.ps1");
 const tunnel = compose.services.cloudflared;
 
+for (const serviceName of ["redis", "runtime-db", "governance-db", "persistence-db", "app", "cloudflared"]) {
+  assert.equal(compose.services[serviceName].init, true, `Staging service ${serviceName} must run with init=true to reap child processes`);
+}
+
 assert.deepEqual(tunnel.profiles, ["tunnel"]);
 assert.match(String(tunnel.image), /@sha256:/);
 assert.equal(tunnel.depends_on.app.condition, "service_healthy");

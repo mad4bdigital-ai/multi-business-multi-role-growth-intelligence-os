@@ -6,10 +6,22 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>Mad4B.LocalManager.Windows</RootNamespace>
+    <LocalManagerEnvironment Condition="'$(LocalManagerEnvironment)' == ''">production</LocalManagerEnvironment>
+    <DefineConstants Condition="'$(LocalManagerEnvironment)' == 'staging'">$(DefineConstants);LOCAL_MANAGER_STAGING</DefineConstants>
   </PropertyGroup>
+  <Target Name="ValidateLocalManagerEnvironment" BeforeTargets="BeforeBuild">
+    <Error Condition="'$(LocalManagerEnvironment)' != 'production' and '$(LocalManagerEnvironment)' != 'staging'" Text="LocalManagerEnvironment must be production or staging." />
+  </Target>
   <ItemGroup>
+    <Compile Include="..\local-manager-windows\LocalManagerEnvironment.cs" Link="LocalManagerEnvironment.cs" />
     <Compile Include="..\local-manager-windows\SidecarRpcContracts.cs" Link="SidecarRpcContracts.cs" />
+    <Compile Include="..\local-manager-windows\DocumentStructuralEditor.cs" Link="DocumentStructuralEditor.cs" />
+    <Compile Include="..\local-manager-windows\PdfStructuralEditor.cs" Link="PdfStructuralEditor.cs" />
     <Compile Include="..\local-manager-windows\SidecarRpcServer.cs" Link="SidecarRpcServer.cs" />
     <Compile Include="..\local-manager-windows\SidecarLifecycleSupervisor.cs" Link="SidecarLifecycleSupervisor.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- Explicitly pinned MIT-licensed stable version, not later AGPL line. -->
+    <PackageReference Include="PDFsharp" Version="6.2.4" />
   </ItemGroup>
 </Project>

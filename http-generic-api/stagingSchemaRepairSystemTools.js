@@ -3,6 +3,7 @@ import { createApprovalChallenge } from "./recoveryKernel.js";
 import { buildApprovalBinding } from "./recoveryExecutionBinding.js";
 import { issueExecutionTicket, verifyExecutionTicket } from "./recoveryExecutionTicket.js";
 import { stagingRecoveryAuthorityInternals } from "./stagingRecoveryAuthorityBinding.js";
+import { buildStagingSchemaRepairLocalHandoff } from "./stagingSchemaRepairHandoff.js";
 import { readStagingRuntimeBootstrapContract } from "./stagingRuntimeBootstrapContract.js";
 
 export const STAGING_SCHEMA_REPAIR_TICKET_AUTHORITY_CONTRACT = "mad4b.staging-schema-repair-ticket-authority.v1";
@@ -46,6 +47,15 @@ function graphFor(env = process.env) {
   return stagingRecoveryAuthorityInternals.adapters(roots.readiness, env).adapters;
 }
 
+export function isStagingSchemaDatabaseMutationExecutor(executor) {
+  const callable = typeof executor === "function" ? executor : executor?.execute;
+  return Boolean(
+    typeof callable === "function"
+    && (executor?.staging_database_mutation_authority === true
+      || callable.staging_database_mutation_authority === true),
+  );
+}
+
 function resolveMigration(migration) {
   const file = text(migration, 220);
   if (!SAFE_MIGRATION.test(file) || file.includes("..") || file.includes("/") || file.includes("\\")) {
@@ -73,6 +83,7 @@ function resolveMigration(migration) {
     statement_count: Number(spec.statement_count),
     role,
     requires_tables: Array.isArray(spec.requires_tables) ? [...spec.requires_tables] : [],
+    artifact_scope: text(spec.artifact_scope || "canonical", 64),
     postconditions: Array.isArray(contract.postconditions?.[file]) ? structuredClone(contract.postconditions[file]) : [],
     allowed_mode: "apply_migration",
     server_derived: true,
@@ -386,7 +397,7 @@ export function createStagingSchemaRepairTicketAuthority({ env = process.env, ad
 function schemaExecutionReady(adapters = {}) {
   const executor = adapters.hostBreakglassMutationExecutor;
   return Boolean(
-    (typeof executor === "function" || typeof executor?.execute === "function")
+    isStagingSchemaDatabaseMutationExecutor(executor)
     && typeof adapters.recoveryLock?.acquire === "function"
     && typeof adapters.recoveryLock?.heartbeat === "function"
     && typeof adapters.recoveryLock?.assertFence === "function"
@@ -499,7 +510,44 @@ export async function stagingRecoverySchemaRepairPrepare(input = {}, { env = pro
 }
 
 export async function stagingRecoverySchemaRepairApprove(input = {}, { env = process.env, adapters = null } = {}) {
-  return createStagingSchemaRepairTicketAuthority({ env, adapters }).approveAndIssue(input);
+  const injected = Object.fromEntries(Object.entries(adapters || {}).filter(([, value]) => value !== undefined && value !== null));
+  const graph = { ...graphFor(env), ...injected };
+  const authority = createStagingSchemaRepairTicketAuthority({ env, adapters: graph });
+  const issued = await authority.approveAndIssue(input);
+  const plan = await graph.recoveryStore.getPlan(issued.plan_id);
+  if (
+    !plan
+    || plan.plan_hash !== issued.plan_hash
+    || plan.execution_idempotency_key !== text(input.idempotency_key, 160)
+    || !plan.execution_ticket_id
+    || !plan.execution_ticket_hash
+  ) {
+    fail("RECOVERY_EXECUTION_TICKET_INVALID", "Schema-repair approval did not persist the exact server-issued execution-ticket binding.", { local_handoff_created: false }, 503);
+  }
+  const ticket = await graph.recoveryStore.getExecutionTicket(plan.execution_ticket_id);
+  if (!ticket || ticket.ticket_hash !== plan.execution_ticket_hash || ticket.plan_hash !== plan.plan_hash || ticket.step_id !== issued.step_id) {
+    fail("RECOVERY_EXECUTION_TICKET_INVALID", "Schema-repair execution-ticket readback does not match the approved plan.", { local_handoff_created: false }, 503);
+  }
+  const localHandoff = await buildStagingSchemaRepairLocalHandoff({
+    issued,
+    executionTicket: ticket,
+    authorityPlanHash: plan.plan_hash,
+    idempotencyKey: plan.execution_idempotency_key,
+    broker: injected,
+  });
+  return {
+    ...issued,
+    status: "execution_ticket_issued_local_handoff_ready",
+    local_execution_required: true,
+    local_handoff: localHandoff,
+    execution_ticket_held_server_side: true,
+    execution_ticket_not_returned: true,
+    signature_not_returned: true,
+    approval_token_not_returned: true,
+    database_mutation_performed: false,
+    production_authority: false,
+    secrets_included: false,
+  };
 }
 
 export async function stagingRecoverySchemaRepairExecute(input = {}, { env = process.env, adapters = null } = {}) {
@@ -525,7 +573,7 @@ function schemaPrepareDescriptor() {
 function schemaApproveDescriptor() {
   return {
     name: "staging_recovery_schema_repair_approve",
-    description: "Consume the exact server-issued Staging migration confirmation for one immutable schema-repair plan and issue one signed single-use execution ticket held server-side.",
+    description: "Consume the exact server-issued Staging migration confirmation, issue one signed single-use execution ticket held server-side, and return one verified local Windows/Docker Host Breakglass handoff for the approved migration.",
     source_key: STAGING_SCHEMA_REPAIR_SYSTEM_SOURCE_KEY,
     capability_key: STAGING_SCHEMA_REPAIR_CAPABILITY,
     catalog_level: "private_recovery",
@@ -538,7 +586,7 @@ function schemaApproveDescriptor() {
 function schemaExecuteDescriptor() {
   return {
     name: "staging_recovery_schema_repair_execute",
-    description: "Execute only the migration bound to an approved Staging schema-repair plan. Ticket, checksum, role, target and migration content remain server-resolved; a fenced lock, independent same-cycle schema readback and durable migration-ledger finalization are mandatory.",
+    description: "Direct internal schema-repair execution is available only with an explicitly injected Staging database-mutation executor plus fenced lock and independent same-cycle database readback. The default local Staging path uses the verified handoff returned by approval.",
     source_key: STAGING_SCHEMA_REPAIR_SYSTEM_SOURCE_KEY,
     capability_key: STAGING_SCHEMA_REPAIR_CAPABILITY,
     catalog_level: "private_recovery",

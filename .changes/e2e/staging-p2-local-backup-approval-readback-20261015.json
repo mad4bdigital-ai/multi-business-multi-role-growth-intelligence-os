@@ -1,0 +1,84 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-p2-local-backup-approval-readback-20261015",
+  "title": "Staging P2 Local Connector governed backup policy and apply approval readback",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-p2-local-backup-approval-readback-20261015.json",
+      ".github/governance/test-authority-registry.json",
+      "autopilot-portable-staging/manifest.json",
+      "http-generic-api/config/repository-governance-constitution.json",
+      ".github/derived-state-governance.json",
+      "http-generic-api/stagingBackupLocalAuthorityAdapter.mjs",
+      "http-generic-api/test-staging-backup-local-authority-adapter.mjs",
+      "docs/runbooks/staging-p2-local-backup-authority-readback-20261015.md",
+      "docs/governance/configuration-drift-baseline-extensions.json"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Introduce bounded SQL SELECT-only Staging authority adapter, fresh owner approval verification and synthetic trusted composition without any live DB backup, policy activation, QA writes or Production mutation.",
+      "e2e_journeys": [
+        {
+          "id": "staging-local-connector-approval-readback-synthetic",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Governed local Staging connector",
+          "entrypoint": "Measured staging identity and injected read-only SQL policy client",
+          "terminal_outcome": "Owner-approved synthetic stream encrypted with fresh policy, approval and run readbacks and no real Staging DB mutation.",
+          "steps": [
+            "Load exactly one policy and one independent backup_apply approval using parameterized SELECTs",
+            "Reject stale/revoked approvals, inactive or duplicate policy, unmeasured source, or unprepared apply run",
+            "Verify current source and policy state before calling the existing signed-envelope AES-GCM stream executor",
+            "Prove replay rejection and preserve all QA/Production mutation controls disabled"
+          ],
+          "assertions": [
+            "No SQL write, raw credential, cross-schema query, activation or provider mutation is created",
+            "A missing Staging SELECT grant blocks access rather than triggering a privilege escalation",
+            "Source, destination and owner approval must match the measured local connector identity",
+            "Synthetic ciphertext cannot be represented as an actual authorized Staging backup or restore"
+          ],
+          "tests": [
+            {
+              "id": "staging-p2-local-backup-authority-adapter",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-backup-local-authority-adapter.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/staging-p2-local-backup-approval-readback-20261015.json",
+            ".github/governance/test-authority-registry.json",
+            "autopilot-portable-staging/manifest.json",
+            "http-generic-api/config/repository-governance-constitution.json",
+            ".github/derived-state-governance.json",
+            "http-generic-api/stagingBackupLocalAuthorityAdapter.mjs",
+            "http-generic-api/test-staging-backup-local-authority-adapter.mjs",
+            "docs/runbooks/staging-p2-local-backup-authority-readback-20261015.md",
+            "docs/governance/configuration-drift-baseline-extensions.json"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}

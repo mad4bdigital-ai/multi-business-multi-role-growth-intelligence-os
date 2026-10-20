@@ -12,7 +12,7 @@ process.on('uncaughtException', (error) => {
 
 const connectorAgent = readFileSync('routes/connectorAgentRoutes.js', 'utf8');
 const connectorWatchdog = readFileSync('../local-connector/connector-watchdog.ps1', 'utf8');
-const localManager = readFileSync('routes/localManagerBetaRoutes.js', 'utf8');
+const localManager = readFileSync('routes/localManagerBetaRoutes.js', 'utf8') + readFileSync('localManagerReleaseRegistry.js', 'utf8');
 const localManagerDeviceLinkService = readFileSync('services/localManagerDeviceLinkService.js', 'utf8');
 const localManagerControlTemplateMigration = readFileSync('migrations/20260922_local_manager_control_templates_registry.sql', 'utf8');
 const installRoutes = readFileSync('routes/localConnectorInstallRoutes.js', 'utf8');
@@ -36,10 +36,34 @@ assert(localManagerProject.includes(`<FileVersion>${advertisedWindowsVersion}.0<
 assert(localManager.includes(`Mad4B-Local-Manager-Setup-${advertisedWindowsVersion}.exe`), 'Local Manager EXE asset URL must include the advertised update route version');
 assert(localManager.includes(`Mad4B-Local-Manager-Setup-${advertisedWindowsVersion}.exe.sha256.json`), 'Local Manager SHA256 URL must include the advertised update route version');
 
-assert(connectorAgent.includes('const AGENT_VERSION = "2026.05.28.1"'), 'connector agent version must move for DB-driven shell policy release');
+assert(connectorAgent.includes('const AGENT_VERSION = "2026.10.18.1"'), 'connector agent version must move for DB-driven shell policy release');
 assert(connectorAgent.includes('"browser4-adapter.mjs"'), 'Browser4 adapter must be shipped by connector-agent manifest');
 assert(connectorAgent.includes('"local-agent-runtime.mjs"'), 'Local agent runtime must be shipped by connector-agent manifest');
-assert(connectorAgent.includes('const ROOT = path.resolve(MODULE_DIR, "../..");'), 'connector-agent manifest must resolve local-connector assets from the repository root');
+assert(
+  connectorAgent.includes('const ROOT = PACKAGED_REPO_ROOT') &&
+  connectorAgent.includes('if (PACKAGED_REPO_ROOT && !path.isAbsolute(PACKAGED_REPO_ROOT))') &&
+  connectorAgent.includes('throw new Error("connector_agent_source_root_not_absolute")') &&
+  connectorAgent.includes('  ? path.resolve(PACKAGED_REPO_ROOT)') &&
+  connectorAgent.includes('  : path.resolve(MODULE_DIR, "../..");'),
+  'connector-agent manifest must use the validated absolute Staging snapshot root and preserve local checkout fallback'
+);
+const connectorDockerignore = readFileSync('../.dockerignore', 'utf8');
+const connectorStagingDockerfile = readFileSync('Dockerfile.staging', 'utf8');
+const connectorReleaseRegistry = connectorAgent.match(/const FILES = \{([\s\S]*?)\n\};/);
+assert(connectorReleaseRegistry, 'Connector Agent release registry must be inspectable');
+const connectorAssetPaths = [...connectorReleaseRegistry[1].matchAll(/relativePath: "(local-connector\/[^"]+)"/g)].map((m) => m[1]);
+assert(connectorAssetPaths.length >= 14, 'Connector Agent release registry unexpectedly incomplete');
+const connectorIgnoreRules = new Set(connectorDockerignore.split(/\r?\n/));
+assert(connectorIgnoreRules.has('!local-connector/'), 'Staging image must include allowlisted Connector directory');
+assert(!connectorIgnoreRules.has('!local-connector/**'), 'Staging image must not include arbitrary Connector files');
+const includedConnectorRules = [...connectorIgnoreRules].filter((x) => x.startsWith('!local-connector/') && x !== '!local-connector/');
+assert.deepEqual(includedConnectorRules.sort(), connectorAssetPaths.map((x) => `!${x}`).sort(), 'Staging Connector release allowlist must exactly match the API manifest');
+for (const file of connectorAssetPaths) {
+  assert(readFileSync(`../${file}`).length > 0, `Connector release file missing or empty: ${file}`);
+}
+assert(connectorStagingDockerfile.includes('COPY . /app/repo-inspect/'), 'Staging Dockerfile must copy exact-commit source snapshot');
+assert(connectorStagingDockerfile.includes('RUN node scripts/verify-staging-connector-assets.mjs --image'), 'Staging Dockerfile must enforce Connector manifest asset verification');
+
 assert(connectorAgent.includes('$Root = Split-Path -Parent $MyInvocation.MyCommand.Path'), 'canonical installer must remain in the Local Manager owned update root across UAC identity changes');
 assert(connectorAgent.includes("contract='mad4b.local-connector-installer-state.v1'"), 'canonical installer must emit structured secret-safe failure evidence');
 assert(connectorAgent.includes("$InstallerStage = 'credential_redemption'"), 'canonical installer must classify credential redemption failures without exposing credentials');
@@ -84,16 +108,16 @@ assert(!connectorWatchdog.includes('Write-WatchdogLog "heartbeat_failed event_ty
 assert(localManager.includes('local release owner for platform tools'), 'public app page must explain Local Manager tool release ownership');
 assert(localManager.includes('manifest-driven local tool installation'), 'link flow must explain manifest-driven local tool installation');
 assert(localManager.includes('Mad4B Local Manager Admin Tools'), 'admin page must distinguish governed installer tools');
-assert(localManager.includes('LOCAL_MANAGER_WINDOWS_LATEST_VERSION = "0.2.30"'), 'public Local Manager update route must advertise Windows 0.2.30');
-assert(localManager.includes('Mad4B-Local-Manager-Setup-0.2.30.exe'), 'public Local Manager download route must point at Windows 0.2.30 assets');
+assert(localManager.includes('LOCAL_MANAGER_WINDOWS_LATEST_VERSION = "0.2.31"'), 'public Local Manager update route must advertise Windows 0.2.31');
+assert(localManager.includes('Mad4B-Local-Manager-Setup-0.2.31.exe'), 'public Local Manager download route must point at Windows 0.2.31 assets');
 assert(localManager.includes('code_fallback_newer_than_db'), 'Local Manager update route must ignore stale DB release rows when the code fallback advertises a newer semver');
 assert(localManager.includes('compareVersions(fallbackVersion, selectedVersion)'), 'Local Manager stale DB guard must use the defined version comparator');
 assert(!localManager.includes('compareSemver('), 'Local Manager stale DB guard must not call an undefined semver comparator');
 assert(localManager.includes('stale_db_version'), 'Local Manager update route must expose stale DB release evidence without secrets');
-assert(localManagerProject.includes('<Version>0.2.30</Version>'), 'Windows project Version must match advertised release');
-assert(localManagerProject.includes('<AssemblyVersion>0.2.30.0</AssemblyVersion>'), 'Windows project AssemblyVersion must match advertised release');
-assert(localManagerProject.includes('<FileVersion>0.2.30.0</FileVersion>'), 'Windows project FileVersion must match advertised release');
-assert(localManagerProject.includes('<InformationalVersion>0.2.30-update-response-recovery</InformationalVersion>'), 'Windows project InformationalVersion must identify the update response recovery build');
+assert(localManagerProject.includes('<Version>0.2.31</Version>'), 'Windows project Version must match advertised release');
+assert(localManagerProject.includes('<AssemblyVersion>0.2.31.0</AssemblyVersion>'), 'Windows project AssemblyVersion must match advertised release');
+assert(localManagerProject.includes('<FileVersion>0.2.31.0</FileVersion>'), 'Windows project FileVersion must match advertised release');
+assert(localManagerProject.includes('<InformationalVersion>0.2.31-environment-recovery</InformationalVersion>'), 'Windows project InformationalVersion must identify the update response recovery build');
 
 assert(installRoutes.includes('LOCAL_CONNECTOR_CAPABILITY_FLAGS'), 'installer route must define explicit capability flag mapping');
 assert(installRoutes.includes('powershell_admin: "CONNECTOR_POWERSHELL_ENABLED"'), 'PowerShell capability must map only through explicit opt-in');
@@ -201,7 +225,7 @@ assert(localManagerAutopilot.includes('connector_tunnel_unavailable'), 'autopilo
 assert(localManagerAutopilot.includes('platform_origin_unavailable'), 'autopilot must classify 502/503/504 platform origin failures');
 assert(localManagerAutopilot.includes('sc.exe'), 'autopilot must query the required Windows service footprint');
 assert(windowsAppRegistration.includes('CurrentVersion\\Uninstall\\Mad4B.LocalManager.Windows'), 'Windows app registration must use the per-user uninstall registry');
-assert(windowsAppRegistration.includes('CurrentVersion\\App Paths\\Mad4B-Local-Manager.exe'), 'Windows app registration must publish an App Paths entry for shell discovery');
+assert(windowsAppRegistration.includes('CurrentVersion\\App Paths\\Mad4B-Local-Manager') && windowsAppRegistration.includes('LocalManagerEnvironment.Suffix'), 'Windows app registration must publish an App Paths entry for shell discovery');
 assert(windowsAppRegistration.includes('Environment.SpecialFolder.Programs'), 'Windows app registration must create a Start Menu shortcut');
 assert(windowsAppRegistration.includes('Environment.SpecialFolder.Startup'), 'Windows app registration must start Local Manager after Windows sign-in');
 assert(windowsAppRegistration.includes('WScript.Shell'), 'Windows app registration must create native Windows shortcut files');

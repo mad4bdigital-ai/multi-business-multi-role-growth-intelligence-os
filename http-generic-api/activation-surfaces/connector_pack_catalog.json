@@ -1,0 +1,36 @@
+{
+  "surface_key": "connector_pack_catalog",
+  "display_name": "Connector Pack Catalog",
+  "description": "Platform connector-pack capabilities available to Activation administrators.",
+  "source_table": "activation_connector_pack_registry",
+  "result_key_column": "pack_key",
+  "result_label_column": "display_name",
+  "tenant_column": null,
+  "user_column": null,
+  "status_column": "pack_status",
+  "active_status_values": [
+    "active"
+  ],
+  "result_columns": [
+    "pack_key",
+    "provider_family",
+    "connector_family",
+    "display_name",
+    "description",
+    "pack_category",
+    "default_scope_class",
+    "webhook_supported",
+    "polling_supported",
+    "chatgpt_app_fallback_supported",
+    "manual_fallback_supported",
+    "pack_status",
+    "created_at",
+    "updated_at"
+  ],
+  "include_for_admin": true,
+  "include_for_tenant": false,
+  "max_rows": 100,
+  "sort_order": 250,
+  "status": "active",
+  "notes": "Repo-managed platform connector-pack catalog. Required-scope payloads are intentionally excluded from the Activation projection."
+}

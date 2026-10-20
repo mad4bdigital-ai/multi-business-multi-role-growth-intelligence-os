@@ -1,0 +1,398 @@
+{
+  "contract": "mad4b.reference.business-context.content-blueprints.v1",
+  "status": "TEMPLATE_ONLY",
+  "templates": [
+    {
+      "key": "seo_article",
+      "required_inputs": [
+        "search_intent",
+        "verified_sources",
+        "outline",
+        "primary_query",
+        "audience",
+        "schema_policy"
+      ],
+      "sections": [
+        "hook",
+        "context",
+        "explanation",
+        "examples",
+        "key_takeaways",
+        "faq",
+        "cta"
+      ],
+      "review_roles": [
+        "editor",
+        "seo",
+        "claim_owner"
+      ],
+      "content_value_defaults": {},
+      "status": "TEMPLATE_ONLY",
+      "publication_enabled": false
+    },
+    {
+      "key": "expert_opinion",
+      "required_inputs": [
+        "point_of_view",
+        "counterargument",
+        "supporting_evidence"
+      ],
+      "sections": [
+        "framing",
+        "analysis",
+        "caveats",
+        "conclusion"
+      ],
+      "review_roles": [
+        "editor",
+        "fact_check"
+      ],
+      "content_value_defaults": {},
+      "status": "TEMPLATE_ONLY",
+      "publication_enabled": false
+    },
+    {
+      "key": "social_post",
+      "required_inputs": [
+        "channel",
+        "persona",
+        "topic",
+        "single_goal"
+      ],
+      "sections": [
+        "hook",
+        "one_insight",
+        "support",
+        "interaction_or_cta"
+      ],
+      "review_roles": [
+        "editor"
+      ],
+      "content_value_defaults": {},
+      "status": "TEMPLATE_ONLY",
+      "publication_enabled": false
+    },
+    {
+      "key": "carousel",
+      "required_inputs": [
+        "channel",
+        "slide_count",
+        "visual_system"
+      ],
+      "sections": [
+        "cover",
+        "problem",
+        "insight",
+        "demonstration",
+        "cta"
+      ],
+      "review_roles": [
+        "editor",
+        "designer"
+      ],
+      "content_value_defaults": {},
+      "status": "TEMPLATE_ONLY",
+      "publication_enabled": false
+    },
+    {
+      "key": "short_video",
+      "required_inputs": [
+        "duration_target",
+        "platform",
+        "rights",
+        "persona"
+      ],
+      "sections": [
+        "hook",
+        "scene_sequence",
+        "payoff",
+        "cta",
+        "caption"
+      ],
+      "review_roles": [
+        "script",
+        "designer",
+        "audio"
+      ],
+      "content_value_defaults": {},
+      "status": "TEMPLATE_ONLY",
+      "publication_enabled": false
+    },
+    {
+      "key": "long_video",
+      "required_inputs": [
+        "duration_target",
+        "research",
+        "scene_plan",
+        "speaker"
+      ],
+      "sections": [
+        "opening",
+        "chapters",
+        "demo",
+        "recap",
+        "cta"
+      ],
+      "review_roles": [
+        "script",
+        "fact_check",
+        "audio",
+        "designer"
+      ],
+      "content_value_defaults": {},
+      "status": "TEMPLATE_ONLY",
+      "publication_enabled": false
+    },
+    {
+      "key": "paid_ad",
+      "required_inputs": [
+        "offer_proof",
+        "campaign_objective",
+        "channel_policy"
+      ],
+      "sections": [
+        "value_proposition",
+        "qualifier",
+        "cta"
+      ],
+      "review_roles": [
+        "performance",
+        "compliance"
+      ],
+      "content_value_defaults": {},
+      "status": "TEMPLATE_ONLY",
+      "publication_enabled": false
+    },
+    {
+      "key": "email_message",
+      "required_inputs": [
+        "recipient_segment",
+        "consent_state",
+        "trigger",
+        "goal"
+      ],
+      "sections": [
+        "subject",
+        "opening",
+        "one_core_message",
+        "cta",
+        "compliance_footer"
+      ],
+      "review_roles": [
+        "crm",
+        "editor"
+      ],
+      "content_value_defaults": {},
+      "status": "TEMPLATE_ONLY",
+      "publication_enabled": false
+    },
+    {
+      "key": "email_sequence",
+      "required_inputs": [
+        "entry_trigger",
+        "exit_conditions",
+        "frequency_cap",
+        "consent_state"
+      ],
+      "sections": [
+        "touch_1",
+        "value_nurture",
+        "objection_response",
+        "final_action"
+      ],
+      "review_roles": [
+        "crm",
+        "editor",
+        "consent"
+      ],
+      "content_value_defaults": {},
+      "status": "TEMPLATE_ONLY",
+      "publication_enabled": false
+    },
+    {
+      "key": "whatsapp_sequence",
+      "required_inputs": [
+        "opt_in",
+        "approved_template",
+        "trigger",
+        "frequency_cap"
+      ],
+      "sections": [
+        "intro",
+        "permissioned_followup",
+        "value",
+        "reply_action",
+        "stop"
+      ],
+      "review_roles": [
+        "crm",
+        "compliance"
+      ],
+      "content_value_defaults": {},
+      "status": "TEMPLATE_ONLY",
+      "publication_enabled": false
+    },
+    {
+      "key": "pr_release",
+      "required_inputs": [
+        "newsworthiness",
+        "evidence",
+        "quote_approval"
+      ],
+      "sections": [
+        "headline",
+        "lead",
+        "verified_facts",
+        "quotes",
+        "boilerplate"
+      ],
+      "review_roles": [
+        "pr",
+        "legal"
+      ],
+      "content_value_defaults": {},
+      "status": "TEMPLATE_ONLY",
+      "publication_enabled": false
+    },
+    {
+      "key": "landing_page",
+      "required_inputs": [
+        "offer",
+        "audience",
+        "evidence",
+        "cta"
+      ],
+      "sections": [
+        "hero",
+        "problem",
+        "solution",
+        "proof",
+        "faq",
+        "cta"
+      ],
+      "review_roles": [
+        "editor",
+        "design",
+        "product"
+      ],
+      "content_value_defaults": {},
+      "status": "TEMPLATE_ONLY",
+      "publication_enabled": false
+    },
+    {
+      "key": "sales_deck",
+      "required_inputs": [
+        "persona",
+        "objections",
+        "offer",
+        "current_pricing"
+      ],
+      "sections": [
+        "cover",
+        "business_problem",
+        "solution",
+        "demo",
+        "proof",
+        "implementation",
+        "commercial_terms",
+        "next_step"
+      ],
+      "review_roles": [
+        "sales",
+        "product",
+        "pricing"
+      ],
+      "content_value_defaults": {},
+      "status": "TEMPLATE_ONLY",
+      "publication_enabled": false
+    },
+    {
+      "key": "case_study",
+      "required_inputs": [
+        "customer_permission",
+        "baseline",
+        "measurement_period",
+        "claim_proof"
+      ],
+      "sections": [
+        "situation",
+        "intervention",
+        "quantified_outcome",
+        "limits",
+        "permissioned_quote"
+      ],
+      "review_roles": [
+        "customer_success",
+        "legal",
+        "proof"
+      ],
+      "content_value_defaults": {},
+      "status": "TEMPLATE_ONLY",
+      "publication_enabled": false
+    },
+    {
+      "key": "ugc_brief",
+      "required_inputs": [
+        "creator_permission",
+        "distribution_rights",
+        "commercial_disclosure"
+      ],
+      "sections": [
+        "task",
+        "guardrails",
+        "asset_requirements",
+        "submission",
+        "approval"
+      ],
+      "review_roles": [
+        "creator",
+        "legal"
+      ],
+      "content_value_defaults": {},
+      "status": "TEMPLATE_ONLY",
+      "publication_enabled": false
+    }
+  ],
+  "single_idea_multi_output": {
+    "enabled_in_design": true,
+    "source_idea_ref_required": true,
+    "claims_must_remain_linked": true,
+    "channel_variant_is_new_asset_version": true,
+    "original_asset_immutable": true
+  },
+  "dual_briefs": {
+    "writer": [
+      "persona",
+      "goal",
+      "pillar",
+      "angle",
+      "tone",
+      "style",
+      "claim_refs",
+      "structure",
+      "cta",
+      "locale",
+      "seo",
+      "restrictions"
+    ],
+    "designer": [
+      "format",
+      "visual_hierarchy",
+      "brand_asset_refs",
+      "media_rights",
+      "text_overlays",
+      "aspect_ratio",
+      "motion",
+      "audio",
+      "captions",
+      "accessibility"
+    ]
+  },
+  "evidence_before_asset": "source_and_claim_resolution",
+  "required_human_review": [
+    "editorial_quality",
+    "claims",
+    "legal_or_commercial_when_applicable"
+  ],
+  "no_execution": true
+}

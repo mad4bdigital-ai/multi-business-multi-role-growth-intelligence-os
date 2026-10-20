@@ -33,6 +33,36 @@ jobs:
         with:
           node-version: "22"
 
+      - name: Validate governed Production security-hotfix classification
+        run: node http-generic-api/scripts/production-security-hotfix-candidate-self-test.mjs
+
+      - name: Verify Production Environment binding for governed runtime credentials
+        env:
+          CREDENTIAL_PROVENANCE_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before || '' }}
+          CREDENTIAL_PROVENANCE_EVENT: ${{ github.event_name }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          # GitHub sends an all-zero "before" SHA for the first push to a new
+          # branch. Anchor the credential diff to the common ancestor with
+          # the immutable checked-out default-branch history, never to 0000.
+          if [[ "$CREDENTIAL_PROVENANCE_EVENT" == "push" &&
+                "$CREDENTIAL_PROVENANCE_BASE_SHA" == "0000000000000000000000000000000000000000" ]]; then
+            case "$GITHUB_REF" in
+              refs/heads/main|refs/heads/Production)
+                echo "::error::Protected-branch push has no immutable baseline"; exit 1 ;;
+            esac
+            git show-ref --verify --quiet refs/remotes/origin/main || {
+              echo "::error::Default-branch history is unavailable"; exit 1;
+            }
+            baseline="$(git merge-base HEAD refs/remotes/origin/main)"
+            [[ "$baseline" =~ ^[0-9a-f]{40}$ ]] || {
+              echo "::error::No verified default-branch common ancestor"; exit 1;
+            }
+            export CREDENTIAL_PROVENANCE_BASE_SHA="$baseline"
+          fi
+          node http-generic-api/scripts/credential-environment-scope-ratchet.mjs
+
       - name: Enforce Runtime data lifecycle classification
         working-directory: http-generic-api
         env:
@@ -619,6 +649,7 @@ jobs:
           node .\\test-staging-recovery-authority-binding.mjs
           node .\\test-staging-recovery-certification-protocol.mjs
           node .\\test-platform-recovery-convergence.mjs
+          node .\\test-staging-post-build-image-discovery.mjs
 
   staging-semantic-portability:
     name: Staging Semantic Portability
@@ -660,7 +691,13 @@ jobs:
                   $path -eq 'http-generic-api/stagingCanonicalSemanticRepairLedger.js' -or
                   $path -eq 'http-generic-api/semanticDataCompletenessReport.js' -or
                   $path -eq 'http-generic-api/test-semantic-data-completeness-report.mjs' -or
-                  $path -like 'http-generic-api/test-staging-canonical-semantic-repair*.mjs'
+                  $path -like 'http-generic-api/test-staging-canonical-semantic-repair*.mjs' -or
+                  $path -like 'autopilot-portable-staging/*AutonomousSupervisor*.ps1' -or
+                  $path -eq 'autopilot-portable-staging/Install-AutoDeployTask.ps1' -or
+                  $path -eq 'autopilot-portable-staging/Uninstall-AutoDeployTask.ps1' -or
+                  $path -eq 'autopilot-portable-staging/autonomous-operations-policy.json' -or
+                  $path -eq 'autopilot-portable-staging/test/Test-AutonomousSupervisor.ps1' -or
+                  $path -eq '.github/workflows/ci.yml'
                 ) {
                   $active = $true
                   break
@@ -698,6 +735,12 @@ jobs:
         shell: powershell
         working-directory: .
         run: ./autopilot-portable-staging/test/Test-StagingCanonicalRepairLedgerEncoding.ps1
+
+      - name: Verify governed autonomous Staging acceptance on Windows
+        if: steps.portability-scope.outputs.active == 'true'
+        shell: powershell
+        working-directory: .
+        run: ./autopilot-portable-staging/test/Test-AutonomousSupervisor.ps1
 
       - name: Verify bounded repair runner contract
         if: steps.portability-scope.outputs.active == 'true'

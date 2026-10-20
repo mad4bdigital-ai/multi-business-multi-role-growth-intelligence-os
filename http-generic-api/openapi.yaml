@@ -2534,7 +2534,8 @@ components:
         action_key: { type: string }
         target_key: { type: string }
         credential_role: { type: string }
-        allow_platform_fallback: { type: boolean, default: true }
+        allow_platform_binding: { type: boolean, default: true, description: "Allow explicit platform-owned credential bindings independently of fallback." }
+        allow_platform_fallback: { type: boolean, default: true, description: "Allow implicit platform credential fallback candidates." }
 
     CredentialEffectivePlanResponse:
       type: object
@@ -2549,6 +2550,7 @@ components:
           type: object
           additionalProperties: true
           properties:
+            platform_binding_allowed_by_request: { type: boolean }
             platform_fallback_allowed_by_request: { type: boolean }
             credential_values_returned: { type: boolean, enum: [false] }
             secret_values_returned: { type: boolean, enum: [false] }
@@ -13793,66 +13795,61 @@ paths:
       security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: getLocalConnectorInstallBundle
       x-custom-gpt-surfaces: [admin_core]
-      summary: Resolve or download a local connector installer
-      description: "Generate a pre-filled Windows .bat installer for the local connector stack (cloudflared + Node.js service via NSSM). Reads cf_token and connector_secret from local_connector_user_configs in DB for the given user_id + device_id. Falls back to server env only if no DB row exists. The default JSON mode returns metadata before credential lookup. The installer is generated only when format=bat is requested on the authenticated route and is never uploaded to shared or public storage. User saves the .bat and runs as Administrator â€” cloudflared and NSSM are installed automatically if missing. Both services auto-restart on failure and reboot."
+      summary: Resolve a canonical connector device and a protected signed-installer handoff
+      description: Legacy format=bat direct credential delivery is retired (410). JSON returns no secrets and references the separate signed, scoped, expiring installer authorization POST workflow.
       parameters:
         - name: user_id
           in: query
           required: false
           schema: { type: string }
-          description: User ID whose device config to load from DB. Defaults to platform admin.
-        - name: device_id
+        - name: tenant_id
           in: query
           required: false
-          schema: { type: string, minLength: 1, maxLength: 128, default: mohammedlap }
-          description: Device ID (hostname) to load config for. Defaults to mohammedlap.
+          schema: { type: string }
+        - name: device_id
+          in: query
+          required: true
+          schema: { type: string, minLength: 2, maxLength: 128 }
         - name: format
           in: query
           required: false
           schema: { type: string, enum: [json, bat], default: json }
-          description: json returns a no-secret handoff; bat returns the authenticated binary installer.
+          description: bat returns 410 with the secure migration route; only json returns 200.
       responses:
         "200":
-          description: Metadata-only secure handoff or authenticated installer attachment
+          description: Read-only scoped diagnosis and installer workflow metadata
           content:
             application/json:
               schema:
                 type: object
-                additionalProperties: false
-                required: [ok, artifact_delivery, script_content_omitted, credential_materialized, public_storage_allowed, secure_download, secrets_included]
+                required: [ok, user_id, tenant_id, device_id, config_id, device_state, credential_materialized, signed_installer, secrets_included]
                 properties:
                   ok: { type: boolean, const: true }
-                  artifact_delivery: { type: string, const: authenticated_direct_download_only }
-                  script_content_omitted: { type: boolean, const: true }
-                  script_content_reason: { type: string }
+                  user_id: { type: string }
+                  tenant_id: { type: string }
+                  device_id: { type: string }
+                  config_id: { type: string }
+                  device_state: { type: string, enum: [ACTIVE, STALE] }
                   credential_materialized: { type: boolean, const: false }
+                  script_content_omitted: { type: boolean, const: true }
                   public_storage_allowed: { type: boolean, const: false }
-                  secure_download:
+                  signed_installer:
                     type: object
-                    additionalProperties: false
-                    required: [method, path, query, requires_backend_api_key, requires_admin_principal]
+                    required: [method, path, format, requires_authenticated_principal, requires_explicit_canonical_target, direct_admin_bat_disabled]
                     properties:
-                      method: { type: string, const: GET }
-                      path: { type: string, const: /admin/cli/local-connector/install-bundle }
-                      query:
-                        type: object
-                        additionalProperties: false
-                        required: [user_id, device_id, format]
-                        properties:
-                          user_id: { type: string }
-                          device_id: { type: string }
-                          format: { type: string, const: bat }
-                      requires_backend_api_key: { type: boolean, const: true }
-                      requires_admin_principal: { type: boolean, const: true }
+                      method: { type: string, const: POST }
+                      path: { type: string, const: /local-connector/install/download-link }
+                      format: { type: string, const: ps1 }
+                      requires_authenticated_principal: { type: boolean, const: true }
+                      requires_explicit_canonical_target: { type: boolean, const: true }
+                      direct_admin_bat_disabled: { type: boolean, const: true }
                   secrets_included: { type: boolean, const: false }
-            application/octet-stream:
-              schema:
-                type: string
-                format: binary
+        "400": { description: Invalid device or format }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
-        "404": { $ref: "#/components/responses/NotFound" }
-        "500": { $ref: "#/components/responses/InternalError" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "410": { description: Legacy direct BAT credential generation is retired }
+        "503": { description: Device inventory unavailable }
 
   /admin/cli/local-connector/self-repair:
     post:
@@ -13882,9 +13879,12 @@ paths:
                 user_id:
                   type: string
                   description: User ID whose device to repair. Defaults to platform admin.
+                tenant_id:
+                  type: string
+                  description: Tenant scope for non-platform user when not supplied by authenticated identity.
                 device_id:
                   type: string
-                  description: Device hostname to repair. Defaults to mohammedlap.
+                  description: Explicit canonical device ID is required. Stale devices may be diagnosed without execution authority.
       responses:
         "200":
           description: Diagnosis and no-secret authenticated repair handoff
@@ -13907,13 +13907,22 @@ paths:
                       cf_tunnel_status: { type: string }
                       config_source: { type: string, enum: [db, db_alias, env, env_fallback] }
                       secrets_included: { type: boolean, const: false }
+                  recovery_plan:
+                    type: object
+                    additionalProperties: true
+                    properties:
+                      status: { type: string }
+                      installer_eligible: { type: boolean }
+                      next_action: { type: string }
                   repair:
                     type: object
                     additionalProperties: true
-                    required: [required, installer_generated, artifact_delivery, public_storage_allowed, secure_download, secrets_included]
+                    required: [required, installer_generated, secrets_included]
                     properties:
                       required: { type: boolean }
                       installer_generated: { type: boolean, const: false }
+                      preview_only: { type: boolean }
+                      verification_pending: { type: boolean }
                       artifact_delivery: { type: string, const: authenticated_direct_download_only }
                       action: { type: string }
                       filename: { type: string }
@@ -13926,20 +13935,21 @@ paths:
                       secure_download:
                         type: object
                         additionalProperties: false
-                        required: [method, path, query, requires_backend_api_key, requires_admin_principal]
+                        required: [method, path, body, requires_authenticated_principal, requires_signed_expiring_capability, direct_admin_bat_disabled]
                         properties:
-                          method: { type: string, const: GET }
-                          path: { type: string, const: /admin/cli/local-connector/install-bundle }
-                          query:
+                          method: { type: string, const: POST }
+                          path: { type: string, const: /local-connector/install/download-link }
+                          body:
                             type: object
-                            additionalProperties: false
-                            required: [user_id, device_id, format]
+                            required: [user_id, tenant_id, device_id, format]
                             properties:
                               user_id: { type: string }
+                              tenant_id: { type: string }
                               device_id: { type: string }
-                              format: { type: string, const: bat }
-                          requires_backend_api_key: { type: boolean, const: true }
-                          requires_admin_principal: { type: boolean, const: true }
+                              format: { type: string, const: ps1 }
+                          requires_authenticated_principal: { type: boolean, const: true }
+                          requires_signed_expiring_capability: { type: boolean, const: true }
+                          direct_admin_bat_disabled: { type: boolean, const: true }
                       secrets_included: { type: boolean, const: false }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
@@ -23749,6 +23759,66 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
   /me/workspaces/{workspace_id}/brands/{brand_key}/assets/materialize-brand-core:
     $ref: ./openapi/brand-core-asset-materialization.yaml#/paths/~1me~1workspaces~1{workspace_id}~1brands~1{brand_key}~1assets~1materialize-brand-core
+  /platform/remote-runtime/hosting/recovery-allowlist/discover:
+    post:
+      tags: [platform-plugins]
+      operationId: discoverHostingerRecoveryAllowlist
+      summary: Discover Hostinger recovery capability catalog without execution
+      description: Resolves an exact governed Hostinger target and dynamic database-registered allowlist. Every capability is catalog-only; a connected Hostinger SSH account is not authority to create databases, edit environment variables or apply grants.
+      x-runtime-contract-source: routes/platformPluginRoutes.js
+      x-runtime-auth-profile: admin_backend
+      x-custom-gpt-exclude: true
+      x-gpt-action-exclude: true
+      x-openai-isConsequential: false
+      security:
+        - adminBearerAuth: []
+        - backendApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [target_id]
+              properties:
+                target_id: { type: string, minLength: 2, maxLength: 128 }
+                environment: { type: string, enum: [production, development], default: production }
+      responses:
+        "200":
+          description: No-secret capabilities and independent prerequisite evidence
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok, contract, target_id, environment, commands, ssh_used, mutation_performed, secrets_included]
+                properties:
+                  ok: { type: boolean, const: true }
+                  contract: { type: string, const: mad4b.hostinger-recovery-discovery.v1 }
+                  target_id: { type: string }
+                  environment: { type: string }
+                  commands:
+                    type: array
+                    items:
+                      type: object
+                      required: [command_key, registry_status, target_allowlisted, plan_allowed, dispatch_ready, execution_allowed]
+                      properties:
+                        command_key: { type: string }
+                        registry_status: { type: string }
+                        target_allowlisted: { type: boolean }
+                        plan_candidate: { type: boolean }
+                        plan_allowed: { type: boolean, const: false }
+                        dispatch_ready: { type: boolean, const: false }
+                        execution_allowed: { type: boolean, const: false }
+                        prerequisites: { type: array, items: { type: string } }
+                  ssh_used: { type: boolean, const: false }
+                  mutation_performed: { type: boolean, const: false }
+                  secrets_included: { type: boolean, const: false }
+        "400": { description: Invalid target or environment }
+        "403": { description: Environment or target scope mismatch }
+        "409": { description: Target or capability registry is ambiguous }
+        "503": { description: Database or catalog unavailable }
+
   /platform/remote-runtime/hosting/deploy-release:
     post:
       operationId: remoteRuntimeHostingerDeployRelease
@@ -24057,427 +24127,6 @@ paths:
           description: Google token exchange failed.
         "503":
           description: Broker configuration or persistence is unavailable.
-  /v1/google/oauth/redeem:
-    post:
-      operationId: redeemManagedGoogleOAuthHandoff
-      summary: Redeem the one-time Managed Google OAuth handoff
-      description: Atomically redeems the one-time broker handoff after proving the exact Site Profile binding and S256 verifier. Successful redemption consumes the handoff under row lock, erases the broker token envelope, and returns Google token material only to the authenticated site-to-broker request. This protocol endpoint is excluded from all GPT action projection.
-      tags:
-        - managed-google-oauth
-      x-runtime-contract-source: routes/managedGoogleOAuthRoutes.js
-      x-runtime-auth-profile: managed_google_site_hmac
-      x-contract-completeness: precise-runtime-contract
-      x-custom-gpt-exclude: true
-      x-gpt-action-exclude: true
-      x-openai-isConsequential: false
-      security:
-        - managedGoogleSiteHmac: []
-      parameters:
-        - in: header
-          name: X-MAD4B-Site-Key-ID
-          required: true
-          schema:
-            type: string
-            pattern: ^[A-Za-z0-9._:-]{3,64}$
-        - in: header
-          name: X-MAD4B-Site-Timestamp
-          required: true
-          schema:
-            type: string
-            pattern: ^\d{10}$
-        - in: header
-          name: X-MAD4B-Site-Nonce
-          required: true
-          schema:
-            type: string
-            pattern: ^[A-Za-z0-9_-]{22,128}$
-        - in: header
-          name: X-MAD4B-Site-Signature
-          required: true
-          schema:
-            type: string
-            pattern: ^[a-f0-9]{64}$
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              additionalProperties: false
-              required:
-                - contract
-                - handoff_code
-                - session_id
-                - verifier
-                - site_uuid
-                - origin
-                - callback_uri
-              properties:
-                contract:
-                  type: string
-                  enum:
-                    - mad4b.google-managed-oauth-redeem-request.v1
-                handoff_code:
-                  type: string
-                  minLength: 1
-                  maxLength: 4096
-                session_id:
-                  type: string
-                  minLength: 1
-                  maxLength: 64
-                verifier:
-                  type: string
-                  pattern: ^[A-Za-z0-9._~-]{43,128}$
-                site_uuid:
-                  type: string
-                  format: uuid
-                origin:
-                  type: string
-                  format: uri
-                  pattern: ^https://
-                callback_uri:
-                  type: string
-                  format: uri
-                  pattern: ^https://
-      responses:
-        "200":
-          description: One-time handoff consumed and Google token envelope returned to the authenticated WordPress site.
-          content:
-            application/json:
-              schema:
-                type: object
-                additionalProperties: false
-                required:
-                  - ok
-                  - contract
-                  - access_token
-                  - refresh_token
-                  - expires_in
-                  - scope
-                  - credential_material_included
-                properties:
-                  ok:
-                    type: boolean
-                    enum:
-                      - true
-                  contract:
-                    type: string
-                    enum:
-                      - mad4b.google-managed-oauth-redemption.v1
-                  access_token:
-                    type: string
-                    minLength: 1
-                    writeOnly: true
-                  refresh_token:
-                    type: string
-                    minLength: 1
-                    writeOnly: true
-                  expires_in:
-                    type: integer
-                    minimum: 1
-                    maximum: 86400
-                  scope:
-                    type: string
-                    enum:
-                      - https://www.googleapis.com/auth/drive.readonly
-                      - https://www.googleapis.com/auth/drive
-                  credential_material_included:
-                    type: boolean
-                    enum:
-                      - true
-        "400":
-          description: Invalid redemption contract, handoff or verifier shape.
-        "401":
-          description: Missing, expired or invalid site-HMAC authentication.
-        "403":
-          description: Site binding, handoff or verifier mismatch.
-        "404":
-          description: Broker session not found.
-        "409":
-          description: Handoff already consumed, session not redeemable, or site-HMAC nonce replay.
-        "410":
-          description: One-time handoff expired.
-        "429":
-          description: Per-site redemption rate limit exceeded.
-        "503":
-          description: Broker configuration or persistence is unavailable.
-  /v1/google/oauth/refresh:
-    post:
-      operationId: refreshManagedGoogleOAuthAccessToken
-      summary: Refresh a Managed Google OAuth access token without scope escalation
-      description: Uses the broker-owned Google OAuth client secret to refresh an access token for an exact authenticated Site Profile. The requested access mode and scope must match the governed Drive scope contract exactly; scope escalation is rejected. The Google refresh token is credential material supplied only over the site-HMAC authenticated server-to-server channel and is never persisted in plaintext by this operation.
-      tags:
-        - managed-google-oauth
-      x-runtime-contract-source: routes/managedGoogleOAuthRoutes.js
-      x-runtime-auth-profile: managed_google_site_hmac
-      x-contract-completeness: precise-runtime-contract
-      x-custom-gpt-exclude: true
-      x-gpt-action-exclude: true
-      x-openai-isConsequential: false
-      security:
-        - managedGoogleSiteHmac: []
-      parameters:
-        - in: header
-          name: X-MAD4B-Site-Key-ID
-          required: true
-          schema:
-            type: string
-            pattern: ^[A-Za-z0-9._:-]{3,64}$
-        - in: header
-          name: X-MAD4B-Site-Timestamp
-          required: true
-          schema:
-            type: string
-            pattern: ^\d{10}$
-        - in: header
-          name: X-MAD4B-Site-Nonce
-          required: true
-          schema:
-            type: string
-            pattern: ^[A-Za-z0-9_-]{22,128}$
-        - in: header
-          name: X-MAD4B-Site-Signature
-          required: true
-          schema:
-            type: string
-            pattern: ^[a-f0-9]{64}$
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              additionalProperties: false
-              required:
-                - contract
-                - site_uuid
-                - origin
-                - refresh_token
-                - requested_scope
-                - access_mode
-              properties:
-                contract:
-                  type: string
-                  enum:
-                    - mad4b.google-managed-oauth-refresh-request.v1
-                site_uuid:
-                  type: string
-                  format: uuid
-                origin:
-                  type: string
-                  format: uri
-                  pattern: ^https://
-                refresh_token:
-                  type: string
-                  minLength: 1
-                  maxLength: 8192
-                  writeOnly: true
-                requested_scope:
-                  type: string
-                  enum:
-                    - https://www.googleapis.com/auth/drive.readonly
-                    - https://www.googleapis.com/auth/drive
-                access_mode:
-                  type: string
-                  enum:
-                    - read_only
-                    - read_write
-      responses:
-        "200":
-          description: Refreshed Google access token returned to the authenticated WordPress site.
-          content:
-            application/json:
-              schema:
-                type: object
-                additionalProperties: false
-                required:
-                  - ok
-                  - contract
-                  - access_token
-                  - expires_in
-                  - scope
-                  - credential_material_included
-                properties:
-                  ok:
-                    type: boolean
-                    enum:
-                      - true
-                  contract:
-                    type: string
-                    enum:
-                      - mad4b.google-managed-oauth-refresh.v1
-                  access_token:
-                    type: string
-                    minLength: 1
-                    writeOnly: true
-                  expires_in:
-                    type: integer
-                    minimum: 1
-                    maximum: 86400
-                  scope:
-                    type: string
-                    enum:
-                      - https://www.googleapis.com/auth/drive.readonly
-                      - https://www.googleapis.com/auth/drive
-                  credential_material_included:
-                    type: boolean
-                    enum:
-                      - true
-        "400":
-          description: Invalid refresh contract, access mode or exact Drive scope.
-        "401":
-          description: Missing, expired or invalid site-HMAC authentication.
-        "403":
-          description: Site credential or exact Site Profile binding is not authorized.
-        "409":
-          description: Site-HMAC nonce replay detected.
-        "429":
-          description: Per-site refresh rate limit exceeded.
-        "502":
-          description: Google token refresh failed.
-        "503":
-          description: Broker configuration or persistence is unavailable.
-  /v1/google/oauth/session:
-    post:
-      operationId: createManagedGoogleOAuthSession
-      summary: Create a site-bound Managed Google OAuth authorization session
-      description: Creates a short-lived Google OAuth authorization session for an exact server-owned WordPress Site Profile binding. The request is authenticated with the dedicated MAD4B site-HMAC scheme, binds the WordPress callback, Drive access mode, OAuth scope, state and S256 verifier challenge, and returns only the Google authorization URL and broker session identifier. Google OAuth client secrets and provider tokens are never returned by this operation.
-      tags:
-        - managed-google-oauth
-      x-runtime-contract-source: routes/managedGoogleOAuthRoutes.js
-      x-runtime-auth-profile: managed_google_site_hmac
-      x-contract-completeness: precise-runtime-contract
-      x-custom-gpt-exclude: true
-      x-gpt-action-exclude: true
-      x-openai-isConsequential: false
-      security:
-        - managedGoogleSiteHmac: []
-      parameters:
-        - in: header
-          name: X-MAD4B-Site-Key-ID
-          required: true
-          schema:
-            type: string
-            pattern: ^[A-Za-z0-9._:-]{3,64}$
-        - in: header
-          name: X-MAD4B-Site-Timestamp
-          required: true
-          schema:
-            type: string
-            pattern: ^\d{10}$
-        - in: header
-          name: X-MAD4B-Site-Nonce
-          required: true
-          schema:
-            type: string
-            pattern: ^[A-Za-z0-9_-]{22,128}$
-        - in: header
-          name: X-MAD4B-Site-Signature
-          required: true
-          schema:
-            type: string
-            pattern: ^[a-f0-9]{64}$
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              additionalProperties: false
-              required:
-                - contract
-                - site_uuid
-                - origin
-                - callback_uri
-                - access_mode
-                - requested_scope
-                - state
-                - verifier_challenge
-                - verifier_method
-              properties:
-                contract:
-                  type: string
-                  enum:
-                    - mad4b.google-managed-oauth-session.v1
-                site_uuid:
-                  type: string
-                  format: uuid
-                origin:
-                  type: string
-                  format: uri
-                  pattern: ^https://
-                callback_uri:
-                  type: string
-                  format: uri
-                  pattern: ^https://
-                access_mode:
-                  type: string
-                  enum:
-                    - read_only
-                    - read_write
-                requested_scope:
-                  type: string
-                  enum:
-                    - https://www.googleapis.com/auth/drive.readonly
-                    - https://www.googleapis.com/auth/drive
-                state:
-                  type: string
-                  minLength: 32
-                  maxLength: 256
-                verifier_challenge:
-                  type: string
-                  pattern: ^[A-Za-z0-9_-]{43}$
-                verifier_method:
-                  type: string
-                  enum:
-                    - S256
-      responses:
-        "200":
-          description: Managed Google OAuth authorization session created.
-          content:
-            application/json:
-              schema:
-                type: object
-                additionalProperties: false
-                required:
-                  - ok
-                  - contract
-                  - session_id
-                  - authorization_url
-                  - secrets_included
-                properties:
-                  ok:
-                    type: boolean
-                    enum:
-                      - true
-                  contract:
-                    type: string
-                    enum:
-                      - mad4b.google-managed-oauth-session.v1
-                  session_id:
-                    type: string
-                    minLength: 1
-                    maxLength: 64
-                  authorization_url:
-                    type: string
-                    format: uri
-                    pattern: ^https://accounts\.google\.com/
-                  secrets_included:
-                    type: boolean
-                    enum:
-                      - false
-        "400":
-          description: Invalid session contract, scope, state, verifier or binding shape.
-        "401":
-          description: Missing, expired or invalid site-HMAC authentication.
-        "403":
-          description: Site credential or exact Site Profile binding is not authorized.
-        "409":
-          description: Site-HMAC nonce replay detected.
-        "429":
-          description: Per-site session creation rate limit exceeded.
-        "503":
-          description: Managed Google OAuth broker configuration or persistence is unavailable.
   /platform/remote-runtime/targets/catalog-readonly:
     get:
       operationId: getRemoteRuntimeTargetCatalogReadonly
@@ -24628,3 +24277,521 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '409': { $ref: '#/components/responses/Conflict' }
+  /v1/google/oauth/redeem:
+    post:
+      operationId: redeemManagedGoogleOAuthHandoff
+      summary: Redeem the one-time Managed Google OAuth handoff
+      description: Atomically redeems the one-time broker handoff after proving the exact Site Profile binding and S256 verifier. Successful redemption consumes the handoff under row lock, erases the broker token envelope, and returns Google token material only to the authenticated site-to-broker request. This protocol endpoint is excluded from all GPT action projection.
+      tags:
+        - managed-google-oauth
+      x-runtime-contract-source: routes/managedGoogleOAuthRoutes.js
+      x-runtime-auth-profile: managed_google_site_hmac
+      x-contract-completeness: precise-runtime-contract
+      x-custom-gpt-exclude: true
+      x-gpt-action-exclude: true
+      x-openai-isConsequential: false
+      security:
+        - managedGoogleSiteHmac: []
+      parameters:
+        - in: header
+          name: X-MAD4B-Site-Key-ID
+          required: true
+          schema:
+            type: string
+            pattern: ^[A-Za-z0-9._:-]{3,64}$
+        - in: header
+          name: X-MAD4B-Site-Timestamp
+          required: true
+          schema:
+            type: string
+            pattern: ^\d{10}$
+        - in: header
+          name: X-MAD4B-Site-Nonce
+          required: true
+          schema:
+            type: string
+            pattern: ^[A-Za-z0-9_-]{22,128}$
+        - in: header
+          name: X-MAD4B-Site-Signature
+          required: true
+          schema:
+            type: string
+            pattern: ^[a-f0-9]{64}$
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - contract
+                - handoff_code
+                - session_id
+                - verifier
+                - site_uuid
+                - origin
+                - callback_uri
+              properties:
+                contract:
+                  type: string
+                  enum:
+                    - mad4b.google-managed-oauth-redeem-request.v1
+                handoff_code:
+                  type: string
+                  minLength: 1
+                  maxLength: 4096
+                session_id:
+                  type: string
+                  minLength: 1
+                  maxLength: 64
+                verifier:
+                  type: string
+                  pattern: ^[A-Za-z0-9._~-]{43,128}$
+                site_uuid:
+                  type: string
+                  format: uuid
+                origin:
+                  type: string
+                  format: uri
+                  pattern: ^https://
+                callback_uri:
+                  type: string
+                  format: uri
+                  pattern: ^https://
+      responses:
+        "200":
+          description: One-time handoff consumed and Google token envelope returned to the authenticated WordPress site.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                  - ok
+                  - contract
+                  - access_token
+                  - refresh_token
+                  - expires_in
+                  - scope
+                  - credential_material_included
+                properties:
+                  ok:
+                    type: boolean
+                    enum:
+                      - true
+                  contract:
+                    type: string
+                    enum:
+                      - mad4b.google-managed-oauth-redemption.v1
+                  access_token:
+                    type: string
+                    minLength: 1
+                    writeOnly: true
+                  refresh_token:
+                    type: string
+                    minLength: 1
+                    writeOnly: true
+                  expires_in:
+                    type: integer
+                    minimum: 1
+                    maximum: 86400
+                  scope:
+                    type: string
+                    minLength: 1
+                    maxLength: 8192
+                    description: Space-delimited scope set actually granted by Google.
+                  scope_profile:
+                    type: string
+                  requested_capabilities:
+                    type: array
+                    items:
+                      type: string
+                  requested_scopes:
+                    type: array
+                    items:
+                      type: string
+                  missing_scopes:
+                    type: array
+                    items:
+                      type: string
+                  previously_granted_scopes:
+                    type: array
+                    items:
+                      type: string
+                  complete_scope_grant:
+                    type: boolean
+                  credential_material_included:
+                    type: boolean
+                    enum:
+                      - true
+        "400":
+          description: Invalid redemption contract, handoff or verifier shape.
+        "401":
+          description: Missing, expired or invalid site-HMAC authentication.
+        "403":
+          description: Site binding, handoff or verifier mismatch.
+        "404":
+          description: Broker session not found.
+        "409":
+          description: Handoff already consumed, session not redeemable, or site-HMAC nonce replay.
+        "410":
+          description: One-time handoff expired.
+        "429":
+          description: Per-site redemption rate limit exceeded.
+        "503":
+          description: Broker configuration or persistence is unavailable.
+  /v1/google/oauth/session:
+    post:
+      operationId: createManagedGoogleOAuthSession
+      summary: Create a site-bound Managed Google OAuth authorization session
+      description: Creates a short-lived Google OAuth authorization session for an exact server-owned WordPress Site Profile binding. The request is authenticated with the dedicated MAD4B site-HMAC scheme, binds the WordPress callback, Drive access mode, OAuth scope, state and S256 verifier challenge, and returns only the Google authorization URL and broker session identifier. Google OAuth client secrets and provider tokens are never returned by this operation.
+      tags:
+        - managed-google-oauth
+      x-runtime-contract-source: routes/managedGoogleOAuthRoutes.js
+      x-runtime-auth-profile: managed_google_site_hmac
+      x-contract-completeness: precise-runtime-contract
+      x-custom-gpt-exclude: true
+      x-gpt-action-exclude: true
+      x-openai-isConsequential: false
+      security:
+        - managedGoogleSiteHmac: []
+      parameters:
+        - in: header
+          name: X-MAD4B-Site-Key-ID
+          required: true
+          schema:
+            type: string
+            pattern: ^[A-Za-z0-9._:-]{3,64}$
+        - in: header
+          name: X-MAD4B-Site-Timestamp
+          required: true
+          schema:
+            type: string
+            pattern: ^\d{10}$
+        - in: header
+          name: X-MAD4B-Site-Nonce
+          required: true
+          schema:
+            type: string
+            pattern: ^[A-Za-z0-9_-]{22,128}$
+        - in: header
+          name: X-MAD4B-Site-Signature
+          required: true
+          schema:
+            type: string
+            pattern: ^[a-f0-9]{64}$
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - contract
+                - site_uuid
+                - origin
+                - callback_uri
+                - access_mode
+                - requested_scope
+                - state
+                - verifier_challenge
+                - verifier_method
+              properties:
+                contract:
+                  type: string
+                  enum:
+                    - mad4b.google-managed-oauth-session.v1
+                site_uuid:
+                  type: string
+                  format: uuid
+                origin:
+                  type: string
+                  format: uri
+                  pattern: ^https://
+                callback_uri:
+                  type: string
+                  format: uri
+                  pattern: ^https://
+                access_mode:
+                  type: string
+                  enum:
+                    - read_only
+                    - read_write
+                requested_scope:
+                  type: string
+                  minLength: 1
+                  maxLength: 8192
+                  description: Space-delimited governed Google OAuth scopes. Must include the exact Drive baseline required by access_mode; every requested scope must exist in the capability registry.
+                scope_profile:
+                  type: string
+                  enum:
+                    - legacy
+                    - custom
+                    - drive_read_only
+                    - drive_read_write
+                    - workspace_full
+                    - marketing_full
+                    - full_owner
+                  default: legacy
+                requested_capabilities:
+                  type: array
+                  maxItems: 64
+                  uniqueItems: true
+                  items:
+                    type: string
+                    minLength: 1
+                    maxLength: 128
+                state:
+                  type: string
+                  minLength: 32
+                  maxLength: 256
+                verifier_challenge:
+                  type: string
+                  pattern: ^[A-Za-z0-9_-]{43}$
+                verifier_method:
+                  type: string
+                  enum:
+                    - S256
+      responses:
+        "200":
+          description: Managed Google OAuth authorization session created.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                  - ok
+                  - contract
+                  - session_id
+                  - authorization_url
+                  - secrets_included
+                properties:
+                  ok:
+                    type: boolean
+                    enum:
+                      - true
+                  contract:
+                    type: string
+                    enum:
+                      - mad4b.google-managed-oauth-session.v1
+                  session_id:
+                    type: string
+                    minLength: 1
+                    maxLength: 64
+                  authorization_url:
+                    type: string
+                    format: uri
+                    pattern: ^https://accounts\.google\.com/
+                  scope_profile:
+                    type: string
+                  requested_capabilities:
+                    type: array
+                    items:
+                      type: string
+                  requested_scopes:
+                    type: array
+                    items:
+                      type: string
+                  incremental_authorization:
+                    type: boolean
+                    enum:
+                      - true
+                  secrets_included:
+                    type: boolean
+                    enum:
+                      - false
+        "400":
+          description: Invalid session contract, scope, state, verifier or binding shape.
+        "401":
+          description: Missing, expired or invalid site-HMAC authentication.
+        "403":
+          description: Site credential or exact Site Profile binding is not authorized.
+        "409":
+          description: Site-HMAC nonce replay detected.
+        "429":
+          description: Per-site session creation rate limit exceeded.
+        "503":
+          description: Managed Google OAuth broker configuration or persistence is unavailable.
+  /v1/google/oauth/refresh:
+    post:
+      operationId: refreshManagedGoogleOAuthAccessToken
+      summary: Refresh a Managed Google OAuth access token without scope escalation
+      description: Uses the broker-owned Google OAuth client secret to refresh an access token for an exact authenticated Site Profile. The Drive baseline must match the requested access mode and every requested scope/capability must resolve through the governed Google capability registry; unregistered scope escalation is rejected. The Google refresh token is credential material supplied only over the site-HMAC authenticated server-to-server channel and is never persisted in plaintext by this operation.
+      tags:
+        - managed-google-oauth
+      x-runtime-contract-source: routes/managedGoogleOAuthRoutes.js
+      x-runtime-auth-profile: managed_google_site_hmac
+      x-contract-completeness: precise-runtime-contract
+      x-custom-gpt-exclude: true
+      x-gpt-action-exclude: true
+      x-openai-isConsequential: false
+      security:
+        - managedGoogleSiteHmac: []
+      parameters:
+        - in: header
+          name: X-MAD4B-Site-Key-ID
+          required: true
+          schema:
+            type: string
+            pattern: ^[A-Za-z0-9._:-]{3,64}$
+        - in: header
+          name: X-MAD4B-Site-Timestamp
+          required: true
+          schema:
+            type: string
+            pattern: ^\d{10}$
+        - in: header
+          name: X-MAD4B-Site-Nonce
+          required: true
+          schema:
+            type: string
+            pattern: ^[A-Za-z0-9_-]{22,128}$
+        - in: header
+          name: X-MAD4B-Site-Signature
+          required: true
+          schema:
+            type: string
+            pattern: ^[a-f0-9]{64}$
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - contract
+                - site_uuid
+                - origin
+                - refresh_token
+                - requested_scope
+                - access_mode
+              properties:
+                contract:
+                  type: string
+                  enum:
+                    - mad4b.google-managed-oauth-refresh-request.v1
+                site_uuid:
+                  type: string
+                  format: uuid
+                origin:
+                  type: string
+                  format: uri
+                  pattern: ^https://
+                refresh_token:
+                  type: string
+                  minLength: 1
+                  maxLength: 8192
+                  writeOnly: true
+                current_granted_scope:
+                  type: string
+                  minLength: 1
+                  maxLength: 8192
+                  description: Space-delimited scope set currently granted to this refresh token. Required for non-legacy capability profiles so requested scopes are never inferred as granted authority when Google omits scope from a refresh response.
+                requested_scope:
+                  type: string
+                  minLength: 1
+                  maxLength: 8192
+                  description: Space-delimited governed Google OAuth scopes. Must include the Drive baseline required by access_mode.
+                scope_profile:
+                  type: string
+                  enum:
+                    - legacy
+                    - custom
+                    - drive_read_only
+                    - drive_read_write
+                    - workspace_full
+                    - marketing_full
+                    - full_owner
+                  default: legacy
+                requested_capabilities:
+                  type: array
+                  maxItems: 64
+                  uniqueItems: true
+                  items:
+                    type: string
+                    minLength: 1
+                    maxLength: 128
+                access_mode:
+                  type: string
+                  enum:
+                    - read_only
+                    - read_write
+      responses:
+        "200":
+          description: Refreshed Google access token returned to the authenticated WordPress site.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                  - ok
+                  - contract
+                  - access_token
+                  - expires_in
+                  - scope
+                  - credential_material_included
+                properties:
+                  ok:
+                    type: boolean
+                    enum:
+                      - true
+                  contract:
+                    type: string
+                    enum:
+                      - mad4b.google-managed-oauth-refresh.v1
+                  access_token:
+                    type: string
+                    minLength: 1
+                    writeOnly: true
+                  expires_in:
+                    type: integer
+                    minimum: 1
+                    maximum: 86400
+                  scope:
+                    type: string
+                    minLength: 1
+                    maxLength: 8192
+                    description: Space-delimited scope set actually granted by Google.
+                  scope_profile:
+                    type: string
+                  requested_capabilities:
+                    type: array
+                    items:
+                      type: string
+                  requested_scopes:
+                    type: array
+                    items:
+                      type: string
+                  missing_scopes:
+                    type: array
+                    items:
+                      type: string
+                  previously_granted_scopes:
+                    type: array
+                    items:
+                      type: string
+                  complete_scope_grant:
+                    type: boolean
+                  credential_material_included:
+                    type: boolean
+                    enum:
+                      - true
+        "400":
+          description: Invalid refresh contract, access mode, governed capability profile, or requested scope set.
+        "401":
+          description: Missing, expired or invalid site-HMAC authentication.
+        "403":
+          description: Site credential or exact Site Profile binding is not authorized.
+        "409":
+          description: Site-HMAC nonce replay detected.
+        "429":
+          description: Per-site refresh rate limit exceeded.
+        "502":
+          description: Google token refresh failed.
+        "503":
+          description: Broker configuration or persistence is unavailable.

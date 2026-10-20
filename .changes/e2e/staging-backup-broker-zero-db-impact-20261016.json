@@ -1,0 +1,85 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-backup-broker-zero-db-impact-20261016",
+  "title": "Staging inert broker probe with no MariaDB service or network impact",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-backup-broker-zero-db-impact-20261016.json",
+      ".github/derived-state-governance.json",
+      "autopilot-portable-staging/Inspect-StagingBackupBrokerPrerequisites.ps1",
+      "autopilot-portable-staging/Inspect-StagingBackupBrokerZeroDbImpact.ps1",
+      "docs/runbooks/staging-backup-broker-sandbox-candidate-20261016.md",
+      "http-generic-api/config/repository-governance-constitution.json",
+      "http-generic-api/docker-compose.staging.backup-broker-preflight.yml",
+      "local-connector/test-staging-backup-broker-candidate-profile.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Prove the inert Staging probe has no network or existing service changes, including no runtime-db recreation or SQL.",
+      "e2e_journeys": [
+        {
+          "id": "staging-broker-no-network-no-database-impact",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Staging Read-Only Operator",
+          "entrypoint": "Compare standard Compose config to opt-in profile and inspect live Staging topology without starting containers.",
+          "terminal_outcome": "Candidate remains unactivated, without network or DBA authority, while runtime-db config and live identity are intact.",
+          "steps": [
+            "Resolve the standard Compose and opt-in Compose in read-only mode.",
+            "Require exact equality of every existing application/DB/Redis service and declared network.",
+            "Require candidate network_mode none, non-root read-only and no dependencies, env secrets, exposed ports or volumes.",
+            "Cross-check live runtime-db health, original network, no exposed port, and app exact SHA without mutation.",
+            "Reject stale SHA, missing candidate, network or service changes and any candidate already present."
+          ],
+          "assertions": [
+            "Neither source/test nor read-only preflight may create networks, start/recreate services, connect to DB or mutate Production.",
+            "GitHub owner code attestation cannot be interpreted as a cryptographically signed DBA operation.",
+            "Even a passing probe is never a certified operational broker or backup/restore acceptance.",
+            "Shared Local Connector and deployment semantics reviewed for both environments; Production mutation remains false."
+          ],
+          "tests": [
+            {
+              "id": "zero-impact-candidate-profile",
+              "runner": "node",
+              "path": "local-connector/test-staging-backup-broker-candidate-profile.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "autopilot-portable-staging/Inspect-StagingBackupBrokerZeroDbImpact.ps1",
+            "http-generic-api/docker-compose.staging.backup-broker-preflight.yml",
+            "docs/runbooks/staging-backup-broker-sandbox-candidate-20261016.md"
+          ]
+        }
+      ],
+      "tests": [
+        {
+          "id": "zero-impact-candidate-profile",
+          "runner": "node",
+          "path": "local-connector/test-staging-backup-broker-candidate-profile.mjs",
+          "args": []
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}

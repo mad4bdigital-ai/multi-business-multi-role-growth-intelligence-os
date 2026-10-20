@@ -126,6 +126,7 @@ async function upsertPlatformSecret(pool, reference, value, note) {
     provisioning_status: "stored",
     required_for: TENANT_GPT_OAUTH_CLIENT_CONFIG_KEY,
     source: "tenant_gpt_oauth_client_upsert",
+    environment: TENANT_GPT_IS_STAGING_RUNTIME ? "staging" : "production",
   });
 
   await pool.query(
@@ -190,7 +191,7 @@ export async function readTenantGptOAuthClientConfig(options = null) {
     if (config.client_secret_ref) {
       const credential = await resolveCredentialReference(
         config.client_secret_ref,
-        { includeSecret: true },
+        { includeSecret: true, expectedOwnerType: "platform", environmentKey: TENANT_GPT_IS_STAGING_RUNTIME ? "staging" : "production" },
         {
           pool: { query: execute },
           decryptToken: options?.decryptToken,
@@ -251,7 +252,7 @@ export async function getTenantGptOAuthClientConfigStatus(options = {}) {
     if (clientSecretRef) {
       credential = await resolveCredentialReference(
         clientSecretRef,
-        { includeSecret: false },
+        { includeSecret: false, expectedOwnerType: "platform", environmentKey: TENANT_GPT_IS_STAGING_RUNTIME ? "staging" : "production" },
         {
           pool,
           decryptToken: options.decryptToken,

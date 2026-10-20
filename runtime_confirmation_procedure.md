@@ -42,7 +42,7 @@ This script checks governed behaviors:
 4. Local dispatch — `POST /http-execute` with `github_git_blob_chunk_read` does not throw `ReferenceError`
 5. Async job queue — `POST /jobs` enqueues and `GET /jobs/:id` returns a known status
 6. Governance Validation Engine — `POST /governance/validate-execution` returns expected validation status
-7. Local Connector Governance — `GET /local-connector/install/status` returns install state for mohammedlap
+7. Local Connector Governance — `GET /local-connector/install/status` returns status for the canonical device resolved from fresh scoped live inventory
 8. Dispatch routing — `GET /dispatch/routes` returns active task_routes with `directly_dispatched` flags
 9. Dispatch intent — `POST /dispatch` with `intent_key=local.health.check` returns `ok` or expected error shape (not 500)
 10. Local Manager capability installer changes — when validating a capability rollout, verify live connector behavior through `connector_ps`, `connector_win`, `connector_files`, and `connector_apps`; `section=settings` refresh is not sufficient evidence.

@@ -175,10 +175,21 @@ assert.match(guardSource, /normalizedMode !== "apply"/);
 assert.match(guardSource, /pool: writerPool \|\| getGovernancePool\(\)/);
 
 const bootstrapSource = readFileSync(new URL("./governedMigrationAuthorizationBootstrap.js", import.meta.url), "utf8");
-assert.match(bootstrapSource, /const readPool = deps\.readPool \|\| getPool\(\)/);
+assert.match(bootstrapSource, /const envelopeReadPool = deps\.envelopeReadPool \|\| getGovernancePool\(\)/);
+assert.doesNotMatch(bootstrapSource, /envelopeReadPool = deps\.envelopeReadPool \|\| deps\.readPool/);
 assert.match(bootstrapSource, /const writerPool = deps\.writerPool \|\| getGovernancePool\(\)/);
-assert.match(bootstrapSource, /pool: readPool/);
+assert.match(bootstrapSource, /pool: envelopeReadPool/);
 assert.match(bootstrapSource, /pool: writerPool/);
+assert.doesNotMatch(bootstrapSource, /getPool\(\)/);
 assert.doesNotMatch(bootstrapSource, /deps\.pool \|\| getGovernancePool/);
+
+const routesSource = readFileSync(new URL("./routes/gptToolsRoutes.js", import.meta.url), "utf8");
+const governedMigrationBlock = routesSource.slice(
+  routesSource.indexOf('toolKey === "governed_migration_execute"'),
+  routesSource.indexOf('toolKey === "runtime_dispatch_certification_issue"'),
+);
+assert.match(governedMigrationBlock, /resolveCapabilityExecutionEnvelope\(\{\s*pool: getGovernancePool\(\)/s);
+assert.match(governedMigrationBlock, /markCapabilityEnvelopeReferenced\(\{\s*writerPool: getGovernancePool\(\)/s);
+assert.doesNotMatch(governedMigrationBlock, /pool: getPool\(\)/);
 
 console.log("Governance DB writer authority boundary tests passed");

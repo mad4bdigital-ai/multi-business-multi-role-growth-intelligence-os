@@ -6,8 +6,10 @@ import {
 import {
   RECOVERY_READINESS_EVIDENCE_CONTRACT,
   evaluateExternalStagingEvidence,
+  verifyRecoveryExternalEvidenceIntegrity,
 } from "./recoveryReadinessEvidence.js";
 import { verifyStagingRecoverySignedCertificationRecord } from "./stagingRecoveryCertificationPublicTrust.js";
+import { verifyRecoveryExternalAcquisitionAuthority } from "./recoveryExternalAcquisitionAuthority.js";
 import {
   createApprovalChallenge,
   createExecutionTicket,
@@ -44,6 +46,7 @@ export const STAGING_RECOVERY_REQUIRED_NEGATIVE_TESTS = Object.freeze([
 
 const SHA40 = /^[a-f0-9]{40}$/u;
 const SHA256 = /^[a-f0-9]{64}$/u;
+const IMAGE_DIGEST_RE = /^sha256:[0-9a-f]{64}$/u;
 const SAFE_ID = /^[A-Za-z0-9._:-]{8,160}$/u;
 const PHASES = Object.freeze([
   "created",
@@ -58,7 +61,8 @@ const PHASES = Object.freeze([
   "verified",
   "recovered",
 ]);
-const SECRET_KEY = /(password|secret|credential|authorization|private[_-]?key|access[_-]?token|refresh[_-]?token|client[_-]?secret)/u;
+const SECRET_KEY = /^(?:authorization|password|secret|credential|credentials|private[_-]?key|access[_-]?token|refresh[_-]?token|id[_-]?token|client[_-]?secret|api[_-]?key|bearer[_-]?token)$|(?:^|[_-])(?:password|secret|credential|private[_-]?key|access[_-]?token|refresh[_-]?token)(?:$|[_-])/u;
+const CAMEL_SECRET_KEY = /(?:Secret|Password|Credential|PrivateKey|AccessToken|RefreshToken|IdToken|ApiKey|BearerToken)(?:$|[A-Z])/u;
 
 const stable = (value) => Array.isArray(value)
   ? value.map(stable)
@@ -79,11 +83,22 @@ function fail(code, message) {
   });
 }
 
+function assertArtifactIntegrity(value) {
+  if (value?.valid !== true
+    || !SHA256.test(String(value?.manifest_sha256 || ""))
+    || !IMAGE_DIGEST_RE.test(String(value?.app_image_digest || ""))) {
+    fail(
+      "RECOVERY_CANARY_ARTIFACT_INTEGRITY_INVALID",
+      "Exact Staging manifest and app image digests are required.",
+    );
+  }
+}
+
 function noSecrets(value, at = "evidence") {
   if (!value || typeof value !== "object") return;
   for (const [key, child] of Object.entries(value)) {
     const negativeAttestation = key === "caller_credentials_accepted" && child === false;
-    if (key !== "secrets_included" && !negativeAttestation && SECRET_KEY.test(key.toLowerCase())) {
+    if (key !== "secrets_included" && !negativeAttestation && (SECRET_KEY.test(key.toLowerCase()) || CAMEL_SECRET_KEY.test(key))) {
       fail("RECOVERY_CANARY_SECRET_FIELD_FORBIDDEN", `Forbidden field: ${at}.${key}`);
     }
     noSecrets(child, `${at}.${key}`);
@@ -219,6 +234,33 @@ export async function runGenuineStagingRecoveryCanary({
   if (!adapters || required.some((key) => !adapters[key])) {
     fail("RECOVERY_CANARY_KERNEL_AUTHORITY_UNAVAILABLE", "The complete server-managed Staging Kernel authority graph is required.");
   }
+  const preflightAttestation = await adapters.deploymentIdentityProvider.readAttestation();
+  if (preflightAttestation?.sha !== expectedSha || !SHA256.test(preflightAttestation?.target_fingerprint || "")) {
+    fail("RECOVERY_CANARY_TARGET_BINDING_INVALID", "Exact Staging SHA/target binding is required.");
+  }
+  for (const [kind, evidence] of [["registration", externalEvidence.registrationEvidence],
+    ["oauth", externalEvidence.oauthEvidence], ["network", externalEvidence.networkEvidence]]) {
+    if (!verifyRecoveryExternalEvidenceIntegrity(evidence, {
+      kind, expectedSha, expectedTargetFingerprint: preflightAttestation.target_fingerprint,
+    })) fail("RECOVERY_CANARY_EXTERNAL_INTEGRITY_INVALID", `${kind} evidence integrity is invalid.`);
+  }
+  const acquisitionVerification = await verifyRecoveryExternalAcquisitionAuthority(
+    adapters.externalEvidenceAcquisitionAuthority,
+    {
+      receipt: externalEvidence.acquisitionReceipt,
+      registrationEvidence: externalEvidence.registrationEvidence,
+      oauthEvidence: externalEvidence.oauthEvidence,
+      networkEvidence: externalEvidence.networkEvidence,
+      expectedSha,
+      expectedTargetFingerprint: preflightAttestation.target_fingerprint,
+    },
+  );
+  if (!acquisitionVerification.verified) {
+    fail(
+      "RECOVERY_CANARY_SOURCE_AUTHENTICITY_UNAVAILABLE",
+      acquisitionVerification.reason_code || "Authenticated external acquisition is required before running the canary.",
+    );
+  }
   const plan = await createStagingCertificationCanaryPlan(
     { expected_sha: expectedSha },
     { env, recoveryStore: adapters.recoveryStore, deploymentIdentityProvider: adapters.deploymentIdentityProvider },
@@ -303,6 +345,7 @@ export function produceGenuineStagingRecoveryCanaryEvidence({
   registrationEvidence,
   oauthEvidence,
   networkEvidence,
+  acquisitionReceipt,
   artifactIntegrity,
   nonce = `nonce:${randomUUID()}`,
   certificationRunId = `cert-run:${randomUUID()}`,
@@ -323,19 +366,22 @@ export function produceGenuineStagingRecoveryCanaryEvidence({
   }
   fresh(generatedAt, expiresAt);
   const step = kernelArtifacts({ plan, approval, ticket, receipt, run });
-  for (const evidence of [registrationEvidence, oauthEvidence, networkEvidence, workerDeploymentEvidence]) {
-    if (evidence?.deployment_sha !== deploymentAttestation.sha
-      || evidence?.target_fingerprint !== targetIdentity.target_fingerprint
-      || !SHA256.test(evidence?.evidence_hash || "")) {
-      fail("RECOVERY_CANARY_EXTERNAL_BINDING_INVALID", "External evidence binding is invalid.");
-    }
+  for (const [kind, evidence] of [["registration", registrationEvidence],
+    ["oauth", oauthEvidence], ["network", networkEvidence]]) {
+    if (!verifyRecoveryExternalEvidenceIntegrity(evidence, {
+      kind, expectedSha: deploymentAttestation.sha,
+      expectedTargetFingerprint: targetIdentity.target_fingerprint,
+    })) fail("RECOVERY_CANARY_EXTERNAL_INTEGRITY_INVALID", `${kind} evidence integrity is invalid.`);
+  }
+  if (workerDeploymentEvidence?.deployment_sha !== deploymentAttestation.sha
+    || workerDeploymentEvidence?.target_fingerprint !== targetIdentity.target_fingerprint
+    || !SHA256.test(workerDeploymentEvidence?.evidence_hash || "")) {
+    fail("RECOVERY_CANARY_EXTERNAL_BINDING_INVALID", "Worker evidence binding is invalid.");
   }
   if (ingressBuildIdentity?.deployment_sha !== deploymentAttestation.sha) {
     fail("RECOVERY_CANARY_INGRESS_BINDING_INVALID", "Ingress build binding is invalid.");
   }
-  if (artifactIntegrity?.valid !== true || !SHA256.test(artifactIntegrity.manifest_sha256 || "")) {
-    fail("RECOVERY_CANARY_ARTIFACT_INTEGRITY_INVALID", "Artifact integrity proof is invalid.");
-  }
+  assertArtifactIntegrity(artifactIntegrity);
   const base = {
     contract: STAGING_RECOVERY_CANARY_EVIDENCE_CONTRACT,
     environment: "staging",
@@ -367,6 +413,7 @@ export function produceGenuineStagingRecoveryCanaryEvidence({
     registrationEvidence,
     oauthEvidence,
     networkEvidence,
+    acquisitionReceipt,
     workerDeploymentEvidence,
     ingressBuildIdentity,
     artifactIntegrity,
@@ -394,6 +441,10 @@ export async function independentlyVerifyStagingRecoveryCanaryEvidence(envelope,
   now = Date.now(),
   loadKernelArtifacts,
   negativeTestEvidence,
+  liveIngressBuildIdentity = null,
+  liveWorkerProviderObservation = null,
+  requireLiveRuntimeRevalidation = false,
+  externalEvidenceAcquisitionAuthority = null,
 } = {}) {
   if (envelope?.contract !== STAGING_RECOVERY_CANARY_EVIDENCE_CONTRACT) {
     fail("RECOVERY_CANARY_EVIDENCE_CONTRACT_INVALID", "Unknown evidence contract.");
@@ -432,27 +483,114 @@ export async function independentlyVerifyStagingRecoveryCanaryEvidence(envelope,
     || stagingRecoveryCertificationHash(artifacts.run.events) !== envelope.kernel.event_chain_hash) {
     fail("RECOVERY_CANARY_KERNEL_BINDING_MISMATCH", "Independent Kernel bindings mismatch.");
   }
+  if (requireLiveRuntimeRevalidation) {
+    if (!liveIngressBuildIdentity || !liveWorkerProviderObservation) {
+      fail(
+        "RECOVERY_CANARY_LIVE_RUNTIME_REVALIDATION_REQUIRED",
+        "Fresh Worker provider and Gateway ingress observations are required before countersigning.",
+      );
+    }
+
+    const worker = envelope.workerDeploymentEvidence;
+
+    const providerFields = [
+      "deployment_sha",
+      "observed_in",
+      "deployment_verified",
+      "gateway_host",
+      "policy_hash",
+      "worker_build_sha",
+      "policy_source_sha",
+      "worker_bundle_sha256",
+      "release_bundle_sha256",
+      "deployed_bundle_sha256",
+    ];
+
+    for (const key of providerFields) {
+      if (worker?.[key] !== liveWorkerProviderObservation?.[key]) {
+        fail(
+          "RECOVERY_CANARY_LIVE_WORKER_PROVENANCE_MISMATCH",
+          `Live Worker provider evidence differs at ${key}.`,
+        );
+      }
+    }
+
+    if (
+      !Number.isFinite(Date.parse(liveWorkerProviderObservation?.observed_at))
+      || Date.parse(liveWorkerProviderObservation.observed_at) < now - 5 * 60 * 1000
+      || Date.parse(liveWorkerProviderObservation.observed_at) > now + 60 * 1000
+    ) {
+      fail(
+        "RECOVERY_CANARY_LIVE_WORKER_PROVENANCE_STALE",
+        "Live Worker provider observation is stale.",
+      );
+    }
+
+    const ingressFields = [
+      "deployment_sha",
+      "worker_build_sha",
+      "worker_bundle_sha256",
+      "policy_hash",
+      "gateway_host",
+    ];
+
+    for (const key of ingressFields) {
+      if (
+        envelope.ingressBuildIdentity?.[key]
+        !== liveIngressBuildIdentity?.[key]
+      ) {
+        fail(
+          "RECOVERY_CANARY_LIVE_INGRESS_BUILD_MISMATCH",
+          `Fresh Gateway ingress identity differs at ${key}.`,
+        );
+      }
+    }
+  }
+
+  const ingressForVerification = requireLiveRuntimeRevalidation
+    ? liveIngressBuildIdentity
+    : envelope.ingressBuildIdentity;
+
+  const negativeTests = normalizeNegativeTestEvidence(negativeTestEvidence);
+  if (negativeTests.exact_sha && negativeTests.exact_sha !== expectedSha) {
+    fail("RECOVERY_CANARY_NEGATIVE_TEST_SHA_MISMATCH", "Negative-test evidence is not bound to the exact workflow SHA.");
+  }
+  const acquisitionVerification = await verifyRecoveryExternalAcquisitionAuthority(
+    externalEvidenceAcquisitionAuthority,
+    {
+      receipt: envelope.acquisitionReceipt,
+      registrationEvidence: envelope.registrationEvidence,
+      oauthEvidence: envelope.oauthEvidence,
+      networkEvidence: envelope.networkEvidence,
+      expectedSha,
+      expectedTargetFingerprint,
+      now,
+    },
+  );
+  if (!acquisitionVerification.verified) {
+    fail(
+      "RECOVERY_CANARY_SOURCE_AUTHENTICITY_UNAVAILABLE",
+      acquisitionVerification.reason_code || "Authenticated external acquisition is required before countersigning.",
+    );
+  }
   const external = await evaluateExternalStagingEvidence({
     candidateSha: envelope.deployment_sha,
     candidateTargetFingerprint: envelope.target_fingerprint,
     authenticity_verified: true,
+    externalAcquisitionVerification: acquisitionVerification,
     registrationEvidence: envelope.registrationEvidence,
     oauthEvidence: envelope.oauthEvidence,
     networkEvidence: envelope.networkEvidence,
     workerDeploymentEvidence: envelope.workerDeploymentEvidence,
-  }, envelope.ingressBuildIdentity);
+  }, ingressForVerification);
   if (!external.ready) {
     fail("RECOVERY_CANARY_EXTERNAL_EVIDENCE_INVALID", external.blocking_failures.join(","));
   }
-  if (envelope.artifactIntegrity?.valid !== true
-    || envelope.safety?.production_live_enabled !== false
+  assertArtifactIntegrity(envelope.artifactIntegrity);
+  if (envelope.safety?.production_live_enabled !== false
     || envelope.safety?.production_mutation_performed !== false
     || envelope.safety?.secrets_included !== false) {
     fail("RECOVERY_CANARY_BOUNDARY_INVALID", "Safety boundary invalid.");
-  }
-  const negativeTests = normalizeNegativeTestEvidence(negativeTestEvidence);
-  if (negativeTests.exact_sha && negativeTests.exact_sha !== expectedSha) {
-    fail("RECOVERY_CANARY_NEGATIVE_TEST_SHA_MISMATCH", "Negative-test evidence is not bound to the exact workflow SHA.");
   }
   const lifecycleTrace = certifiedLifecycleTrace(envelope);
   const checks = {
@@ -466,6 +604,7 @@ export async function independentlyVerifyStagingRecoveryCanaryEvidence(envelope,
     artifact_integrity: true,
     evidence_freshness: true,
     external_evidence: external.ready,
+    external_acquisition_authority: acquisitionVerification.verified === true,
     lifecycle_trace: RECOVERY_CERTIFICATION_TRACE_STEPS.every((name) => lifecycleTrace[name]?.status === "pass"),
     negative_tests: negativeTests.all_passed === true,
     production_boundary: true,
@@ -481,6 +620,7 @@ export async function independentlyVerifyStagingRecoveryCanaryEvidence(envelope,
     certification_run_id: envelope.certification_run_id,
     nonce: envelope.nonce,
     checks,
+    external_acquisition_receipt_digest: acquisitionVerification.receipt_digest || null,
     lifecycle_trace: lifecycleTrace,
     negative_tests: negativeTests,
     secrets_included: false,
@@ -492,12 +632,17 @@ export async function independentlyVerifyStagingRecoveryCanaryEvidence(envelope,
 }
 
 export function buildRecoveryReadinessSigningPayload(envelope, report, { issuer, keyId } = {}) {
+  if (report?.checks?.external_acquisition_authority !== true
+    || !SHA256.test(report?.external_acquisition_receipt_digest || "")) {
+    fail("RECOVERY_CANARY_SOURCE_AUTHENTICITY_UNAVAILABLE", "A verified signed acquisition receipt is required before signing.");
+  }
   if (report?.verified !== true
     || report.evidence_envelope_sha256 !== envelope?.evidence_envelope_sha256
     || report.lifecycle_trace == null
     || report.negative_tests?.all_passed !== true) {
     fail("RECOVERY_CANARY_VERIFICATION_REPORT_INVALID", "Verified lifecycle and negative-test report required.");
   }
+  assertArtifactIntegrity(envelope?.artifactIntegrity);
   const stagingCertification = {
     contract: STAGING_RECOVERY_CERTIFICATION_CONTRACT,
     certification_id: `cert:staging:${envelope.certification_run_id}`,
@@ -551,6 +696,7 @@ export function buildRecoveryReadinessSigningPayload(envelope, report, { issuer,
     registrationEvidence: envelope.registrationEvidence,
     oauthEvidence: envelope.oauthEvidence,
     networkEvidence: envelope.networkEvidence,
+    acquisitionReceipt: envelope.acquisitionReceipt,
     workerDeploymentEvidence: envelope.workerDeploymentEvidence,
     unresolvedRecoveryIncidents: [],
     secrets_included: false,

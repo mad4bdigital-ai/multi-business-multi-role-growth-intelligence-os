@@ -21,6 +21,9 @@ test("login and session restore never approve a pairing without the explicit but
   assert.match(routesSource, /\$\('approve'\)\.onclick = approveDevice/u);
   assert.match(routesSource, /consent:'approve_device'/u);
   assert.match(routesSource, /pairing_fingerprint:pairingFingerprint/u);
+  assert.doesNotMatch(routesSource, /auto_retry=1/u);
+  assert.match(routesSource, /setup_return=1/u);
+  assert.match(routesSource, /explicit approval is already saved/u);
 });
 
 test("browser user JWT is session-only and never persisted in localStorage", () => {

@@ -1,0 +1,91 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-image-provenance-discovery-ps51-20261006",
+  "title": "PowerShell 5.1-safe Staging image provenance discovery",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-image-provenance-discovery-ps51-20261006.json",
+      ".github/workflows/ci.yml",
+      "autopilot-portable-staging/Start-AutoPilot.ps1",
+      "autopilot-portable-staging/manifest.json",
+      "http-generic-api/test-staging-post-build-image-discovery.mjs",
+      "docs/remote-mcp-write-scope-inventory.md",
+      "http-generic-api/remote-mcp-write-scope-inventory.generated.json"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging"
+    ],
+    "cross_environment_reviewed": false,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Make local Staging post-build image provenance discovery deterministic and PowerShell 5.1-safe while preserving exact-SHA fail-closed identity checks and leaving Production authority unchanged.",
+      "e2e_journeys": [
+        {
+          "id": "staging-post-build-image-provenance-discovery",
+          "end_to_end": true,
+          "level": "live_non_production",
+          "actor": "Local Staging AutoPilot operator",
+          "entrypoint": "Run the Staging AutoPilot against an exact governed source SHA after the Docker build completes",
+          "terminal_outcome": "AutoPilot reuses any already-proven exact local Staging image immediately from authoritative local sources, falls back through bounded Docker discovery only when needed, verifies commit/tree/build-context provenance, and fails closed on missing or mismatched identity without any Production mutation.",
+          "steps": [
+            "Build the Staging application image from the exact governed source tree and canonical build context.",
+            "On the next run, verify and short-circuit on the persisted exact image pin before consulting weaker discovery sources.",
+            "If needed, verify the immutable image ID of the already-running Staging app container before consulting Compose tags or repository-wide label indexes.",
+            "Treat Compose/tag/label discovery as bounded fallback sources whose failure cannot invalidate an already-proven exact image.",
+            "Require exact commit/tree/context provenance for every accepted candidate and fail closed when no candidate proves exact identity.",
+            "Preserve the existing deployment-info and runtime attestation checks against the same source SHA.",
+            "Do not dispatch, promote, mutate, or otherwise authorize Production from this declaration."
+          ],
+          "assertions": [
+            "PowerShell 5.1-compatible image verification remains exact-SHA and strict-mode safe.",
+            "The exact-image reuse smoke executes on a Windows runner so its PowerShell 5.1 short-circuit path cannot silently skip under Linux.",
+            "A verified STAGING_APP_IMAGE_ID env pin is accepted immediately without depending on later Docker discovery.",
+            "A running Staging container contributes its immutable Docker .Image ID as an independently verified candidate.",
+            "Compose image references and provenance-label indexes remain fallback discovery paths only.",
+            "Failure of a later optional discovery source cannot invalidate an image that already passed exact provenance verification.",
+            "The portable Staging manifest is updated to the exact Start-AutoPilot.ps1 content hash.",
+            "Generated Remote MCP inventory refresh remains repository-derived evidence and is not an independent environment source.",
+            "Production mutation, Production deployment, provider mutation, database mutation, force push, and secret inclusion remain false."
+          ],
+          "tests": [
+            {
+              "id": "staging-post-build-image-discovery",
+              "runner": "node",
+              "path": "http-generic-api/test-staging-post-build-image-discovery.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-autopilot-closure",
+              "runner": "node",
+              "path": "http-generic-api/test-staging-autopilot-closure.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "autopilot-portable-staging/Start-AutoPilot.ps1",
+            ".github/workflows/ci.yml",
+            "autopilot-portable-staging/manifest.json",
+            "http-generic-api/test-staging-post-build-image-discovery.mjs",
+            "docs/remote-mcp-write-scope-inventory.md",
+            "http-generic-api/remote-mcp-write-scope-inventory.generated.json"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}

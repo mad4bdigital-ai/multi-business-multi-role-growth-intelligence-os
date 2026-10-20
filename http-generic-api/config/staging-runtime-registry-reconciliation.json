@@ -1,0 +1,105 @@
+{
+  "contract": "mad4b.staging-runtime-registry-reconciliation.v1",
+  "target_environment": "staging",
+  "target_role": "runtime",
+  "source_artifact_key": "runtime_registry_reconciliation_snapshot",
+  "source_snapshot_contract": "mad4b.staging.runtime-registry-reconciliation-snapshot.v1",
+  "source_bundle_file": "runtime.registry-reconciliation.sql.gz",
+  "exact_head_required": true,
+  "insertion_only": true,
+  "updates_allowed": false,
+  "deletes_allowed": false,
+  "extra_live_rows": "preserve_report",
+  "existing_row_drift": "fail_closed",
+  "caller_sql_forbidden": true,
+  "caller_target_forbidden": true,
+  "production_access_forbidden": true,
+  "provider_access_forbidden": true,
+  "credentials_read_allowed": false,
+  "secrets_included": false,
+  "max_snapshot_compressed_bytes": 33554432,
+  "max_snapshot_uncompressed_bytes": 134217728,
+  "max_rows_per_table": 25000,
+  "tables": [
+    {
+      "table": "actions",
+      "identity_columns": [
+        "action_key"
+      ]
+    },
+    {
+      "table": "endpoints",
+      "identity_columns": [
+        "parent_action_key",
+        "endpoint_key"
+      ]
+    },
+    {
+      "table": "admin_platform_endpoint_tools",
+      "identity_columns": [
+        "tool_key"
+      ]
+    },
+    {
+      "table": "tenant_platform_endpoint_tools",
+      "identity_columns": [
+        "tool_key"
+      ]
+    },
+    {
+      "table": "platform_endpoint_tool_exports",
+      "identity_columns": [
+        "export_key"
+      ]
+    }
+  ],
+  "schema_required_columns_by_table": {
+    "actions": [
+      "allowed_actor_roles",
+      "allowed_governance_levels",
+      "oauth_secret_storage_type",
+      "oauth_last_validated_at"
+    ],
+    "admin_platform_endpoint_tools": [
+      "mcp_catalog_level"
+    ],
+    "tenant_platform_endpoint_tools": [
+      "mcp_catalog_level"
+    ]
+  },
+  "forbidden_projected_columns_by_table": {
+    "actions": [
+      "api_key_value",
+      "secret_store_ref",
+      "openai_schema_file_id",
+      "oauth_config_file_id",
+      "oauth_config_ref",
+      "oauth_client_id_ref",
+      "oauth_client_secret_ref",
+      "oauth_binding_status",
+      "oauth_last_validated_at",
+      "import_job_id",
+      "schema_imported_at"
+    ],
+    "endpoints": [
+      "child_openai_schema_file_id"
+    ],
+    "platform_endpoint_tool_exports": [
+      "source_endpoint_id"
+    ]
+  },
+  "schema_prerequisites": [
+    {
+      "file": "20260902_staging_actions_runtime_contract_reconciliation.sql",
+      "sha256": "6ca8879ec300b5970f6ddc3d9eeded38eda8dee12abd6bdeb7ba7d2ffa53ee2c",
+      "statement_count": 1,
+      "purpose": "actions_schema_contract_only_not_row_population"
+    },
+    {
+      "file": "20260815_custom_gpt_mcp_catalog_levels.sql",
+      "sha256": "528143808adac23eb457058c4c34dd95c4c5d462bca9ac4b170b1f19b2006681",
+      "statement_count": 7,
+      "purpose": "mcp_catalog_schema_and_registry_metadata"
+    }
+  ]
+}

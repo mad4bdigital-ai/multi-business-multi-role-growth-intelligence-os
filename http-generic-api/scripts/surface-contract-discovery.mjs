@@ -213,9 +213,26 @@ function collectOpenapiPaths() {
   return { operations: unique(operations), paths: unique(paths) };
 }
 
-function classifyRoute(route, source = "", fileName = "") {
+export function classifyRoute(route, source = "", fileName = "") {
   const classificationEvidence = resolveClassificationEvidence(fileName, source);
   const routeEvidence = classificationEvidence?.route_literals?.find((item) => item.route === route) || null;
+  // A checksum-bound provider endpoint registry path is not a new local Express handler.
+  // Require positive SQL endpoint-reference evidence. This classification never grants
+  // callability or provider-write authority, and unmatched/mutated SQL still needs OpenAPI review.
+  if (routeEvidence?.classification === "external_provider_endpoint_registry_path"
+    && routeEvidence.provider_key === "github_rest"
+    && route === "/repos/{owner}/{repo}/issues/{issue_number}/comments"
+    && /\bUPDATE\s+`?endpoints`?(?:\s|$)/i.test(source)
+    && source.includes("endpoint_path_or_function")) {
+    return {
+      route,
+      route_class: "registry_only_surface",
+      openapi_required: false,
+      callability_evidence_required: false,
+      evidence_status: "verified_checksum_bound_provider_endpoint_reference",
+      reason: routeEvidence.reason,
+    };
+  }
   if (routeEvidence?.classification === "evidence_only_external_readback") {
     return {
       route,
@@ -310,20 +327,36 @@ function hasStandaloneSqlCommentMarker(source = "", marker = "") {
   return commentLine.test(String(source || ""));
 }
 
+// Parse safety declarations only from SQL comment text, not executable SQL/JSON.
+// This handles "no_provider_call=true; no_external_send=true" on one comment line.
+function hasSqlCommentSafetyAssignment(source = "", marker = "") {
+  if (!SAFETY_MARKERS.includes(marker)) return false;
+  const assignment = new RegExp('(?:^|[\\s;,])' + marker + '\\s*=\\s*(true|false)(?=[\\s;,]|$)', 'gi');
+  let trueSeen = false;
+  for (const line of String(source).split(/\r?\n/u)) {
+    if (!/^\s*(?:--|#|\/\*+|\*)\s*/u.test(line)) continue;
+    for (const match of line.matchAll(assignment)) {
+      if (match[1].toLowerCase() === "false") return false;
+      trueSeen = true;
+    }
+  }
+  return trueSeen;
+}
+
 export function detectSafetyMarkers(source = "") {
   const body = String(source || "");
   return {
-    no_provider_call: /no_provider_call['"`]?\s*,?\s*true|No provider calls?/i.test(body)
+    no_provider_call: hasSqlCommentSafetyAssignment(body, "no_provider_call") || /no_provider_call['"`]?\s*,?\s*true|No provider calls?/i.test(body)
       || hasStandaloneSqlCommentMarker(body, "no_provider_call"),
-    no_credential_payload_read: /no_credential_payload_read['"`]?\s*,?\s*true|credential payload reads?/i.test(body)
+    no_credential_payload_read: hasSqlCommentSafetyAssignment(body, "no_credential_payload_read") || /no_credential_payload_read['"`]?\s*,?\s*true|credential payload reads?/i.test(body)
       || hasStandaloneSqlCommentMarker(body, "no_credential_payload_read"),
-    no_raw_secrets: /no_raw_secrets['"`]?\s*,?\s*true|raw secrets?/i.test(body)
+    no_raw_secrets: hasSqlCommentSafetyAssignment(body, "no_raw_secrets") || /no_raw_secrets['"`]?\s*,?\s*true|raw secrets?/i.test(body)
       || hasStandaloneSqlCommentMarker(body, "no_raw_secrets"),
-    no_external_send: /no_external_send['"`]?\s*,?\s*true|No external send/i.test(body)
+    no_external_send: hasSqlCommentSafetyAssignment(body, "no_external_send") || /no_external_send['"`]?\s*,?\s*true|No external send/i.test(body)
       || hasStandaloneSqlCommentMarker(body, "no_external_send"),
-    no_external_write: /no_external_write['"`]?\s*,?\s*true|external writes?/i.test(body)
+    no_external_write: hasSqlCommentSafetyAssignment(body, "no_external_write") || /no_external_write['"`]?\s*,?\s*true|external writes?/i.test(body)
       || hasStandaloneSqlCommentMarker(body, "no_external_write"),
-    secrets_included_false: /secrets_included['"`]?\s*,?\s*false|secrets_included\s*=\s*0|secrets_included=false/i.test(body)
+    secrets_included_false: hasSqlCommentSafetyAssignment(body, "secrets_included_false") || /secrets_included['"`]?\s*,?\s*false|secrets_included\s*=\s*0|secrets_included=false/i.test(body)
       || hasStandaloneSqlCommentMarker(body, "secrets_included_false"),
   };
 }

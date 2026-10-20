@@ -43,6 +43,14 @@ import {
   verifyTenantGptSsoSession,
 } from "../tenantGptSsoSession.js";
 import { resolveTenantGptPkceMode } from "../tenantGptOAuthPkce.js";
+import {
+  advanceTenantGptOAuthOperationCorrelation,
+  createTenantGptOAuthOperationCorrelation,
+  issueTenantGptOAuthCorrelationTicket,
+  tenantGptOAuthOperationCorrelationClaim,
+  verifyTenantGptOAuthCorrelationTicket,
+} from "../tenantGptOAuthOperationCorrelation.js";
+import { recordTenantGptOAuthRecoveryServerEvidence } from "../tenantGptOAuthRecoveryEvidenceSink.js";
 
 function requireConfiguredJwtSecret(env = process.env) {
   const secret = String(env?.JWT_SECRET || "").trim();
@@ -565,6 +573,7 @@ function buildOAuthAuthorizeHtml({
   clientId,
   redirectUri,
   state,
+  correlationTicket,
   activationContext,
   requestedScope = "",
   oauthClientId = TENANT_GPT_OAUTH_CLIENT_ID,
@@ -653,6 +662,7 @@ function buildOAuthAuthorizeHtml({
     const GOOGLE_CLIENT_ID = ${JSON.stringify(String(clientId || ""))};
     const REDIRECT_URI = ${JSON.stringify(String(redirectUri || ""))};
     const STATE = ${JSON.stringify(String(state || ""))};
+    const CORRELATION_TICKET = ${JSON.stringify(String(correlationTicket || ""))};
     const ACTIVATION_CONTEXT = ${JSON.stringify(activationContext || {})};
     const OAUTH_SCOPE = ${JSON.stringify(String(requestedScope || ""))};
     const OAUTH_CLIENT_ID = ${JSON.stringify(String(oauthClientId || TENANT_GPT_OAUTH_CLIENT_ID))};
@@ -674,7 +684,7 @@ function buildOAuthAuthorizeHtml({
       const codeRes = await fetch("/auth/oauth/code", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ credential, redirect_uri: REDIRECT_URI, state: STATE, scope: OAUTH_SCOPE, oauth_client_id: OAUTH_CLIENT_ID, oauth_resource: OAUTH_RESOURCE, code_challenge: CODE_CHALLENGE, code_challenge_method: CODE_CHALLENGE_METHOD, pkce_mode: PKCE_MODE, activation_context: ACTIVATION_CONTEXT })
+        body: JSON.stringify({ credential, redirect_uri: REDIRECT_URI, state: STATE, correlation_ticket: CORRELATION_TICKET, scope: OAUTH_SCOPE, oauth_client_id: OAUTH_CLIENT_ID, oauth_resource: OAUTH_RESOURCE, code_challenge: CODE_CHALLENGE, code_challenge_method: CODE_CHALLENGE_METHOD, pkce_mode: PKCE_MODE, activation_context: ACTIVATION_CONTEXT })
       });
       const codeData = await codeRes.json();
       if (!codeRes.ok || !codeData.redirect_to) {
@@ -791,6 +801,25 @@ export function buildAuthRoutes(deps) {
   const saveSsoSession = deps?.persistTenantGptSsoSession || persistTenantGptSsoSession;
   const revokeSsoSession = deps?.revokeTenantGptSsoSessionBySid || revokeTenantGptSsoSessionBySid;
   const revokeSsoSessionsForUser = deps?.revokeTenantGptSsoSessionsForUser || revokeTenantGptSsoSessionsForUser;
+
+  const recordOAuthRecoveryEvidence =
+    deps?.recordTenantGptOAuthRecoveryServerEvidence || recordTenantGptOAuthRecoveryServerEvidence;
+
+  async function persistOAuthRecoveryStage(input) {
+    try {
+      await recordOAuthRecoveryEvidence({
+        query: (sql, params) => resolvePool().query(sql, params),
+        input,
+        env: authEnv,
+      });
+    } catch (error) {
+      console.warn("tenant_gpt_oauth_recovery_evidence_write_failed", {
+        event: String(input?.event || "").slice(0, 64) || null,
+        code: String(error?.code || "evidence_write_failed").slice(0, 64),
+        secrets_included: false,
+      });
+    }
+  }
 
   async function reusableSsoSession(cookieValue, expectedClientId) {
     const verified = verifyTenantGptSsoSession(cookieValue, { jwtSecret: ssoSigningSecret, expectedClientId });
@@ -1185,6 +1214,23 @@ export function buildAuthRoutes(deps) {
       return res.status(400).type("text/plain").send("OAuth redirect_uri is not allowed for the Tenant GPT client.");
     }
 
+    const authorizeCorrelation = createTenantGptOAuthOperationCorrelation({
+      protected_resource: resourceProfile.resource,
+      client_id: resourceProfile.client_id,
+      request_id: randomUUID(),
+    });
+    const correlationTicket = issueTenantGptOAuthCorrelationTicket(authorizeCorrelation, {
+      jwtSecret,
+      redirect_uri: redirectUri,
+      state,
+    });
+
+    await persistOAuthRecoveryStage({
+      event: "authorize_received",
+      correlation: authorizeCorrelation,
+      redirect_uri_sha256: sha256(canonicalizeTenantGptRedirectUri(redirectUri) || redirectUri),
+    });
+
     const authorizeSso = await reusableSsoSession(parseTenantGptSsoCookie(req.headers?.cookie), resourceProfile.client_id);
     const authorizeRequestedScopes = requestedScope ? requestedScope.split(/\s+/u).filter(Boolean) : [];
     const ssoAvailable = req.query.prompt !== "login"
@@ -1199,6 +1245,7 @@ export function buildAuthRoutes(deps) {
         clientId: GOOGLE_CLIENT_ID,
         redirectUri,
         state,
+        correlationTicket,
         activationContext,
         requestedScope,
         oauthClientId: resourceProfile.client_id,
@@ -1214,7 +1261,7 @@ export function buildAuthRoutes(deps) {
     const requestId = randomUUID();
     let stage = "request_validation";
     try {
-      const { token, credential, redirect_uri, state, oauth_client_id, oauth_resource, code_challenge, code_challenge_method } = req.body || {};
+      const { token, credential, redirect_uri, state, correlation_ticket, oauth_client_id, oauth_resource, code_challenge, code_challenge_method } = req.body || {};
       const requested_scope = cleanTenantGptRequestedScope(req.body?.scope);
       let pkce;
       try {
@@ -1260,6 +1307,18 @@ export function buildAuthRoutes(deps) {
       if (!redirectDecision.allowed) {
         return res.status(400).json({ ok: false, error: { code: "invalid_redirect_uri", message: "redirect_uri is not allowed for the Tenant GPT client." } });
       }
+      if (!correlation_ticket) {
+        return res.status(400).json({ ok: false, error: { code: "oauth_correlation_ticket_required", message: "A server-issued OAuth correlation ticket is required." } });
+      }
+
+      stage = "oauth_correlation_ticket";
+      const authorizeCorrelation = verifyTenantGptOAuthCorrelationTicket(correlation_ticket, {
+        jwtSecret,
+        expected_client_id: resourceProfile.client_id,
+        expected_resource: resourceProfile.resource,
+        expected_redirect_uri: redirect_uri,
+        expected_state: state,
+      });
 
       stage = "identity_resolution";
       let payload;
@@ -1293,16 +1352,57 @@ export function buildAuthRoutes(deps) {
       if (!payload.user_id) {
         return res.status(400).json({ ok: false, error: { code: "invalid_token", message: "User token is missing user_id." } });
       }
+      if (!payload.tenant_id) {
+        return res.status(400).json({ ok: false, error: { code: "oauth_correlation_tenant_required", message: "OAuth correlation requires an active tenant identity." } });
+      }
+
+      const identityCorrelation = advanceTenantGptOAuthOperationCorrelation(
+        authorizeCorrelation,
+        {
+          stage: "identity_verify",
+          user_id: payload.user_id,
+          tenant_id: payload.tenant_id,
+          request_id: requestId,
+        },
+      );
+
+      await persistOAuthRecoveryStage({
+        event: "login_consent_completed",
+        correlation: identityCorrelation,
+        redirect_uri_sha256: sha256(canonicalizeTenantGptRedirectUri(redirect_uri) || redirect_uri),
+      });
       const codeJti = randomUUID();
       const canonicalRedirectUri = canonicalizeTenantGptRedirectUri(redirect_uri) || redirect_uri;
       const codeExpiresAt = new Date(Date.now() + OAUTH_CODE_TTL_SECONDS * 1000);
+
+      stage = "authorization_code_store";
+      await persistTenantGptOAuthAuthorizationCode({
+        query,
+        jti: codeJti,
+        user_id: payload.user_id,
+        tenant_id: payload.tenant_id,
+        client_id: resourceProfile.client_id,
+        redirect_uri: canonicalRedirectUri,
+        request_correlation_ref: identityCorrelation.operation_id,
+        expires_at: codeExpiresAt,
+      });
+
+      const codeCorrelation = advanceTenantGptOAuthOperationCorrelation(
+        identityCorrelation,
+        {
+          stage: "oauth_code_issue",
+          oauth_code_jti: codeJti,
+          request_id: requestId,
+        },
+      );
+
       stage = "authorization_code_sign";
       const code = jwt.sign(
         {
           purpose: "custom_gpt_oauth_code",
           user_id: payload.user_id,
           email: payload.email,
-          tenant_id: payload.tenant_id || null,
+          tenant_id: payload.tenant_id,
           redirect_uri: canonicalRedirectUri,
           scope: requested_scope || null,
           client_id: resourceProfile.client_id,
@@ -1311,19 +1411,16 @@ export function buildAuthRoutes(deps) {
           code_challenge_method: pkce.code_challenge_method,
           pkce_mode: pkce.pkce_mode,
           activation_context,
+          oauth_correlation: tenantGptOAuthOperationCorrelationClaim(codeCorrelation),
         },
         jwtSecret,
         { expiresIn: OAUTH_CODE_TTL_SECONDS, jwtid: codeJti }
       );
-      stage = "authorization_code_store";
-      await persistTenantGptOAuthAuthorizationCode({
-        query,
-        jti: codeJti,
-        user_id: payload.user_id,
-        tenant_id: payload.tenant_id || null,
-        client_id: resourceProfile.client_id,
-        redirect_uri: canonicalRedirectUri,
-        expires_at: codeExpiresAt,
+
+      await persistOAuthRecoveryStage({
+        event: "authorization_code_issued",
+        correlation: codeCorrelation,
+        redirect_uri_sha256: sha256(canonicalRedirectUri),
       });
 
       if (payload.tenant_id) {
@@ -1357,6 +1454,17 @@ export function buildAuthRoutes(deps) {
     } catch (error) {
       if (Number.isInteger(error?.auth_status) && error?.auth_code) {
         return sendAuthRouteFailure(res, error, "oauth_identity_failed");
+      }
+      if (stage === "oauth_correlation_ticket") {
+        return res.status(error?.status || 400).json({
+          ok: false,
+          error: {
+            code: error?.code || "oauth_correlation_ticket_invalid",
+            message: error?.message || "OAuth correlation ticket is invalid.",
+            request_id: requestId,
+          },
+          secrets_included: false,
+        });
       }
       if (stage === "oauth_client_config") {
         return sendOAuthInfrastructureFailure(res, {

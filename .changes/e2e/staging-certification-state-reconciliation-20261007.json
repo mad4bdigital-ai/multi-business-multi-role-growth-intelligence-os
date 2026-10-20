@@ -1,0 +1,92 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-certification-state-reconciliation-20261007",
+  "title": "Reconcile stale Staging runtime state from exact live certification",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "secrets_included": false,
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-certification-state-reconciliation-20261007.json",
+      "autopilot-portable-staging/Invoke-StagingCertification.ps1",
+      "autopilot-portable-staging/manifest.json",
+      "http-generic-api/test-staging-auto-deploy-contract.mjs",
+      "http-generic-api/config/repository-governance-constitution.json",
+      ".github/derived-state-governance.json"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Allow a successful exact-runtime Staging certification to repair stale local runtime bookkeeping without weakening exact-commit fail-closed behavior or widening any mutation authority.",
+      "e2e_journeys": [
+        {
+          "id": "staging-certification-state-reconciliation",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Local Windows Docker Staging operator",
+          "entrypoint": "Auto-Deploy-Staging.ps1 re-certification of an already deployed exact main commit",
+          "terminal_outcome": "When live certification proves the running app commit and branch exactly match the requested authority, the certification state rewrites stale commit/ref bookkeeping to that observed authority and Auto Deploy finalization can close ready; mismatched runtime identity still fails closed before reconciliation.",
+          "steps": [
+            "Run re-certification against the exact eligible main SHA after the local runtime is healthy.",
+            "Require the canonical mad4b.staging-live-certification.v1 result.",
+            "Normalize and compare observed.commit_sha to ExpectedCommit and observed.branch to Ref before changing runtime state.",
+            "Fail closed on either identity mismatch.",
+            "Only after exact identity proof, set state.commit and state.ref from the observed certified runtime and record the reconciliation source.",
+            "Persist certification status, exact certified commit, artifact image/tree/context bindings and database readiness.",
+            "Let Auto Deploy read back the reconciled state and finalize the same exact commit without redeploy or rebuild."
+          ],
+          "assertions": [
+            "A stale historical state.commit cannot override a newly proven exact certified runtime.",
+            "Certification cannot rewrite state.commit when observed.commit_sha differs from ExpectedCommit.",
+            "Certification cannot rewrite state.ref when observed.branch differs from Ref.",
+            "The repaired state records live_certification_observed_runtime as commit authority.",
+            "No database, migration, provider, DNS, ruleset, Hostinger, or Production mutation is introduced.",
+            "No secret material is persisted or returned.",
+            "The critical declaration is registered exactly in Constitution.control_plane_paths and convergence.automation_control_paths; no broad control-plane pattern is added."
+          ],
+          "tests": [
+            {
+              "id": "staging-auto-deploy-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-auto-deploy-contract.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/staging-certification-state-reconciliation-20261007.json",
+            "autopilot-portable-staging/Invoke-StagingCertification.ps1",
+            "autopilot-portable-staging/manifest.json",
+            "http-generic-api/test-staging-auto-deploy-contract.mjs",
+            "http-generic-api/config/repository-governance-constitution.json",
+            ".github/derived-state-governance.json"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "production",
+      "status": "blocked",
+      "objective": "Preserve Production isolation; this repair does not authorize or execute Production deployment.",
+      "blockers": [
+        "Production remains governed by its independent promotion and runtime certification lifecycle."
+      ]
+    }
+  ]
+}

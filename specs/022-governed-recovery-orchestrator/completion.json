@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "feature_key": "022-governed-recovery-orchestrator",
+  "title": "Governed Recovery Orchestrator",
+  "status": "in_progress",
+  "delivery_mode": "multi_pr",
+  "requirements": {
+    "migration": true,
+    "production_verification": true,
+    "post_merge_audit": true,
+    "security_review": true
+  },
+  "delivery": {
+    "specification": {
+      "status": "current_branch",
+      "role": "source_and_control_plane_specification"
+    },
+    "implementation_slices": [
+      {
+        "role": "source_guarded_recovery_and_diagnostics",
+        "status": "implemented_pending_exact_head_validation",
+        "runtime_proven": false,
+        "production_activation": false
+      },
+      {
+        "role": "native_durable_store_and_host_attestation",
+        "status": "blocked_pending_independent_native_evidence",
+        "runtime_proven": false,
+        "production_activation": false
+      }
+    ]
+  },
+  "verification": {
+    "source_ci": "pending_new_exact_head_ci",
+    "runtime_acceptance": "not_proven",
+    "staging_certification": "blocked_pending_native_evidence",
+    "production_promotion": "not_authorized"
+  },
+  "evidence": {
+    "source_files": [
+      "http-generic-api/recoveryOrchestrator.js",
+      "http-generic-api/test-recovery-orchestrator.mjs",
+      "http-generic-api/test-sink-orchestration-json-asset-lookup-failure.mjs"
+    ],
+    "source_head_sha": "9d5a9efc18281daed618a7dd75aaa63365cb1ece",
+    "secrets_included": false
+  },
+  "notes": [
+    "In-progress status preserves incomplete requirements; no claim of Runtime/Host/Production acceptance.",
+    "Spec Kit governance manifest is not permission to merge without independent review and policy checks."
+  ]
+}

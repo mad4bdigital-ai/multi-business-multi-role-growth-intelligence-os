@@ -1,0 +1,76 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-autonomous-supervisor-governance-20261008",
+  "title": "Governed autonomous Staging watcher continuity, acceptance and bounded self-healing",
+  "delivery_mode": "single_pr",
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-autonomous-supervisor-governance-20261008.json",
+      "autopilot-portable-staging/**",
+      ".github/workflows/ci.yml",
+      "http-generic-api/test-staging-autonomous-supervisor-contract.mjs",
+      "docs/runbooks/staging-autonomous-operations.md"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Deliver repository-tested, fail-closed Staging-only supervisor policy and allowlisted recovery while requiring independent live Staging evidence before operational acceptance.",
+      "e2e_journeys": [
+        {
+          "id": "staging-autonomous-supervisor-governed-contract",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "MAD4B Staging operator and Windows scheduled-task supervisor",
+          "entrypoint": "Additive Staging task installation and existing Auto Deploy watcher, verified by Windows PowerShell fixture CI and a Node cross-platform governance check.",
+          "terminal_outcome": "The supervisor accepts only fresh exact-SHA Staging evidence and paired watcher cycles, starts only an unchanged authorized task within a durable retry budget, and preserves an unmet live Staging acceptance gate until host evidence exists.",
+          "steps": [
+            "Inspect Staging-only policy, existing Windows task lifecycle wiring, and independent operational acceptance certificate contract.",
+            "Run the cross-platform governance contract and existing Windows PowerShell 5.1 fixture scenarios, including negative SHA, missing cycles, corrupt retry history and forbidden task identity.",
+            "Verify code cannot infer runtime content attestation from a health snapshot and cannot mutate Production, SQL, DNS or provider authority.",
+            "Require separately evidenced live host task readback, restart behavior and immutable runtime integrity attestation before real Staging operational sign-off."
+          ],
+          "assertions": [
+            "Only the exact allowlisted Windows scheduled task can be started; new task identities or executable-path drift are blocked.",
+            "The recovery budget is durable, bounded and fail-closed on corrupt data.",
+            "A valid two-poll/two-sleep count without ordered pair evidence is insufficient.",
+            "Production/provider/database/secret mutation remains false and independent runtime integrity is not attested by this supervisor.",
+            "live_staging_certification_required=true is a requirement, not a claim that acceptance has already passed."
+          ],
+          "tests": [
+            {
+              "id": "staging-autonomous-supervisor-governance-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-autonomous-supervisor-contract.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/staging-autonomous-supervisor-governance-20261008.json",
+            "autopilot-portable-staging/Staging-AutonomousSupervisor.ps1",
+            "autopilot-portable-staging/test/Test-AutonomousSupervisor.ps1",
+            ".github/workflows/ci.yml",
+            "docs/runbooks/staging-autonomous-operations.md"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}

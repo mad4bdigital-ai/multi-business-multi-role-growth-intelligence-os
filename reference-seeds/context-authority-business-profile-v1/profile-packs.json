@@ -1,0 +1,179 @@
+{
+  "contract": "mad4b.reference.business-context.profile-packs.v1",
+  "status": "TEMPLATE_ONLY",
+  "profile_packs": [
+    {
+      "key": "base_business",
+      "extends_pack": null,
+      "version": "1.0.0",
+      "required_dimensions": [
+        "business.identity",
+        "business.model",
+        "business.strategy",
+        "business.offers",
+        "business.audiences",
+        "governance.compliance",
+        "knowledge.sources"
+      ],
+      "optional_dimensions": [
+        "brand.identity",
+        "brand.messaging",
+        "business.journeys",
+        "content.editorial",
+        "analytics.measurement"
+      ],
+      "capability_tags": [],
+      "default_values": {},
+      "no_brand_facts": true,
+      "extends_constraints": "can_only_tighten",
+      "status": "TEMPLATE_ONLY"
+    },
+    {
+      "key": "service_business",
+      "extends_pack": "base_business",
+      "version": "1.0.0",
+      "required_dimensions": [
+        "operations.delivery",
+        "sales.onboarding",
+        "support.customer_success"
+      ],
+      "optional_dimensions": [
+        "sales.enablement",
+        "operations.integrations"
+      ],
+      "capability_tags": [
+        "service_fulfillment"
+      ],
+      "default_values": {},
+      "no_brand_facts": true,
+      "extends_constraints": "can_only_tighten",
+      "status": "TEMPLATE_ONLY"
+    },
+    {
+      "key": "software_vendor",
+      "extends_pack": "base_business",
+      "version": "1.0.0",
+      "required_dimensions": [
+        "operations.integrations",
+        "sales.onboarding",
+        "support.customer_success",
+        "business.pricing"
+      ],
+      "optional_dimensions": [
+        "sales.enablement",
+        "analytics.measurement",
+        "knowledge.workflows"
+      ],
+      "capability_tags": [
+        "subscription_or_license_optional"
+      ],
+      "default_values": {},
+      "no_brand_facts": true,
+      "extends_constraints": "can_only_tighten",
+      "status": "TEMPLATE_ONLY"
+    },
+    {
+      "key": "ecommerce_operator",
+      "extends_pack": "base_business",
+      "version": "1.0.0",
+      "required_dimensions": [
+        "operations.delivery",
+        "business.pricing",
+        "business.partnerships"
+      ],
+      "optional_dimensions": [
+        "analytics.measurement",
+        "sales.enablement"
+      ],
+      "capability_tags": [
+        "stock_and_checkout_if_applicable"
+      ],
+      "default_values": {},
+      "no_brand_facts": true,
+      "extends_constraints": "can_only_tighten",
+      "status": "TEMPLATE_ONLY"
+    },
+    {
+      "key": "publisher_brand",
+      "extends_pack": "base_business",
+      "version": "1.0.0",
+      "required_dimensions": [
+        "brand.identity",
+        "brand.messaging",
+        "content.editorial",
+        "content.formats",
+        "content.seo"
+      ],
+      "optional_dimensions": [
+        "analytics.measurement",
+        "research.market"
+      ],
+      "capability_tags": [
+        "editorial_publication"
+      ],
+      "default_values": {},
+      "no_brand_facts": true,
+      "extends_constraints": "can_only_tighten",
+      "status": "TEMPLATE_ONLY"
+    },
+    {
+      "key": "multi_brand_group",
+      "extends_pack": "base_business",
+      "version": "1.0.0",
+      "required_dimensions": [
+        "business.partnerships",
+        "knowledge.sources"
+      ],
+      "optional_dimensions": [
+        "operations.integrations",
+        "analytics.measurement"
+      ],
+      "capability_tags": [
+        "brand_bound_overlays"
+      ],
+      "default_values": {},
+      "no_brand_facts": true,
+      "extends_constraints": "can_only_tighten",
+      "status": "TEMPLATE_ONLY"
+    },
+    {
+      "key": "travel_tech_software_vendor",
+      "extends_pack": "software_vendor",
+      "version": "1.0.0",
+      "required_dimensions": [],
+      "optional_dimensions": [
+        "business.partnerships",
+        "research.market",
+        "sales.enablement"
+      ],
+      "capability_tags": [
+        "supplier_api_relationships",
+        "b2b_partner_journey",
+        "booking_software_modules"
+      ],
+      "default_values": {},
+      "no_brand_facts": true,
+      "extends_constraints": "can_only_tighten",
+      "status": "TEMPLATE_ONLY"
+    }
+  ],
+  "pack_selection": {
+    "method": "observed_activity_plus_owner_review",
+    "no_auto_install": true,
+    "single_primary_not_required": true,
+    "compose_many_with_conflict_policy": true
+  },
+  "cross_cutting_overlays": [
+    "multi_language",
+    "b2b",
+    "b2c",
+    "corporate",
+    "subscription",
+    "marketplace",
+    "regulated",
+    "multisite",
+    "agency",
+    "service_delivery"
+  ],
+  "overlay_effect": "add_dimensions_require_evidence_no_automatic_grants"
+}

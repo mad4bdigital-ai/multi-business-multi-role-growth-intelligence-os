@@ -210,9 +210,7 @@ jobs:
             echo "Skipping stale surface remediation before branch creation: expected=${EXPECTED_HEAD_SHA}, current_main=${current_main_sha}."
             exit 0
           fi
-          git config user.name "surface-contract-agent[bot]"
-          git config user.email "surface-contract-agent[bot]@users.noreply.github.com"
-          git checkout -b "$BRANCH"
+          # Stage before publishing: Git tree is the candidate content identity.
           git add -- \
             "Updating Registry Patch Index.md" \
             "deployment_parity_checklist.md" \
@@ -221,6 +219,32 @@ jobs:
             "docs/change-documentation-governance.md" \
             docs/surface-contract-*.json \
             docs/surface-contract-*.md
+          candidate_tree_sha="$(git write-tree)"
+          source_marker="<!-- surface-contract-remediation-source:${EXPECTED_HEAD_SHA} -->"
+          # All pages are required. Do not confuse an older source with this one.
+          matching_prs="$(gh api --paginate "repos/${GITHUB_REPOSITORY}/pulls?state=open&base=main&per_page=100" |
+            jq -c --arg source_marker "$source_marker" '.[] | select(.title == "Surface contract agent: automated remediation" and ((.body // "") | contains($source_marker))) | {number: .number, head: .head.sha}')"
+          if [[ -n "$matching_prs" ]]; then
+            while IFS= read -r existing_row; do
+              existing_pr="$(jq -r '.number' <<< "$existing_row")"
+              existing_head="$(jq -r '.head' <<< "$existing_row")"
+              if [[ ! "$existing_pr" =~ ^[1-9][0-9]*$ || ! "$existing_head" =~ ^[0-9a-f]{40}$ ]]; then
+                echo "Invalid existing remediation PR identity." >&2
+                exit 1
+              fi
+              existing_tree_sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/commits/${existing_head}" --jq '.tree.sha')"
+              if [[ "$candidate_tree_sha" == "$existing_tree_sha" ]]; then
+                echo "Reuse existing exact-source, exact-tree Surface Contract PR #${existing_pr}; no branch or PR created."
+                echo "url=https://github.com/${GITHUB_REPOSITORY}/pull/${existing_pr}" >> "$GITHUB_OUTPUT"
+                echo "number=$existing_pr" >> "$GITHUB_OUTPUT"
+                exit 0
+              fi
+            done <<< "$matching_prs"
+          fi
+          # Different trees remain distinct and require review.
+          git config user.name "surface-contract-agent[bot]"
+          git config user.email "surface-contract-agent[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
           git commit -m "Surface contract agent: remediate documentation and safety evidence"
           git push origin "$BRANCH"
           PR_URL=$(gh pr create \

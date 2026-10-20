@@ -122,15 +122,17 @@ jobs:
 
           fetch_endpoint() {
             local name="$1" url="$2" raw="${REPORT_DIR}/${1}.raw"
+            local header_raw="${RUNNER_TEMP}/r7-response-header-${1}-${GITHUB_RUN_ID}.tmp"
             local status rc
             set +e
             status="$(curl --silent --show-error --location --retry 3 --retry-delay 2 --retry-all-errors --max-time 25 \
               --proto '=https' --tlsv1.2 --header 'accept: application/json' \
-              --output "${raw}" --write-out '%{http_code}' "${url}")"
+              --dump-header "${header_raw}" --output "${raw}" --write-out '%{http_code}' "${url}")"
             rc=$?
             set -e
             [[ "${status}" =~ ^[0-9]{3}$ ]] || status=000
             persist_bounded_json "${name}" "${url}" "${raw}" "${status}" "${rc}"
+            node .github/scripts/production-r7-header-attribution.mjs "${header_raw}" "${status}" "${REPORT_DIR}/${name}.headers.json"
           }
           fetch_endpoint health https://auth.mad4b.com/health
           fetch_endpoint version https://auth.mad4b.com/version
@@ -160,6 +162,10 @@ jobs:
           const connector = readJson('connector-agent-version');
           const protectedResource = readJson('mcp-protected-resource');
           const authorizationServer = readJson('mcp-authorization-server');
+          const httpHeaderEvidence = Object.fromEntries(
+            ['health','version','deployment-info','connector-agent-version','mcp-protected-resource','mcp-authorization-server']
+              .map(name => [name, readJson(`${name}.headers`)])
+          );
           const statuses = {
             health: readStatus('health'),
             version: readStatus('version'),
@@ -169,8 +175,14 @@ jobs:
             mcp_authorization_server: readStatus('mcp-authorization-server'),
           };
           const manifest = deployment?.deployment && typeof deployment.deployment === 'object' ? deployment.deployment : {};
-          const runtimeSha = String(deployment?.commit_sha || deployment?.commit || manifest?.commit_sha || manifest?.commit || '').toLowerCase();
-          const runtimeBranch = String(deployment?.branch || manifest?.branch || '');
+          const runtimeSha = String(deployment?.gitCommitFull || '').toLowerCase();
+          const runtimeBranch = String(deployment?.gitBranch || '');
+          const runtimeProvenanceCanonical = Boolean(
+            /^[0-9a-f]{40}$/i.test(runtimeSha)
+              && runtimeBranch === 'Production'
+              && String(deployment?.provenanceSource || '').trim()
+              && deployment?.evidence?.canonical_manifest_detected === true
+          );
           const versionShas = collectShas(version);
           const decision = resolveR7Decision({
             expectedSha,
@@ -179,15 +191,20 @@ jobs:
             versionShas,
             runtimeSha,
             runtimeBranch,
+            runtimeProvenanceCanonical,
+            runtimeEnvironment: deployment?.runtime_environment || {},
             protectedResource,
             authorizationServer,
           });
           const {
             identityHttpSuccess,
+            identityHttpBlockedBy429,
+            shaMismatchProven,
             allHttpSuccess,
             versionShaExact,
             deploymentShaExact,
             branchExact,
+            runtimeProvenanceCanonical: runtimeProvenanceCanonicalReady,
             protectedResourceReady,
             authorizationServerReady,
             trustedIngressAttestationRequired,
@@ -204,13 +221,15 @@ jobs:
             expected_branch: 'Production',
             trigger_comment_id: process.env.EVENT_COMMENT_ID || null,
             statuses,
+            http_header_attribution: httpHeaderEvidence,
             observations: {
               health_ok: health?.ok ?? null,
               connector_agent_ok: connector?.ok ?? null,
               version_shas: versionShas,
               deployment_commit_sha: runtimeSha || null,
               deployment_branch: runtimeBranch || null,
-              deployment_branch_source: String(deployment?.branch_source || manifest?.branch_source || '') || null,
+              canonical_provenance_present: runtimeProvenanceCanonical,
+              deployment_branch_source: String(deployment?.provenanceSource || '') ? 'canonical_manifest' : null,
               deployed_at: String(deployment?.deployed_at || manifest?.deployed_at || '') || null,
               protected_resource_error_code: errorCode(protectedResource) || null,
               authorization_server_error_code: errorCode(authorizationServer) || null,
@@ -219,16 +238,20 @@ jobs:
             },
             checks: {
               identity_http_success: identityHttpSuccess,
+              identity_http_blocked_by_429: identityHttpBlockedBy429,
+              sha_mismatch_proven: shaMismatchProven,
               all_http_success: allHttpSuccess,
               version_sha_exact: versionShaExact,
               deployment_sha_exact: deploymentShaExact,
               branch_exact: branchExact,
+              canonical_deployment_provenance: runtimeProvenanceCanonicalReady,
               trusted_ingress_attestation_required: trustedIngressAttestationRequired,
               oauth_protected_resource_ready: protectedResourceReady,
               oauth_authorization_server_ready: authorizationServerReady,
               oauth_discovery_ready: oauthDiscoveryReady,
             },
             classification,
+            blocking_conditions: decision.blockingConditions,
             production_current: productionCurrent,
             public_get_only: true,
             repository_content_mutation_performed: false,

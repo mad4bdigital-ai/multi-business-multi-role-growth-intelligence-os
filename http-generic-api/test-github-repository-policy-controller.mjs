@@ -52,19 +52,36 @@ try {
     assert.equal(plan.target.default_branch, branch);
     assert.equal(plan.expected_commit_sha, sha);
     assert.deepEqual(plan.required_checks, [requiredCheck]);
-    assert.equal(plan.operation, "create_ruleset");
-    assert.equal(plan.activation_blockers.length, 0);
     const checkRule = plan.desired_ruleset.rules.find((rule) => rule.type === "required_status_checks");
-    assert.deepEqual(checkRule.parameters.required_status_checks, [{ context: requiredCheck, integration_id: APP_ID }]);
     assert.deepEqual(plan.desired_ruleset.conditions.ref_name.include, [`refs/heads/${branch}`]);
     const binding = buildGithubRepositoryPolicyCapabilityBinding({ target: { owner: OWNER, repo: REPO, default_branch: branch }, expected_commit_sha: sha, expected_policy_fingerprint: plan.policy_fingerprint });
     assert.equal(binding.resource_uri, `github://${OWNER}/${REPO}/branch/${branch}`);
-    const applied = await runGithubRepositoryPolicyController({ mode: "apply", owner: OWNER, repo: REPO, default_branch: branch, expected_commit_sha: sha, expected_policy_fingerprint: plan.policy_fingerprint, confirm: githubRepositoryPolicyConfirmationForBranch(branch), capability_envelope_id: "env-1" }, deps(mock.fetchImpl));
-    assert.equal(applied.mutation_executed, true);
-    assert.equal(applied.postconditions.required_check_producer_bound, true);
-    assert.equal(applied.postconditions.generic_pull_request_merge_forbidden_proven, true);
-    assert.equal(applied.postconditions.server_policy_gate_complete, true);
-    assert.equal(applied.readback.proof.server_policy_gate_complete, true);
+    if (branch === "main") {
+      assert.equal(plan.required_check_source_mode, "any_source_with_independent_finalizer_readback");
+      assert.deepEqual(checkRule.parameters.required_status_checks, [{ context: requiredCheck }]);
+      assert.equal(plan.operation, "blocked", "Any-source may not be silently activated as an App-bound server policy");
+      assert(plan.activation_blockers.includes("any_source_requires_independent_candidate_attestation_and_manual_activation"));
+      await expectCode(runGithubRepositoryPolicyController({ mode: "apply", owner: OWNER, repo: REPO, default_branch: branch, expected_commit_sha: sha, expected_policy_fingerprint: plan.policy_fingerprint, confirm: githubRepositoryPolicyConfirmationForBranch(branch), capability_envelope_id: "env-1" }, deps(mock.fetchImpl)), "github_repository_policy_activation_blocked");
+      assert.equal(mock.state.mutations.length, 0, "main source opt-in does not grant SQL, Ruleset or code mutation");
+      // Simulate the actual operator-imported, ACTIVE unbound Ruleset for readback.
+      mock.state.ruleset = { id: 42, source_type: "Repository", source: `${OWNER}/${REPO}`, ...plan.desired_ruleset };
+      const readback = await readGithubRepositoryPolicy({ owner: OWNER, repo: REPO, default_branch: branch }, deps(mock.fetchImpl));
+      assert.equal(readback.required_check_source_unrestricted, true);
+      assert.equal(readback.proof.any_source_mode_observed, true);
+      assert.equal(readback.proof.required_status_checks_proven, true);
+      assert.equal(readback.proof.required_status_check_producer_bound, false);
+      assert.equal(readback.proof.server_policy_gate_complete, false, "Any source is never equivalent to server-enforced attestor binding");
+    } else {
+      assert.equal(plan.operation, "create_ruleset");
+      assert.equal(plan.activation_blockers.length, 0);
+      assert.deepEqual(checkRule.parameters.required_status_checks, [{ context: requiredCheck, integration_id: APP_ID }]);
+      const applied = await runGithubRepositoryPolicyController({ mode: "apply", owner: OWNER, repo: REPO, default_branch: branch, expected_commit_sha: sha, expected_policy_fingerprint: plan.policy_fingerprint, confirm: githubRepositoryPolicyConfirmationForBranch(branch), capability_envelope_id: "env-1" }, deps(mock.fetchImpl));
+      assert.equal(applied.mutation_executed, true);
+      assert.equal(applied.postconditions.required_check_producer_bound, true);
+      assert.equal(applied.postconditions.generic_pull_request_merge_forbidden_proven, true);
+      assert.equal(applied.postconditions.server_policy_gate_complete, true);
+      assert.equal(applied.readback.proof.server_policy_gate_complete, true);
+    }
   }
   {
     const mock = mockGitHub("main", MAIN_SHA);
@@ -82,5 +99,5 @@ try {
     await expectCode(runGithubRepositoryPolicyController({ mode: "apply", owner: OWNER, repo: REPO, expected_commit_sha: PROD_SHA, expected_policy_fingerprint: plan.policy_fingerprint, confirm: GITHUB_REPOSITORY_POLICY_CONFIRMATION, capability_envelope_id: "env-1" }, deps(mock.fetchImpl)), "github_repository_policy_main_sha_drift");
     assert.equal(mock.state.mutations.length, 0);
   }
-  console.log(JSON.stringify({ ok: true, test: "github_repository_policy_controller_constitution_native", main_final_gate: "Derived State Closure", production_final_gate: "Governed Production Promotion", app_bound_required_checks: true, production_promotion_only: true, branch_pattern_compiler: true, secrets_included: false }));
+  console.log(JSON.stringify({ ok: true, test: "github_repository_policy_controller_constitution_native", main_final_gate: "Derived State Closure", production_final_gate: "Governed Production Promotion", app_bound_production_required_checks: true, any_source_main_requires_independent_attestor: true, production_promotion_only: true, branch_pattern_compiler: true, secrets_included: false }));
 } finally { if (prevApp === undefined) delete process.env.GITHUB_APP_ID; else process.env.GITHUB_APP_ID = prevApp; if (prevInstall === undefined) delete process.env.GITHUB_APP_INSTALLATION_ID; else process.env.GITHUB_APP_INSTALLATION_ID = prevInstall; }

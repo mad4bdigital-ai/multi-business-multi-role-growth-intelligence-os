@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
-import { buildReport, classifyChange, classifyPath, parseNameStatusLine } from "./scripts/environment-impact-closure.mjs";
+import { buildReport, classifyChange, classifyPath, declarationCoversPath, parseNameStatusLine } from "./scripts/environment-impact-closure.mjs";
 
 const apiRoot = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(apiRoot, "..");
@@ -15,6 +15,24 @@ const derivedOutputs = derivedState.artifacts.flatMap((artifact) =>
   (artifact.outputs || []).map((pattern) => ({ artifact_id: artifact.artifact_id, pattern })),
 );
 const report = buildReport();
+// PR8461 exact-name classifications prevent silently treating legacy top-level
+// documentation as runtime authority or legacy migration code as repository-only.
+for (const name of ["GPT_Admin_Assistant_Knowledge_Guide.md", "runtime_confirmation_procedure.md"]) {
+  const classes = classifyPath(name, policy.path_classes).map(entry => entry.id);
+  assert(classes.includes("repository_governance"), `missing exact repository impact: ${name}`);
+  assert(!classes.includes("shared_runtime"), `documentation cannot imply runtime mutation: ${name}`);
+}
+const docsOnlyGuardClasses = classifyPath(
+  "http-generic-api/scripts/maintenance-tools/work-map-docs-only-guard.mjs", policy.path_classes,
+).map(entry => entry.id);
+assert.deepEqual(docsOnlyGuardClasses, ["repository_governance"],
+  "Docs-only source guard must be repository governance only, never staging/Production runtime authority");
+const legacyMigrationClasses = classifyPath(
+  "http-generic-api/scripts/governed-migration-runner-legacy.mjs", policy.path_classes,
+).map(entry => entry.id);
+assert(legacyMigrationClasses.includes("shared_runtime"),
+  "Legacy migration runner remains an executable cross-environment surface");
+
 
 assert.equal(report.contract, "mad4b.environment-impact-closure.v1");
 assert.equal(report.converged, true, JSON.stringify(report.issues));
@@ -47,6 +65,22 @@ assert.equal(policy.fail_closed.unclassified_paths, true);
 assert.equal(policy.fail_closed.rename_previous_path, true);
 assert.equal(policy.fail_closed.copy_previous_path, true);
 assert.ok(policy.impact_declarations.patterns.includes(".changes/e2e/*.json"));
+assert.equal(
+  declarationCoversPath({ scope_include: ["http-generic-api/credentialResolver.js"] }, "http-generic-api/credentialResolver.js"),
+  true,
+);
+assert.equal(
+  declarationCoversPath({ scope_include: ["http-generic-api/**"] }, "http-generic-api/credentialResolver.js"),
+  true,
+);
+assert.equal(
+  declarationCoversPath({ scope_include: ["http-generic-api/routes/**"] }, "http-generic-api/credentialResolver.js"),
+  false,
+);
+const environmentImpactSource = fs.readFileSync(path.join(apiRoot, "scripts/environment-impact-closure.mjs"), "utf8");
+assert.match(environmentImpactSource, /environment_impact_production_mutation_must_be_false/);
+assert.match(environmentImpactSource, /environment_impact_source_path_uncovered/);
+
 assert.equal(policy.derived_outputs.registry, ".github/derived-state-governance.json");
 assert.equal(policy.derived_outputs.contract, "mad4b.repository-derived-state-governance.v1");
 assert.equal(policy.derived_outputs.mode, "registered_outputs_are_not_independent_environment_sources");
@@ -57,8 +91,12 @@ const repositoryGovernanceClass = policy.path_classes.find((entry) => entry.id =
 assert.ok(sharedRuntimeClass.patterns.includes("local-connector/**"));
 assert.ok(sharedRuntimeClass.exclude_patterns.includes("http-generic-api/test-*.mjs"));
 assert.ok(sharedRuntimeClass.exclude_patterns.includes("http-generic-api/test-*.js"));
+assert.ok(sharedRuntimeClass.exclude_patterns.includes("http-generic-api/stagingActivationGatewayApplyAdapter.js"));
+assert.ok(sharedRuntimeClass.exclude_patterns.includes("http-generic-api/staging-governance-authority-seed-recovery-contract.mjs"));
 assert.ok(repositoryGovernanceClass.patterns.includes("http-generic-api/test-*.mjs"));
 assert.ok(repositoryGovernanceClass.patterns.includes("http-generic-api/test-*.js"));
+assert.ok(repositoryGovernanceClass.patterns.includes("AI_Agent_Knowledge_Guide.md"));
+assert.ok(repositoryGovernanceClass.patterns.includes("specs/*/implementation/**"));
 assert.deepEqual(
   [...policy.source_of_truth_paths].sort(),
   Object.values(policy.authorities).sort(),
@@ -76,6 +114,9 @@ assert.deepEqual(classifyPath("http-generic-api/schema.sql", classes).map((entry
 assert.deepEqual(classifyPath("http-generic-api/schemas/http-generic-api/http-generic-api.yaml", classes).map((entry) => entry.id), ["shared_runtime"]);
 assert.deepEqual(classifyPath("autopilot-portable-production/Deploy.ps1", classes).map((entry) => entry.id), ["production_only"]);
 assert.deepEqual(classifyPath("http-generic-api/.env.staging.example", classes).map((entry) => entry.id), ["staging_only"]);
+assert.deepEqual(classifyPath("http-generic-api/stagingActivationGatewayApplyAdapter.js", classes).map((entry) => entry.id), ["staging_only"]);
+assert.deepEqual(classifyPath("http-generic-api/staging-governance-authority-seed-recovery-contract.mjs", classes).map((entry) => entry.id), ["staging_only"]);
+assert.deepEqual(classifyPath("http-generic-api/staging-recovery-migrations/20261003_staging_remote_mcp_runtime_foundation_reconciliation.sql", classes).map((entry) => entry.id), ["staging_only"]);
 assert.deepEqual(classifyPath("http-generic-api/frontend-surface-dispatch.generated.json", classes).map((entry) => entry.id), ["shared_runtime"]);
 assert.deepEqual(classifyPath("http-generic-api/auth.mjs", classes).map((entry) => entry.id), ["shared_runtime"]);
 assert.deepEqual(classifyPath("apps/local-manager-device-proof-certification/Program.cs", classes).map((entry) => entry.id), ["cross_runtime_certification"]);
@@ -86,6 +127,8 @@ assert.equal(certificationClass.requires_live_certification, false);
 assert.deepEqual(classifyPath("http-generic-api/test-environment-impact-closure.mjs", classes).map((entry) => entry.id), ["repository_governance"]);
 assert.deepEqual(classifyPath("http-generic-api/test-example.js", classes).map((entry) => entry.id), ["repository_governance"]);
 assert.deepEqual(classifyPath("docs/repository-inventory.json", classes).map((entry) => entry.id), ["repository_governance"]);
+assert.deepEqual(classifyPath("AI_Agent_Knowledge_Guide.md", classes).map((entry) => entry.id), ["repository_governance"]);
+assert.deepEqual(classifyPath("specs/012-tenant-activation-lifecycle/implementation/pr-example.json", classes).map((entry) => entry.id), ["repository_governance"]);
 assert.deepEqual(classifyPath("http-generic-api/scripts/e2e-phase-governance-core.mjs", classes).map((entry) => entry.id), ["repository_governance"]);
 assert.deepEqual(classifyPath(".specify/e2e-phase-governance.json", classes).map((entry) => entry.id), ["repository_governance"]);
 assert.deepEqual(classifyPath("docs/e2e-phase-governance.md", classes).map((entry) => entry.id), ["repository_governance"]);

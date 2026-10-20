@@ -228,7 +228,7 @@ assert.match(recoveryWorkflow, /PR_NUMBER: \$\{\{ steps\.target\.outputs\.pr_num
 assert.match(recoveryWorkflow, /--arg pr_number "\$\{PR_NUMBER\}"/u);
 assert.match(recoveryWorkflow, /--arg recovery_run_id "\$\{GITHUB_RUN_ID\}"/u);
 assert.match(recoveryWorkflow, /--arg delegation_comment_id "\$\{DELEGATION_COMMENT_ID\}"/u);
-assert.match(recoveryWorkflow, /pr_number:\$pr_number,branch:\$branch,expected_head_sha:\$expected_head_sha,recovery_run_id:\$recovery_run_id,delegation_comment_id:\$delegation_comment_id/u);
+assert.match(recoveryWorkflow, /pr_number:\$pr_number,branch:\$branch,expected_head_sha:\$expected_head_sha,write_scope:\$write_scope,recovery_run_id:\$recovery_run_id,delegation_comment_id:\$delegation_comment_id/u);
 assert.match(recoveryWorkflow, /actions\/workflows\/spec-kit-work-map-autofix\.yml\/dispatches/u);
 assert.match(recoveryWorkflow, /--arg ref "\$\{TARGET_BRANCH\}"/u);
 assert.ok(recoveryWorkflow.includes('.head_branch == \\"${TARGET_BRANCH}\\"'));
@@ -283,7 +283,7 @@ assert.match(writerWorkflow, /recovery_run_attempt="\$\(jq -r '\.run_attempt' "\
 assert.match(writerWorkflow, /actual_grant="\$\(jq -r '\.body' "\$\{delegation_file\}" \| normalize_scalar\)"/u);
 assert.match(writerWorkflow, /readback_nonce=\$\{GITHUB_RUN_ID\}-\$\{GITHUB_RUN_ATTEMPT\}-\$\{attempt\}/u);
 assert.match(writerWorkflow, /WORK_MAP_WRITER_DELEGATION contract=mad4b\.work-map-writer-delegation\.v1 state=issued/u);
-assert.match(writerWorkflow, /target_branch=\$\{TARGET_BRANCH\} expected_head_sha=\$\{EXPECTED_HEAD_SHA\} authorization_consumed=true/u);
+assert.match(writerWorkflow, /target_branch=\$\{TARGET_BRANCH\} expected_head_sha=\$\{EXPECTED_HEAD_SHA\} write_scope=\$\{WRITE_SCOPE\} authorization_consumed=true/u);
 assert.match(writerWorkflow, /state=consumed recovery_run_id=\$\{RECOVERY_RUN_ID\}/u);
 assert.match(writerWorkflow, /writer_run_id=\$\{GITHUB_RUN_ID\}/u);
 assert.match(writerWorkflow, /gh api --method PATCH "repos\/\$\{GITHUB_REPOSITORY\}\/issues\/comments\/\$\{DELEGATION_COMMENT_ID\}"/u);

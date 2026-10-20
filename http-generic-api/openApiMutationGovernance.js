@@ -41,7 +41,11 @@ export function createOpenApiMutationGovernanceMiddleware({ env = process.env, c
   return function openApiMutationGovernance(req, res, next) {
     if (!isMutationMethod(req.method)) return next();
     const requestPath = String(req.path || req.originalUrl || "/").split("?")[0];
-    if (requestPath.startsWith("/auth/oauth/") || requestPath.startsWith("/mcp")) return next();
+    // OAuth code issuance is guarded by the MCP OAuth route itself (client, PKCE,
+    // consent and principal checks). It is not a Custom GPT tool write.
+    // Do not generalize this exception to other /auth/mcp paths.
+    if (requestPath.startsWith("/auth/oauth/") || requestPath.startsWith("/mcp")
+      || (req.method === "POST" && requestPath === "/auth/mcp/oauth/code")) return next();
     const verified = verifyUserJwtAuthorization(req.headers?.authorization, { env });
     if (!verified.ok || !isTenantGptAccessClaims(verified.claims)) return next();
 

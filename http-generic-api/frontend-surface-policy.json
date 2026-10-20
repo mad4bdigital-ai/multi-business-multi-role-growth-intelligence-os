@@ -364,6 +364,19 @@
   "description": "Explicit exceptions and product decisions for repository-discovered frontend surface families. Discovery remains fail-closed; absence of a matching rule blocks dispatch.",
   "operation_rules": [
     {
+      "rule_id": "scoped-device-health-read-action",
+      "operation": "POST /device/tools/devices/{device_id}/health",
+      "source_file": "routes/deviceToolsRoutes.js",
+      "classification": "read_action",
+      "owner": "local-manager",
+      "rationale": "Health-only POST dispatches the registered tenant_safe/read_only/auth_derived local_connector_health tool for a verified canonical device in Staging. Signed tenant/principal identity, exact device selection and normal dispatch grants are checked; the endpoint cannot enqueue shell commands or mutate files.",
+      "evidence_refs": [
+        "routes/deviceToolsRoutes.js",
+        "test-device-tools-diagnostics.mjs",
+        "test-frontend-surface-coverage-claims.mjs"
+      ]
+    },
+    {
       "rule_id": "root-discovery-delete-read-action",
       "operation": "DELETE /",
       "source_file": "routes/rootDiscoveryRoutes.js",
@@ -7881,6 +7894,21 @@
         "openapi.yaml",
         "frontend-surface-dispatch.generated.json",
         "test-frontend-surface-coverage-claims.mjs"
+      ]
+    },
+    {
+      "rule_id": "hostinger-recovery-allowlist-readonly-discovery",
+      "operation": "POST /platform/remote-runtime/hosting/recovery-allowlist/discover",
+      "source_file": "routes/platformPluginRoutes.js",
+      "classification": "read_action",
+      "owner": "remote-runtime",
+      "rationale": "Admin-only bounded metadata SELECT over exact registered Hostinger target and planned allowlist entries. It never calls provider/SSH, mutates SQL or environment variables, creates a database, exposes credentials or certifies an executor; no production apply authority is inferred.",
+      "evidence_refs": [
+        "routes/platformPluginRoutes.js",
+        "hostingerRecoveryCapabilityDiscovery.js",
+        "hostingerRecoveryProviderContract.js",
+        "test-hostinger-recovery-capability-discovery.mjs",
+        "openapi.yaml"
       ]
     },
     {

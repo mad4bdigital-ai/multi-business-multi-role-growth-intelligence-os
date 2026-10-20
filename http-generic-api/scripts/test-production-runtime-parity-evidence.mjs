@@ -17,6 +17,11 @@ const authEndpoint = () => ({
   url: "https://auth.mad4b.com/version",
   required: true
 });
+const deploymentEndpoint = () => ({
+  name: "auth-deployment",
+  url: "https://auth.mad4b.com/deployment-info",
+  required: true
+});
 const successfulTls = async () => ({
   authorized: true,
   protocol: "TLSv1.3",
@@ -37,17 +42,55 @@ const runtimeResponse = (sha = SHA) => new Response(JSON.stringify({
   status: 200,
   headers: { "content-type": "application/json" }
 });
+const deploymentInfoResponse = ({ sha = SHA, explicit = true, canonical = true } = {}) => new Response(JSON.stringify({
+  ok: true,
+  service: "growth-intelligence-platform",
+  commit_sha: sha,
+  branch: "Production",
+  gitCommitFull: canonical ? sha : null,
+  gitBranch: canonical ? "Production" : null,
+  provenanceSource: canonical ? "/app/deployment-manifest.json" : null,
+  evidence: { canonical_manifest_detected: canonical },
+  runtime_environment: explicit ? {
+    ok: true,
+    environment_key: "production",
+    runtime_variant: "production_hostinger_autodeploy",
+    canonical_runtime_variant: "production_hostinger_autodeploy",
+    runtime_class: "hostinger_autodeploy",
+    runtime_class_explicit: true,
+    source_branch: "Production",
+    reason: null,
+    raw_values_exposed: false,
+    secrets_included: false
+  } : {
+    ok: false,
+    environment_key: "production",
+    runtime_variant: "production",
+    canonical_runtime_variant: "production_hostinger_autodeploy",
+    runtime_class: null,
+    runtime_class_explicit: false,
+    source_branch: "Production",
+    reason: "runtime_class_ambiguous",
+    raw_values_exposed: false,
+    secrets_included: false
+  }
+}), {
+  status: 200,
+  headers: { "content-type": "application/json" }
+});
 
 try {
   const configuration = validateConfiguration({
     expectedSha: SHA,
     expectedBranch: "Production",
     timeoutMs: 5000,
-    endpoints: [authEndpoint()]
+    endpoints: [authEndpoint(), deploymentEndpoint()]
   });
-  assert.equal(configuration.endpoints.length, 1);
+  assert.equal(configuration.endpoints.length, 2);
   assert.equal(configuration.endpoints[0].name, "auth");
   assert.equal(configuration.endpoints[0].required, true);
+  assert.equal(configuration.endpoints[1].name, "auth-deployment");
+  assert.equal(configuration.endpoints[1].required, true);
 
   const repositoryRoot = process.env.REPOSITORY_ROOT || path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
   const workflowPath = path.join(repositoryRoot, ".github/workflows/production-runtime-parity-evidence.yml");
@@ -64,9 +107,15 @@ try {
   assert.match(workflow, /persist-credentials: false/u);
   assert.match(workflow, /refs\/remotes\/origin\/Production/u);
   assert.match(workflow, /--endpoint "auth=\$\{AUTH_URL\}"/u);
-  assert.match(workflow, /endpoints\.length === 1/u);
+  assert.match(workflow, /--endpoint "auth-deployment=\$\{DEPLOYMENT_INFO_URL\}"/u);
+  assert.match(workflow, /endpoints\.length === 2/u);
   assert.match(workflow, /auth\?\.required === true/u);
   assert.match(workflow, /auth\?\.status === "passed"/u);
+  assert.match(workflow, /deployment\?\.required === true/u);
+  assert.match(workflow, /deployment\?\.status === "passed"/u);
+  assert.match(workflow, /deployment\?\.runtime\?\.canonical_provenance_present === true/u);
+  assert.match(workflow, /production_hostinger_autodeploy/u);
+  assert.match(workflow, /runtime_class_explicit/u);
   assert.doesNotMatch(workflow, /connector_url|dev_url|require_dev/u);
   assert.doesNotMatch(workflow, /--(?:optional-)?endpoint "connector=/u);
   assert.doesNotMatch(workflow, /--(?:optional-)?endpoint "dev=/u);
@@ -78,11 +127,17 @@ try {
   assert.equal(policy.production.source_branch, "Production");
   assert.equal(policy.production.deployment_provider, "hostinger");
   assert.equal(policy.production.auto_deploy_on_push, true);
+  assert.equal(policy.production.required_runtime_environment.deployment_environment, "production_hostinger_autodeploy");
+  assert.equal(policy.production.required_runtime_environment.runtime_class, "hostinger_autodeploy");
+  assert.equal(policy.production.required_runtime_environment.runtime_class_explicit, true);
   assert.equal(policy.connector_recovery.hostname, "connector.mad4b.com");
   assert.equal(policy.connector_recovery.hostinger_auto_deploy, false);
   assert.equal(policy.staging.hostname, "dev.mad4b.com");
   assert.equal(policy.staging.hostinger_auto_deploy, false);
   assert.equal(policy.staging.production_traffic_allowed, false);
+  assert.equal(policy.staging.required_runtime_environment.deployment_environment, "staging_local_windows_docker");
+  assert.equal(policy.staging.required_runtime_environment.runtime_class, "local_windows_docker");
+  assert.equal(policy.staging.required_runtime_environment.runtime_class_explicit, true);
 
   assert.match(reporterSource, /"dns_timeout"/u);
   assert.match(reporterSource, /"http_timeout"/u);
@@ -116,17 +171,23 @@ try {
   assert.throws(() => validateConfiguration({
     expectedSha: SHA,
     expectedBranch: "production",
-    endpoints: [authEndpoint()]
+    endpoints: [authEndpoint(), deploymentEndpoint()]
   }), /exactly Production/u);
+
+  assert.throws(() => validateConfiguration({
+    expectedSha: SHA,
+    expectedBranch: "Production",
+    endpoints: [authEndpoint()]
+  }), /auth-deployment/u);
 
   const passed = await runProductionRuntimeParityEvidence({
     expectedSha: SHA,
     expectedBranch: "Production",
-    endpoints: [authEndpoint()],
+    endpoints: [authEndpoint(), deploymentEndpoint()],
     outputDir: path.join(root, "passed"),
     lookup,
     tlsProbe: successfulTls,
-    fetchImpl: async () => runtimeResponse(),
+    fetchImpl: async (url) => String(url).endsWith("/deployment-info") ? deploymentInfoResponse() : runtimeResponse(),
     env: {
       GITHUB_SHA: "d".repeat(40),
       GITHUB_REPOSITORY: "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os",
@@ -141,9 +202,16 @@ try {
 
   assert.equal(passed.report.contract, PRODUCTION_RUNTIME_PARITY_CONTRACT);
   assert.equal(passed.report.outcome, "passed");
-  assert.equal(passed.report.endpoints.length, 1);
+  assert.equal(passed.report.endpoints.length, 2);
   assert.equal(passed.report.endpoints[0].name, "auth");
   assert.equal(passed.report.endpoints[0].status, "passed");
+  assert.equal(passed.report.endpoints[1].name, "auth-deployment");
+  assert.equal(passed.report.endpoints[1].status, "passed");
+  assert.equal(passed.report.endpoints[1].runtime.canonical_provenance_present, true);
+  assert.equal(passed.report.endpoints[1].runtime.runtime_environment.environment_key, "production");
+  assert.equal(passed.report.endpoints[1].runtime.runtime_environment.runtime_variant, "production_hostinger_autodeploy");
+  assert.equal(passed.report.endpoints[1].runtime.runtime_environment.runtime_class, "hostinger_autodeploy");
+  assert.equal(passed.report.endpoints[1].runtime.runtime_environment.runtime_class_explicit, true);
   assert.equal(passed.report.endpoints[0].dns.addresses[0].length, 64);
   assert.notEqual(passed.report.endpoints[0].dns.addresses[0], "104.21.10.20");
   assert.equal(passed.report.side_effects.repository_mutation_performed, false);
@@ -152,10 +220,44 @@ try {
   assert.ok(fs.existsSync(passed.jsonPath));
   assert.ok(fs.existsSync(passed.markdownPath));
 
+  const canonicalProvenanceFailed = await runProductionRuntimeParityEvidence({
+    expectedSha: SHA,
+    expectedBranch: "Production",
+    endpoints: [authEndpoint(), deploymentEndpoint()],
+    outputDir: path.join(root, "canonical-provenance-failed"),
+    lookup,
+    tlsProbe: successfulTls,
+    fetchImpl: async (url) => String(url).endsWith("/deployment-info")
+      ? deploymentInfoResponse({ canonical: false })
+      : runtimeResponse()
+  });
+  assert.equal(canonicalProvenanceFailed.report.outcome, "failed");
+  assert.equal(canonicalProvenanceFailed.report.first_failure.endpoint, "auth-deployment");
+  assert.equal(canonicalProvenanceFailed.report.first_failure.code, "canonical_deployment_provenance_missing");
+  assert.equal(canonicalProvenanceFailed.report.endpoints[1].runtime.canonical_provenance_present, false);
+
+  const runtimeIdentityFailed = await runProductionRuntimeParityEvidence({
+    expectedSha: SHA,
+    expectedBranch: "Production",
+    endpoints: [authEndpoint(), deploymentEndpoint()],
+    outputDir: path.join(root, "runtime-identity-failed"),
+    lookup,
+    tlsProbe: successfulTls,
+    fetchImpl: async (url) => String(url).endsWith("/deployment-info")
+      ? deploymentInfoResponse({ explicit: false })
+      : runtimeResponse()
+  });
+  assert.equal(runtimeIdentityFailed.report.outcome, "failed");
+  assert.equal(runtimeIdentityFailed.report.first_failure.endpoint, "auth-deployment");
+  assert.equal(runtimeIdentityFailed.report.first_failure.code, "runtime_environment_identity_not_explicit");
+  assert.equal(runtimeIdentityFailed.report.endpoints[1].runtime.runtime_environment.runtime_class_explicit, false);
+  assert.equal(runtimeIdentityFailed.report.side_effects.repository_mutation_performed, false);
+  assert.equal(runtimeIdentityFailed.report.side_effects.provider_dispatch_performed, false);
+
   const shaFailed = await runProductionRuntimeParityEvidence({
     expectedSha: SHA,
     expectedBranch: "Production",
-    endpoints: [authEndpoint()],
+    endpoints: [authEndpoint(), deploymentEndpoint()],
     outputDir: path.join(root, "sha-failed"),
     lookup,
     tlsProbe: successfulTls,
@@ -180,7 +282,7 @@ try {
   const untrustedIdentityFailed = await runProductionRuntimeParityEvidence({
     expectedSha: SHA,
     expectedBranch: "Production",
-    endpoints: [authEndpoint()],
+    endpoints: [authEndpoint(), deploymentEndpoint()],
     outputDir: path.join(root, "untrusted-identity-failed"),
     lookup,
     tlsProbe: successfulTls,
@@ -207,7 +309,7 @@ try {
   const privateDnsFailed = await runProductionRuntimeParityEvidence({
     expectedSha: SHA,
     expectedBranch: "Production",
-    endpoints: [authEndpoint()],
+    endpoints: [authEndpoint(), deploymentEndpoint()],
     outputDir: path.join(root, "private-dns-failed"),
     lookup: async () => [{ address: "127.0.0.1", family: 4 }],
     tlsProbe: async () => {
@@ -223,7 +325,7 @@ try {
   const excessiveDnsFailed = await runProductionRuntimeParityEvidence({
     expectedSha: SHA,
     expectedBranch: "Production",
-    endpoints: [authEndpoint()],
+    endpoints: [authEndpoint(), deploymentEndpoint()],
     outputDir: path.join(root, "excessive-dns-failed"),
     lookup: async () => Array.from({ length: 17 }, (_, index) => ({
       address: `104.21.10.${index + 1}`,
@@ -243,7 +345,7 @@ try {
     const documentationDnsFailed = await runProductionRuntimeParityEvidence({
       expectedSha: SHA,
       expectedBranch: "Production",
-      endpoints: [authEndpoint()],
+      endpoints: [authEndpoint(), deploymentEndpoint()],
       outputDir: path.join(root, `documentation-dns-${address.replaceAll(":", "-")}`),
       lookup: async () => [{ address, family: address.includes(":") ? 6 : 4 }],
       tlsProbe: async () => {
@@ -260,7 +362,7 @@ try {
   const tlsFailed = await runProductionRuntimeParityEvidence({
     expectedSha: SHA,
     expectedBranch: "Production",
-    endpoints: [authEndpoint()],
+    endpoints: [authEndpoint(), deploymentEndpoint()],
     outputDir: path.join(root, "tls-failed"),
     lookup,
     tlsProbe: async () => {
@@ -281,7 +383,7 @@ try {
 
 console.log(JSON.stringify({
   ok: true,
-  tests: 9,
+  tests: 12,
   gate: "production_runtime_parity_auth_topology",
   contract: PRODUCTION_RUNTIME_PARITY_CONTRACT,
   secrets_included: false

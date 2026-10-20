@@ -44,6 +44,14 @@
     {
       "file": "test-production-recovery-control-store-bootstrap.mjs",
       "evidence_scope": "production-recovery-control-store-bootstrap"
+    },
+    {
+      "file": "test-hostinger-recovery-capability-discovery.mjs",
+      "evidence_scope": "hostinger-recovery-allowlist-readonly-discovery"
+    },
+    {
+      "file": "test-hostinger-recovery-provider-safety.mjs",
+      "evidence_scope": "hostinger-recovery-environment-and-database-denial"
     }
   ]
 }

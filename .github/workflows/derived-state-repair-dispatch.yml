@@ -178,9 +178,26 @@ jobs:
             state="dispatched"
           elif [[ "$kind" == "delegated_work_map_writer" ]]; then
             body="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" --jq '.body // ""')"
-            marker='<!-- work-map-autofix:authorized -->'
-            if grep -Fq "$marker" <<<"$body"; then
-              payload="$(jq -cn --arg ref main --arg pr "$PR_NUMBER" --arg head "$HEAD_SHA" '{ref:$ref,inputs:{pr_number:$pr,expected_head_sha:$head,confirmation:"RECOVER_SPEC_KIT_WORK_MAP_AUTOFIX"}}')"
+            # Preserve the exact-head, one-time docs-only authority instead of
+            # silently widening it to the legacy full writer scope.
+            marker_full='<!-- work-map-autofix:authorized -->'
+            marker_docs_only="<!-- work-map-autofix:authorized docs_only ${HEAD_SHA} -->"
+            scope=""
+            if grep -Fq "$marker_docs_only" <<<"$body"; then
+              if grep -Fq "$marker_full" <<<"$body"; then
+                echo "Conflicting full and docs-only authorizations: refusing dispatch." >&2
+                exit 1
+              fi
+              scope="docs_only"
+            elif grep -Fq "$marker_full" <<<"$body"; then
+              if grep -Eq '<!-- work-map-autofix:authorized docs_only [0-9a-f]{40} -->' <<<"$body"; then
+                echo "Ambiguous stale docs-only and full authorizations: refusing dispatch." >&2
+                exit 1
+              fi
+              scope="full"
+            fi
+            if [[ -n "$scope" ]]; then
+              payload="$(jq -cn --arg ref main --arg pr "$PR_NUMBER" --arg head "$HEAD_SHA" --arg scope "$scope" '{ref:$ref,inputs:{pr_number:$pr,expected_head_sha:$head,write_scope:$scope,confirmation:"RECOVER_SPEC_KIT_WORK_MAP_AUTOFIX"}}')"
               gh api --method POST "repos/${GITHUB_REPOSITORY}/actions/workflows/spec-kit-work-map-autofix-recovery-dispatch.yml/dispatches" --input - <<<"$payload"
               state="delegated_recovery_dispatched"
             else

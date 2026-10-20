@@ -1,0 +1,78 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "pr8444-staging-gateway-system-scope",
+  "title": "PR8444 Staging Gateway managed credential system scope",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/pr8444-staging-gateway-system-scope.json",
+      ".github/derived-state-governance.json",
+      "http-generic-api/config/repository-governance-constitution.json",
+      "http-generic-api/stagingActivationGatewayApplyAdapter.js",
+      "http-generic-api/config/staging-gateway-runtime-authority-seed.sql",
+      "http-generic-api/test-staging-smart-gateway-convergence-contract.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Keep the Staging Activation Gateway managed Cloudflare credential resolver bound to the exact canonical connected-system identity without relaxing global credential scope matching.",
+      "e2e_journeys": [
+        {
+          "id": "staging-gateway-system-scoped-managed-credential",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Governed Staging Activation Gateway adapter",
+          "entrypoint": "Build the Staging Activation Gateway convergence contract on the exact PR head.",
+          "terminal_outcome": "The adapter supplies the canonical Staging Cloudflare system identity to the strict credential resolver, the identity remains aligned with the runtime authority seed, and no Production or provider mutation is introduced by the source patch.",
+          "steps": [
+            "Read the canonical managed Cloudflare connected-system identity from the Staging Gateway runtime authority seed contract.",
+            "Verify that the Staging Gateway adapter passes the same server-owned system identity into resolveEffectiveCredential while preserving strict binding matching.",
+            "Run the Staging smart Gateway convergence contract and retain live Staging certification as a required pre-merge follow-up."
+          ],
+          "assertions": [
+            "The adapter supplies systemId through a server-owned constant and callers cannot select or override it.",
+            "The adapter system identity equals the canonical identity seeded for the Staging Activation Gateway managed Cloudflare system.",
+            "credentialResolver binding scope matching is not weakened.",
+            "Live Staging certification is required before merge.",
+            "No Production mutation, provider mutation, DNS mutation, database schema mutation, or secret exposure is introduced."
+          ],
+          "tests": [
+            {
+              "id": "staging-smart-gateway-convergence-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-smart-gateway-convergence-contract.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/pr8444-staging-gateway-system-scope.json",
+            ".github/derived-state-governance.json",
+            "http-generic-api/config/repository-governance-constitution.json",
+            "http-generic-api/stagingActivationGatewayApplyAdapter.js",
+            "http-generic-api/config/staging-gateway-runtime-authority-seed.sql",
+            "http-generic-api/test-staging-smart-gateway-convergence-contract.mjs",
+            "http-generic-api/config/deployment-branch-policy.json"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}

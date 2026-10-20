@@ -11,6 +11,8 @@ on:
         type: choice
         options:
           - verify
+          - attest_runtime_artifact
+          - acquire_external_evidence
           - countersign_recovery
       expected_sha:
         description: Commit SHA expected on staging; required for recovery countersign and defaults to the workflow commit for verification
@@ -29,8 +31,12 @@ on:
         description: Optional base64 ZIP containing the exact no-secret local canary bundle; preferred local-to-GitHub countersign transport
         required: false
         type: string
+      runtime_artifact_evidence_zip_base64:
+        description: Base64 ZIP containing exact no-secret host-side Staging runtime artifact evidence
+        required: false
+        type: string
       expected_target_fingerprint:
-        description: Exact Staging target fingerprint; countersign only
+        description: Exact Staging target fingerprint; external acquisition or countersign
         required: false
         type: string
       confirmation:
@@ -42,14 +48,17 @@ permissions:
   contents: read
 
 concurrency:
-  group: ${{ inputs.operation == 'countersign_recovery' && format('staging-recovery-genuine-certification-{0}-{1}', inputs.expected_sha, inputs.expected_target_fingerprint) || 'staging-post-deploy-verification' }}
-  cancel-in-progress: ${{ inputs.operation != 'countersign_recovery' }}
+  group: ${{ inputs.operation == 'countersign_recovery' && format('staging-recovery-genuine-certification-{0}-{1}', inputs.expected_sha, inputs.expected_target_fingerprint) || inputs.operation == 'acquire_external_evidence' && format('staging-recovery-external-acquisition-{0}-{1}', inputs.expected_sha, inputs.expected_target_fingerprint) || inputs.operation == 'attest_runtime_artifact' && format('staging-runtime-artifact-attestation-{0}', inputs.expected_sha) || 'staging-post-deploy-verification' }}
+  cancel-in-progress: ${{ inputs.operation == 'verify' }}
 
 jobs:
   verify-staging:
-    if: inputs.operation != 'countersign_recovery'
+    if: inputs.operation == 'verify'
     name: Verify main on dev.mad4b.com
     runs-on: ubuntu-latest
+    # Bind the Staging backend credential to the existing non-Production
+    # Environment. Verification alone never authorizes a Staging rebuild.
+    environment: staging-recovery-certification
     timeout-minutes: 25
     env:
       STAGING_BASE_URL: https://dev.mad4b.com
@@ -90,7 +99,7 @@ jobs:
             exit 1
           fi
           if [[ -z "${BACKEND_API_KEY}" ]]; then
-            echo "::error::BACKEND_API_KEY repository secret is required for staging DB verification."
+            echo "::error::Staging Environment BACKEND_API_KEY is required for staging DB verification."
             exit 1
           fi
           echo "commit=${expected_commit}" >> "${GITHUB_OUTPUT}"
@@ -221,6 +230,283 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
+  attest-runtime-artifact:
+    if: inputs.operation == 'attest_runtime_artifact' && github.ref == 'refs/heads/main' && inputs.confirmation == 'ATTEST_STAGING_RUNTIME_ARTIFACT'
+    name: Attest exact Staging runtime artifact
+    runs-on: ubuntu-24.04
+    environment: staging-recovery-certification
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    env:
+      EXPECTED_SHA: ${{ inputs.expected_sha }}
+      STAGING_APP_BASE_URL: https://dev.mad4b.com
+      STAGING_GATEWAY_BASE_URL: https://activation-dev.mad4b.com
+
+    steps:
+      - name: Validate exact runtime-attestation input
+        shell: bash
+        env:
+          RUNTIME_ARTIFACT_EVIDENCE_PRESENT: ${{ inputs.runtime_artifact_evidence_zip_base64 != '' && 'true' || 'false' }}
+        run: |
+          set -euo pipefail
+          [[ "$EXPECTED_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::expected_sha must be a lowercase 40-character SHA."; exit 1; }
+          [[ "$RUNTIME_ARTIFACT_EVIDENCE_PRESENT" == "true" ]] || { echo "::error::host-side runtime artifact evidence is required"; exit 1; }
+
+      - name: Checkout exact Staging main release
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ inputs.expected_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Decode exact host-side runtime artifact evidence
+        shell: bash
+        env:
+          RUNTIME_ARTIFACT_EVIDENCE_ZIP_BASE64: ${{ inputs.runtime_artifact_evidence_zip_base64 }}
+        run: |
+          set -euo pipefail
+          evidence_dir="$RUNNER_TEMP/staging-runtime-artifact-local"
+          rm -rf "$evidence_dir"
+          mkdir -p "$evidence_dir"
+          printf '%s' "$RUNTIME_ARTIFACT_EVIDENCE_ZIP_BASE64" | base64 --decode > "$RUNNER_TEMP/staging-runtime-artifact-evidence.zip"
+          unzip -qq "$RUNNER_TEMP/staging-runtime-artifact-evidence.zip" -d "$evidence_dir"
+          rm -f "$RUNNER_TEMP/staging-runtime-artifact-evidence.zip"
+          mapfile -t evidence_files < <(find "$evidence_dir" -type f -name runtime-artifact-evidence.json -print)
+          [[ "${#evidence_files[@]}" -eq 1 ]] || { echo "::error::Expected exactly one runtime-artifact-evidence.json"; exit 1; }
+          echo "STAGING_RUNTIME_LOCAL_EVIDENCE_FILE=${evidence_files[0]}" >> "$GITHUB_ENV"
+
+      - name: Prove exact main runtime-attestation authority
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main --quiet
+          test "$GITHUB_SHA" = "$EXPECTED_SHA"
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+          test "$(git rev-parse origin/main)" = "$EXPECTED_SHA"
+
+      - name: Set up Node.js for runtime attestation
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 22
+
+      - name: Derive repository-owned runtime identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf "$RUNNER_TEMP/.staging-build-context"
+          node http-generic-api/scripts/prepare-staging-build-context.mjs \
+            --repository-path . \
+            --commit "$EXPECTED_SHA" \
+            --output-dir "$RUNNER_TEMP/.staging-build-context"
+
+          expected_tree="$(git rev-parse "${EXPECTED_SHA}^{tree}")"
+          context_file_set="$(jq -er '.context_file_set_sha256' "$RUNNER_TEMP/.staging-build-context/.staging-build-context.json")"
+          expected_policy_hash="$(jq -er '.content_hash_sha256' edge/activation-gateway/generated/route-policy.staging.json)"
+
+          [[ "$expected_tree" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$context_file_set" =~ ^[0-9a-f]{64}$ ]]
+          [[ "$expected_policy_hash" =~ ^[0-9a-f]{64}$ ]]
+
+          {
+            echo "EXPECTED_TREE=$expected_tree"
+            echo "EXPECTED_CONTEXT_FILE_SET_SHA256=$context_file_set"
+            echo "EXPECTED_POLICY_HASH=$expected_policy_hash"
+          } >> "$GITHUB_ENV"
+
+      - name: Independently probe and sign Staging runtime artifact
+        id: attestation
+        shell: bash
+        env:
+          RECOVERY_STAGING_CERTIFICATION_PRIVATE_KEY: ${{ secrets.RECOVERY_STAGING_CERTIFICATION_PRIVATE_KEY }}
+          RECOVERY_STAGING_CERTIFICATION_ISSUER: ${{ vars.RECOVERY_STAGING_CERTIFICATION_ISSUER }}
+          RECOVERY_STAGING_CERTIFICATION_KEY_ID: ${{ vars.RECOVERY_STAGING_CERTIFICATION_KEY_ID }}
+          ACTIVATION_GATEWAY_INGRESS_PUBLIC_KEY_SHA256: ${{ vars.ACTIVATION_GATEWAY_INGRESS_PUBLIC_KEY_SHA256 }}
+          STAGING_RUNTIME_ATTESTATION_OUTPUT_DIRECTORY: ${{ runner.temp }}/staging-runtime-artifact-attestation
+        run: |
+          set -euo pipefail
+          summary="$RUNNER_TEMP/staging-runtime-artifact-attestation-summary.json"
+          node .github/scripts/staging-runtime-artifact-attest.mjs | tee "$summary"
+
+          jq -e --arg sha "$EXPECTED_SHA" '
+            .ok == true
+            and .deployment_sha == $sha
+            and (.app_image_digest | test("^sha256:[0-9a-f]{64}$"))
+            and (.payload_sha256 | test("^[0-9a-f]{64}$"))
+            and .read_only_remote_probe == true
+            and .production_mutation_performed == false
+            and .provider_mutation_performed == false
+            and .database_mutation_performed == false
+            and .secrets_included == false
+          ' "$summary" >/dev/null
+
+          artifact_name="$(jq -er '.artifact_name' "$summary")"
+          expected_prefix="staging-runtime-artifact-attestation-${EXPECTED_SHA}-"
+          [[ "$artifact_name" == "${expected_prefix}"* ]] || { echo "::error::runtime attestation artifact name is not exact-SHA bound"; exit 1; }
+          echo "artifact_name=$artifact_name" >> "$GITHUB_OUTPUT"
+
+      - name: Upload signed Staging runtime artifact attestation
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ${{ steps.attestation.outputs.artifact_name }}
+          path: ${{ runner.temp }}/staging-runtime-artifact-attestation/
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Publish runtime-attestation summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "## Staging runtime artifact attestation"
+            echo
+            echo "- Exact main SHA: $EXPECTED_SHA"
+            echo "- Remote probes: read-only"
+            echo "- Production/provider/database mutation: none"
+            echo "- Full Recovery acquisition/countersign authority: not asserted"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  acquire-external-evidence:
+    if: inputs.operation == 'acquire_external_evidence' && github.ref == 'refs/heads/main'
+    name: Acquire bounded Staging external evidence
+    runs-on: ubuntu-latest
+    environment: staging-recovery-acquisition
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    env:
+      EXPECTED_SHA: ${{ inputs.expected_sha }}
+      EXPECTED_TARGET_FINGERPRINT: ${{ inputs.expected_target_fingerprint }}
+      BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
+    steps:
+      - name: Validate exact bounded acquisition inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$EXPECTED_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::expected_sha must be a lowercase 40-character SHA."; exit 1; }
+          [[ "$EXPECTED_TARGET_FINGERPRINT" =~ ^[0-9a-f]{64}$ ]] || { echo "::error::expected_target_fingerprint must be a 64-character SHA-256 fingerprint."; exit 1; }
+          test -n "$BACKEND_API_KEY"
+
+      - name: Checkout exact Staging main candidate
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ inputs.expected_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Prove exact main acquisition authority
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main --quiet
+          test "$GITHUB_SHA" = "$EXPECTED_SHA"
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+          test "$(git rev-parse origin/main)" = "$EXPECTED_SHA"
+
+      - name: Setup Node.js for acquisition
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install acquisition verifier dependencies
+        working-directory: http-generic-api
+        run: npm ci --ignore-scripts
+
+      - name: Acquire independent same-request network evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/staging-recovery-acquisition"
+          node http-generic-api/scripts/staging-recovery-acquire-network-evidence.mjs \
+            --expected-sha "$EXPECTED_SHA" \
+            --target-fingerprint "$EXPECTED_TARGET_FINGERPRINT" \
+            --output "$RUNNER_TEMP/staging-recovery-acquisition/network-evidence.json"
+
+      - name: Verify network acquisition source
+        shell: bash
+        run: |
+          set -euo pipefail
+          NETWORK_FILE="$RUNNER_TEMP/staging-recovery-acquisition/network-evidence.json" node --input-type=module <<'NODE'
+          import fs from "node:fs";
+          import { verifyRecoveryNetworkIsolationSource } from "./http-generic-api/stagingRecoveryExternalEvidence.js";
+          const evidence = JSON.parse(fs.readFileSync(process.env.NETWORK_FILE, "utf8"));
+          const result = verifyRecoveryNetworkIsolationSource(evidence, {
+            expectedSha: process.env.EXPECTED_SHA,
+            expectedTargetFingerprint: process.env.EXPECTED_TARGET_FINGERPRINT,
+          });
+          if (!result.verified) throw new Error(result.reason_code || "network source verification failed");
+          NODE
+
+      - name: Record PR-B1 acquisition blockers
+        shell: bash
+        run: |
+          set -euo pipefail
+          OUTPUT="$RUNNER_TEMP/staging-recovery-acquisition/acquisition-status.json" node --input-type=module <<'NODE'
+          import fs from "node:fs";
+          const status = {
+            contract: "mad4b.recovery-external-acquisition-status.v1",
+            environment: "staging",
+            deployment_sha: process.env.EXPECTED_SHA,
+            target_fingerprint: process.env.EXPECTED_TARGET_FINGERPRINT,
+            network_source_verified: true,
+            oauth_server_correlation_source_available: false,
+            registration_source_attestation_available: false,
+            receipt_signed: false,
+            blockers: [
+              { kind: "oauth", reason_code: "RECOVERY_OAUTH_SERVER_CORRELATION_SOURCE_UNAVAILABLE" },
+              { kind: "registration", reason_code: "RECOVERY_REGISTRATION_SOURCE_ATTESTATION_UNAVAILABLE" },
+            ],
+            provider_mutation_performed: false,
+            database_mutation_performed: false,
+            production_mutation_performed: false,
+            secrets_included: false,
+          };
+          fs.writeFileSync(process.env.OUTPUT, JSON.stringify(status, null, 2) + "\n", { mode: 0o600 });
+          NODE
+
+      - name: Enforce fail-closed PR-B1 acquisition hold
+        shell: bash
+        run: |
+          set -euo pipefail
+          jq -e '
+            .network_source_verified == true
+            and .oauth_server_correlation_source_available == false
+            and .registration_source_attestation_available == false
+            and .receipt_signed == false
+            and (.blockers | length) == 2
+            and .provider_mutation_performed == false
+            and .database_mutation_performed == false
+            and .production_mutation_performed == false
+            and .secrets_included == false
+          ' "$RUNNER_TEMP/staging-recovery-acquisition/acquisition-status.json" >/dev/null
+          test ! -e "$RUNNER_TEMP/staging-recovery-acquisition/acquisition-receipt.json"
+
+      - name: Upload bounded acquisition evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: staging-recovery-external-acquisition-${{ inputs.expected_sha }}-${{ inputs.expected_target_fingerprint }}
+          path: ${{ runner.temp }}/staging-recovery-acquisition/
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Publish acquisition summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "## Staging Recovery external acquisition — PR-B1"
+            echo
+            echo "- Exact SHA: $EXPECTED_SHA"
+            echo "- Target fingerprint: $EXPECTED_TARGET_FINGERPRINT"
+            echo "- Network source: independently probed"
+            echo "- OAuth server correlation source: unavailable in PR-B1"
+            echo "- Registration source attestation: unavailable in PR-B1"
+            echo "- Acquisition receipt signed: no"
+            echo "- Production/provider/database mutation: none"
+          } >> "$GITHUB_STEP_SUMMARY"
+
   verify-and-countersign:
     if: inputs.operation == 'countersign_recovery' && github.ref == 'refs/heads/main' && inputs.confirmation == 'COUNTERSIGN_STAGING_RECOVERY'
     name: Verify and countersign genuine Staging recovery certification
@@ -314,15 +600,102 @@ jobs:
           RECOVERY_STAGING_NEGATIVE_TEST_EVIDENCE_FILE: ${{ runner.temp }}/staging-recovery-negative-tests.json
         run: node .github/scripts/staging-recovery-negative-test-evidence.mjs
 
+      - name: Independently observe deployed Staging Worker
+        shell: bash
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          WORKER_NAME: mad4b-activation-gateway-staging
+          SOURCE_SHA: ${{ inputs.expected_sha }}
+          PUBLIC_HEALTH_URL: https://activation-dev.mad4b.com/health
+          STAGING_WORKER_PROVIDER_OBSERVATION_FILE: ${{ runner.temp }}/staging-recovery-live-worker-provider.json
+        run: |
+          set -euo pipefail
+
+          export EXPECTED_POLICY_HASH="$(
+            node --input-type=module <<'NODE'
+          import fs from "node:fs";
+          const policy = JSON.parse(
+            fs.readFileSync(
+              "edge/activation-gateway/generated/route-policy.staging.json",
+              "utf8",
+            ),
+          );
+          process.stdout.write(policy.content_hash_sha256);
+          NODE
+          )"
+
+          [[ "$EXPECTED_POLICY_HASH" =~ ^[a-f0-9]{64}$ ]]
+
+          node .github/scripts/staging-recovery-worker-provider-evidence.mjs
+
+      - name: Capture fresh Gateway ingress-build identity
+        shell: bash
+        env:
+          BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+          EXPECTED_TARGET_FINGERPRINT: ${{ inputs.expected_target_fingerprint }}
+        run: |
+          set -euo pipefail
+
+          test -n "$BACKEND_API_KEY"
+
+          response_file="$RUNNER_TEMP/staging-recovery-live-readiness.json"
+          ingress_file="$RUNNER_TEMP/staging-recovery-live-ingress.json"
+
+          status="$(
+            curl \
+              --silent \
+              --show-error \
+              --output "$response_file" \
+              --write-out '%{http_code}' \
+              --connect-timeout 10 \
+              --max-time 20 \
+              --header "Authorization: Bearer $BACKEND_API_KEY" \
+              --header "Accept: application/json" \
+              "https://activation-dev.mad4b.com/admin/recovery/staging/readiness"
+          )"
+
+          test "$status" = "200"
+
+          jq -e \
+            --arg sha "$EXPECTED_SHA" \
+            --arg target "$EXPECTED_TARGET_FINGERPRINT" '
+              .environment == "staging"
+              and .target_fingerprint == $target
+              and .deployment_attestation.sha == $sha
+              and .ingress_build_identity.deployment_sha == $sha
+              and .ingress_build_identity.worker_build_sha == $sha
+              and (.ingress_build_identity.worker_bundle_sha256
+                   | test("^[a-f0-9]{64}$"))
+              and (.ingress_build_identity.policy_hash
+                   | test("^[a-f0-9]{64}$"))
+              and .ingress_build_identity.gateway_host
+                  == "activation-dev.mad4b.com"
+              and (.ingress_build_identity.expires_at | type) == "number"
+              and .ingress_build_identity.expires_at > now
+              and .secrets_included == false
+            ' "$response_file" >/dev/null
+
+          jq '.ingress_build_identity' \
+            "$response_file" > "$ingress_file"
+
+          rm -f "$response_file"
+
       - name: Independently verify and countersign
         env:
           RECOVERY_STAGING_EVIDENCE_DIRECTORY: ${{ runner.temp }}/staging-recovery-canary
           RECOVERY_STAGING_COUNTERSIGN_OUTPUT_DIRECTORY: ${{ runner.temp }}/staging-recovery-countersign
           RECOVERY_STAGING_NEGATIVE_TEST_EVIDENCE_FILE: ${{ runner.temp }}/staging-recovery-negative-tests.json
+          RECOVERY_STAGING_LIVE_WORKER_PROVIDER_OBSERVATION_FILE: ${{ runner.temp }}/staging-recovery-live-worker-provider.json
+          RECOVERY_STAGING_LIVE_INGRESS_BUILD_IDENTITY_FILE: ${{ runner.temp }}/staging-recovery-live-ingress.json
           RECOVERY_STAGING_EXPECTED_TARGET_FINGERPRINT: ${{ inputs.expected_target_fingerprint }}
           RECOVERY_STAGING_CERTIFICATION_PRIVATE_KEY: ${{ secrets.RECOVERY_STAGING_CERTIFICATION_PRIVATE_KEY }}
           RECOVERY_STAGING_CERTIFICATION_ISSUER: ${{ vars.RECOVERY_STAGING_CERTIFICATION_ISSUER }}
           RECOVERY_STAGING_CERTIFICATION_KEY_ID: ${{ vars.RECOVERY_STAGING_CERTIFICATION_KEY_ID }}
+          STAGING_RECOVERY_ACQUISITION_PUBLIC_KEY: ${{ vars.STAGING_RECOVERY_ACQUISITION_PUBLIC_KEY }}
+          STAGING_RECOVERY_ACQUISITION_KEY_ID: ${{ vars.STAGING_RECOVERY_ACQUISITION_KEY_ID }}
+          STAGING_RECOVERY_ACQUISITION_ISSUER: ${{ vars.STAGING_RECOVERY_ACQUISITION_ISSUER }}
           ACTIVATION_GATEWAY_INGRESS_PUBLIC_KEY_SHA256: ${{ vars.ACTIVATION_GATEWAY_INGRESS_PUBLIC_KEY_SHA256 }}
         run: node .github/scripts/staging-recovery-verify-and-countersign.mjs
 

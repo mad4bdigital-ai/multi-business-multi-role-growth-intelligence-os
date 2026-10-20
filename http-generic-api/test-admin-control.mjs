@@ -50,28 +50,35 @@ try {
     adminCliSource.includes("public_storage_allowed: false") &&
     adminCliSource.includes("blocked_secret_bearing_artifact"),
     "secret-bearing installer routes must not create public Drive permissions");
-  assert("local connector JSON metadata exits before credential materialization",
-    adminCliSource.indexOf('if (format !== "bat")') !== -1 &&
-    adminCliSource.indexOf('if (format !== "bat")') < adminCliSource.indexOf("SELECT cf_token, connector_secret") &&
-    adminCliSource.includes("credential_materialized: false"),
-    "default JSON mode must return secure handoff metadata before reading connector credentials");
-  assert("local connector self-repair does not generate installer content",
-    installerGenerationCallCount === 1 &&
+  assert("legacy Admin BAT direct credential delivery is permanently disabled",
+    adminCliSource.includes('if (format === "bat")') &&
+    adminCliSource.includes("legacy_admin_installer_disabled") &&
+    adminCliSource.includes("status(410)") &&
+    !adminCliSource.includes("const batContent = generateConnectorInstallerBat("),
+    "the Admin legacy BAT route must never manufacture or send raw device credentials");
+  assert("Admin JSON installer metadata never materializes credentials",
+    adminCliSource.includes('includeCredentials: false, intent: "diagnosis"') &&
+    adminCliSource.includes("credential_materialized: false") &&
+    adminCliSource.includes("signed_installer:") &&
+    !adminCliSource.includes("const { cf_token: tunnelToken, connector_secret: backendKey }"),
+    "Admin metadata must use read-only canonical scoped lookup");
+  assert("self-repair recommends only a separate signed, scoped installer capability",
+    installerGenerationCallCount === 0 &&
     adminCliSource.includes("installer_generated: false") &&
-    adminCliSource.includes('artifact_delivery: "authenticated_direct_download_only"'),
-    "only the authenticated format=bat route may generate a secret-bearing installer");
-  assert("local connector secure download requires admin authentication",
-    adminCliSource.includes("requires_backend_api_key: true") &&
-    adminCliSource.includes("requires_admin_principal: true") &&
-    adminCliSource.includes('format: "bat"'),
-    "secure download handoffs must retain backend-key and admin-principal requirements");
+    adminCliSource.includes('path: "/local-connector/install/download-link"') &&
+    adminCliSource.includes("requires_signed_expiring_capability: true"),
+    "recoveries must never offer the old raw BAT download");
+  assert("installer credential handoff requires independent signed principal",
+    adminCliSource.includes("requires_authenticated_principal: true") &&
+    adminCliSource.includes('format: "ps1"'),
+    "the new handoff must go through the signed and device-scoped installer workflow");
   assert("local connector missing tunnel token returns continuation handoff",
     adminCliSource.includes("buildLocalConnectorTunnelProvisioningContinuationEvidence") &&
     adminCliSource.includes("connector_tunnel_provisioning_required") &&
     adminCliSource.includes("required_next_action: \"provision_tunnel_token\"") &&
     adminCliSource.includes("continuation") &&
     adminCliSource.includes("secrets_included: false"),
-    "missing cf_token/CLOUDFLARE_TUNNEL_TOKEN should be resumable and must not be a dead-end 404");
+    "missing scoped cf_token should be resumable and must not be a dead-end 404");
   const updateSerialization = serializeDbControlQueryResult({ affectedRows: 2, changedRows: 1, insertId: 0, warningStatus: 0, serverStatus: 34, info: "Rows matched: 2  Changed: 1  Warnings: 0" }); assert("db mutation serializer returns bounded affected-row evidence", updateSerialization.statement_result_type === "mutation" && updateSerialization.result.affectedRows === 2 && updateSerialization.result.changedRows === 1 && updateSerialization.result.warningStatus === 0 && updateSerialization.result.info.includes("Rows matched"), JSON.stringify(updateSerialization)); assert("db mutation serializer never returns raw ResultSetHeader only", updateSerialization.rows === undefined && updateSerialization.secrets_included === false, JSON.stringify(updateSerialization)); const selectSerialization = serializeDbControlQueryResult([{ id: 1 }], [{ name: "id", columnType: 3 }]); assert("db row serializer preserves rows and field metadata", selectSerialization.statement_result_type === "rows" && selectSerialization.rows[0].id === 1 && selectSerialization.fields[0].name === "id" && selectSerialization.secrets_included === false, JSON.stringify(selectSerialization)); assert("admin control db single statement uses serializer", adminCliSource.includes("statement_count: 1") && adminCliSource.includes("...serializeDbControlQueryResult(result, fields)"), "single-statement DB control must not return raw mutation headers"); assert("governed DB mutation smoke tool is exposed", gptToolsSource.includes('name: "admin_control_db_mutation_serialization_smoke"') && gptToolsSource.includes('internal://admin-control-db-mutation-serialization-smoke'), "DB mutation serializer smoke must be catalog-visible"); assert("governed DB mutation smoke uses fixed no-op SQL only", gptToolsSource.includes("UPDATE execution_policies SET updated_at = updated_at WHERE 1 = 0") && gptToolsSource.includes('sql_kind: "fixed_noop_update"') && gptToolsSource.includes('"no_freeform_sql"'), "DB mutation smoke must not accept freeform SQL"); assert("governed DB mutation smoke returns serializer assertions", gptToolsSource.includes("serializeDbControlQueryResult(result, fields)") && gptToolsSource.includes("mutation_serialized") && gptToolsSource.includes("affected_rows_present") && gptToolsSource.includes("secrets_included_false") && gptToolsSource.includes("secrets_included: false"), "DB mutation smoke must prove bounded no-secret serialization"); const localConnectorMigrationName = "233_sprint68_local_connector_tunnel_provisioning_continuation_policy.sql";
   const localConnectorMigration = fs.readFileSync(new URL(`./migrations/${localConnectorMigrationName}`, import.meta.url), "utf8");
   const migrationRunnerSource = fs.readFileSync(new URL("./scripts/governed-migration-runner.mjs", import.meta.url), "utf8");
@@ -296,8 +303,8 @@ try {
   assert("local connector self-repair exposes alias evidence",
     adminCliSource.includes("deviceIdentityResolution") &&
     adminCliSource.includes("resolved_device_id") &&
-    adminCliSource.includes("configSource === \"db_alias\"") &&
-    adminCliSource.includes("localConnectorDeviceAliasLikePatterns"),
+    adminCliSource.includes("resolveAdminConnectorTarget") &&
+    adminCliSource.includes("adminConnectorScope"),
     "self-repair should resolve Essam -> essam-pc before returning connector_tunnel_provisioning_required");
 
   const connectorContinuation = buildLocalConnectorTunnelProvisioningContinuationEvidence({

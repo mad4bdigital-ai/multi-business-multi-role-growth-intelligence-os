@@ -1,0 +1,86 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "pr8553-staging-backup-broker-host-discovery-environment-impact",
+  "title": "PR8553 Staging Backup Broker host discovery environment impact",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/pr8553-staging-backup-broker-host-discovery-environment-impact.json",
+      ".github/derived-state-governance.json",
+      "autopilot-portable-staging/Inspect-StagingBackupBrokerPrerequisites.ps1",
+      "docs/runbooks/staging-backup-broker-host-discovery-20261016.md",
+      "http-generic-api/config/repository-governance-constitution.json",
+      "local-connector/staging-backup-db-broker-host-discovery.mjs",
+      "local-connector/test-staging-backup-db-broker-host-discovery.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Verify exact Staging host and network inventory can be observed without creating any DBA principal, grant, service, signature, or Production mutation.",
+      "e2e_journeys": [
+        {
+          "id": "pr8553-staging-broker-read-only-discovery",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Governed Staging Operator",
+          "entrypoint": "Inspect host and Docker topology using read-only commands, feed only redacted observations to the fail-closed assessor.",
+          "terminal_outcome": "Topological discovery can pass, but independent Broker attestation and all database privileges remain blocked.",
+          "steps": [
+            "Verify exact source SHA, expected device name, five Staging container health states and Docker network/subnet.",
+            "Check runtime-db has no published host port.",
+            "Check explicitly named Staging-only Windows Broker service and Docker sidecar candidates without modifying any resource.",
+            "Return a redacted read-only report and nonzero exit code even when the topology is observed.",
+            "Reject wrong SHA, wrong device or network, published database port and unhealthy container."
+          ],
+          "assertions": [
+            "Production effects, SQL, grants, credential reads and service installation are absent.",
+            "Owner operation Ed25519 approval cannot be inferred from source or topology observations.",
+            "Host discovery never outputs broker_operationally_certified=true or db_admin_operation_authorized=true.",
+            "Shared Local Connector paths are explicitly reviewed for both environment targets; Production mutation remains false.",
+            "Live Staging certification is required before treating the feature as operational."
+          ],
+          "tests": [
+            {
+              "id": "pr8553-host-broker-discovery",
+              "runner": "node",
+              "path": "local-connector/test-staging-backup-db-broker-host-discovery.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "autopilot-portable-staging/Inspect-StagingBackupBrokerPrerequisites.ps1",
+            "local-connector/staging-backup-db-broker-host-discovery.mjs",
+            "local-connector/test-staging-backup-db-broker-host-discovery.mjs",
+            "docs/runbooks/staging-backup-broker-host-discovery-20261016.md"
+          ]
+        }
+      ],
+      "tests": [
+        {
+          "id": "pr8553-host-broker-discovery",
+          "runner": "node",
+          "path": "local-connector/test-staging-backup-db-broker-host-discovery.mjs",
+          "args": []
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}

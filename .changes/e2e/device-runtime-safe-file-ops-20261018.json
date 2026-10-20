@@ -1,0 +1,87 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "device-runtime-safe-file-ops-20261018",
+  "title": "Scoped Device File Operations in Windows Workspace with cross-environment safety declaration",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/device-runtime-safe-file-ops-20261018.json",
+      "apps/local-manager-windows/DeviceWorkspaceForm.cs",
+      "autopilot-portable-staging/manifest.json",
+      "canonicals/openapi/local-connector.openapi.yaml",
+      "http-generic-api/frontend-surface-dispatch.generated.json",
+      "http-generic-api/openapi/openapi.gpt-action.local-connector.yaml",
+      "http-generic-api/test-desktop-device-workspace-wiring.mjs",
+      "local-connector/device-files-engine.mjs",
+      "local-connector/test-device-files-engine.mjs",
+      "specs/020-platform-resource-identity-brand-governance/openapi-detail-closure-batch-full.json",
+      "specs/020-platform-resource-identity-brand-governance/openapi-detail-gap-classification.json",
+      "specs/020-platform-resource-identity-brand-governance/openapi-gap-closure-plan.json"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "secrets_included": false,
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Verify exact device-scoped file create, copy, move, patch and rollback behavior with opt-in write approval, SHA fencing and no cross-root or Production mutation, pending independent live Staging certification.",
+      "e2e_journeys": [
+        {
+          "id": "device-safe-files-end-to-end-approval-boundary",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Authenticated Local Connector operator with explicit local file-write approval",
+          "entrypoint": "Device Files Engine through Local Connector and Windows Device Workspace",
+          "terminal_outcome": "Bounded file operations reject traversal, secret paths, missing approvals, overwrites and mismatching SHA digests; no implicit Production release or credentials.",
+          "steps": [
+            "Check the mounted directory is explicitly allowlisted and file operations reject symlink and traversal escapes.",
+            "Verify exclusive create/copy/move, approved optimistic patch and conditional rollback against expected SHA digests.",
+            "Confirm the desktop wiring preserves device identity and local approval isolation."
+          ],
+          "assertions": [
+            "No file write without explicit local approval and no access outside the configured root.",
+            "Destination creation must be exclusive and SHA-bound operations must not overwrite unrelated changes.",
+            "Staging must be certified independently and Production mutation remains forbidden."
+          ],
+          "tests": [
+            {
+              "id": "device-safe-file-ops-governed",
+              "runner": "node",
+              "working_directory": "local-connector",
+              "path": "test-device-files-engine.mjs",
+              "args": []
+            },
+            {
+              "id": "device-safe-desktop-workspace-governed",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-desktop-device-workspace-wiring.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "apps/local-manager-windows/DeviceWorkspaceForm.cs",
+            "http-generic-api/test-desktop-device-workspace-wiring.mjs",
+            "local-connector/device-files-engine.mjs",
+            "local-connector/test-device-files-engine.mjs"
+          ]
+        }
+      ]
+    }
+  ]
+}

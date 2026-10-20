@@ -55,6 +55,54 @@
         "deploys": false,
         "secrets_included": false
       }
+    },
+    {
+      "migration_file": "20260808_github_issue_comment_dispatch_parity.sql",
+      "source_git_blob_sha": "dd3451b0f88af0b40a51e10d40c5380e20a993a5",
+      "classification_status": "verified_evidence_only",
+      "classification_reason": "This migration adjusts the registered GitHub REST endpoint and exports a governed admin endpoint-dispatch binding; the literal is an external provider API path stored in endpoints.endpoint_path_or_function, not a local Express route. Provider writes remain separately governed; this classification neither proves callability nor authorizes any call.",
+      "documentation_targets": [],
+      "route_literals": [
+        {
+          "route": "/repos/{owner}/{repo}/issues/{issue_number}/comments",
+          "classification": "external_provider_endpoint_registry_path",
+          "provider_key": "github_rest",
+          "reason": "This migration adjusts the registered GitHub REST endpoint and exports a governed admin endpoint-dispatch binding; the literal is an external provider API path stored in endpoints.endpoint_path_or_function, not a local Express route. Provider writes remain separately governed; this classification neither proves callability nor authorizes any call."
+        }
+      ],
+      "safety": {
+        "executes_provider_calls": false,
+        "reads_credentials": false,
+        "mutates_runtime": false,
+        "writes_database": false,
+        "external_sends": false,
+        "deploys": false,
+        "secrets_included": false
+      }
+    },
+    {
+      "migration_file": "20260810_github_issue_comment_exact_response_parity.sql",
+      "source_git_blob_sha": "70dbabefe6d9fabd96cec1783b3bc0610f24c61d",
+      "classification_status": "verified_evidence_only",
+      "classification_reason": "This migration updates the existing registered GitHub REST endpoint success-response schema (201 Created) and related readback views. The literal is the provider endpoint path in endpoints.endpoint_path_or_function, not a local Express route. This does not assert provider execution or grant write authority.",
+      "documentation_targets": [],
+      "route_literals": [
+        {
+          "route": "/repos/{owner}/{repo}/issues/{issue_number}/comments",
+          "classification": "external_provider_endpoint_registry_path",
+          "provider_key": "github_rest",
+          "reason": "This migration updates the existing registered GitHub REST endpoint success-response schema (201 Created) and related readback views. The literal is the provider endpoint path in endpoints.endpoint_path_or_function, not a local Express route. This does not assert provider execution or grant write authority."
+        }
+      ],
+      "safety": {
+        "executes_provider_calls": false,
+        "reads_credentials": false,
+        "mutates_runtime": false,
+        "writes_database": false,
+        "external_sends": false,
+        "deploys": false,
+        "secrets_included": false
+      }
     }
   ]
 }

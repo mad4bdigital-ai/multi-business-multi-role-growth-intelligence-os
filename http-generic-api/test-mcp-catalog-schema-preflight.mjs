@@ -21,14 +21,25 @@ function fakePool(columnCounts = {}, identity = { current_database: "catalog_run
     async query(sql, params) {
       calls.push({ sql, params });
       if (/SELECT DATABASE\(\)/u.test(sql)) return [[identity]];
-      assert.match(sql, /information_schema\.columns/u);
-      const table = String(params?.[0] || "");
-      return [[{ column_count: Number(columnCounts[table] || 0) }]];
+      if (/information_schema\.columns/u.test(sql)) {
+        const table = String(params?.[0] || "");
+        return [[{ column_count: Number(columnCounts[table] || 0) }]];
+      }
+      if (/LIMIT 0/u.test(sql)) {
+        const table = /FROM `([a-z_]+)` LIMIT 0/u.exec(sql)?.[1] || "";
+        if (Number(columnCounts[table] || 0) > 0) return [[], []];
+        const error = new Error("Column not present");
+        error.code = "ER_BAD_FIELD_ERROR";
+        throw error;
+      }
+      throw new Error("unexpected query");
+
     },
   };
 }
 
-const readinessEnv = { DB_NAME: "catalog_runtime", DB_USER: "runtime_user" };
+const readinessEnv = { DB_NAME: "catalog_runtime", DB_USER: "runtime_user",
+  MCP_RUNTIME_EXPECTED_SQL_ACCOUNT: "runtime_user@localhost" };
 const readyPool = fakePool(Object.fromEntries(MCP_CATALOG_TABLES.map((table) => [table, 1])));
 const ready = await readMcpCatalogSchemaReadinessSafe({ pool: readyPool, env: readinessEnv });
 assert.equal(ready.ok, true);
@@ -52,6 +63,23 @@ assert.equal(missing.sql_readback_performed, true);
 assert.equal(missing.tables.every((table) => table.available === false), true);
 assert.equal(missing.secrets_included, false);
 assert.equal(missing.identity.ok, true);
+assert.equal(missing.tables.every(table => table.migration_apply_required === true), true);
+
+const wrongSchema = await readMcpCatalogSchemaReadinessSafe({
+  pool: fakePool(), env: { DB_NAME: "not-the-runtime-db", DB_USER: "runtime_user" },
+});
+assert.equal(wrongSchema.ok, false);
+assert.equal(wrongSchema.identity.database_matches, false);
+assert.equal(wrongSchema.migration_apply_required, false, "Wrong database must not recommend migration");
+
+const missingExactAccount = await readMcpCatalogSchemaReadinessSafe({
+  pool: readyPool,
+  env: { DB_NAME: readinessEnv.DB_NAME, DB_USER: readinessEnv.DB_USER },
+});
+assert.equal(missingExactAccount.ok, false);
+assert.equal(missingExactAccount.identity.exact_sql_account_matches, false);
+assert.equal(missingExactAccount.identity.code, "MCP_CATALOG_RUNTIME_SQL_ACCOUNT_CONFIG_MISSING");
+assert.equal(missingExactAccount.migration_apply_required, false);
 
 const missingIdentityEnv = await readMcpCatalogRuntimeIdentity({ pool: readyPool, env: {} });
 assert.equal(missingIdentityEnv.ok, false);
@@ -75,6 +103,8 @@ const startup = await runMcpCatalogSchemaStartupPreflight({
   logger: { log: (value) => logs.push(["log", value]), warn: (value) => logs.push(["warn", value]) },
 });
 assert.equal(startup.contract, "mad4b.mcp-catalog-schema-startup-preflight.v1");
+assert.equal(startup.environment, "production");
+assert.equal(startup.environment_source, "explicit_argument");
 assert.equal(startup.status, "schema_contract_not_ready");
 assert.equal(startup.ready, false);
 assert.equal(startup.startup_blocked, false);
@@ -82,6 +112,28 @@ assert.equal(startup.database_mutation_performed, false);
 assert.equal(startup.migration_apply_performed, false);
 assert.equal(logs.at(-1)?.[0], "warn");
 assert.equal(getMcpCatalogSchemaStartupPreflight().status, "schema_contract_not_ready");
+
+const legacyRuntimeStartup = await runMcpCatalogSchemaStartupPreflight({
+  pool: missingPool,
+  env: { ...readinessEnv, NODE_ENV: "production" },
+  logger: { log: () => {}, warn: () => {} },
+});
+assert.equal(legacyRuntimeStartup.environment, "production");
+assert.equal(legacyRuntimeStartup.environment_source, "runtime_environment_resolver");
+assert.equal(legacyRuntimeStartup.runtime_environment_reason, "runtime_class_ambiguous");
+assert.equal(legacyRuntimeStartup.runtime_class, null);
+assert.equal(legacyRuntimeStartup.runtime_class_explicit, false);
+
+const explicitRuntimeStartup = await runMcpCatalogSchemaStartupPreflight({
+  pool: missingPool,
+  env: { ...readinessEnv, NODE_ENV: "production", DEPLOYMENT_ENVIRONMENT: "production_hostinger_autodeploy" },
+  logger: { log: () => {}, warn: () => {} },
+});
+assert.equal(explicitRuntimeStartup.environment, "production");
+assert.equal(explicitRuntimeStartup.environment_source, "runtime_environment_resolver");
+assert.equal(explicitRuntimeStartup.runtime_environment_reason, null);
+assert.equal(explicitRuntimeStartup.runtime_class, "hostinger_autodeploy");
+assert.equal(explicitRuntimeStartup.runtime_class_explicit, true);
 
 const projected = buildMcpCatalogSchemaNotReadyResponse({
   code: "mcp_catalog_schema_migration_required",
@@ -92,6 +144,12 @@ assert.equal(projected.code, "schema_contract_not_ready");
 assert.equal(projected.details.migration, MCP_CATALOG_LEVEL_MIGRATION);
 assert.equal(projected.details.column, MCP_CATALOG_LEVEL_COLUMN);
 assert.equal(projected.details.migration_apply_required, true);
+const unverified = buildMcpCatalogSchemaNotReadyResponse({
+  code: "mcp_catalog_schema_metadata_unavailable",
+  details: { table: "admin_platform_endpoint_tools" },
+});
+assert.equal(unverified.details.migration_apply_required, false);
+assert.equal(unverified.secrets_included, false);
 assert.equal(projected.details.table, MCP_CATALOG_TABLES[0]);
 assert.equal(JSON.stringify(projected).includes("must-not-leak"), false);
 assert.equal(projected.secrets_included, false);

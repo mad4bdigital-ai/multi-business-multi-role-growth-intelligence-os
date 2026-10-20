@@ -1,0 +1,83 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-backup-broker-trust-readiness-20261016",
+  "title": "Independent Staging backup broker authority trust discovery fails closed",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-backup-broker-trust-readiness-20261016.json",
+      ".github/derived-state-governance.json",
+      "autopilot-portable-staging/Inspect-StagingBackupBrokerTrustReadiness.ps1",
+      "docs/runbooks/staging-backup-broker-trust-boundary-readiness-20261016.md",
+      "http-generic-api/config/repository-governance-constitution.json",
+      "local-connector/staging-backup-db-broker-trust-readiness.mjs",
+      "local-connector/test-staging-backup-db-broker-trust-readiness.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Observe the missing independent Staging broker host trust boundary with no credential, SQL or Docker mutation, and reject spoofed operational authority.",
+      "e2e_journeys": [
+        {
+          "id": "staging-broker-os-identity-evidence-fails-closed",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Staging Read-Only Operator",
+          "entrypoint": "Measure exact Staging host topology and dedicated Windows Broker service metadata without privileged access.",
+          "terminal_outcome": "Observations report exact missing independent broker, OS, endpoint, signing and audit requirements; no authority is minted.",
+          "steps": [
+            "Bind discovery to exact certified Staging release and observed host topology.",
+            "Read a dedicated Staging Broker Windows service's process identity without loading credentials or private keys.",
+            "Reject absent, stopped, privileged or unmeasured process as incomplete.",
+            "Reject forged caller supplied signed-operation, admin or audit flags.",
+            "Return fail-closed exit 2 and block real database, Backup/Restore and Production operations."
+          ],
+          "assertions": [
+            "No running service or measured executable image alone grants broker, DBA, owner signature or immutable audit authority.",
+            "An inert Docker candidate cannot become an operational broker via claimed JSON attestation.",
+            "Source-head GitHub owner reviews cannot replace a separate short-lived Ed25519 DB operation ticket.",
+            "Tests and discovery remain read-only and shared connector Production mutation remains false."
+          ],
+          "tests": [
+            {
+              "id": "broker-trust-readiness-regression",
+              "runner": "node",
+              "path": "local-connector/test-staging-backup-db-broker-trust-readiness.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "autopilot-portable-staging/Inspect-StagingBackupBrokerTrustReadiness.ps1",
+            "docs/runbooks/staging-backup-broker-trust-boundary-readiness-20261016.md"
+          ]
+        }
+      ],
+      "tests": [
+        {
+          "id": "broker-trust-readiness-regression",
+          "runner": "node",
+          "path": "local-connector/test-staging-backup-db-broker-trust-readiness.mjs",
+          "args": []
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}

@@ -1,0 +1,126 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "connector-staging-mcp-recovery-20261018",
+  "title": "Admin Connector read-only Staging/MCP recovery and bounded developer sessions",
+  "delivery_mode": "single_pr",
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/connector-staging-mcp-recovery-20261018.json",
+      "local-connector/connector-staging-recovery.mjs",
+      "local-connector/connector-developer-sessions.mjs",
+      "local-connector/server.mjs",
+      "local-connector/test-connector-staging-recovery.mjs",
+      "local-connector/test-connector-developer-sessions.mjs",
+      "canonicals/openapi/local-connector.openapi.yaml",
+      "http-generic-api/openapi/openapi.gpt-action.local-connector.yaml",
+      "http-generic-api/scripts/test-manifest.mjs",
+      "docs/runbooks/connector-staging-mcp-recovery-20261018.md",
+      "http-generic-api/routes/connectorAgentRoutes.js",
+      "http-generic-api/routes/localConnectorInstallRoutes.js",
+      "http-generic-api/test-connector-staging-mcp-distribution.mjs",
+      "http-generic-api/scripts/connector-agent-smoke-test.mjs",
+      "http-generic-api/test-local-manager-tool-release-owner.mjs",
+      "local-connector/connector-safe-upgrade.ps1",
+      "local-connector/connector-watchdog.ps1",
+      "autopilot-portable-staging/Repair-LocalConnectorTunnel.ps1",
+      "local-connector/.env.example"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Provide disabled-by-default independent Admin Recovery diagnostic failover to fixed Staging and MCP hosts when Production is genuinely unavailable, and a bounded allowlisted local developer workflow with exact-head fencing and no secret inheritance.",
+      "e2e_journeys": [
+        {
+          "id": "staging-mcp-failover-isolation",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Authenticated Admin Recovery caller",
+          "entrypoint": "POST /recovery/staging",
+          "terminal_outcome": "Production 401/403 and healthy responses do not trigger failover. Production 5xx or transport unavailability enables only a read-only fixed-host Staging health/MCP diagnostic; MCP data requires a distinct Staging OAuth token, and no write tool or credential crossover is permitted.",
+          "steps": [
+            "Discover capabilities through connector-scoped authentication.",
+            "Probe the fixed Production health endpoint and deny health, auth or redirect-based false failovers.",
+            "On a real 5xx/transport outage, request fixed Staging health or MCP metadata only.",
+            "For MCP catalog/read-only tools, require Staging resource-scoped OAuth, preserve read-only tool allowlist and return bounded output."
+          ],
+          "assertions": [
+            "No automatic environment rebinding or production credential replay.",
+            "Only dev.mad4b.com and mcp-dev.mad4b.com are reached.",
+            "No caller-selected URL/host/method, redirects, arbitrary MCP tools or Production writes.",
+            "Fail closed for missing or invalid Staging resource token."
+          ],
+          "tests": [
+            {
+              "id": "connector-staging-recovery",
+              "runner": "node",
+              "working_directory": "local-connector",
+              "path": "test-connector-staging-recovery.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "local-connector/connector-staging-recovery.mjs",
+            "local-connector/test-connector-staging-recovery.mjs",
+            "local-connector/server.mjs",
+            "http-generic-api/routes/connectorAgentRoutes.js",
+            "local-connector/connector-safe-upgrade.ps1",
+            "http-generic-api/test-connector-staging-mcp-distribution.mjs"
+          ]
+        },
+        {
+          "id": "bounded-developer-sessions",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Device-scoped platform admin",
+          "entrypoint": "POST /developer/sessions",
+          "terminal_outcome": "Only an explicitly configured allowlisted repo supports limited Git actions and opted-in exact-head Node tests, with bounded session status and cancel; subprocesses do not inherit platform secrets.",
+          "steps": [
+            "Check opt-in feature flags and canonical repo path against file allowlist.",
+            "Start an allowlisted task, rejecting arbitrary commands and path traversal.",
+            "Verify exact Git head before running repository code.",
+            "Return bounded output cursors, completion and cancellation status."
+          ],
+          "assertions": [
+            "No raw shell, arbitrary file execution or cross-repo path.",
+            "No connector, Production or Cloudflare secret inheritance.",
+            "Session execution requires explicit opt-in and exact-head fencing.",
+            "In-process resumability does not claim durable execution after service restart."
+          ],
+          "tests": [
+            {
+              "id": "connector-developer-sessions",
+              "runner": "node",
+              "working_directory": "local-connector",
+              "path": "test-connector-developer-sessions.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "local-connector/connector-developer-sessions.mjs",
+            "local-connector/test-connector-developer-sessions.mjs",
+            "http-generic-api/routes/connectorAgentRoutes.js",
+            "local-connector/connector-safe-upgrade.ps1",
+            "http-generic-api/test-connector-staging-mcp-distribution.mjs"
+          ]
+        }
+      ]
+    }
+  ]
+}

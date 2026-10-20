@@ -1,4 +1,5 @@
 import { getPool } from "./db.js";
+import { resolveRuntimeEnvironmentStrict } from "./runtimeEnvironmentResolver.js";
 
 export const MCP_CATALOG_LEVEL_MIGRATION = "20260815_custom_gpt_mcp_catalog_levels.sql";
 export const MCP_CATALOG_LEVEL_MIGRATION_SHA256 = "528143808adac23eb457058c4c34dd95c4c5d462bca9ac4b170b1f19b2006681";
@@ -29,7 +30,7 @@ function schemaError(code, message, details = {}) {
     migration: MCP_CATALOG_LEVEL_MIGRATION,
     table: details.table || null,
     column: MCP_CATALOG_LEVEL_COLUMN,
-    migration_apply_required: true,
+    migration_apply_required: code === "mcp_catalog_schema_migration_required",
     secrets_included: false,
   };
   return error;
@@ -76,6 +77,7 @@ export async function readMcpCatalogRuntimeIdentity({ pool, env = process.env } 
   }
   const expectedDatabase = String(env?.DB_NAME || "").trim();
   const expectedPrincipal = String(env?.DB_USER || "").trim();
+  const expectedSqlAccount = String(env?.MCP_RUNTIME_EXPECTED_SQL_ACCOUNT || "").trim();
   try {
     const [rows] = await pool.query(
       "SELECT DATABASE() AS current_database, CURRENT_USER() AS current_account",
@@ -85,9 +87,12 @@ export async function readMcpCatalogRuntimeIdentity({ pool, env = process.env } 
     const databaseMatches = expectedDatabase ? currentDatabase === expectedDatabase : null;
     const observedPrincipal = currentAccount.split("@", 1)[0].replace(/[`'"]+/gu, "").trim();
     const principalMatches = expectedPrincipal ? observedPrincipal === expectedPrincipal : null;
-    const ready = Boolean(expectedDatabase && expectedPrincipal && currentDatabase && currentAccount)
+    // The account HOST portion changes MariaDB grants despite identical DB_USER.
+    const accountMatches = Boolean(expectedSqlAccount && currentAccount === expectedSqlAccount);
+    const ready = Boolean(expectedDatabase && expectedPrincipal && expectedSqlAccount && currentDatabase && currentAccount)
       && databaseMatches === true
-      && principalMatches === true;
+      && principalMatches === true
+      && accountMatches === true;
     return {
       ok: ready,
       code: ready
@@ -96,7 +101,9 @@ export async function readMcpCatalogRuntimeIdentity({ pool, env = process.env } 
           ? "MCP_CATALOG_RUNTIME_IDENTITY_CONFIG_MISSING"
           : (databaseMatches === false
             ? "MCP_CATALOG_RUNTIME_DATABASE_MISMATCH"
-            : (principalMatches === false ? "MCP_CATALOG_RUNTIME_PRINCIPAL_MISMATCH" : "MCP_CATALOG_RUNTIME_IDENTITY_UNAVAILABLE"))),
+            : (principalMatches === false ? "MCP_CATALOG_RUNTIME_PRINCIPAL_MISMATCH"
+              : (!expectedSqlAccount ? "MCP_CATALOG_RUNTIME_SQL_ACCOUNT_CONFIG_MISSING"
+                : (!accountMatches ? "MCP_CATALOG_RUNTIME_SQL_ACCOUNT_MISMATCH" : "MCP_CATALOG_RUNTIME_IDENTITY_UNAVAILABLE"))))),
       database_role: MCP_CATALOG_RUNTIME_SCHEMA_CONTRACT.database_role,
       database_name_env: MCP_CATALOG_RUNTIME_SCHEMA_CONTRACT.database_name_env,
       principal_env: MCP_CATALOG_RUNTIME_SCHEMA_CONTRACT.principal_env,
@@ -106,6 +113,8 @@ export async function readMcpCatalogRuntimeIdentity({ pool, env = process.env } 
       observed_principal_present: Boolean(currentAccount),
       database_matches: databaseMatches,
       principal_matches: principalMatches,
+      exact_sql_account_configured: Boolean(expectedSqlAccount),
+      exact_sql_account_matches: accountMatches,
       identity_readback_performed: true,
       secrets_included: false,
     };
@@ -122,6 +131,8 @@ export async function readMcpCatalogRuntimeIdentity({ pool, env = process.env } 
       observed_principal_present: false,
       database_matches: expectedDatabase ? false : null,
       principal_matches: expectedPrincipal ? false : null,
+      exact_sql_account_configured: Boolean(expectedSqlAccount),
+      exact_sql_account_matches: false,
       identity_readback_performed: true,
       secrets_included: false,
     };
@@ -132,17 +143,18 @@ export function buildMcpCatalogSchemaMigrationRequiredError({ table = null, orig
   return schemaError("mcp_catalog_schema_migration_required", "MCP catalog schema is missing mcp_catalog_level; apply the governed migration before serving the catalog.", {
     table,
     original_error_code: originalErrorCode,
+    migration_apply_required: true,
   });
 }
 
-export async function readMcpCatalogLevelSchemaStatus({ pool = getPool(), table } = {}) {
+export async function readMcpCatalogLevelSchemaStatus({ pool = getPool(), table, freshReadback = false } = {}) {
   const normalizedTable = String(table || "").trim();
   if (!MCP_CATALOG_TABLES.includes(normalizedTable)) {
     throw schemaError("mcp_catalog_table_invalid", "The requested MCP catalog table is not governed.", { table: normalizedTable });
   }
   const cache = cacheFor(pool);
   const cached = cache.get(normalizedTable);
-  if (cached && cached.expires_at > Date.now()) return cached.status;
+  if (!freshReadback && cached && cached.expires_at > Date.now()) return cached.status;
 
   try {
     const [rows] = await pool.query(
@@ -153,17 +165,44 @@ export async function readMcpCatalogLevelSchemaStatus({ pool = getPool(), table 
           AND column_name = ?`,
       [normalizedTable, MCP_CATALOG_LEVEL_COLUMN],
     );
-    const available = Number(rows?.[0]?.column_count || 0) > 0;
+    // Metadata visibility alone cannot prove that the Runtime principal can SELECT.
+    // Always perform an allowlisted LIMIT 0 projection; zero metadata rows can be
+    // a false negative when information_schema privileges differ from table access.
+    const metadataPresent = Number(rows?.[0]?.column_count || 0) > 0;
+    let available = false;
+    let code = "MCP_CATALOG_COLUMN_METADATA_UNVERIFIED";
+    let migrationRequired = false;
+    try {
+      await pool.query(`SELECT \`${MCP_CATALOG_LEVEL_COLUMN}\` FROM \`${normalizedTable}\` LIMIT 0`);
+      available = true;
+      code = null;
+    } catch (probeError) {
+      const probeCode = String(probeError?.code || probeError?.errno || "").slice(0, 128);
+      if (probeCode === "ER_BAD_FIELD_ERROR") {
+        // Contradictory metadata is a race/identity/projection incident, NOT
+        // independent authority to apply a migration.
+        code = metadataPresent ? "MCP_CATALOG_SCHEMA_METADATA_CONFLICT" : "MCP_CATALOG_LEVEL_COLUMN_MISSING";
+        migrationRequired = !metadataPresent;
+      } else if (probeCode === "ER_NO_SUCH_TABLE") {
+        code = "MCP_CATALOG_TABLE_MISSING";
+      } else if (["ER_TABLEACCESS_DENIED_ERROR", "ER_COLUMNACCESS_DENIED_ERROR", "ER_DBACCESS_DENIED_ERROR", "ER_ACCESS_DENIED_ERROR"].includes(probeCode)) {
+        code = "MCP_CATALOG_SCHEMA_PRIVILEGE_DENIED";
+      } else {
+        code = "MCP_CATALOG_SCHEMA_PROBE_UNAVAILABLE";
+      }
+    }
     const status = {
       ...MCP_CATALOG_RUNTIME_SCHEMA_CONTRACT,
       ok: available,
       table: normalizedTable,
       column: MCP_CATALOG_LEVEL_COLUMN,
       available,
-      migration_apply_required: !available,
+      code,
+      migration_apply_required: migrationRequired,
       secrets_included: false,
     };
-    cache.set(normalizedTable, { expires_at: Date.now() + CACHE_TTL_MS, status });
+    // Cache only demonstrated facts; transient permissions/outages must be re-evaluated.
+    if (available || migrationRequired) cache.set(normalizedTable, { expires_at: Date.now() + CACHE_TTL_MS, status });
     return status;
   } catch (error) {
     throw schemaError("mcp_catalog_schema_metadata_unavailable", "MCP catalog schema metadata could not be read.", {
@@ -176,15 +215,21 @@ export async function readMcpCatalogLevelSchemaStatus({ pool = getPool(), table 
 export async function assertMcpCatalogLevelColumn({ pool = getPool(), table } = {}) {
   const status = await readMcpCatalogLevelSchemaStatus({ pool, table });
   if (!status.available) {
-    throw buildMcpCatalogSchemaMigrationRequiredError({
-      table: status.table,
-      originalErrorCode: status.code || null,
-    });
+    if (status.migration_apply_required === true) {
+      throw buildMcpCatalogSchemaMigrationRequiredError({
+        table: status.table,
+        originalErrorCode: status.code || null,
+      });
+    }
+    throw schemaError("mcp_catalog_schema_metadata_unavailable",
+      "MCP catalog column existence is unverified; inspect Runtime identity and permissions before migration.", {
+        table: status.table, original_error_code: status.code || "MCP_CATALOG_SCHEMA_PROBE_UNAVAILABLE",
+      });
   }
   return status;
 }
 
-export async function readMcpCatalogSchemaReadiness({ pool = null } = {}) {
+export async function readMcpCatalogSchemaReadiness({ pool = null, freshReadback = false } = {}) {
   if (!pool) {
     return {
       ...MCP_CATALOG_RUNTIME_SCHEMA_CONTRACT,
@@ -196,17 +241,17 @@ export async function readMcpCatalogSchemaReadiness({ pool = null } = {}) {
         available: false,
         code: "DB_CONFIG_MISSING",
         migration: MCP_CATALOG_LEVEL_MIGRATION,
-        migration_apply_required: true,
+        migration_apply_required: false,
         secrets_included: false,
       })),
-      migration_apply_required: true,
+      migration_apply_required: false,
       secrets_included: false,
     };
   }
   const tables = [];
   for (const table of MCP_CATALOG_TABLES) {
     try {
-      tables.push(await readMcpCatalogLevelSchemaStatus({ pool, table }));
+      tables.push(await readMcpCatalogLevelSchemaStatus({ pool, table, freshReadback }));
     } catch (error) {
       tables.push({
         ok: false,
@@ -215,7 +260,7 @@ export async function readMcpCatalogSchemaReadiness({ pool = null } = {}) {
         available: false,
         code: error.code || "mcp_catalog_schema_metadata_unavailable",
         migration: MCP_CATALOG_LEVEL_MIGRATION,
-        migration_apply_required: true,
+        migration_apply_required: false,
         secrets_included: false,
       });
     }
@@ -224,13 +269,20 @@ export async function readMcpCatalogSchemaReadiness({ pool = null } = {}) {
     ok: tables.every((item) => item.available === true),
     migration: MCP_CATALOG_LEVEL_MIGRATION,
     tables,
-    migration_apply_required: tables.some((item) => item.available !== true),
+    // Never propose a full migration if even one table is inaccessible or unknown.
+    migration_apply_required: tables.every((item) => item.available === true || item.migration_apply_required === true)
+      && tables.some((item) => item.migration_apply_required === true),
     secrets_included: false,
   };
 }
 
 const mcpCatalogSchemaStartupPreflightState = {
   contract: "mad4b.mcp-catalog-schema-startup-preflight.v1",
+  environment: "unknown",
+  environment_source: "not_run",
+  runtime_environment_reason: null,
+  runtime_class: null,
+  runtime_class_explicit: false,
   status: "not_run",
   ready: false,
   startup_blocked: false,
@@ -276,10 +328,10 @@ function unavailableSchemaReadiness(error) {
       code: "mcp_catalog_schema_metadata_unavailable",
       original_error_code: originalErrorCode,
       migration: MCP_CATALOG_LEVEL_MIGRATION,
-      migration_apply_required: true,
+      migration_apply_required: false,
       secrets_included: false,
     })),
-    migration_apply_required: true,
+    migration_apply_required: false,
     ...readOnlyEvidence(),
     secrets_included: false,
   };
@@ -288,16 +340,54 @@ function unavailableSchemaReadiness(error) {
 export async function readMcpCatalogSchemaReadinessSafe({ pool, env = process.env } = {}) {
   try {
     const targetPool = pool || getPool();
-    const identity = await readMcpCatalogRuntimeIdentity({ pool: targetPool, env });
-    const readiness = await readMcpCatalogSchemaReadiness({ pool: targetPool });
-    return {
-      ...readiness,
-      ...MCP_CATALOG_RUNTIME_SCHEMA_CONTRACT,
-      ok: readiness.ok === true && identity.ok === true,
-      identity,
-      ...readOnlyEvidence({ databaseConnectionPerformed: true, sqlReadbackPerformed: true }),
-      secrets_included: false,
-    };
+    // Runtime identity and both table probes must come from the SAME DB session.
+    // A mysql2 pool can otherwise rotate between database or credential contexts
+    // between DATABASE()/CURRENT_USER() and its metadata/SELECT probes.
+    const leased = typeof targetPool?.getConnection === "function"
+      ? await targetPool.getConnection() : null;
+    // A pool.query facade can rotate connections between identity and schema reads.
+    // Legacy diagnostics may still use it; governed Recovery may NOT claim
+    // an exact-session certificate without a leased connection.
+    const sameSessionProven = Boolean(leased && typeof leased.query === "function" &&
+      typeof leased.release === "function");
+    const session = sameSessionProven ? leased : targetPool;
+    try {
+      const identity = await readMcpCatalogRuntimeIdentity({ pool: session, env });
+      // Stop before inspecting table metadata if the session's DB/user identity
+      // is missing or conflicts with the explicitly configured Runtime role.
+      // Schema from any other database cannot guide a Runtime migration.
+      // Governance/recovery evidence must be freshly queried: a 30-second
+      // cached column status on a reused mysql2 connection is not a
+      // same-cycle schema readback, even if the connection identity matches.
+      const readiness = identity.ok === true
+        ? await readMcpCatalogSchemaReadiness({ pool: session, freshReadback: true })
+        : {
+          ...MCP_CATALOG_RUNTIME_SCHEMA_CONTRACT,
+          ok: false,
+          tables: MCP_CATALOG_TABLES.map(table => ({
+            table,
+            column: MCP_CATALOG_LEVEL_COLUMN,
+            available: false,
+            code: "MCP_CATALOG_RUNTIME_IDENTITY_UNVERIFIED",
+            migration_apply_required: false,
+            secrets_included: false,
+          })),
+          migration_apply_required: false,
+          secrets_included: false,
+        };
+      return {
+        ...readiness,
+        ...MCP_CATALOG_RUNTIME_SCHEMA_CONTRACT,
+        ok: readiness.ok === true && identity.ok === true,
+        identity,
+        migration_apply_required: identity.ok === true && readiness.migration_apply_required === true,
+        ...readOnlyEvidence({ databaseConnectionPerformed: true, sqlReadbackPerformed: true }),
+        same_session_proven: sameSessionProven,
+        secrets_included: false,
+      };
+    } finally {
+      if (leased && typeof leased.release === "function") leased.release();
+    }
   } catch (error) {
     return unavailableSchemaReadiness(error);
   }
@@ -307,7 +397,7 @@ export function getMcpCatalogSchemaStartupPreflight() {
   return JSON.parse(JSON.stringify(mcpCatalogSchemaStartupPreflightState));
 }
 
-export async function runMcpCatalogSchemaStartupPreflight({ pool, logger = console, environment = "unknown", env = process.env } = {}) {
+export async function runMcpCatalogSchemaStartupPreflight({ pool, logger = console, environment = null, env = process.env } = {}) {
   const targetPool = pool || (() => {
     try {
       return getPool();
@@ -318,9 +408,16 @@ export async function runMcpCatalogSchemaStartupPreflight({ pool, logger = conso
   const readiness = targetPool
     ? await readMcpCatalogSchemaReadinessSafe({ pool: targetPool, env })
     : unavailableSchemaReadiness({ code: "DB_CONFIG_MISSING" });
+  const runtimeEnvironment = resolveRuntimeEnvironmentStrict(env);
+  const explicitEnvironment = String(environment || "").trim().toLowerCase();
+  const resolvedEnvironment = explicitEnvironment || String(runtimeEnvironment?.environment_key || "unknown");
   const result = {
     contract: "mad4b.mcp-catalog-schema-startup-preflight.v1",
-    environment: String(environment || "unknown"),
+    environment: resolvedEnvironment,
+    environment_source: explicitEnvironment ? "explicit_argument" : "runtime_environment_resolver",
+    runtime_environment_reason: runtimeEnvironment?.reason || null,
+    runtime_class: runtimeEnvironment?.runtime_class || null,
+    runtime_class_explicit: runtimeEnvironment?.runtime_class_explicit === true,
     status: readiness.ok ? "ready" : "schema_contract_not_ready",
     ready: readiness.ok === true,
     startup_blocked: false,
@@ -353,13 +450,13 @@ export function isMcpCatalogSchemaNotReadyError(error) {
 export function buildMcpCatalogSchemaNotReadyResponse(error = {}) {
   return {
     code: "schema_contract_not_ready",
-    message: "MCP catalog schema is not ready; apply the governed migration before serving catalog operations.",
+    message: "MCP catalog schema is not ready; verify Runtime identity, privileges and column state before any governed migration.",
     details: {
       ...MCP_CATALOG_RUNTIME_SCHEMA_CONTRACT,
-      table: String(error?.details?.table || "") || null,
+      table: MCP_CATALOG_TABLES.includes(error?.details?.table) ? error.details.table : null,
       column: MCP_CATALOG_LEVEL_COLUMN,
-      migration_apply_required: true,
-      original_error_code: boundedSchemaErrorCode(error, "mcp_catalog_schema_migration_required"),
+      migration_apply_required: String(error?.code || "") === "mcp_catalog_schema_migration_required",
+      original_error_code: boundedSchemaErrorCode(error, "mcp_catalog_schema_metadata_unavailable"),
       secrets_included: false,
     },
     secrets_included: false,

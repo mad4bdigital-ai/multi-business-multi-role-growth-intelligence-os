@@ -1,0 +1,123 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-recovery-live-provider-evidence-20260928",
+  "title": "Staging Recovery live Worker provider evidence and ingress revalidation",
+  "delivery_mode": "single_pr",
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-recovery-live-provider-evidence-20260928.json",
+      ".github/derived-state-governance.json",
+      ".github/scripts/staging-recovery-verify-and-countersign.mjs",
+      ".github/scripts/staging-recovery-worker-provider-evidence.mjs",
+      ".github/workflows/staging-main-deploy-eligibility.yml",
+      ".github/workflows/staging-post-deploy-verification.yml",
+      "autopilot-portable-staging/Invoke-StagingRecoveryCertificationCanary.ps1",
+      "autopilot-portable-staging/manifest.json",
+      "docs/remote-mcp-write-scope-inventory.md",
+      "docs/runbooks/staging-recovery-phase-b-certification.md",
+      "docs/work-maps/**",
+      "http-generic-api/config/repository-governance-constitution.json",
+      "http-generic-api/frontend-surface-dispatch.generated.json",
+      "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
+      "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
+      "http-generic-api/scripts/staging-recovery-bind-live-runtime-evidence.mjs",
+      "http-generic-api/stagingRecoveryCertificationProtocol.js",
+      "http-generic-api/test-staging-recovery-admin-surface.mjs",
+      "http-generic-api/test-staging-recovery-certification-protocol.mjs",
+      "specs/*/work-map-integration.json",
+      "specs/020-platform-resource-identity-brand-governance/openapi-detail-closure-batch-full.json",
+      "specs/020-platform-resource-identity-brand-governance/openapi-detail-gap-classification.json",
+      "specs/020-platform-resource-identity-brand-governance/openapi-gap-closure-plan.json"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Bind Staging Recovery certification to provider-observed Cloudflare Worker provenance and a fresh Activation Gateway ingress identity without extending mutation authority.",
+      "e2e_journeys": [
+        {
+          "id": "staging-recovery-live-provider-evidence",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Staging Recovery certification authority",
+          "entrypoint": "Capture the deployed Staging Worker provider identity, bind it to a fresh readiness response, execute the local canary, and independently re-observe both identities before countersign.",
+          "terminal_outcome": "The countersigned Staging Recovery certificate is accepted only when provider-observed Worker provenance and fresh Gateway ingress identity remain exact-current for the same Staging source SHA and target fingerprint.",
+          "steps": [
+            "Capture Cloudflare Worker deployment and version provenance through read-only provider APIs after the exact-SHA Staging deployment.",
+            "Expose only the sanitized Gateway ingress build identity and server-managed target fingerprint from Staging readiness.",
+            "Bind provider evidence to a fresh readiness response immediately before the local Recovery canary.",
+            "Re-observe Cloudflare Worker provenance and Gateway ingress identity independently in GitHub before countersign.",
+            "Fail closed on stale evidence, deployment drift, bundle mismatch, policy mismatch, target mismatch, or missing live observations."
+          ],
+          "assertions": [
+            "Both staging and production impact are explicitly reviewed and live Staging certification remains required.",
+            "Production mutation remains forbidden and production_mutation_allowed is false.",
+            "Provider observation is read-only and does not perform Cloudflare, DNS, custom-domain, database, migration, grant, credential, or Production mutation.",
+            "Persisted evidence excludes provider credentials, auth digests, JTI values, signatures, replay tokens, and private keys.",
+            "The new Worker provider evidence script and this change declaration are registered exactly in Constitution.control_plane_paths and convergence.automation_control_paths.",
+            "Autonomous merge remains forbidden for the changed critical governance surface."
+          ],
+          "tests": [
+            {
+              "id": "staging-recovery-certification-protocol",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-recovery-certification-protocol.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-recovery-admin-surface",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-recovery-admin-surface.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-recovery-live-provider-environment-impact",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/scripts/environment-impact-closure.mjs",
+              "args": [
+                "--base-sha",
+                "BASE_SHA",
+                "--head-sha",
+                "HEAD_SHA"
+              ]
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/staging-recovery-live-provider-evidence-20260928.json",
+            ".github/scripts/staging-recovery-worker-provider-evidence.mjs",
+            ".github/scripts/staging-recovery-verify-and-countersign.mjs",
+            ".github/workflows/staging-main-deploy-eligibility.yml",
+            ".github/workflows/staging-post-deploy-verification.yml",
+            "autopilot-portable-staging/Invoke-StagingRecoveryCertificationCanary.ps1",
+            "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
+            "http-generic-api/scripts/staging-recovery-bind-live-runtime-evidence.mjs",
+            "http-generic-api/stagingRecoveryCertificationProtocol.js",
+            "http-generic-api/config/deployment-branch-policy.json",
+            "http-generic-api/config/repository-governance-constitution.json",
+            ".github/derived-state-governance.json"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}

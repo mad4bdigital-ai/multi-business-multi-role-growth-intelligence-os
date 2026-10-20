@@ -65,6 +65,9 @@ function safeFailure(error, telemetry) {
     ...(schemaReadiness ? { schema_readiness: schemaReadiness } : {}),
     database_connection_performed: telemetry.database_connection_performed,
     sql_readback_performed: telemetry.sql_readback_performed,
+    production_preflight_ready: telemetry.production_preflight_ready === true,
+    production_preflight_evaluated: telemetry.production_preflight_evaluated === true,
+    privilege_matrix_evaluated: telemetry.privilege_matrix_evaluated === true,
     sql_mutation_performed: false,
     migration_apply_performed: false,
     provider_mutation_performed: false,
@@ -79,6 +82,9 @@ export async function runGovernanceDbPrivilegeReadiness(options = {}, deps = {})
   const telemetry = {
     database_connection_performed: false,
     sql_readback_performed: false,
+    production_preflight_evaluated: false,
+    production_preflight_ready: false,
+    privilege_matrix_evaluated: false,
   };
   const preflightFn = deps.resolveGovernanceProductionPreflight || resolveGovernanceProductionPreflight;
   const resolveConfigFn = deps.resolveGovernanceDbConfig || resolveGovernanceDbConfig;
@@ -101,6 +107,8 @@ export async function runGovernanceDbPrivilegeReadiness(options = {}, deps = {})
       { env },
       { environmentAuthorityDeps },
     );
+    telemetry.production_preflight_evaluated = true;
+    telemetry.production_preflight_ready = preflight.ready === true;
     const governanceConfig = resolveConfigFn(env);
     const governancePool = deps.governancePool || getGovernancePool();
     governanceConnection = await governancePool.getConnection();
@@ -163,6 +171,7 @@ export async function runGovernanceDbPrivilegeReadiness(options = {}, deps = {})
     );
     telemetry.sql_readback_performed = true;
 
+    telemetry.privilege_matrix_evaluated = true;
     const privilegeReadiness = assertPrivilegeFn({
       database: governanceConfig.database,
       userPrivileges,
@@ -178,6 +187,8 @@ export async function runGovernanceDbPrivilegeReadiness(options = {}, deps = {})
       status: "ready",
       ready: true,
       production_preflight_ready: preflight.ready === true,
+      production_preflight_evaluated: true,
+      privilege_matrix_evaluated: true,
       production_branch_exact: preflight.environment_authority?.production_branch === "Production",
       promotion_target_branch_exact: preflight.environment_authority?.promotion_target_branch === "Production",
       governance_identity_configured: preflight.governance_db?.identity_configured === true,

@@ -15,8 +15,13 @@ try {
   }
   await mkdir(join(root, "docs/governance"), { recursive: true });
   await mkdir(join(root, "http-generic-api/runtime"), { recursive: true });
+  await mkdir(join(root, "autopilot-portable-staging"), { recursive: true });
   await mkdir(join(root, "http-generic-api/scripts/maintenance-tools"), { recursive: true });
   await writeFile(join(root, "http-generic-api/runtime/example.js"), "const DEFAULT_TIMEOUT = 30;\n");
+  await writeFile(
+    join(root, "autopilot-portable-staging/Staging-Environment.ps1"),
+    "'TOKEN_ENCRYPTION_KEY' = { New-StagingHexValue 32 }\n",
+  );
   await writeFile(join(root, "docs/repository-inventory.json"), JSON.stringify({ schemaVersion: 1, generatedFrom: "git-index", deterministic: true, files: [{ path: "http-generic-api/runtime/example.js" }] }));
   await writeFile(join(root, ".github/repository-maintenance-tool-governance.json"), JSON.stringify({
     contract: "mad4b.repository-maintenance-tool-governance.v1",
@@ -50,6 +55,15 @@ try {
   execFileSync("git", ["config", "user.name", "Drift Guard Test"], { cwd: root });
   execFileSync("git", ["add", "."], { cwd: root });
   const initial = await discoverConfigurationCandidates({ repositoryRoot: root, inventoryPath: "docs/repository-inventory.json", outputDir: ".artifacts/initial" });
+  const powerShellCandidate = initial.candidates.find((candidate) =>
+    candidate.path === "autopilot-portable-staging/Staging-Environment.ps1"
+    && candidate.symbol === "TOKEN_ENCRYPTION_KEY"
+  );
+  assert.ok(powerShellCandidate, "canonical PowerShell secret generators must be discovered");
+  assert.equal(powerShellCandidate.expression_kind, "powershell_secret_generator");
+  assert.equal(powerShellCandidate.candidate_class, "secret_candidate");
+  assert.equal(powerShellCandidate.secrets_included, false);
+  assert.equal(powerShellCandidate.value_preview.includes("New-StagingHexValue 32"), true, "generator shape may be reported without a secret value");
   const baseline = initial.candidates.map((candidate) => [candidate.path, candidate.symbol, candidate.expression_kind, candidate.suggested_config_key].join("|")).sort();
   const policyPath = "docs/governance/configuration-drift-policy.json";
   const policy = {

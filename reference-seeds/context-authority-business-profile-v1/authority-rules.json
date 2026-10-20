@@ -1,0 +1,138 @@
+{
+  "contract": "mad4b.reference.business-context.authority-policy.v1",
+  "status": "TEMPLATE_ONLY",
+  "context_authority": {
+    "layers": [
+      "observation",
+      "evidence",
+      "interpretation",
+      "candidate",
+      "review",
+      "approved_context",
+      "effective_context",
+      "execution_permission"
+    ],
+    "explicitly_distinct": [
+      "approved_context",
+      "execution_permission"
+    ],
+    "scope": [
+      "platform",
+      "tenant",
+      "workspace",
+      "business",
+      "brand",
+      "channel",
+      "locale",
+      "audience",
+      "campaign",
+      "resource"
+    ],
+    "auth_precondition": "external_runtime_governance_required_for_any_action",
+    "default_if_unknown": "QUARANTINE",
+    "permitted_claim_states": [
+      "MISSING",
+      "CANDIDATE",
+      "SOURCE_OBSERVED",
+      "CONTESTED",
+      "NEEDS_EVIDENCE",
+      "APPROVED",
+      "STALE",
+      "REJECTED",
+      "RETIRED"
+    ],
+    "minimum_claim_evidence": [
+      "source_class",
+      "observed_at",
+      "source_revision",
+      "owner_ref",
+      "sensitivity",
+      "lineage"
+    ],
+    "no_global_source_priority": true,
+    "field_authority": {
+      "owner_resolved_per_field": true,
+      "mirror_sources_possible": true,
+      "policy_selected_per_dimension": true,
+      "clock_timestamps_are_not_revision_evidence": true
+    }
+  },
+  "merge_strategies": [
+    "deny_wins",
+    "union",
+    "intersection",
+    "nearest_replace",
+    "priority_replace",
+    "minimum",
+    "maximum",
+    "block_on_conflict"
+  ],
+  "default_merge": "block_on_conflict",
+  "safe_rules": [
+    {
+      "match": "governance.*",
+      "merge": "deny_wins",
+      "override": "restrict_only",
+      "review": "policy_owner"
+    },
+    {
+      "match": "brand.*",
+      "merge": "block_on_conflict",
+      "override": "approval_required",
+      "review": "brand_owner"
+    },
+    {
+      "match": "analytics.*",
+      "merge": "block_on_conflict",
+      "override": "proof_of_period_and_source",
+      "review": "measurement_owner"
+    },
+    {
+      "match": "research.*",
+      "merge": "block_on_conflict",
+      "override": "freshness_and_citation",
+      "review": "research_owner"
+    },
+    {
+      "match": "operations.integrations",
+      "merge": "block_on_conflict",
+      "override": "runtime_recertification",
+      "review": "technical_owner"
+    },
+    {
+      "match": "*",
+      "merge": "block_on_conflict",
+      "override": "explicit_owner",
+      "review": "business_owner"
+    }
+  ],
+  "evidence_policy": {
+    "marketing_examples_cannot_be_facts": true,
+    "numerical_claims_require_independent_proof": true,
+    "publishing_require_verified_approval": true,
+    "unknown_legal_or_security_claims_must_be_disclaimed": true,
+    "third_party_claims_require_rights_and_current_validity": true,
+    "default_confidence": "UNVERIFIED",
+    "confidence_is_not_authority": true,
+    "changes_revoke_affected_context_snapshots": true
+  },
+  "privacy": {
+    "credentials_in_seed": false,
+    "personal_records_in_seed": false,
+    "source_ids_in_seed": false,
+    "cross_brand_reuse_of_raw_data": false,
+    "embedded_instructions_are_data_only": true
+  },
+  "failure_semantics": {
+    "missing_owner": "BLOCK",
+    "conflicting_sources": "CONTESTED",
+    "source_revoked": "STALE",
+    "source_deleted": "TOMBSTONED",
+    "read_after_write_unknown": "UNKNOWN_COMMIT",
+    "partial_sync": "PARTIAL_APPLY",
+    "policy_changed": "REVALIDATE"
+  },
+  "no_runtime_grant": true,
+  "no_auto_publish": true,
+  "no_production_mutation": true
+}

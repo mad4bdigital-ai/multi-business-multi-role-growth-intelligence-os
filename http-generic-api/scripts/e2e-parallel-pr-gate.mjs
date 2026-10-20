@@ -4,6 +4,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { inspectProductionSecurityHotfix } from "./production-security-hotfix-candidate.mjs";
 import {
   parseProductionCandidateSurfaceRef,
   validateProductionCandidateSurfaceHint,
@@ -341,9 +342,70 @@ function invokeCertifiedReleaseCutAdapter(options, validation) {
   }
 }
 
+
+function invokeProductionSecurityHotfixCandidateAdapter(options, argv, validation) {
+  const child = spawnSync(process.execPath, [LEGACY_GATE, ...argv], {
+    cwd: process.cwd(),
+    env: { ...process.env, GITHUB_OUTPUT: "" },
+    encoding: "utf8",
+    stdio: ["inherit", "pipe", "pipe"]
+  });
+  if (child.error || child.status !== 1 || String(child.stderr || "").trim()) {
+    if (child.stdout) process.stdout.write(child.stdout);
+    if (child.stderr) process.stderr.write(child.stderr);
+    return 1;
+  }
+  let report;
+  try { report = JSON.parse(child.stdout || "{}"); }
+  catch { if (child.stdout) process.stdout.write(child.stdout); return 1; }
+  // Only the known legacy identity mismatch may be removed, and only after
+  // strict independent Production SHA/lockfile candidate validation.
+  const expected = [...validation.changed_files].sort();
+  const actual = Array.isArray(report.changed_files) ? [...report.changed_files].sort() : [];
+  const findings = Array.isArray(report.findings) ? report.findings : [];
+  const exactSingleFinding = findings.length === 1
+    && findings[0]?.code === "production_promotion_identity_invalid";
+  if (!exactSingleFinding || report.ok !== false
+    || report.head_ref !== options.headRef || report.base_ref !== "Production"
+    || JSON.stringify(actual) !== JSON.stringify(expected)
+    || report.production_promotion !== false) {
+    if (child.stdout) process.stdout.write(child.stdout);
+    return 1;
+  }
+  report.ok = true;
+  report.findings = [];
+  report.production_security_hotfix_candidate = true;
+  report.production_security_hotfix_identity = validation.identity;
+  report.production_security_hotfix_authority_eligible = false;
+  report.production_promotion = false;
+  report.production_promotion_identity = null;
+  report.phase_evaluation_base = null;
+  writeAtomic(options.reportFile, report);
+  writeOutputs(options.githubOutput, {
+    mode: report.pr_mode || "standard",
+    feature_key: report.feature_key || "",
+    contract_path: report.contract_path || "",
+    workstream_id: report.workstream_id || "",
+    production_promotion: false,
+    production_promotion_identity: "",
+    production_security_hotfix_candidate: true,
+    production_security_hotfix_authority_eligible: false,
+    phase_evaluation_base: "",
+    production_promotion_anchor_sha: "",
+    production_promotion_rearm_depth: ""
+  });
+  console.log(JSON.stringify(report, null, 2));
+  return 0;
+}
+
 function main() {
   const argv = process.argv.slice(2);
   const options = parseArgs(argv);
+  const hotfix = inspectProductionSecurityHotfix({
+    root: options.root, baseRef: options.baseRef, headRef: options.headRef,
+    baseSha: options.base, headSha: options.head
+  });
+  if (hotfix.ok) process.exit(invokeProductionSecurityHotfixCandidateAdapter(options, argv, hotfix));
   const ref = parseCertifiedReleaseCutRef(options.headRef);
   if (!ref || options.baseRef !== "Production") process.exit(delegateLegacy(argv));
 

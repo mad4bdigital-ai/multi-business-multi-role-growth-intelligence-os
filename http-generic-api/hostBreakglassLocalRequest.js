@@ -7,6 +7,7 @@ const SAFE_ID_RE = /^[A-Za-z0-9._:-]{1,160}$/u;
 const ROLE_KEYS = new Set(["runtime", "governance", "runtime_persistence"]);
 const SCOPE_ACTIONS = Object.freeze({
   "database.access_repair": new Set(["plan", "dry_run", "apply_grants"]),
+  "database.schema_repair": new Set(["plan", "dry_run", "apply_migration"]),
   "database.empty_rebuild": new Set(["plan", "dry_run", "apply_migration"]),
 });
 const REQUEST_KEYS = Object.freeze([
@@ -88,6 +89,7 @@ function resolveLocalRequestBoundary() {
   const [environmentKey, environment] = matchingEnvironments[0];
   const requiredScopes = [
     { operation_key: "database.repair", runbook_key: "database.access_repair" },
+    { operation_key: "database.repair", runbook_key: "database.schema_repair" },
     { operation_key: "database.rebuild_empty", runbook_key: "database.empty_rebuild" },
   ];
   const scopes = {};
@@ -114,7 +116,7 @@ const LOCAL_REQUEST_BOUNDARY = resolveLocalRequestBoundary();
 
 function scopeFor(plan = {}) {
   const scope = LOCAL_REQUEST_BOUNDARY.scopes[plan.runbook_key];
-  if (!scope || plan.operation_key !== scope.operation_key) fail("host_breakglass_local_request_runbook_denied", "Verified local requests are restricted to canonical Staging access-repair or rebuild-empty runbooks.");
+  if (!scope || plan.operation_key !== scope.operation_key) fail("host_breakglass_local_request_runbook_denied", "Verified local requests are restricted to canonical Staging access-repair, schema-repair, or rebuild-empty runbooks.");
   if (!scope.allowed_actions?.has(plan.action)) fail("host_breakglass_local_request_action_denied", "The requested Host Breakglass action is not supported by the verified local handoff.");
   return scope;
 }

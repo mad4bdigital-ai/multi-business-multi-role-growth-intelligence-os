@@ -1,0 +1,83 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-oa-mc-live-multi-principal-prerequisite-gate-20261015",
+  "title": "Fail-closed Staging OA/MC four-principal preflight census",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-oa-mc-live-multi-principal-prerequisite-gate-20261015.json",
+      ".github/governance/test-authority-registry.json",
+      ".github/derived-state-governance.json",
+      "http-generic-api/config/repository-governance-constitution.json",
+      "docs/governance/configuration-drift-baseline-extensions.json",
+      "http-generic-api/stagingMultiPrincipalAcceptanceGate.js",
+      "http-generic-api/scripts/staging-multi-principal-acceptance-preflight.mjs",
+      "http-generic-api/test-staging-multi-principal-acceptance-preflight.mjs"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Report absent real Staging OA/MC multi-principal prerequisites without fabricating live acceptance, modifying identities or accessing Production.",
+      "e2e_journeys": [
+        {
+          "id": "staging-four-principal-readonly-census",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Staging QA release operator",
+          "entrypoint": "Read-only SQL aggregate census for four-principal OA/MC live acceptance",
+          "terminal_outcome": "Emit an explicitly blocked, secret-free 18-case matrix until independently approved QA fixtures and live case evidence exist.",
+          "steps": [
+            "Verify exact Staging runtime identity before any pool call.",
+            "Count active users, Tenants, active memberships, same-user dual-Tenant memberships, inactive subjects and revoked grants.",
+            "Check that Owner/Member Tenant A and independently owned Tenant B are possible from aggregated active role groups.",
+            "Report all OA-01..OA-08 and MC-01..MC-10 as not live certified; do not treat existing one-principal E2E as a replacement.",
+            "Block Production promotion and withhold identities or secrets."
+          ],
+          "assertions": [
+            "No application or database mutation is performed.",
+            "No user IDs, emails, Tenant IDs, tokens or secrets appear in the report.",
+            "Missing fixture provenance, Admin principal and 18 case evidence are always explicit blockers.",
+            "Production and malformed environments fail closed."
+          ],
+          "tests": [
+            {
+              "id": "staging-qa-multi-principal-census-preflight-fail-closed",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-multi-principal-acceptance-preflight.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/staging-oa-mc-live-multi-principal-prerequisite-gate-20261015.json",
+            ".github/governance/test-authority-registry.json",
+      ".github/derived-state-governance.json",
+      "http-generic-api/config/repository-governance-constitution.json",
+      "docs/governance/configuration-drift-baseline-extensions.json",
+            "http-generic-api/stagingMultiPrincipalAcceptanceGate.js",
+            "http-generic-api/scripts/staging-multi-principal-acceptance-preflight.mjs",
+            "http-generic-api/test-staging-multi-principal-acceptance-preflight.mjs"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}

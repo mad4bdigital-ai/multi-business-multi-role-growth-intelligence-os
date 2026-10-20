@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
-import { buildBranchReadbackEvidence, buildTwoBranchReadbackEvidence } from "./github-repository-policy-readback-core.mjs";
+import { buildBranchReadbackEvidence, buildTwoBranchReadbackEvidence, triagePolicyReadback } from "./github-repository-policy-readback-core.mjs";
 
 const passingReadback = (branch, sha) => ({
   target: { owner: "mad4bdigital-ai", repo: "growth", default_branch: branch },
   branch_sha: sha,
   branch_protected: true,
+  repository_auto_merge_allowed: false,
   required_checks: branch === "main" ? ["Derived State Closure"] : ["Governed Production Promotion"],
   observed_required_checks: branch === "main" ? ["Derived State Closure"] : ["Governed Production Promotion"],
   ruleset_details: [],
@@ -40,6 +41,82 @@ assert.equal(driftReport.server_policy_drift_count, 1);
 assert.deepEqual(driftReport.drifted_branches, ["Production"]);
 assert.equal(driftReport.reason, "GOVERNANCE_SERVER_POLICY_DRIFT");
 assert.deepEqual(driftedProduction.drift_reasons, ["branch_sha_drift", "server_policy_gate_incomplete"]);
+
+// A 403 classic endpoint is a visibility blocker, not proof that classic
+// protection is absent, and must never silently turn into a PASS.
+const unreadable = triagePolicyReadback({
+  ...passingReadback("main", mainSha),
+  api_status: { classic_branch_protection: 403 },
+  proof: { ...passingReadback("main", mainSha).proof, policy_state_readable: false },
+});
+assert.equal(unreadable.status, "evidence_incomplete");
+assert.deepEqual(unreadable.confirmed_policy_gaps, []);
+assert.ok(unreadable.visibility_blockers.includes("classic_protection_read_forbidden"));
+assert.equal(unreadable.remediation.policy_apply_authorized, false);
+
+// Real Production drift is independently provable without classic protection
+// read access; do not downgrade it to an observability-only warning.
+const exposedProduction = triagePolicyReadback({
+  ...passingReadback("Production", productionSha),
+  branch_protected: false,
+  active_managed_ruleset_count: 0,
+  observed_required_checks: [],
+  api_status: { classic_branch_protection: 403 },
+  proof: { ...passingReadback("Production", productionSha).proof,
+    policy_state_readable: false, finalizer_app_identity_resolved: false },
+});
+assert.equal(exposedProduction.status, "confirmed_policy_gaps");
+assert.ok(exposedProduction.confirmed_policy_gaps.includes("branch_is_not_protected"));
+assert.ok(exposedProduction.confirmed_policy_gaps.includes("managed_ruleset_not_active"));
+assert.ok(exposedProduction.confirmed_policy_gaps.includes("required_check_absent:Governed Production Promotion"));
+assert.ok(exposedProduction.visibility_blockers.includes("trusted_app_identity_unresolved"));
+assert.equal(exposedProduction.remediation.production_mutation_allowed, false);
+
+const weakenedMain = triagePolicyReadback({
+  ...passingReadback("main", mainSha),
+  constitution: { branch_policy: { dismiss_stale_approvals: true, require_conversation_resolution: true,
+    strict_required_status_checks: true } },
+  required_check_source_mode: "any_source_with_independent_finalizer_readback",
+  required_check_source_unrestricted: true,
+  ruleset_details: [{
+    enforcement: "active", applies_to_target: true,
+    pull_request: { present: true, dismiss_stale_reviews_on_push: false,
+      required_review_thread_resolution: false },
+    raw_writable_policy: { rules: [{ type: "required_status_checks",
+      parameters: { strict_required_status_checks_policy: false } }] },
+  }],
+});
+assert.ok(weakenedMain.confirmed_policy_gaps.includes("stale_review_dismissal_disabled"));
+assert.ok(weakenedMain.confirmed_policy_gaps.includes("review_thread_resolution_disabled"));
+assert.ok(weakenedMain.confirmed_policy_gaps.includes("strict_required_checks_disabled"));
+assert.ok(weakenedMain.residual_risks.includes("any_source_requires_independent_trusted_status_readback"));
+
+// A repository GET can succeed while omitting allow_auto_merge under a
+// least-privileged Actions token. Do not report an enabled setting from null.
+const unknownAutoMerge = triagePolicyReadback({
+  ...passingReadback("main", mainSha),
+  repository_auto_merge_allowed: null,
+  proof: { ...passingReadback("main", mainSha).proof, auto_merge_disabled: false },
+});
+assert.ok(unknownAutoMerge.visibility_blockers.includes("repository_auto_merge_setting_unverified"));
+assert.ok(!unknownAutoMerge.confirmed_policy_gaps.includes("repository_auto_merge_enabled"));
+assert.equal(unknownAutoMerge.remediation.policy_apply_authorized, false);
+
+// An explicit enabled value is still a confirmed gap, even with other missing evidence.
+const enabledAutoMerge = triagePolicyReadback({
+  ...passingReadback("main", mainSha),
+  repository_auto_merge_allowed: true,
+  proof: { ...passingReadback("main", mainSha).proof, auto_merge_disabled: false },
+});
+assert.ok(enabledAutoMerge.confirmed_policy_gaps.includes("repository_auto_merge_enabled"));
+
+const disabledAutoMerge = triagePolicyReadback({
+  ...passingReadback("main", mainSha),
+  repository_auto_merge_allowed: false,
+  proof: { ...passingReadback("main", mainSha).proof, auto_merge_disabled: true },
+});
+assert.ok(!disabledAutoMerge.confirmed_policy_gaps.includes("repository_auto_merge_enabled"));
+assert.ok(!disabledAutoMerge.visibility_blockers.includes("repository_auto_merge_setting_unverified"));
 
 console.log(JSON.stringify({
   ok: true,

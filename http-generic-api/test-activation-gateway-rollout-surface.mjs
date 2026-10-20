@@ -92,6 +92,10 @@ function runtimePoolWithRows(rows, options = {}) {
         runtimeAuthorityReads += 1;
         throw new Error("Runtime DB must never serve platform_resource_authority_bindings.");
       }
+      if (statement.includes("FROM platform_runtime_config")) {
+        assert.deepEqual(params, ["staging_activation_gateway_apply"]);
+        return [[]];
+      }
       if (statement.includes("FROM workspace_registry")) {
         runtimeWorkspaceReads += 1;
         if (options.throwOnWorkspaceRead) throw new Error("runtime database unavailable");
@@ -119,6 +123,10 @@ const runtimePool = runtimePoolWithRows([canonicalWorkspaceRow()]);
 const governancePool = {
   async query(sql, params = []) {
     const statement = String(sql);
+    if (statement.includes("FROM runtime_dispatch_certification_registry")) {
+      assert.deepEqual(params, ["staging_activation_gateway_apply_v1"]);
+      return [[]];
+    }
     if (statement.includes("FROM platform_resource_authority_bindings")) {
       governanceAuthorityReads += 1;
       assert.deepEqual(params, [bindingId]);

@@ -95,6 +95,7 @@ import {
 } from "../platformEndpointToolFacade.js";
 import { assertApprovalChallengeAuthorities, getRecoveryCapabilities, callRecoveryKernelCapability } from "../recoveryKernel.js";
 import { issueAndExecuteApprovedRecoveryStep, sanitizeRecoveryActionBridgeOutput } from "../recoveryActionBridge.js";
+import { productionEnvironmentIdentityIsValid } from "../productionRuntimeIdentityCompatibility.js";
 
 // Auth Admin Actions already have a bounded fixed dispatcher. Keep Recovery reachable
 // through that single operation without allowing a non-consequential Action to invoke
@@ -2400,17 +2401,7 @@ function recoveryAdminPrincipalFromAuth(auth) {
 }
 
 function recoveryEnvironmentIsProduction(env = process.env) {
-  const signals = [
-    ["NODE_ENV", env.NODE_ENV],
-    ["REMOTE_MCP_ENVIRONMENT", env.REMOTE_MCP_ENVIRONMENT],
-    ["DEPLOYMENT_ENVIRONMENT", env.DEPLOYMENT_ENVIRONMENT],
-    ["GITHUB_REF_NAME", env.GITHUB_REF_NAME],
-  ].filter(([, value]) => String(value || "").trim());
-  if (!signals.length) return false;
-  return signals.every(([name, value]) => {
-    const normalized = String(value).trim().toLowerCase();
-    return name === "GITHUB_REF_NAME" ? normalized === "production" : ["production", "prod"].includes(normalized);
-  });
+  return productionEnvironmentIdentityIsValid(env);
 }
 
 export function resolveSystemRecoveryStores(deps = {}) {

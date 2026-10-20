@@ -153,7 +153,7 @@ assert.match(rolePlanAdapter, /caller_role_selection_allowed: false/u);
 assert.doesNotMatch(systemTools, /capability_key: "staging_database_rebuild_empty"/u);
 assert.doesNotMatch(recoveryRoutes, /capability_key: "staging_database_rebuild_empty"/u);
 for (const role of roles) assert.ok(recoveryRoutes.includes(`${role}.baseline.rebuild_empty`), `Recovery capability projection must expose ${role}.baseline.rebuild_empty`);
-assert.match(recoveryRoutes, /local_handoff_mutation_capabilities: \[\.\.\.STAGING_REBUILD_ROLE_CAPABILITIES\]/u);
+assert.match(recoveryRoutes, /local_handoff_mutation_capabilities: \[\.\.\.STAGING_REBUILD_ROLE_CAPABILITIES, "staging_database_schema_repair"\]/u);
 assert.match(systemTools, /capability_key: "database_full_inspection"/u);
 assert.match(systemTools, /capability_key: "remediation_plan_create"/u);
 assert.match(systemTools, /capability_key: "remediation_step_execute"/u);

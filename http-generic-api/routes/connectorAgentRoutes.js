@@ -4,6 +4,8 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { getPool } from "../db.js";
+import { assertCurrentInstallerCredentialEpoch, deriveInstallerCredentialEpoch, compareInstallerCredentialEpoch } from "../installerCredentialEpoch.js";
+import { validateAdminRecoveryEndpoint } from "../adminLocalConnectorTarget.js";
 import {
   connectorAuthPredicateForToken,
   connectorLocalApiKeySelectFragment,
@@ -18,9 +20,19 @@ import {
   verifyInstallerDownloadToken,
 } from "../localConnectorInstallerCapability.js";
 
-const AGENT_VERSION = "2026.05.28.1";
+const AGENT_VERSION = "2026.10.18.1";
 const MODULE_DIR = path.dirname(fileURLToPath(import.meta.url));
-const ROOT = path.resolve(MODULE_DIR, "../..");
+// The Staging Docker image flattens http-generic-api into /app, while the
+// immutable exact-commit repository snapshot is packaged at REPO_INSPECT_ROOT.
+// Resolve the package's source files from that snapshot, never from /.
+// Outside the managed image, retain the checked-out repository root.
+const PACKAGED_REPO_ROOT = String(process.env.REPO_INSPECT_ROOT || "").trim();
+if (PACKAGED_REPO_ROOT && !path.isAbsolute(PACKAGED_REPO_ROOT)) {
+  throw new Error("connector_agent_source_root_not_absolute");
+}
+const ROOT = PACKAGED_REPO_ROOT
+  ? path.resolve(PACKAGED_REPO_ROOT)
+  : path.resolve(MODULE_DIR, "../..");
 const CONNECTOR_PORT = 7070;
 
 const FILES = {
@@ -67,6 +79,41 @@ const FILES = {
   "local-agent-runtime.mjs": {
     relativePath: "local-connector/local-agent-runtime.mjs",
     contentType: "text/javascript; charset=utf-8",
+    executable: false,
+  },
+  "connector-staging-recovery.mjs": {
+    relativePath: "local-connector/connector-staging-recovery.mjs",
+    contentType: "text/javascript; charset=utf-8",
+    executable: false,
+  },
+  "connector-developer-sessions.mjs": {
+    relativePath: "local-connector/connector-developer-sessions.mjs",
+    contentType: "text/javascript; charset=utf-8",
+    executable: false,
+  },
+  "device-files-engine.mjs": {
+    relativePath: "local-connector/device-files-engine.mjs",
+    contentType: "text/javascript; charset=utf-8",
+    executable: false,
+  },
+  "device-terminal-engine.mjs": {
+    relativePath: "local-connector/device-terminal-engine.mjs",
+    contentType: "text/javascript; charset=utf-8",
+    executable: false,
+  },
+  "device-mcp-resource.mjs": {
+    relativePath: "local-connector/device-mcp-resource.mjs",
+    contentType: "text/javascript; charset=utf-8",
+    executable: false,
+  },
+  "device-mcp-approval-broker.mjs": {
+    relativePath: "local-connector/device-mcp-approval-broker.mjs",
+    contentType: "text/javascript; charset=utf-8",
+    executable: false,
+  },
+  "connector-admin-recovery.openapi.yaml": {
+    relativePath: "http-generic-api/openapi/openapi.gpt-action.local-connector.yaml",
+    contentType: "application/yaml; charset=utf-8",
     executable: false,
   },
 };
@@ -402,6 +449,7 @@ function normalizeShellPolicyRow(row) {
 }
 
 async function claimInstallerCapability(config, payload) {
+  await assertCurrentInstallerCredentialEpoch(payload);
   const metadata = JSON.stringify({
     contract: payload.contract,
     purpose: payload.purpose,
@@ -431,12 +479,22 @@ async function claimInstallerCapability(config, payload) {
   }
 }
 
-function buildConnectorEnv({ aliases, port, capabilities = [], permissionGrants = {}, environment, controlPlaneBaseUrl }) {
+function buildConnectorEnv({ aliases, port, capabilities = [], permissionGrants = {}, environment, controlPlaneBaseUrl, configId, deviceId, runtimeUrl, cfTunnelId }) {
+  if (!/^[a-zA-Z0-9-]{16,64}$/.test(String(configId || "")) ||
+      !/^[a-zA-Z0-9_-]{2,128}$/.test(String(deviceId || ""))) {
+    throw httpError(409, "connector_installer_identity_invalid",
+      "An installer requires an exact safe canonical device and configuration identity.");
+  }
+  const trustedRuntimeUrl = validateAdminRecoveryEndpoint(runtimeUrl, cfTunnelId, configId);
   const grants = normalizePermissionGrants(permissionGrants);
   const allAliases = [...aliases, ...grants.shell_aliases];
   const appAllowlistLine = Object.keys(grants.apps).length ? [envJsonLine("CONNECTOR_APP_ALLOWLIST", grants.apps)] : [];
   const filePathLine = grants.allowed_paths.length ? [`CONNECTOR_FILE_PATHS=${grants.allowed_paths.join(",")}`] : [];
   return [
+    `CONNECTOR_CONFIG_ID=${configId}`,
+    `CONNECTOR_DEVICE_ID=${deviceId}`,
+    `CONNECTOR_PUBLIC_HEALTH_URL=${trustedRuntimeUrl}/health`,
+    `CONNECTOR_TUNNEL_ID=${cfTunnelId || ""}`, 
     `CONNECTOR_ENVIRONMENT=${environment}`,
     `CONNECTOR_CONTROL_PLANE_BASE_URL=${controlPlaneBaseUrl}`,
     `CONNECTOR_POLICY_URL=${controlPlaneBaseUrl}/connector-agent/policy`,
@@ -473,8 +531,8 @@ function buildConnectorEnv({ aliases, port, capabilities = [], permissionGrants 
   ].join("\r\n");
 }
 
-function buildInstallPowerShell({ redeemToken, tunnelUrl, aliases, port, capabilities = [], permissionGrants = {}, environment, controlPlaneBaseUrl }) {
-  const envText = buildConnectorEnv({ aliases, port, capabilities, permissionGrants, environment, controlPlaneBaseUrl });
+function buildInstallPowerShell({ redeemToken, tunnelUrl, aliases, port, capabilities = [], permissionGrants = {}, environment, controlPlaneBaseUrl, configId, deviceId, cfTunnelId }) {
+  const envText = buildConnectorEnv({ aliases, port, capabilities, permissionGrants, environment, controlPlaneBaseUrl, configId, deviceId, runtimeUrl: tunnelUrl, cfTunnelId });
   return [
     "# Mad4B Local Connector — run once as Administrator",
     "$ErrorActionPreference = 'Stop'",
@@ -510,6 +568,13 @@ function buildInstallPowerShell({ redeemToken, tunnelUrl, aliases, port, capabil
     "$ConnectorRuntimeBootstrap = Join-Path $Root 'connector-runtime-bootstrap.mjs'",
     "$Browser4Adapter = Join-Path $Root 'browser4-adapter.mjs'",
     "$LocalAgentRuntime = Join-Path $Root 'local-agent-runtime.mjs'",
+    "$StagingRecoveryBridge = Join-Path $Root 'connector-staging-recovery.mjs'",
+    "$DeveloperSessions = Join-Path $Root 'connector-developer-sessions.mjs'",
+    "$DeviceFilesEngine = Join-Path $Root 'device-files-engine.mjs'",
+    "$DeviceTerminalEngine = Join-Path $Root 'device-terminal-engine.mjs'",
+    "$DeviceMcpResource = Join-Path $Root 'device-mcp-resource.mjs'",
+    "$DeviceMcpApprovalBroker = Join-Path $Root 'device-mcp-approval-broker.mjs'",
+    "$AdminRecoverySchema = Join-Path $Root 'connector-admin-recovery.openapi.yaml'",
     "$SecretsRoot = Join-Path $Root 'secrets'",
     "$CfTokenFile = Join-Path $SecretsRoot 'cloudflared-token.txt'",
     "$ConnectorSecretFile = Join-Path $SecretsRoot 'connector-secret.txt'",
@@ -577,6 +642,13 @@ function buildInstallPowerShell({ redeemToken, tunnelUrl, aliases, port, capabil
     "Get-Mad4BManifestFile -Name 'connector-runtime-bootstrap.mjs' -OutFile $ConnectorRuntimeBootstrap",
     "Get-Mad4BManifestFile -Name 'browser4-adapter.mjs' -OutFile $Browser4Adapter",
     "Get-Mad4BManifestFile -Name 'local-agent-runtime.mjs' -OutFile $LocalAgentRuntime",
+    "Get-Mad4BManifestFile -Name 'connector-staging-recovery.mjs' -OutFile $StagingRecoveryBridge",
+    "Get-Mad4BManifestFile -Name 'connector-developer-sessions.mjs' -OutFile $DeveloperSessions",
+    "Get-Mad4BManifestFile -Name 'device-files-engine.mjs' -OutFile $DeviceFilesEngine",
+    "Get-Mad4BManifestFile -Name 'device-terminal-engine.mjs' -OutFile $DeviceTerminalEngine",
+    "Get-Mad4BManifestFile -Name 'device-mcp-resource.mjs' -OutFile $DeviceMcpResource",
+    "Get-Mad4BManifestFile -Name 'device-mcp-approval-broker.mjs' -OutFile $DeviceMcpApprovalBroker",
+    "Get-Mad4BManifestFile -Name 'connector-admin-recovery.openapi.yaml' -OutFile $AdminRecoverySchema",
     "Copy-Item -LiteralPath $ServerMjs -Destination (Join-Path $Root 'server.mjs.stable') -Force",
     "",
     "$LegacyBefore = Get-ServiceSnapshot $LegacyCfService",
@@ -731,20 +803,33 @@ async function resolveHeartbeatConfig(req, body = {}) {
   if (!body.config_id && !body.device_id) throw httpError(400, "connector_identity_required", "config_id or device_id is required.");
   const backendToken = String(process.env.BACKEND_API_KEY || "").trim();
   if (backendToken && token === backendToken) {
-    sql += " ORDER BY updated_at DESC LIMIT 1";
-  } else {
-    const authPredicate = await connectorAuthPredicateForToken(token);
-    sql += ` AND ${authPredicate.sql} ORDER BY updated_at DESC LIMIT 1`;
-    params.push(...authPredicate.params);
+    throw httpError(403, "device_owned_heartbeat_credential_required",
+      "A platform backend key cannot attest a physical connector heartbeat.");
   }
+  const authPredicate = await connectorAuthPredicateForToken(token);
+  sql += ` AND ${authPredicate.sql}`;
+  sql += " AND lifecycle_state = 'active' AND revoked_at IS NULL AND archived_at IS NULL LIMIT 2";
+  params.push(...authPredicate.params);
   const [rows] = await getPool().query(sql, params);
-  if (rows[0]) return rows[0];
+  if (rows.length > 1) throw httpError(409, "heartbeat_device_ambiguous",
+    "Multiple connector configurations match this heartbeat; resolve identity first.");
+  if (rows.length === 1) return rows[0];
   throw httpError(403, "connector_auth_failed", "Connector heartbeat auth failed.");
 }
 
 async function syncPrimaryRouteFromHeartbeat(config, { status, errorCode = null, errorMessage = null } = {}) {
   const primaryUrl = String(config?.device_runtime_url || config?.tunnel_url || "").trim().replace(/\/$/, "");
   if (!config?.config_id || !primaryUrl) return;
+  // The device route may be intentionally disabled. An authenticated health
+  // event cannot silently re-enable a disabled route or bypass a revocation.
+  const [activeRows] = await getPool().query(
+    "SELECT config_id FROM local_connector_user_configs " +
+    "WHERE config_id = ? AND user_id = ? AND tenant_id = ? AND device_id = ? " +
+    "AND is_enabled = 1 AND lifecycle_state = 'active' " +
+    "AND revoked_at IS NULL AND archived_at IS NULL LIMIT 2",
+    [config.config_id, config.user_id, config.tenant_id, config.device_id]
+  );
+  if (activeRows.length !== 1) return;
   const routeHealth = status === "failed" ? "degraded" : "healthy";
   const params = status === "failed"
     ? [routeHealth, String(errorCode || "heartbeat_failed").slice(0, 128), String(errorMessage || "Connector heartbeat reported failure.").slice(0, 1000), config.config_id, primaryUrl]
@@ -800,7 +885,6 @@ async function syncPrimaryRouteFromHeartbeat(config, { status, errorCode = null,
          user_id = VALUES(user_id),
          tenant_id = VALUES(tenant_id),
          device_id = VALUES(device_id),
-         is_enabled = 1,
          health_status = VALUES(health_status),
          last_health_at = NOW(),
          last_failure_at = NOW(),
@@ -831,7 +915,6 @@ async function syncPrimaryRouteFromHeartbeat(config, { status, errorCode = null,
        user_id = VALUES(user_id),
        tenant_id = VALUES(tenant_id),
        device_id = VALUES(device_id),
-       is_enabled = 1,
        health_status = VALUES(health_status),
        last_health_at = NOW(),
        last_success_at = NOW(),
@@ -855,20 +938,21 @@ async function writeHeartbeat(config, body = {}) {
   const repairStatus = enumValue(body.repair_status || (status === "failed" ? "failed" : "ok"), ["ok", "failed", "rollback", "manual_required"], status === "failed" ? "failed" : "ok");
   const metadataJson = safeJsonObject(body.metadata_json || body.metadata);
 
-  await getPool().query(
+  const [healthWrite] = await getPool().query(
     `UPDATE \`local_connector_user_configs\`
         SET watchdog_installed = IF(? IS NULL, watchdog_installed, ?),
             watchdog_version = COALESCE(?, watchdog_version),
             agent_version = COALESCE(?, agent_version),
             active_slot = ?,
-            last_health_at = NOW(),
-            last_reconnect_at = IF(? IN ('service_restart','cloudflared_restart'), NOW(), last_reconnect_at),
+            last_health_at = IF(? = 'health_ok' AND ? = 'ok', NOW(), last_health_at),
+            last_reconnect_at = IF(? IN ('service_restart','cloudflared_restart') AND ? = 'ok', NOW(), last_reconnect_at),
             last_repair_at = IF(? IN ('safe_upgrade','rollback','repair_bundle','manual_recovery'), NOW(), last_repair_at),
             last_repair_status = IF(? IN ('safe_upgrade','rollback','repair_bundle','manual_recovery'), ?, last_repair_status),
             last_error_code = ?,
             last_error_message = ?,
             updated_at = NOW()
-      WHERE config_id = ?`,
+      WHERE config_id = ? AND is_enabled = 1 AND lifecycle_state = 'active'
+        AND revoked_at IS NULL AND archived_at IS NULL`,
     [
       body.watchdog_installed === undefined ? null : 1,
       body.watchdog_installed ? 1 : 0,
@@ -876,6 +960,9 @@ async function writeHeartbeat(config, body = {}) {
       agentVersion,
       activeSlot,
       eventType,
+      status,
+      eventType,
+      status,
       eventType,
       eventType,
       repairStatus,
@@ -885,7 +972,33 @@ async function writeHeartbeat(config, body = {}) {
     ]
   );
 
-  await syncPrimaryRouteFromHeartbeat(config, { status, errorCode, errorMessage });
+  // MySQL/MariaDB may report zero affectedRows for an idempotent UPDATE,
+  // depending on CLIENT_FOUND_ROWS and second-resolution updated_at.
+  // Revalidate the scoped lifecycle rather than treating that as revocation.
+  if (Number(healthWrite?.affectedRows || 0) !== 1) {
+    const [verifiedRows] = await getPool().query(
+      "SELECT config_id FROM local_connector_user_configs " +
+      "WHERE config_id = ? AND user_id = ? AND tenant_id = ? AND device_id = ? " +
+      "AND is_enabled = 1 AND lifecycle_state = 'active' " +
+      "AND revoked_at IS NULL AND archived_at IS NULL LIMIT 2",
+      [config.config_id, config.user_id, config.tenant_id, config.device_id]
+    );
+    if (verifiedRows.length !== 1) {
+      throw httpError(409, "device_lifecycle_changed_during_heartbeat",
+        "The device identity is no longer a unique active scoped configuration.");
+    }
+  }
+
+  // Health transitions require a health event, not a maintenance attempt.
+  // A started/skipped/restart/rollback event is evidence of an action, not a
+  // failure of the previously verified route.
+  const healthTransition = eventType === "health_ok" && status === "ok" ? "ok"
+    : (eventType === "health_failed" && status === "failed" ? "failed" : null);
+  if (healthTransition) {
+    await syncPrimaryRouteFromHeartbeat(config, {
+      status: healthTransition, errorCode, errorMessage,
+    });
+  }
 
   const eventId = crypto.randomUUID();
   await getPool().query(
@@ -978,6 +1091,9 @@ export function buildConnectorAgentRoutes() {
   });
 
   router.get("/connector-agent/installer.ps1", async (req, res) => {
+    res.setHeader("Cache-Control", "no-store, max-age=0");
+    res.setHeader("Referrer-Policy", "no-referrer");
+    res.setHeader("X-Content-Type-Options", "nosniff");
     try {
       const token = String(req.query.token || "");
       const payload = verifyInstallerDownloadToken(token, {
@@ -985,9 +1101,9 @@ export function buildConnectorAgentRoutes() {
         expectedPurpose: LOCAL_CONNECTOR_INSTALLER_DOWNLOAD_PURPOSE,
       });
       const [[config]] = await getPool().query(
-        `SELECT config_id, user_id, tenant_id, device_id, COALESCE(device_runtime_url, tunnel_url) AS tunnel_url
+        `SELECT config_id, user_id, tenant_id, device_id, cf_tunnel_id, COALESCE(device_runtime_url, tunnel_url) AS tunnel_url
            FROM \`local_connector_user_configs\`
-          WHERE config_id = ? AND user_id = ? AND tenant_id = ? AND device_id = ? AND is_enabled = 1
+          WHERE config_id = ? AND user_id = ? AND tenant_id = ? AND device_id = ? AND is_enabled = 1 AND lifecycle_state = 'active' AND revoked_at IS NULL AND archived_at IS NULL
           LIMIT 1`,
         [payload.config_id, payload.user_id, payload.tenant_id, payload.device_id]
       );
@@ -1007,11 +1123,15 @@ export function buildConnectorAgentRoutes() {
         device_id: config.device_id,
         format: "ps1",
         purpose: LOCAL_CONNECTOR_INSTALLER_REDEEM_PURPOSE,
+        credential_epoch: payload.credential_epoch,
         ttl_minutes: 5,
       }));
       const installer = buildInstallPowerShell({
         redeemToken,
         tunnelUrl: config.tunnel_url,
+        configId: config.config_id,
+        deviceId: config.device_id,
+        cfTunnelId: config.cf_tunnel_id,
         aliases: DEFAULT_WINDOWS_ALIASES,
         port: CONNECTOR_PORT,
         capabilities: dbGrants.capabilities,
@@ -1030,6 +1150,8 @@ export function buildConnectorAgentRoutes() {
   });
 
   router.post("/connector-agent/installer/redeem", async (req, res) => {
+    res.setHeader("Referrer-Policy", "no-referrer");
+    res.setHeader("X-Content-Type-Options", "nosniff");
     res.setHeader("Cache-Control", "no-store, max-age=0");
     res.setHeader("Pragma", "no-cache");
     try {
@@ -1043,7 +1165,7 @@ export function buildConnectorAgentRoutes() {
       const [[config]] = await getPool().query(
         `SELECT config_id, user_id, tenant_id, device_id
            FROM \`local_connector_user_configs\`
-          WHERE config_id = ? AND user_id = ? AND tenant_id = ? AND device_id = ? AND is_enabled = 1
+          WHERE config_id = ? AND user_id = ? AND tenant_id = ? AND device_id = ? AND is_enabled = 1 AND lifecycle_state = 'active' AND revoked_at IS NULL AND archived_at IS NULL
           LIMIT 1`,
         [payload.config_id, payload.user_id, payload.tenant_id, payload.device_id]
       );
@@ -1053,12 +1175,21 @@ export function buildConnectorAgentRoutes() {
       const [[credentials]] = await getPool().query(
         `SELECT connector_secret, ${connectorLocalApiKeySelect}, cf_token
            FROM \`local_connector_user_configs\`
-          WHERE config_id = ? AND user_id = ? AND tenant_id = ? AND device_id = ? AND is_enabled = 1
+          WHERE config_id = ? AND user_id = ? AND tenant_id = ? AND device_id = ? AND is_enabled = 1 AND lifecycle_state = 'active' AND revoked_at IS NULL AND archived_at IS NULL
           LIMIT 1`,
         [payload.config_id, payload.user_id, payload.tenant_id, payload.device_id]
       );
       if (!credentials?.cf_token || !credentials?.connector_secret) {
         throw httpError(409, "connector_config_incomplete", "Connector config is missing canonical runtime credentials.");
+      }
+      // Fence the final secret-bearing DB read, not merely the earlier claim.
+      // A capability issued before rotation may never redeem newly rotated keys.
+      const selectedEpoch = deriveInstallerCredentialEpoch({
+        ...config, connector_secret: credentials.connector_secret, cf_token: credentials.cf_token,
+      });
+      if (!compareInstallerCredentialEpoch(selectedEpoch, payload.credential_epoch)) {
+        throw httpError(409, "installer_credential_epoch_changed",
+          "Credentials changed during redemption; request a new scoped installer authorization.");
       }
       res.setHeader("X-Mad4B-Installer-Material", "one-time-runtime-credentials");
       return res.status(200).json({
@@ -1103,13 +1234,17 @@ export function buildConnectorAgentRoutes() {
       if (deviceId) { sql += " AND device_id = ?"; params.push(deviceId); }
       const backendToken = String(process.env.BACKEND_API_KEY || "").trim();
       if (backendToken && token === backendToken) {
-        sql += " ORDER BY updated_at DESC LIMIT 1";
-      } else {
-        const authPredicate = await connectorAuthPredicateForToken(token);
-        sql += ` AND ${authPredicate.sql} ORDER BY updated_at DESC LIMIT 1`;
-        params.push(...authPredicate.params);
+        throw httpError(403, "device_owned_policy_credential_required",
+          "Platform API credentials do not attest a device policy identity.");
       }
-      const [[config]] = await getPool().query(sql, params);
+      const authPredicate = await connectorAuthPredicateForToken(token);
+      sql += ` AND ${authPredicate.sql}`;
+      sql += " AND lifecycle_state = 'active' AND revoked_at IS NULL AND archived_at IS NULL LIMIT 2";
+      params.push(...authPredicate.params);
+      const [matches] = await getPool().query(sql, params);
+      if (matches.length > 1) throw httpError(409, "connector_policy_identity_ambiguous",
+        "Multiple device identities matched the connector policy credential.");
+      const config = matches[0] || null;
       if (!config) throw httpError(403, "connector_policy_auth_failed", "Connector policy auth failed.");
 
       const [rows] = await getPool().query(

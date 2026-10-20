@@ -1,7 +1,11 @@
 import { createHash, randomUUID } from "node:crypto";
+import jwt from "jsonwebtoken";
 import { normalizeTenantGptOAuthResource } from "./tenantGptOAuthResourceProfile.js";
 
 export const TENANT_GPT_OAUTH_CORRELATION_SCHEMA_VERSION = 1;
+export const TENANT_GPT_OAUTH_CORRELATION_TICKET_PURPOSE = "tenant_gpt_oauth_correlation_ticket";
+const TENANT_GPT_OAUTH_CORRELATION_TICKET_MAX_LENGTH = 8192;
+const TENANT_GPT_OAUTH_CORRELATION_SIGNING_SECRET_MAX_LENGTH = 4096;
 export const TENANT_GPT_OAUTH_CORRELATION_STAGES = Object.freeze([
   "oauth_authorize",
   "identity_verify",
@@ -340,6 +344,12 @@ export function advanceTenantGptOAuthOperationCorrelation(current, input = {}, {
 export function verifyTenantGptOAuthOperationCorrelation(value, {
   expected_resource = null,
   expected_stage = null,
+  expected_client_id = null,
+  expected_user_id = null,
+  expected_tenant_id = null,
+  expected_oauth_code_jti = null,
+  expected_access_token_jti = null,
+  expected_operation_id = null,
 } = {}) {
   const envelope = normalizeEnvelope(value);
   if (expected_resource) {
@@ -351,11 +361,113 @@ export function verifyTenantGptOAuthOperationCorrelation(value, {
   if (expected_stage && envelope.stage !== stage(expected_stage)) {
     failure("oauth_correlation_stage_mismatch", "OAuth correlation stage does not match.", 409);
   }
+  if (expected_operation_id && envelope.operation_id !== uuid(expected_operation_id, "expected_operation_id")) {
+    failure("oauth_correlation_operation_mismatch", "OAuth correlation operation reference does not match.", 409);
+  }
+  for (const [value, field, actual, code] of [
+    [expected_client_id, "client_id", envelope.client_id_sha256, "oauth_correlation_client_drift"],
+    [expected_user_id, "user_id", envelope.subject_user_sha256, "oauth_correlation_user_drift"],
+    [expected_tenant_id, "tenant_id", envelope.subject_tenant_sha256, "oauth_correlation_tenant_drift"],
+    [expected_oauth_code_jti, "oauth_code_jti", envelope.oauth_code_jti_sha256, "oauth_correlation_code_jti_drift"],
+    [expected_access_token_jti, "access_token_jti", envelope.access_token_jti_sha256, "oauth_correlation_access_jti_drift"],
+  ]) {
+    if (value === null || value === undefined || value === "") continue;
+    const expectedHash = hashReference(value, field, { required: true });
+    if (!actual || actual !== expectedHash) {
+      failure(code, `${field} does not match the verified OAuth correlation envelope.`, 409);
+    }
+  }
   return envelope;
 }
 
 export function tenantGptOAuthOperationCorrelationClaim(value) {
   return Object.freeze({ ...verifyTenantGptOAuthOperationCorrelation(value) });
+}
+
+function requireCorrelationSigningSecret(value) {
+  const secret = String(value || "").trim();
+  if (secret.length < 32 || secret.length > TENANT_GPT_OAUTH_CORRELATION_SIGNING_SECRET_MAX_LENGTH) {
+    failure(
+      "oauth_correlation_ticket_signing_secret_invalid",
+      "A bounded signing secret is required for OAuth correlation tickets.",
+      503,
+    );
+  }
+  return secret;
+}
+
+export function issueTenantGptOAuthCorrelationTicket(value, {
+  jwtSecret,
+  redirect_uri,
+  state,
+  expiresInSeconds = 5 * 60,
+} = {}) {
+  const envelope = verifyTenantGptOAuthOperationCorrelation(value, {
+    expected_stage: "oauth_authorize",
+  });
+  const ttl = Number(expiresInSeconds);
+  if (!Number.isInteger(ttl) || ttl < 30 || ttl > 5 * 60) {
+    failure("oauth_correlation_ticket_ttl_invalid", "OAuth correlation ticket TTL is invalid.", 500);
+  }
+  return jwt.sign(
+    {
+      purpose: TENANT_GPT_OAUTH_CORRELATION_TICKET_PURPOSE,
+      oauth_correlation: tenantGptOAuthOperationCorrelationClaim(envelope),
+      redirect_uri_sha256: hashReference(redirect_uri, "redirect_uri", { required: true }),
+      state_sha256: hashReference(state, "state", { required: true }),
+      secrets_included: false,
+    },
+    requireCorrelationSigningSecret(jwtSecret),
+    {
+      expiresIn: ttl,
+      jwtid: envelope.operation_id,
+    },
+  );
+}
+
+export function verifyTenantGptOAuthCorrelationTicket(ticket, {
+  jwtSecret,
+  expected_client_id,
+  expected_resource,
+  expected_redirect_uri,
+  expected_state,
+  nowMs = Date.now(),
+} = {}) {
+  const raw = text(ticket, "correlation_ticket", TENANT_GPT_OAUTH_CORRELATION_TICKET_MAX_LENGTH, { required: true });
+  let payload;
+  try {
+    payload = jwt.verify(raw, requireCorrelationSigningSecret(jwtSecret), {
+      clockTimestamp: Math.floor(Number(nowMs) / 1000),
+    });
+  } catch (error) {
+    failure(
+      "oauth_correlation_ticket_invalid",
+      "OAuth correlation ticket is invalid or expired.",
+      error?.name === "TokenExpiredError" ? 400 : 409,
+    );
+  }
+  if (
+    payload?.purpose !== TENANT_GPT_OAUTH_CORRELATION_TICKET_PURPOSE ||
+    payload?.secrets_included !== false
+  ) {
+    failure("oauth_correlation_ticket_purpose_invalid", "OAuth correlation ticket purpose is invalid.", 409);
+  }
+  const envelope = verifyTenantGptOAuthOperationCorrelation(payload.oauth_correlation, {
+    expected_stage: "oauth_authorize",
+    expected_client_id,
+    expected_resource,
+  });
+  if (
+    payload.redirect_uri_sha256 !== hashReference(expected_redirect_uri, "redirect_uri", { required: true })
+  ) {
+    failure("oauth_correlation_ticket_redirect_drift", "OAuth correlation ticket redirect_uri does not match.", 409);
+  }
+  if (
+    payload.state_sha256 !== hashReference(expected_state, "state", { required: true })
+  ) {
+    failure("oauth_correlation_ticket_state_drift", "OAuth correlation ticket state does not match.", 409);
+  }
+  return envelope;
 }
 
 export function safeTenantGptOAuthOperationCorrelationEvidence(value) {

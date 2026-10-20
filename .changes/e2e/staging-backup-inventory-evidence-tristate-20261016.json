@@ -1,0 +1,89 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-backup-inventory-evidence-tristate-20261016",
+  "title": "Fail-closed Staging backup-policy inventory evidence state",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-backup-inventory-evidence-tristate-20261016.json",
+      ".github/derived-state-governance.json",
+      "http-generic-api/config/repository-governance-constitution.json",
+      "http-generic-api/stagingBackupRestoreAuthority.js",
+      "http-generic-api/scripts/staging-backup-restore-readiness.mjs",
+      "http-generic-api/test-staging-backup-restore-authority.mjs",
+      "http-generic-api/test-staging-backup-independent-policy-reader.mjs",
+      "docs/runbooks/staging-backup-independent-policy-reader-20261016.md"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Distinguish an independently verified empty Staging policy census from unverified registry access, without changing backup execution or approval authority.",
+      "e2e_journeys": [
+        {
+          "id": "staging-backup-inventory-unknown-vs-absent",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Governed Staging operator",
+          "entrypoint": "Read-only Staging backup readiness CLI with absent independent SELECT-only reader",
+          "terminal_outcome": "Unverified policy inventory returns an explicit evidence blocker and null count, not a false assertion that zero rows were read; actual verified empty inventory is reported as missing.",
+          "steps": [
+            "Check dedicated backup-reader availability without falling back to runtime_app or root.",
+            "Run fail-closed authority assessment against unverified policy inventory and assert it cannot be considered ready.",
+            "Assert verified empty inventory is distinguished as actual missing policy, and unverified forged policy data is not accepted.",
+            "Check read-only CLI results and redact private credentials.",
+            "Maintain synthetic reader-grant and preflight authority regression coverage."
+          ],
+          "assertions": [
+            "Unknown inventory is never displayed as a verified zero policy count.",
+            "Backup/restore and QA writes remain blocked without owner-signed policy plus real encrypted backup/restore evidence.",
+            "No database DDL, GRANT, live backup, QA principal, Production deployment or mutation is performed."
+          ],
+          "tests": [
+            {
+              "id": "backup-preflight-authority-inventory-state",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-backup-restore-authority.mjs",
+              "args": []
+            },
+            {
+              "id": "backup-independent-reader-unverified-readback",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-backup-independent-policy-reader.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/staging-backup-inventory-evidence-tristate-20261016.json",
+            ".github/derived-state-governance.json",
+            "http-generic-api/config/repository-governance-constitution.json",
+            "http-generic-api/stagingBackupRestoreAuthority.js",
+            "http-generic-api/scripts/staging-backup-restore-readiness.mjs",
+            "http-generic-api/test-staging-backup-restore-authority.mjs",
+            "http-generic-api/test-staging-backup-independent-policy-reader.mjs",
+            "docs/runbooks/staging-backup-independent-policy-reader-20261016.md"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}

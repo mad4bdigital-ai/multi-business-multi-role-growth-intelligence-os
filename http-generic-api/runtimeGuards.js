@@ -31,7 +31,19 @@ export function createBackendApiKeyMiddleware(env) {
   const expected = env?.BACKEND_API_KEY;
 
   return async function requireBackendApiKey(req, res, next) {
-    if (!enabled) return next();
+    // No credential configuration is an operational outage, never an authentication bypass.
+    // Protected routes must fail closed in Staging/Production and local development alike.
+    if (!enabled) {
+      return res.status(503).json({
+        ok: false,
+        error: {
+          code: "backend_auth_configuration_missing",
+          message: "Backend authentication is unavailable. A server administrator must configure BACKEND_API_KEY.",
+          status: 503,
+        },
+        secrets_included: false,
+      });
+    }
 
     const auth = req.headers.authorization || req.header("Authorization") || "";
     const headerApiKey = req.headers["x-api-key"] || req.header("x-api-key") || "";

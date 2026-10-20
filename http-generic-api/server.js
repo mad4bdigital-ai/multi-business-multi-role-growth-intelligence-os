@@ -1,5 +1,7 @@
 import * as authService from './authService.js';
 import { generateDeploymentManifest } from "./scripts/generate-deployment-manifest.mjs";
+import { readStagingStartupMutationPolicy } from "./stagingStartupMutationPolicy.js";
+import { resolveControlPlaneWriteDbConfig } from "./controlPlaneWriteAuthority.js";
 import { reconcileRuntimeParityOnStartup } from "./runtimeParityStartupReconciler.js";
 import { startDynamicAuditScheduler } from "./dynamicAuditRuntime.js";
 import { startOpenApiEndpointInventorySync } from "./openApiEndpointInventorySync.js";
@@ -351,6 +353,19 @@ import {
 } from "./services/intentMaturationResolver.js";
 
 const { isOAuthConfigured, inferAuthMode, normalizeAuthContract, findHostingAccountByKey, resolveAccountKeyFromBrand, resolveAccountKey, resolveSecretFromReference, isGoogleApiHost, getAdditionalStaticAuthHeaders, enforceSupportedAuthMode, pathTemplateToRegex, ensureMethodAndPathMatchEndpoint, fetchSchemaContract, resolveSchemaOperation, validateByJsonSchema, validateParameters, validateRequestBody, classifySchemaDrift, buildResolvedAuthHeaders, injectAuthIntoQuery, injectAuthIntoHeaders, injectAuthForSchemaValidation, ensureWritePermissions } = authService;
+
+// Fail before opening the HTTP listener if this Staging instance is missing
+// dedicated, non-root control-plane write credentials. No fallback to DB_USER.
+const startupMutationPolicy = readStagingStartupMutationPolicy(process.env);
+if (startupMutationPolicy.active) {
+  resolveControlPlaneWriteDbConfig(process.env);
+  console.log(JSON.stringify({
+    event: "staging_startup_mutation_policy",
+    mode: startupMutationPolicy.mode,
+    dedicated_control_plane_writer_required: true,
+    secrets_included: false,
+  }));
+}
 
 try {
   generateDeploymentManifest();
@@ -1529,7 +1544,7 @@ async function performUniversalServerWriteback(input = {}) {
       writeExecutionLogUnifiedRow: async (row) => {
         if (DATA_SOURCE_MODE === "sql") {
           try {
-            const sqlResult = await sqlAdapter.appendRow("Execution Log Unified", row);
+            const sqlResult = await sqlAdapter.appendRowWithReadback("Execution Log Unified", row);
             return {
               headerSignature: "sql_runtime_authority",
               expectedHeaderSignature: "sql_runtime_authority",
@@ -1538,12 +1553,14 @@ async function performUniversalServerWriteback(input = {}) {
               preflight: { source: "sql", table: "execution_log" },
               safeColumns: Object.keys(row || {}),
               unsafeColumns: [],
-              sql_insert_id: sqlResult?.insertId ?? null,
+              sql_insert_id: sqlResult.insertId,
+              row_presence_readback_verified: sqlResult.row_presence_readback_verified,
+              independent_authority_attested: false,
               data_source: "sql",
             };
           } catch (err) {
-            console.error("[sinkOrchestration] SQL execution_log append failed — fail-open:", err.message);
-            return null;
+            console.error("[sinkOrchestration] SQL execution_log write outcome unverified:", err.code || "unknown");
+            throw err;
           }
         }
         return writeExecutionLogUnifiedRowCore(
@@ -1572,10 +1589,11 @@ async function performUniversalServerWriteback(input = {}) {
         }
         );
       },
+      enforceDurableJournal: true,
       writeJsonAssetRegistryRow: async (row) => {
         if (DATA_SOURCE_MODE === "sql") {
           try {
-            const sqlResult = await sqlAdapter.appendRow("JSON Asset Registry", row);
+            const sqlResult = await sqlAdapter.appendRowWithReadback("JSON Asset Registry", row);
             return {
               headerSignature: "sql_runtime_authority",
               expectedHeaderSignature: "sql_runtime_authority",
@@ -1583,12 +1601,14 @@ async function performUniversalServerWriteback(input = {}) {
               preflight: { source: "sql", table: "json_assets" },
               safeColumns: Object.keys(row || {}),
               unsafeColumns: [],
-              sql_insert_id: sqlResult?.insertId ?? null,
+              sql_insert_id: sqlResult.insertId,
+              row_presence_readback_verified: sqlResult.row_presence_readback_verified,
+              independent_authority_attested: false,
               data_source: "sql",
             };
           } catch (err) {
-            console.error("[sinkOrchestration] SQL json_assets append failed — fail-open:", err.message);
-            return null;
+            console.error("[sinkOrchestration] SQL json_assets write outcome unverified:", err.code || "unknown");
+            throw err;
           }
         }
         return writeJsonAssetRegistryRowCore(

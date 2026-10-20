@@ -16,33 +16,51 @@ Before credential readiness or a privilege probe is meaningful, `resolveGovernan
 
 `http-generic-api/config/governance-db-provider-capabilities.json`
 
-The current Production policy is `hostinger_web_cloud_mysql` / `managed_hpanel_mysql` and does not satisfy the dedicated Governance writer contract. The expected fail-closed code is:
+The current repository provider policy is `hostinger_web_cloud_mysql` / `managed_hpanel_two_database_mysql`
+and **declares** independent Governance DB provisioning, exact direct grants and a dedicated writer
+as supported. This claim originated from manual Hostinger provisioning evidence reviewed
+on `2026-08-13`; it is **not live credential, schema, or grant readiness**.
 
-`GOVERNANCE_DB_PROVIDER_CAPABILITY_UNSUPPORTED`
-
-While that code is active:
-
-- do not request or copy Governance credentials merely to make the probe progress;
+If Production runtime evidence contradicts the repository declaration, classify it as
+`PROVIDER_DECLARATION_UNVERIFIED` or the bounded code actually returned by the runtime.
+Never invent `GOVERNANCE_DB_PROVIDER_CAPABILITY_UNSUPPORTED` when the current policy declares support.
+Only an actually unsupported provider policy should return that code. While live readiness is
+not established:
 - do not copy `DB_USER` into `GOVERNANCE_DB_USER`;
-- do not broaden the ordinary runtime account;
-- do not repeat Migration readiness expecting a different result;
-- choose a separately reviewed provider migration or Governance datastore redesign first.
+- do not broaden ordinary Runtime grants;
+- do not enter credentials in workflow input, ChatGPT, logs, or artifacts;
+- do not execute migration, schema rebuild, GRANT/REVOKE, or a Production deployment;
+- collect the existing exact-SHA/read-only runtime evidence and classify missing inputs.
 
 See `docs/governance-db-provider-capability.md` for the remediation boundary.
 
 ## Required privilege matrix
 
-After a future provider remediation makes the provider-capability gate truthfully supported, the dedicated principal must have exactly:
+After live provider, Production identity, and database readiness are independently verified,
+the canonical `GOVERNANCE_DB_PRIVILEGE_MATRIX` requires **17 tables and 39 exact direct table privileges**:
 
 | Table | Required privileges |
 |---|---|
 | `capability_resolution_envelope_ledger` | `SELECT, INSERT, UPDATE` |
-| `approval_holds` | `INSERT` |
+| `approval_holds` | `SELECT, INSERT` |
 | `governed_migration_authorization_registry` | `SELECT, INSERT, UPDATE` |
 | `capability_apply_authorization_policy_registry` | `SELECT, INSERT, UPDATE` |
 | `runtime_dispatch_certification_registry` | `SELECT, INSERT, UPDATE` |
 | `governed_migration_ledger` | `SELECT` |
 | `platform_resource_authority_bindings` | `SELECT, INSERT` |
+| `platform_resource_recipes` | `SELECT` |
+| `platform_resource_recipe_steps` | `SELECT` |
+| `repository_operation_leases` | `SELECT, INSERT, UPDATE` |
+| `repository_mutation_plans_v6` | `SELECT, INSERT, UPDATE` |
+| `repository_mutation_runs_v6` | `SELECT, INSERT, UPDATE` |
+| `runtime_break_glass_incidents` | `SELECT, INSERT, UPDATE` |
+| `runtime_break_glass_audit_events` | `SELECT, INSERT` |
+| `runtime_verification_runs` | `SELECT` |
+| `runtime_verification_evidence_chunks` | `SELECT, INSERT` |
+| `deployment_attestations` | `SELECT, INSERT, UPDATE` |
+
+This table is derived from the current `main` source and must be compared against
+the actual deployed `Production` source at its exact SHA; repository `main` is not proof of running Production.
 
 The dedicated principal must not carry schema-wide privileges, unrelated table privileges, column-level grants, applicable roles, `GRANT ALL`, `DROP`, `ALTER`, `CREATE`, `DELETE`, `FILE`, `PROCESS`, `SUPER`, account-management authority, or equivalent broad administrative authority.
 
@@ -59,9 +77,9 @@ Before the live privilege probe can pass, all of the following must already be t
 5. The Production Node.js runtime contains the ordinary runtime `DB_*` configuration and the dedicated Governance DB credentials required by the writer contract.
 6. The exact current `Production` branch SHA is known and the running deployment reports that same SHA and branch.
 
-The current Hostinger managed Production fails prerequisite 1 and must not skip ahead to credential or GRANT work.
+The policy's declared provider support alone does not establish any of these prerequisites; live Production connection, schema, grants, and exact deployment parity remain independently unverified until a fresh probe passes.
 
-Required dedicated Governance database identity after provider remediation:
+Required dedicated Governance database identity after provider and authority verification:
 
 - `GOVERNANCE_DB_NAME`
 - `GOVERNANCE_DB_USER`
@@ -99,6 +117,37 @@ The running Production process performs the bounded readiness path with its runt
 When provider capability is supported, the runtime may continue to the read-only database metadata probe. The GitHub runner receives only the bounded no-secret projection. After collecting evidence, the workflow re-reads the protected `Production` ref and fails closed if it moved.
 
 The workflow does not receive or connect with Production database credentials.
+
+
+## Cross-database Production boundary
+
+The above Governance writer is **one of several distinct principals**:
+ordinary Runtime (`DB_*`), dedicated Governance (`GOVERNANCE_DB_*`), Runtime Persistence
+(`RUNTIME_PERSISTENCE_DB_*`), optional dedicated Control Plane writes
+(`CONTROL_PLANE_WRITE_DB_*`), optional Local Manager writes
+(`LOCAL_MANAGER_WRITE_DB_*`), and the independent Recovery Control Store.
+Do not infer the presence of one from another or reuse an account to close a gap.
+
+Production `BOOTSTRAP_ROLE_GRANT_POLICIES` defines a *minimum bootstrap set*, not an
+authorization to copy the 59-required / 11-optional Staging Runtime overlay:
+- ordinary Runtime baseline: **8 core tables**, `SELECT/INSERT/UPDATE` on each (24 operations);
+- Governance writer: **17 tables / 39 operations**, exact per-table matrix;
+- Runtime Persistence: **one table / 4 operations**, including bounded `DELETE`.
+
+Actual Production operations (audit ledger, endpoint discovery, managed secrets, OAuth,
+Dynamic Audit and Local Manager) must be traced to the **actual executing account** and
+tested separately. An `audit_log` grant or a Staging-only credential rotation is **not**
+automatically authorized for Production. Do not grant schema-wide rights or run Staging's
+composite `ALTER USER` / `REVOKE ALL` repair script against Production.
+
+The required read-only order is:
+exact Production ref → public deployment identity parity → provider capability claim vs
+live preflight → database identity/schema census → exact principal grants and effective
+roles → dedicated-writer contract checks → backup/recovery store inspection →
+independent owner-reviewed plan (if needed). Any later grant mutation requires an
+independent exact-step approval and same-cycle privilege readback against the executing
+Production database identity. No absent or stale evidence becomes
+permission to apply.
 
 ## Runtime evidence boundary
 

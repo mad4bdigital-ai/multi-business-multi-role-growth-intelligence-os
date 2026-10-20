@@ -4,6 +4,36 @@ import { readFileSync } from "node:fs";
 const workflow = readFileSync("../.github/workflows/derived-state-converged-automerge.yml", "utf8");
 const readiness = readFileSync("../.github/ops/github-followup-automerge-readiness.mjs", "utf8");
 
+// Review of Production cannot produce main-only Derived State Closure evidence.
+const closureWorkflow = readFileSync("../.github/workflows/derived-state-closure.yml", "utf8").replace(/\r\n/g, "\n");
+assert.ok(closureWorkflow.includes("    if: >-\n      github.event_name != 'pull_request_review' ||\n      github.event.pull_request.base.ref == 'main'"), "non-main review must skip main-only Derived State job");
+assert.ok(closureWorkflow.includes("    branches: [main]"), "main source push and PR restrictions must remain");
+assert.ok(closureWorkflow.includes("    types: [submitted, dismissed]"), "main owner-review replay remains supported");
+assert.ok(closureWorkflow.includes("candidate_kind=\"github_merge_candidate\""), "main evidence requires merge-candidate provenance");
+
+const attestorJob = workflow.split("\n  attest:\n")[1]?.split("\n  merge:\n")[0];
+assert.ok(attestorJob, "Finalizer must expose an independently protected attestor job");
+assert.match(
+  attestorJob,
+  /    environment:\n      name: Production\n      deployment: false\n    runs-on: ubuntu-24\.04/,
+  "trusted Production attestation must use the protected Production Environment without deployment",
+);
+assert.match(
+  attestorJob,
+  /BACKEND_API_KEY: \$\{\{ secrets\.HOSTINGER_PRODUCTION_BACKEND_API_KEY \}\}/,
+  "Production Finalizer must use only the Environment Production credential",
+);
+assert.doesNotMatch(
+  attestorJob,
+  /BACKEND_API_KEY: \$\{\{ secrets\.BACKEND_API_KEY \}\}/,
+  "Windows Staging repository key must not be used by the Production Finalizer",
+);
+assert.match(
+  attestorJob,
+  /error_code=production_environment_backend_api_key_missing/,
+  "absence of the Production credential must fail closed before authentication",
+);
+
 assert.match(
   workflow,
   /github\.event\.workflow_run\.name == 'Derived State Closure' && github\.event\.workflow_run\.event == 'pull_request'/,
@@ -56,12 +86,48 @@ assert.match(readiness, /repositoryState\.allow_auto_merge !== false/, "native r
 assert.match(readiness, /rules\/branches\/\$\{encodeURIComponent\(branch\)\}/, "verifier must read active branch rules instead of relying on classic branch protection only");
 assert.match(readiness, /rulesets\?includes_parents=true&per_page=100/, "verifier must read the complete applicable ruleset index");
 assert.match(readiness, /managedRuleset\.bypass_actors/, "verifier must prove the managed ruleset has no bypass actors");
-assert.match(readiness, /activeBinding\.integration_id !== expectedAttestorAppId/, "active required status must be bound to the exact trusted App id");
-assert.match(readiness, /managedBinding\.integration_id !== expectedAttestorAppId/, "managed ruleset required status must be bound to the exact trusted App id");
+assert.match(readiness, /allowedCheckSource\(activeBinding,/, "active source must pass the independent trusted-check guard");
+assert.match(readiness, /allowedCheckSource\(managedBinding,/, "managed source must pass the independent trusted-check guard");
 assert.match(readiness, /commits\/\$\{expectedCandidate\}\/statuses\?per_page=100/, "verifier must read exact-candidate statuses");
-assert.match(readiness, /Number\(status\?\.creator\?\.id \|\| 0\) === expectedStatusCreatorId/, "candidate success status must come from the same-cycle attestor creator");
+assert.match(readiness, /latestSameCycleAttestorStatus\(statuses,/, "candidate success must be proven by the native tested pure predicate");
 assert.match(readiness, /safe_to_register_auto_merge: false/, "native auto-merge registration must remain forbidden");
+assert.match(attestorJob, /attestor-contract/, "finalizer must read the authenticated attestor capability before mutating state");
+assert.match(attestorJob, /attestor_runtime_contract_unverified/, "legacy or missing preflight must fail closed");
+assert.match(attestorJob, /github-repository-governance-attestation-v4/, "candidate-only legacy attestor v3 must be rejected");
+assert.match(attestorJob, /main_exact_head_status_supported == true/, "main attestor must prove native exact-head capability");
+assert.match(attestorJob, /native_status_provider == "installed_github_app"/, "untrusted status providers must be rejected");
+const capabilityProbeIndex = attestorJob.indexOf('attestor-contract');
+const attestationPostIndex = attestorJob.indexOf('policy-controller" -H "Authorization: Bearer $BACKEND_API_KEY"');
+assert.ok(capabilityProbeIndex >= 0 && attestationPostIndex > capabilityProbeIndex, "read-only v4 capability probe must precede every mutating attestation POST");
+assert.match(workflow, /error_code=attestation_transport_failed/, "transport failure must have a nonsecret, typed diagnostic");
+assert.match(workflow, /error_code=attestation_http_status_invalid/, "invalid HTTP response must fail closed");
+assert.match(workflow, /error_code=attestation_response_contract_mismatch/, "invalid successful response must fail closed with typed diagnostic");
+assert.match(workflow, /error_code=attestation_identity_readback_missing/, "attestor and same-cycle status identities must be present");
+assert.match(workflow, /http_status=%s error_code=%s/, "non-200 errors must expose only bounded status and machine code");
+assert.match(workflow, /\^\[a-z\]\[a-z0-9_\]\{2,127\}\$/, "server error codes must be allowlisted before logging");
+assert.doesNotMatch(workflow, /printf[^\n]*(?:\$response|BACKEND_API_KEY)/, "raw response files and backend credentials must never be printed");
+assert.doesNotMatch(workflow, /echo[^\n]*\.error\.message/, "untrusted error messages must not enter workflow logs");
+assert.match(workflow, /attestor_status_id: \$\{\{ steps\.final\.outputs\.attestor_status_id \}\}/, "attestation must return the exact newly created status ID");
+assert.match(workflow, /EXPECTED_ATTESTOR_STATUS_ID="\$ATTESTOR_STATUS_ID"/, "finalizer must carry the same-cycle status ID to the verifier");
+assert.match(readiness, /expectedAttestorStatusId = Number\(process\.env\.EXPECTED_ATTESTOR_STATUS_ID/, "status ID must be explicitly supplied");
+assert.match(readiness, /statusId: expectedAttestorStatusId/, "old success must not pass after newer spoofed statuses");
+assert.match(readiness, /isAuthorizedMainAnySource\(mainSourcePolicy\)/, "only Constitution-authorized main Any source mode may pass");
+assert.match(readiness, /appId: expectedAttestorAppId, anySourceOptIn: anySourceEnabled/, "unbound check is permitted only under main's explicit Any source authority");
+assert.match(readiness, /allowedCheckSource\(managedBinding,/, "managed ruleset must match Constitution source mode");
 assert.match(readiness, /safe_to_merge_now: true/, "verifier may authorize only an immediate exact-head finalizer merge");
 assert.doesNotMatch(readiness, /allow_auto_merge !== true/, "retired native auto-merge prerequisite must not return");
+
+
+const livePolicyWorkflow = readFileSync("../.github/workflows/policy-objection-ci.yml", "utf8");
+const liveClosureWorkflow = readFileSync("../.github/workflows/derived-state-closure.yml", "utf8");
+assert.match(livePolicyWorkflow, /Resolve live PR candidate bound to event head and base/, "Policy Objection must resolve the live candidate");
+assert.match(livePolicyWorkflow, /pull-requests: read/, "PR metadata access must be explicit");
+assert.match(livePolicyWorkflow, /\.head\.sha.*EVENT_HEAD_SHA/, "producer rejects stale HEAD");
+assert.match(livePolicyWorkflow, /\.base\.sha.*EVENT_BASE_SHA/, "producer rejects stale base");
+assert.match(livePolicyWorkflow, /ref: .*steps\.candidate\.outputs\.sha/, "producer checks out its validated live candidate");
+assert.doesNotMatch(livePolicyWorkflow, /ref: .*github\.sha/, "producer must not trust stale event merge SHA");
+assert.match(liveClosureWorkflow, /derived-state-closure-event-pr\.json/, "source detector must read current PR metadata");
+assert.match(liveClosureWorkflow, /candidate_sha=.*merge_commit_sha/, "source detector must bind the current exact merge candidate");
+assert.match(liveClosureWorkflow, /group: derived-state-closure-.*github\.event_name/, "PR source and review runs must not cancel one another");
 
 console.log("derived state converged finalizer source event tests passed");

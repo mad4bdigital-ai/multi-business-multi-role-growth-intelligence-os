@@ -465,6 +465,10 @@ surfaces:
         - session-archive
       omission: fail
       exclusion_records:
+        - operation_id: discoverHostingerRecoveryAllowlist
+          reason: Admin-backend-only Hostinger recovery metadata endpoint; even read-only target and provider inventory requires an independent platform admin principal. Tenant Core OAuth must not gain this capability by tag matching.
+          owner: remote-runtime
+          review_after: 2027-01-15
         - operation_id: redeemConnectorAgentInstallerSecrets
           reason: One-time installer secret redemption is a device-bound internal bearer exchange and must never be exposed through a Custom GPT operation surface.
           owner: local-connector

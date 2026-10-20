@@ -15,6 +15,20 @@ on:
         description: Type FINALIZE_GOVERNANCE_ATTESTATION
         required: true
         type: string
+      pr_number:
+        description: Optional exact PR for GitHub Direct mode
+        required: false
+        type: string
+      expected_head_sha:
+        description: Optional exact source HEAD for GitHub Direct mode
+        required: false
+        type: string
+      action:
+        description: GitHub Direct plan or attestation mode
+        required: false
+        default: plan
+        type: choice
+        options: [plan, attest, attest_and_merge]
 
 permissions:
   actions: read
@@ -35,6 +49,9 @@ jobs:
        ((github.event.workflow_run.name == 'Derived State Closure' && github.event.workflow_run.event == 'pull_request') ||
         (github.event.workflow_run.name == 'Governed Production Promotion Request Launcher' && github.event.workflow_run.event == 'workflow_dispatch'))) ||
       (github.event_name == 'workflow_dispatch' && inputs.confirmation == 'FINALIZE_GOVERNANCE_ATTESTATION')
+    environment:
+      name: Production
+      deployment: false
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     outputs:
@@ -46,9 +63,12 @@ jobs:
       manual_count: ${{ steps.final.outputs.manual_count }}
       attestor_app_id: ${{ steps.final.outputs.attestor_app_id }}
       status_creator_id: ${{ steps.final.outputs.status_creator_id }}
+      attestor_status_id: ${{ steps.final.outputs.attestor_status_id }}
+      head_attestor_status_id: ${{ steps.final.outputs.head_attestor_status_id }}
+      head_status_creator_id: ${{ steps.final.outputs.head_status_creator_id }}
     env:
       GH_TOKEN: ${{ github.token }}
-      BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
+      BACKEND_API_KEY: ${{ secrets.HOSTINGER_PRODUCTION_BACKEND_API_KEY }}
       RUNTIME_BASE_URL: https://auth.mad4b.com
     steps:
       - name: Resolve and validate trusted source evidence
@@ -58,6 +78,10 @@ jobs:
           SOURCE_RUN_ID: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.id || inputs.source_run_id }}
         run: |
           set -euo pipefail
+          if [[ -z "${BACKEND_API_KEY:-}" ]]; then
+            echo "::error title=Trusted attestation configuration::error_code=production_environment_backend_api_key_missing" >&2
+            exit 1
+          fi
           [[ "$SOURCE_RUN_ID" =~ ^[1-9][0-9]*$ ]]
           run="$RUNNER_TEMP/source-run.json"
           gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${SOURCE_RUN_ID}" > "$run"
@@ -144,9 +168,51 @@ jobs:
             --arg pr "$pr_number" --arg source "$source_head_sha" --arg base "$base_sha" --arg candidate "$candidate_sha" --arg executed "$executed_sha" \
             --arg digest "$evidence_digest" --arg run "$SOURCE_RUN_ID" --arg confirm "$confirm" \
             '{mode:$mode,owner:$owner,repo:$repo,default_branch:$branch,pr_number:($pr|tonumber),source_head_sha:$source,base_sha:$base,candidate_sha:$candidate,executed_sha:$executed,evidence_sha256:$digest,source_run_id:($run|tonumber),confirm:$confirm}' > "$payload"
+          # Capability probe is authenticated and read-only. In particular, do not
+          # POST to a candidate-only legacy backend that shares the old v3 label.
+          preflight_response="$RUNNER_TEMP/attestor-preflight-response.json"
+          if ! preflight_http="$(curl --proto '=https' --tlsv1.2 -sS -o "$preflight_response" -w '%{http_code}' "$RUNTIME_BASE_URL/admin/repository-automation/attestor-contract" -H "Authorization: Bearer $BACKEND_API_KEY" -H 'Accept: application/json')"; then
+            echo "::error title=Trusted attestor preflight::error_code=attestor_contract_probe_transport_failed" >&2
+            exit 1
+          fi
+          if [[ "$preflight_http" != "200" ]] || ! jq -e --arg branch "$branch" '
+            .contract == "github-repository-governance-attestation-v4"
+            and .mode == "preflight"
+            and .candidate_same_cycle_readback_supported == true
+            and .native_status_provider == "installed_github_app"
+            and .mutation_executed == false
+            and .secrets_included == false
+            and (.supported_branches | index($branch) != null)
+            and (if $branch == "main" then .main_exact_head_status_supported == true else true end)
+          ' "$preflight_response" >/dev/null 2>&1; then
+            echo "::error title=Trusted attestor preflight::error_code=attestor_runtime_contract_unverified http_status=${preflight_http}" >&2
+            exit 1
+          fi
           response="$RUNNER_TEMP/attestation-response.json"
-          http="$(curl -sS -o "$response" -w '%{http_code}' -X POST "$RUNTIME_BASE_URL/admin/repository-automation/policy-controller" -H "Authorization: Bearer $BACKEND_API_KEY" -H 'Accept: application/json' -H 'Content-Type: application/json' --data-binary "@$payload")"
-          test "$http" = "200"
+          # Report only an HTTP status and a bounded machine error.code; never emit the body, headers, or credential.
+          if ! http="$(curl -sS -o "$response" -w '%{http_code}' -X POST "$RUNTIME_BASE_URL/admin/repository-automation/policy-controller" -H "Authorization: Bearer $BACKEND_API_KEY" -H 'Accept: application/json' -H 'Content-Type: application/json' --data-binary "@$payload")"; then
+            echo "::error title=Trusted attestation request::error_code=attestation_transport_failed" >&2
+            exit 1
+          fi
+          if [[ ! "$http" =~ ^[0-9]{3}$ ]]; then
+            echo "::error title=Trusted attestation request::error_code=attestation_http_status_invalid" >&2
+            exit 1
+          fi
+          if [[ "$http" != "200" ]]; then
+            error_code="$(jq -r 'if (.error.code | type) == "string" then .error.code else "unavailable" end' "$response" 2>/dev/null || true)"
+            if [[ ! "$error_code" =~ ^[a-z][a-z0-9_]{2,127}$ ]]; then error_code="unavailable"; fi
+            printf '::error title=Trusted attestation rejected::http_status=%s error_code=%s\n' "$http" "$error_code" >&2
+            exit 1
+          fi
+          if ! jq -e --arg branch "$branch" --arg candidate "$candidate_sha" --arg digest "$evidence_digest" '
+            .mode == "attest" and .branch == $branch and .candidate_sha == $candidate
+            and .contract == "github-repository-governance-attestation-v4"
+            and .source_provenance.artifact_digest_sha256 == $digest
+            and .same_cycle_readback_proven == true
+          ' "$response" >/dev/null 2>&1; then
+            echo "::error title=Trusted attestation response::error_code=attestation_response_contract_mismatch" >&2
+            exit 1
+          fi
           test "$(jq -r '.mode' "$response")" = "attest"
           test "$(jq -r '.branch' "$response")" = "$branch"
           test "$(jq -r '.candidate_sha' "$response")" = "$candidate_sha"
@@ -154,8 +220,26 @@ jobs:
           test "$(jq -r '.same_cycle_readback_proven' "$response")" = "true"
           attestor_app_id="$(jq -r '.app_id // empty' "$response")"
           status_creator_id="$(jq -r '.status_creator_id // empty' "$response")"
+          attestor_status_id="$(jq -r '.status_id // empty' "$response")"
+          head_attestor_status_id="$(jq -r '.head_status_id // empty' "$response")"
+          head_status_creator_id="$(jq -r '.head_status_creator_id // empty' "$response")"
+          if [[ ! "$attestor_app_id" =~ ^[1-9][0-9]*$ || ! "$status_creator_id" =~ ^[1-9][0-9]*$ || ! "$attestor_status_id" =~ ^[1-9][0-9]*$ ]]; then
+            echo "::error title=Trusted attestation response::error_code=attestation_identity_readback_missing" >&2
+            exit 1
+          fi
           [[ "$attestor_app_id" =~ ^[1-9][0-9]*$ ]]
           [[ "$status_creator_id" =~ ^[1-9][0-9]*$ ]]
+          [[ "$attestor_status_id" =~ ^[1-9][0-9]*$ ]]
+          if [[ "$branch" == main ]]; then
+            if [[ ! "$head_attestor_status_id" =~ ^[1-9][0-9]*$ \
+                || ! "$head_status_creator_id" =~ ^[1-9][0-9]*$ \
+                || "$head_status_creator_id" != "$status_creator_id" \
+                || "$head_attestor_status_id" == "$attestor_status_id" \
+                || "$(jq -r '.native_required_head_status_proven' "$response")" != true ]]; then
+              echo "::error title=Trusted attestation response::error_code=required_head_status_identity_missing" >&2
+              exit 1
+            fi
+          fi
           {
             echo "branch=$branch"
             echo "pr_number=$pr_number"
@@ -165,6 +249,9 @@ jobs:
             echo "manual_count=$manual_count"
             echo "attestor_app_id=$attestor_app_id"
             echo "status_creator_id=$status_creator_id"
+            echo "attestor_status_id=$attestor_status_id"
+            echo "head_attestor_status_id=$head_attestor_status_id"
+            echo "head_status_creator_id=$head_status_creator_id"
           } >> "$GITHUB_OUTPUT"
 
   merge:
@@ -191,6 +278,9 @@ jobs:
           CANDIDATE_SHA: ${{ needs.attest.outputs.candidate_sha }}
           ATTESTOR_APP_ID: ${{ needs.attest.outputs.attestor_app_id }}
           STATUS_CREATOR_ID: ${{ needs.attest.outputs.status_creator_id }}
+          ATTESTOR_STATUS_ID: ${{ needs.attest.outputs.attestor_status_id }}
+          HEAD_ATTESTOR_STATUS_ID: ${{ needs.attest.outputs.head_attestor_status_id }}
+          HEAD_STATUS_CREATOR_ID: ${{ needs.attest.outputs.head_status_creator_id }}
         shell: bash
         run: |
           set -euo pipefail
@@ -201,6 +291,9 @@ jobs:
           for value in "$PR_HEAD_SHA" "$BASE_SHA" "$CANDIDATE_SHA"; do [[ "$value" =~ ^[0-9a-f]{40}$ ]]; done
           [[ "$ATTESTOR_APP_ID" =~ ^[1-9][0-9]*$ ]]
           [[ "$STATUS_CREATOR_ID" =~ ^[1-9][0-9]*$ ]]
+          [[ "$ATTESTOR_STATUS_ID" =~ ^[1-9][0-9]*$ ]]
+          [[ "$HEAD_ATTESTOR_STATUS_ID" =~ ^[1-9][0-9]*$ ]]
+          [[ "$HEAD_STATUS_CREATOR_ID" =~ ^[1-9][0-9]*$ ]]
 
           TARGET_BRANCH=main \
           REQUIRED_CHECK_CONTEXT="Derived State Closure" \
@@ -209,6 +302,9 @@ jobs:
           EXPECTED_CANDIDATE_SHA="$CANDIDATE_SHA" \
           EXPECTED_ATTESTOR_APP_ID="$ATTESTOR_APP_ID" \
           EXPECTED_STATUS_CREATOR_ID="$STATUS_CREATOR_ID" \
+          EXPECTED_ATTESTOR_STATUS_ID="$ATTESTOR_STATUS_ID" \
+          EXPECTED_HEAD_ATTESTOR_STATUS_ID="$HEAD_ATTESTOR_STATUS_ID" \
+          EXPECTED_HEAD_STATUS_CREATOR_ID="$HEAD_STATUS_CREATOR_ID" \
           PR_NUMBER="$PR_NUMBER" \
           node .github/ops/github-followup-automerge-readiness.mjs
 
@@ -245,3 +341,164 @@ jobs:
           gh api "repos/${GITHUB_REPOSITORY}/commits/${readback_merge_commit_sha}" >/dev/null
           gh pr comment "$PR_NUMBER" --body "GOVERNANCE_FINAL_ATTESTATION state=merged candidate_sha=${CANDIDATE_SHA} source_head_sha=${PR_HEAD_SHA} merge_commit_sha=${readback_merge_commit_sha} exact_candidate=true blocking_objections=0 manual_objections=0 server_protection_verified=true native_auto_merge=false" >/dev/null
           echo "Governed exact-head merge verified for PR ${PR_NUMBER}; command_rc=${merge_rc}, merge_commit=${readback_merge_commit_sha}."
+
+  direct_attest:
+    name: Independent exact-head App attestation
+    permissions:
+      contents: read
+      actions: read
+      checks: read
+      pull-requests: read
+      statuses: read
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && (inputs.confirmation == 'PLAN_DIRECT' || inputs.confirmation == 'DIRECT_ATTEST_EXACT_HEAD' || inputs.confirmation == 'DIRECT_ATTEST_AND_MERGE')
+    environment:
+      name: Governance-Direct
+      deployment: false
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    outputs:
+      pr_number: ${{ steps.direct.outputs.pr_number }}
+      source_head_sha: ${{ steps.direct.outputs.source_head_sha }}
+      base_sha: ${{ steps.direct.outputs.base_sha }}
+      candidate_sha: ${{ steps.direct.outputs.candidate_sha }}
+      attestor_app_id: ${{ steps.direct.outputs.attestor_app_id }}
+      status_creator_id: ${{ steps.direct.outputs.status_creator_id }}
+      attestor_status_id: ${{ steps.direct.outputs.attestor_status_id }}
+    steps:
+      - name: Bind exact input and explicit owner confirmation
+        env:
+          MODE: ${{ inputs.action }}
+          CONFIRM: ${{ inputs.confirmation }}
+          HEAD: ${{ inputs.expected_head_sha }}
+          PR: ${{ inputs.pr_number }}
+          RUN: ${{ inputs.source_run_id }}
+        run: |
+          set -euo pipefail
+          test "$GITHUB_ACTOR" = "${{ github.repository_owner }}"
+          [[ "$HEAD" =~ ^[a-f0-9]{40}$ ]]
+          [[ "$PR" =~ ^[1-9][0-9]*$ ]]
+          [[ "$RUN" =~ ^[1-9][0-9]*$ ]]
+          case "$MODE:$CONFIRM" in
+            plan:PLAN_DIRECT|attest:DIRECT_ATTEST_EXACT_HEAD|attest_and_merge:DIRECT_ATTEST_AND_MERGE) ;;
+            *) echo "::error::Explicit matching confirmation required"; exit 1 ;;
+          esac
+
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Read current PR identity and canonical source artifact
+        id: source
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ inputs.pr_number }}
+          HEAD: ${{ inputs.expected_head_sha }}
+          RUN: ${{ inputs.source_run_id }}
+        run: |
+          set -euo pipefail
+          gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR}" > "$RUNNER_TEMP/direct-pr.json"
+          jq -e --arg head "$HEAD" --arg repo "$GITHUB_REPOSITORY" \
+            '.state=="open" and .draft==false and .base.ref=="main" and
+              .head.sha==$head and .head.repo.full_name==$repo' \
+            "$RUNNER_TEMP/direct-pr.json" >/dev/null
+          head_branch="$(jq -r '.head.ref' "$RUNNER_TEMP/direct-pr.json")"
+          if [[ "$head_branch" == main || "$head_branch" == Production ]]; then
+            echo "::error::Protected source branch rejected"; exit 1
+          fi
+          base="$(jq -r '.base.sha' "$RUNNER_TEMP/direct-pr.json")"
+          candidate="$(jq -r '.merge_commit_sha' "$RUNNER_TEMP/direct-pr.json")"
+          [[ "$base" =~ ^[a-f0-9]{40}$ ]]
+          [[ "$candidate" =~ ^[a-f0-9]{40}$ ]]
+          mkdir -p "$RUNNER_TEMP/direct-evidence"
+          gh run download "$RUN" --repo "$GITHUB_REPOSITORY" \
+            -n "derived-state-closure-${RUN}" -D "$RUNNER_TEMP/direct-evidence"
+          echo "base=$base" >> "$GITHUB_OUTPUT"
+          echo "candidate=$candidate" >> "$GITHUB_OUTPUT"
+
+      - name: Verify and issue trusted status without Hostinger
+        id: direct
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          DIRECT_ATTESTOR_ENABLED: ${{ vars.DIRECT_GITHUB_ATTESTOR_ENABLED }}
+          DIRECT_GITHUB_APP_ID: ${{ secrets.DIRECT_GITHUB_APP_ID }}
+          DIRECT_GITHUB_APP_PRIVATE_KEY: ${{ secrets.DIRECT_GITHUB_APP_PRIVATE_KEY }}
+          MODE: ${{ inputs.action }}
+          PR: ${{ inputs.pr_number }}
+          HEAD: ${{ inputs.expected_head_sha }}
+          RUN: ${{ inputs.source_run_id }}
+          BASE: ${{ steps.source.outputs.base }}
+          CANDIDATE: ${{ steps.source.outputs.candidate }}
+        run: |
+          set -euo pipefail
+          if [[ "$MODE" == "plan" ]]; then operation=plan; else operation=attest; fi
+          node .github/scripts/github-direct-attestor.mjs \
+            "--pr=$PR" "--head=$HEAD" "--run=$RUN" \
+            "--base=$BASE" "--candidate=$CANDIDATE" \
+            "--evidence-dir=$RUNNER_TEMP/direct-evidence" "--mode=$operation"
+
+  direct_merge:
+    name: Server-enforced exact-head governed merge
+    permissions:
+      contents: read
+      pull-requests: read
+      statuses: read
+    needs: direct_attest
+    if: inputs.action == 'attest_and_merge' && needs.direct_attest.result == 'success'
+    environment:
+      name: Governance-Direct
+      deployment: false
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Verify same-cycle status, no bypass, merge and readback
+        env:
+          GH_TOKEN: ${{ secrets.REPO_AUTOSYNC_TOKEN }}
+          PR: ${{ needs.direct_attest.outputs.pr_number }}
+          HEAD: ${{ needs.direct_attest.outputs.source_head_sha }}
+          BASE: ${{ needs.direct_attest.outputs.base_sha }}
+          CANDIDATE: ${{ needs.direct_attest.outputs.candidate_sha }}
+          APP_ID: ${{ needs.direct_attest.outputs.attestor_app_id }}
+          CREATOR: ${{ needs.direct_attest.outputs.status_creator_id }}
+          STATUS_ID: ${{ needs.direct_attest.outputs.attestor_status_id }}
+        run: |
+          set -euo pipefail
+          test -n "$GH_TOKEN"
+          for v in "$HEAD" "$BASE" "$CANDIDATE"; do [[ "$v" =~ ^[a-f0-9]{40}$ ]]; done
+          for v in "$APP_ID" "$CREATOR" "$STATUS_ID"; do [[ "$v" =~ ^[1-9][0-9]*$ ]]; done
+          pr="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR}")"
+          jq -e --arg head "$HEAD" --arg base "$BASE" --arg candidate "$CANDIDATE" \
+            '.state=="open" and .draft==false and .base.ref=="main" and
+             .head.sha==$head and .base.sha==$base and .merge_commit_sha==$candidate' <<<"$pr" >/dev/null
+          labels="$(gh api "repos/${GITHUB_REPOSITORY}/issues/${PR}" --jq '[.labels[].name]')"
+          jq -e 'index("do-not-auto-merge")==null and index("manual-merge")==null and
+            index("manual-review")==null and index("security-review")==null' <<<"$labels" >/dev/null
+          rules="$(gh api "repos/${GITHUB_REPOSITORY}/rulesets?includes_parents=true&per_page=100")"
+          rule_id="$(jq -r '[.[] | select(.enforcement=="active" and .name=="MAD4B main review policy") | .id] |
+            if length==1 then .[0] else empty end' <<<"$rules")"
+          [[ "$rule_id" =~ ^[1-9][0-9]*$ ]]
+          rule="$(gh api "repos/${GITHUB_REPOSITORY}/rulesets/${rule_id}")"
+          jq -e '.enforcement=="active" and (.bypass_actors|length)==0 and
+            any(.rules[]; .type=="required_status_checks" and
+              any(.parameters.required_status_checks[]; .context=="Derived State Closure"))' <<<"$rule" >/dev/null
+          statuses="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${HEAD}/statuses?per_page=100")"
+          jq -e --argjson id "$STATUS_ID" --argjson creator "$CREATOR" \
+            '([.[] | select(.context=="Derived State Closure")][0] |
+              .id==$id and .state=="success" and .creator.id==$creator)' <<<"$statuses" >/dev/null
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/commits/${CANDIDATE}/statuses?per_page=100" --jq length)" = 0
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/commits/${CANDIDATE}/check-runs?per_page=100" --jq .total_count)" = 0
+          set +e
+          gh pr merge "$PR" --squash --match-head-commit "$HEAD"
+          rc=$?
+          set -e
+          result="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR}")"
+          jq -e --arg head "$HEAD" '.merged==true and .head.sha==$head and
+             .base.ref=="main" and (.merged_at|length)>0 and
+             (.merge_commit_sha|test("^[a-f0-9]{40}$"))' <<<"$result" >/dev/null
+          sha="$(jq -r '.merge_commit_sha' <<<"$result")"
+          gh api "repos/${GITHUB_REPOSITORY}/commits/${sha}" >/dev/null
+          echo "DIRECT_ATTESTOR_MERGED pr=$PR head=$HEAD commit=$sha command_rc=$rc"

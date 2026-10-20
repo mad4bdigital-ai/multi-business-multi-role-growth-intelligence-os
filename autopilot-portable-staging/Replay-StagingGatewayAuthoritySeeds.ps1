@@ -143,7 +143,7 @@ $roleConfig = @{
 
 Require ($roleConfig.runtime.Service -ceq "runtime-db" -and $roleConfig.runtime.DatabaseEnv -ceq "DB_NAME" -and $roleConfig.runtime.RootPasswordEnv -ceq "RUNTIME_DB_ROOT_PASSWORD") "Runtime authority seed role binding is invalid"
 Require ($roleConfig.governance.Service -ceq "governance-db" -and $roleConfig.governance.DatabaseEnv -ceq "GOVERNANCE_DB_NAME" -and $roleConfig.governance.RootPasswordEnv -ceq "GOVERNANCE_DB_ROOT_PASSWORD") "Governance authority seed role binding is invalid"
-Require ($roleConfig.runtime.StatementCount -eq 2 -and $roleConfig.governance.StatementCount -eq 3) "Gateway authority seed role statement counts are invalid"
+Require ($roleConfig.runtime.StatementCount -eq 7 -and $roleConfig.governance.StatementCount -eq 3) "Gateway authority seed role statement counts are invalid"
 
 function Resolve-Role([object]$Role) {
     $database = Read-Env $EnvFile $Role.DatabaseEnv
@@ -186,7 +186,7 @@ function Require-Table([object]$Role, [string]$Table) {
     Require-ExactCount $Role "SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='$Table' AND TABLE_TYPE='BASE TABLE'" "$($Role.Key) required authority table $Table"
 }
 
-foreach ($table in @("platform_resource_authority_requirements", "resource_authority_route_family_registry")) {
+foreach ($table in @("platform_resource_authority_requirements", "resource_authority_route_family_registry", "connected_systems", "platform_secrets", "secret_references", "credential_bindings", "platform_runtime_config")) {
     Require-Table $runtime $table
 }
 foreach ($table in @("capability_apply_authorization_policy_registry", "platform_resource_authority_bindings", "runtime_dispatch_certification_registry")) {
@@ -202,8 +202,18 @@ $query = "SELECT COUNT(*) FROM platform_resource_authority_requirements WHERE re
 Require-ExactCount $runtime $query "Staging Gateway authority requirement"
 $query = "SELECT COUNT(*) FROM resource_authority_route_family_registry WHERE route_family_key='staging_activation_gateway_apply_v1' AND route_family='cloudflare_worker' AND operation_class='external_write' AND resource_authority_required=1 AND dry_run_required=1 AND audit_required=1 AND readback_required=1 AND runtime_surface='activation_gateway_dark_deploy'"
 Require-ExactCount $runtime $query "Staging Gateway authority route"
+$query = "SELECT COUNT(*) FROM connected_systems WHERE tenant_id='00000000-0000-0000-0000-000000000000' AND system_key='cloudflare_staging_activation_gateway_managed' AND provider_family='cloudflare' AND service_mode='managed'"
+Require-ExactCount $runtime $query "Staging Gateway managed Cloudflare connected system"
+$query = "SELECT COUNT(*) FROM platform_secrets WHERE secret_key='staging_cloudflare_activation_gateway_api_token' AND secret_type='bearer_token' AND storage_backend='db_encrypted' AND status='active'"
+Require-ExactCount $runtime $query "Staging Gateway managed Cloudflare secret slot"
+$query = "SELECT COUNT(*) FROM secret_references WHERE tenant_id='00000000-0000-0000-0000-000000000000' AND secret_key='staging_cloudflare_activation_gateway_api_token' AND owner_type='platform' AND store_type='db_encrypted' AND status='active'"
+Require-ExactCount $runtime $query "Staging Gateway managed Cloudflare secret reference"
+$query = "SELECT COUNT(*) FROM credential_bindings WHERE binding_id='84310000-0000-4000-8000-000000000003' AND tenant_id='00000000-0000-0000-0000-000000000000' AND action_key='activation_gateway_dark_deploy' AND target_key='staging_activation_gateway_cloudflare' AND credential_role='cloudflare_api_token' AND credential_ref='platform_secret:staging_cloudflare_activation_gateway_api_token' AND status='active'"
+Require-ExactCount $runtime $query "Staging Gateway managed Cloudflare credential binding"
+$query = "SELECT COUNT(*) FROM platform_runtime_config WHERE config_key='staging_activation_gateway_apply' AND status='active' AND JSON_UNQUOTE(JSON_EXTRACT(config_json,'$.environment'))='staging' AND JSON_EXTRACT(config_json,'$.enabled')=TRUE"
+Require-ExactCount $runtime $query "Staging Gateway managed feature gate"
 
-$query = "SELECT COUNT(*) FROM capability_apply_authorization_policy_registry WHERE policy_key='staging_activation_gateway_apply_policy_v1' AND app_key='cloudflare' AND capability_key='admin_cloudflare_v1' AND operation_intent='activation_gateway.staging_apply' AND runtime_surface='activation_gateway_dark_deploy' AND status='active' AND allow_external_write=1 AND requires_ready_for_dispatch=1 AND requires_dispatch_allowed=1 AND requires_zero_blocking_gaps=1 AND requires_audit_evidence=1 AND requires_readback=1 AND requires_typed_confirmation=1 AND requires_same_cycle_dry_run=1 AND JSON_UNQUOTE(JSON_EXTRACT(policy_json,'$.resource_binding_id'))='5a2b04f8-bb99-4f65-a924-0f55d3080376' AND JSON_UNQUOTE(JSON_EXTRACT(policy_json,'$.expected_policy_hash'))='dd5f152c4a226d07c75cf33dae3ab3a0cbf6e9913b623724429a96b2d4f96a96'"
+$query = "SELECT COUNT(*) FROM capability_apply_authorization_policy_registry WHERE policy_key='staging_activation_gateway_apply_policy_v1' AND app_key='cloudflare' AND capability_key='admin_cloudflare_v1' AND operation_intent='activation_gateway.staging_apply' AND runtime_surface='activation_gateway_dark_deploy' AND status='active' AND allow_external_write=1 AND allow_credential_binding=1 AND allow_no_credential_binding=0 AND requires_ready_for_dispatch=1 AND requires_dispatch_allowed=1 AND requires_zero_blocking_gaps=1 AND requires_audit_evidence=1 AND requires_readback=1 AND requires_typed_confirmation=1 AND requires_same_cycle_dry_run=1 AND JSON_UNQUOTE(JSON_EXTRACT(policy_json,'$.resource_binding_id'))='5a2b04f8-bb99-4f65-a924-0f55d3080376' AND JSON_UNQUOTE(JSON_EXTRACT(policy_json,'$.expected_policy_hash'))='dd5f152c4a226d07c75cf33dae3ab3a0cbf6e9913b623724429a96b2d4f96a96' AND JSON_EXTRACT(policy_json,'$.managed_credential_binding_required')=TRUE AND JSON_UNQUOTE(JSON_EXTRACT(policy_json,'$.managed_credential_target_key'))='staging_activation_gateway_cloudflare' AND JSON_UNQUOTE(JSON_EXTRACT(policy_json,'$.managed_credential_role'))='cloudflare_api_token' AND JSON_EXTRACT(policy_json,'$.managed_runtime_config_required')=TRUE AND JSON_UNQUOTE(JSON_EXTRACT(policy_json,'$.managed_runtime_config_key'))='staging_activation_gateway_apply' AND JSON_EXTRACT(policy_json,'$.legacy_feature_flag_execution_authority')=FALSE"
 Require-ExactCount $governance $query "Staging Gateway apply policy"
 $query = "SELECT COUNT(*) FROM platform_resource_authority_bindings WHERE binding_id='5a2b04f8-bb99-4f65-a924-0f55d3080376' AND tenant_id='00000000-0000-0000-0000-000000000000' AND resource_type='cloudflare_worker' AND resource_uri='cloudflare://accounts/dd1024b934e907723484568d97c7c74c/workers/scripts/mad4b-activation-gateway-staging' AND recipe_key='staging_activation_gateway_apply' AND permission_level='admin' AND status='active' AND JSON_UNQUOTE(JSON_EXTRACT(resource_ref_json,'$.provider'))='cloudflare' AND JSON_UNQUOTE(JSON_EXTRACT(resource_ref_json,'$.account_id'))='dd1024b934e907723484568d97c7c74c' AND JSON_UNQUOTE(JSON_EXTRACT(resource_ref_json,'$.script_name'))='mad4b-activation-gateway-staging' AND allowed_modes_json LIKE '%dry_run%' AND allowed_modes_json LIKE '%staging_apply%'"
 Require-ExactCount $governance $query "Staging Gateway resource binding"
@@ -218,6 +228,11 @@ $receipt = [ordered]@{
     governance_seed_sha256 = $governance.SeedSha256
     runtime_authority_requirement_ready = $true
     runtime_authority_route_ready = $true
+    managed_cloudflare_connected_system_ready = $true
+    managed_cloudflare_secret_slot_ready = $true
+    managed_cloudflare_secret_reference_ready = $true
+    managed_cloudflare_credential_binding_ready = $true
+    managed_staging_feature_gate_ready = $true
     governance_apply_policy_ready = $true
     governance_resource_binding_ready = $true
     certification_status = "pending"

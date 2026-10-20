@@ -6,10 +6,10 @@
   "source": {
     "baseline_ref": "main",
     "dispatch_artifact": "http-generic-api/frontend-surface-dispatch.generated.json",
-    "dispatch_artifact_sha256": "430f99e0652752cfbf752083f15661637d3b1110198db2acadf899b5e9547486",
+    "dispatch_artifact_sha256": "2fa27ee58417f4001af3e053916efb00a79cc6fd0d10cf5b913a39760f172aea",
     "family_count": 177,
-    "detail_family_count": 77,
-    "dispatch_operation_count": 1081
+    "detail_family_count": 78,
+    "dispatch_operation_count": 1085
   },
   "scope_boundary": {
     "route_wiring": false,
@@ -38,10 +38,10 @@
     "evidence_only": true
   },
   "summary": {
-    "family_count": 77,
+    "family_count": 78,
     "dispatch_family_count": 177,
-    "operation_count": 323,
-    "detail_evidence_required_count": 323,
+    "operation_count": 326,
+    "detail_evidence_required_count": 326,
     "canonical_openapi_added_count": 0,
     "excluded_scope_count": 0
   },
@@ -1571,6 +1571,27 @@
       "path": "/admin/container-authority/topology-verification",
       "signature": "GET /admin/container-authority/topology-verification",
       "source_file": "routes/dynamicContainerAuthorityRoutes.js",
+      "scope": "admin",
+      "delivery_kind": "api",
+      "openapi_contract_level": "operation-index-only",
+      "auth_parity": "equivalent",
+      "governance_classification": "read",
+      "governance_rule_id": null,
+      "evidence_refs": [
+        "http-generic-api/frontend-surface-dispatch.generated.json"
+      ],
+      "closure_status": "detail_evidence_required",
+      "canonical_openapi_added": false,
+      "route_wiring": false,
+      "runtime_authority": false,
+      "production_activation": false
+    },
+    {
+      "family_key": "repository-automation",
+      "method": "GET",
+      "path": "/admin/repository-automation/attestor-contract",
+      "signature": "GET /admin/repository-automation/attestor-contract",
+      "source_file": "routes/repositoryAutomationRoutes.js",
       "scope": "admin",
       "delivery_kind": "api",
       "openapi_contract_level": "operation-index-only",
@@ -7535,6 +7556,51 @@
         "openapi.yaml",
         "routes/connectorProxyRoutes.js",
         "test-frontend-surface-coverage-claims.mjs"
+      ],
+      "closure_status": "detail_evidence_required",
+      "canonical_openapi_added": false,
+      "route_wiring": false,
+      "runtime_authority": false,
+      "production_activation": false
+    },
+    {
+      "family_key": "device-tools",
+      "method": "POST",
+      "path": "/device/tools/devices/{device_id}/health",
+      "signature": "POST /device/tools/devices/{device_id}/health",
+      "source_file": "routes/deviceToolsRoutes.js",
+      "scope": "developer",
+      "delivery_kind": "api",
+      "openapi_contract_level": "operation-index-only",
+      "auth_parity": "equivalent",
+      "governance_classification": "read_action",
+      "governance_rule_id": "scoped-device-health-read-action",
+      "evidence_refs": [
+        "http-generic-api/frontend-surface-dispatch.generated.json",
+        "routes/deviceToolsRoutes.js",
+        "test-device-tools-diagnostics.mjs",
+        "test-frontend-surface-coverage-claims.mjs"
+      ],
+      "closure_status": "detail_evidence_required",
+      "canonical_openapi_added": false,
+      "route_wiring": false,
+      "runtime_authority": false,
+      "production_activation": false
+    },
+    {
+      "family_key": "device-tools",
+      "method": "GET",
+      "path": "/device/tools/devices",
+      "signature": "GET /device/tools/devices",
+      "source_file": "routes/deviceToolsRoutes.js",
+      "scope": "developer",
+      "delivery_kind": "api",
+      "openapi_contract_level": "operation-index-only",
+      "auth_parity": "equivalent",
+      "governance_classification": "read",
+      "governance_rule_id": null,
+      "evidence_refs": [
+        "http-generic-api/frontend-surface-dispatch.generated.json"
       ],
       "closure_status": "detail_evidence_required",
       "canonical_openapi_added": false,

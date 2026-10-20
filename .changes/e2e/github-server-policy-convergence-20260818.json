@@ -9,66 +9,82 @@
   "scope": {
     "include": [
       ".changes/e2e/github-server-policy-convergence-20260818.json",
-      ".specify/schemas/e2e-phases.schema.json",
       ".github/derived-state-governance.json",
       ".github/governance/evidence-producers.json",
       ".github/governance/policy-registry.json",
       ".github/governance/semantic-surface-registry.json",
-      ".github/governance/verifier-registry.json",
       ".github/governance/semantic-verifier-requirements.json",
       ".github/governance/test-authority-registry.json",
+      ".github/governance/verifier-registry.json",
+      ".github/ops/github-finalizer-check-source.mjs",
       ".github/ops/github-followup-automerge-readiness.mjs",
+      ".github/ops/github-main-review-policy-live-activation.mjs",
+      ".github/ops/github-repository-policy-readback-core.mjs",
+      ".github/ops/github-repository-policy-readback.mjs",
+      ".github/ops/test-github-repository-policy-readback-core.mjs",
+      ".github/scripts/github-direct-attestor.mjs",
       ".github/tests/derived-state-closure.test.mjs",
       ".github/tests/repository-governance-closure.test.mjs",
       ".github/tests/repository-governance-objection-gate.test.mjs",
       ".github/workflows/derived-state-closure.yml",
       ".github/workflows/derived-state-converged-automerge.yml",
-      ".github/workflows/policy-objection-ci.yml",
-      ".github/workflows/github-repository-policy-readback.yml",
       ".github/workflows/github-main-review-policy-live-activation.yml",
       ".github/workflows/github-main-review-policy-readiness-publisher.yml",
+      ".github/workflows/github-repository-policy-readback.yml",
+      ".github/workflows/policy-objection-ci.yml",
+      ".specify/schemas/e2e-phases.schema.json",
+      ".specify/spec-kit-work-map-integration-policy.json",
+      "docs/governance/configuration-drift-baseline-extensions.json",
+      "docs/governance/configuration-drift-policy.json",
       "docs/repository-ci-surface-policy.json",
+      "docs/runbooks/github-any-source-main-trusted-finalizer-20261009.md",
+      "docs/runbooks/github-direct-attestor.md",
       "docs/work-maps/README.md",
       "docs/work-maps/repository-automation-map.md",
       "http-generic-api/config/deployment-branch-policy.json",
       "http-generic-api/config/repository-governance-constitution.json",
+      "http-generic-api/frontend-operation-governance.generated.json",
+      "http-generic-api/frontend-surface-dispatch.generated.json",
       "http-generic-api/githubRepositoryGovernanceAttestation.js",
       "http-generic-api/githubRepositoryPolicyController.js",
+      "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
       "http-generic-api/routes/repositoryAutomationRoutes.js",
+      "http-generic-api/scripts/e2e-phase-governance-core.mjs",
+      "http-generic-api/scripts/e2e-phase-governance.mjs",
+      "http-generic-api/scripts/github-main-review-policy-readiness-issue-publisher.mjs",
+      "http-generic-api/scripts/github-review-policy-target.mjs",
+      "http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs",
+      "http-generic-api/scripts/manifests/test-manifest-spec011.mjs",
+      "http-generic-api/scripts/spec-kit-work-map-integration-gate.mjs",
+      "http-generic-api/scripts/test-e2e-single-pr-maintenance-evaluator.mjs",
+      "http-generic-api/scripts/test-github-review-policy-target.mjs",
+      "http-generic-api/scripts/test-remote-mcp-write-scope-generated-refresh-recipe.mjs",
       "http-generic-api/test-derived-state-converged-automerge-source-event.mjs",
+      "http-generic-api/test-environment-impact-closure.mjs",
+      "http-generic-api/test-github-finalizer-any-source-guard.mjs",
       "http-generic-api/test-github-repository-governance-attestation.mjs",
       "http-generic-api/test-github-repository-policy-controller.mjs",
       "http-generic-api/test-github-repository-policy-live-activation-contract.mjs",
-      "http-generic-api/scripts/e2e-phase-governance-core.mjs",
-      "http-generic-api/scripts/e2e-phase-governance.mjs",
-      "http-generic-api/scripts/github-review-policy-target.mjs",
-      "http-generic-api/scripts/test-github-review-policy-target.mjs",
-      "http-generic-api/scripts/github-main-review-policy-readiness-issue-publisher.mjs",
-      "http-generic-api/scripts/test-e2e-single-pr-maintenance-evaluator.mjs",
-      "http-generic-api/test-environment-impact-closure.mjs",
       "scripts/derived-state-closure.mjs",
       "scripts/repository-governance-closure.mjs",
-      "scripts/repository-governance-objection-gate.mjs",
       "scripts/repository-governance-evidence-finalizer.mjs",
-      ".github/ops/github-repository-policy-readback.mjs",
-      ".github/ops/github-repository-policy-readback-core.mjs",
-      ".github/ops/test-github-repository-policy-readback-core.mjs",
-      ".github/ops/github-main-review-policy-live-activation.mjs",
-      "http-generic-api/frontend-operation-governance.generated.json",
-      "http-generic-api/frontend-surface-dispatch.generated.json",
-      "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
-      "http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs",
-      "http-generic-api/scripts/test-remote-mcp-write-scope-generated-refresh-recipe.mjs",
-      ".specify/spec-kit-work-map-integration-policy.json",
-      "docs/governance/configuration-drift-policy.json",
+      "scripts/repository-governance-objection-gate.mjs",
       "specs/**/work-map-integration.json",
-      "http-generic-api/scripts/spec-kit-work-map-integration-gate.mjs"
+      "http-generic-api/scripts/test-manifest.mjs",
+      "docs/runbooks/production-r7-trusted-ingress-and-attestor-closure-20261020.md",
+      "specs/020-platform-resource-identity-brand-governance/openapi-projection-readiness.json",
+      "specs/020-platform-resource-identity-brand-governance/e2e-phases.json"
     ]
   },
-  "merge_contract": { "minimum_phase": "mvp" },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
   "environment_impact": {
     "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
-    "declared_targets": ["staging", "production"],
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
     "cross_environment_reviewed": true,
     "live_staging_certification_required": true,
     "production_mutation_allowed": false
@@ -77,7 +93,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Close the declared MVP governance gaps as one Constitution-driven system: semantic graph and inverse deletion impact, declarative policy resolution, safe dynamic verifier registration, exact merge-candidate evidence identity, complete JavaScript executable syntax coverage, critical control-plane manual-merge enforcement, E2E ownership-scoped maintenance evaluation, CI workflow no-growth ratchet, trusted GitHub App final attestation, native auto-merge disabled by policy, exact App-bound server-rule verification, and a sole immediate non-bypass Governance Finalizer merge path for main while Production retains its separately governed promotion authority.",
+      "objective": "Close the declared MVP governance gaps as one Constitution-driven system: semantic graph and inverse deletion impact, declarative policy resolution, safe dynamic verifier registration, exact merge-candidate evidence identity, complete JavaScript executable syntax coverage, critical control-plane manual-merge enforcement, E2E ownership-scoped maintenance evaluation, CI workflow no-growth ratchet, trusted GitHub App final attestation, native auto-merge disabled by policy, exact App-bound server-rule verification, and a sole immediate non-bypass Governance Finalizer merge path for main while Production retains its separately governed promotion authority. This source-only recovery requires authenticated read-only v4 attestor capability discovery before any policy-controller attestation POST, and exact-HEAD status support with independent GitHub App identity readback; no Production mutation is included.",
       "e2e_journeys": [
         {
           "id": "semantic-exact-candidate-to-trusted-server-attestation",
@@ -104,7 +120,9 @@
             "Have the GitHub App publish Derived State Closure for main or Governed Production Promotion for Production, with same-cycle status readback, and expose the resolved App id plus status creator id to the finalizer.",
             "For objection-free main only, have the central finalizer verifier require repository allow_auto_merge=false, active pull_request/required_status_checks/non_fast_forward rules, no merge_queue, exactly one active managed governance Ruleset, zero bypass actors, Derived State Closure bound to the exact attestor App id, exact base/head/candidate identity, and a success status on the exact candidate from the same-cycle attestor status creator.",
             "Allow the Governance Finalizer to execute gh pr merge only without --auto and without --admin, bound by --match-head-commit to the exact source head, then require same-cycle merged-state and merge-commit readback.",
-            "Require Production's current merge-candidate tree to equal the certified executed release-candidate tree before promotion attestation; generic main finalizer merge authority never applies to Production."
+            "Require Production's current merge-candidate tree to equal the certified executed release-candidate tree before promotion attestation; generic main finalizer merge authority never applies to Production.",
+            "Verify main any-source Rulesets using the explicit Constitution opt-in, independently attest the exact merge candidate with the GitHub App, and pass the just-published status ID plus status creator ID into the protected finalizer readiness gate.",
+            "Probe the v4 Attestor contract using the protected Production Environment credential and fail closed before any status-writing POST if HEAD capability, app identity or nonmutating preflight cannot be proven."
           ],
           "assertions": [
             "The Constitution is the runtime source of truth for both main and Production branch policy.",
@@ -120,7 +138,7 @@
             "The final required main status is emitted by the trusted GitHub App, not by PR-controlled workflow code.",
             "Repository native auto-merge must be disabled before main automated finalization; generated writers cannot register auto-merge and the finalizer never uses --auto.",
             "The finalizer merge actor has no admin/ruleset-bypass path; the active managed Ruleset must contain zero bypass actors and the merge command never uses --admin.",
-            "The finalizer verifier reads active branch rules and the managed Ruleset, requires Derived State Closure to be bound to the exact attestor App id, and requires the exact candidate success status to be created by the status creator returned from the same-cycle attestation.",
+            "The finalizer verifier reads active branch rules and the managed Ruleset; main may opt in to GitHub Any source only when the latest exact candidate success status ID and its creator match the trusted same-cycle attestation, while app-bound policies still require the exact attestor App ID. An unbound Ruleset never proves server-side source restriction.",
             "Main automated finalization is allowed only when manual_count=0 and base SHA, source head SHA, and merge-candidate SHA remain exactly attested; same-cycle merged-state readback is mandatory.",
             "Production generic PR merge is blocked by the App-bound Governed Production Promotion status and same-tree/same-candidate proof; the generic main finalizer merge job does not run for Production.",
             "Workflow count cannot increase while above target, and becomes hard-capped at 160 once the target is reached.",
@@ -129,7 +147,9 @@
             "Shared-runtime impact declares staging and production, records cross-environment review, requires live Staging certification, and keeps production_mutation_allowed false.",
             "The executable universe remains fail-closed: changed executables require semantic classes and registered verifier authority; unsupported language-level validation is not inferred from filenames.",
             "Semantic facets such as auth_profile, db_effect, provider_effect, and route resolve through the declarative semantic-verifier-requirements registry to registered safe verifiers, with missing mappings failing closed.",
-            "Test authority is registered and test removal or unregistered test paths fail closed; no live Ruleset Apply, repository-setting mutation, protected-ref mutation outside an independently authorized merge, force push, database mutation, provider mutation, Production deployment, migration, grant, or secret disclosure is performed by this PR."
+            "Test authority is registered and test removal or unregistered test paths fail closed; no live Ruleset Apply, repository-setting mutation, protected-ref mutation outside an independently authorized merge, force push, database mutation, provider mutation, Production deployment, migration, grant, or secret disclosure is performed by this PR.",
+            "Any source on main is never reported as server-side App publisher binding; governed finalizer merges require the latest exact candidate success status ID and trusted creator from the same attestation cycle, and reject stale or spoofed context updates; Production remains App-bound.",
+            "A legacy candidate-only v3 attestor cannot be called by the current Finalizer; absence of v4 capability cannot produce a HEAD or candidate status."
           ],
           "tests": [
             {
@@ -234,7 +254,10 @@
             "http-generic-api/test-derived-state-converged-automerge-source-event.mjs",
             "docs/repository-ci-surface-policy.json",
             "docs/work-maps/README.md",
-            "docs/work-maps/repository-automation-map.md"
+            "docs/work-maps/repository-automation-map.md",
+            ".github/ops/github-finalizer-check-source.mjs",
+            "http-generic-api/test-github-finalizer-any-source-guard.mjs",
+            "docs/runbooks/github-any-source-main-trusted-finalizer-20261009.md"
           ]
         }
       ]

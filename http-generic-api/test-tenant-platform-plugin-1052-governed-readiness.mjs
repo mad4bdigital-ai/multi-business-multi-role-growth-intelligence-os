@@ -49,10 +49,14 @@ assert.ok(runtimeSource.includes('require_existing'));
 assert.ok(runtimeSource.includes('governed_migration_executor_apply_policy_required'));
 assert.ok(runtimeSource.includes('governed_migration_executor_dispatch_certification_required'));
 assert.ok(runtimeSource.includes('resolveMigrationExecutorReadiness'));
-assert.match(wrapperSource, /readPool/);
+assert.match(wrapperSource, /envelopeReadPool/);
 assert.match(wrapperSource, /writerPool/);
+assert.match(wrapperSource, /const envelopeReadPool = deps\.envelopeReadPool \|\| getGovernancePool\(\)/);
+assert.match(wrapperSource, /const writerPool = deps\.writerPool \|\| getGovernancePool\(\)/);
+assert.match(wrapperSource, /pool: envelopeReadPool/);
 assert.match(wrapperSource, /pool: writerPool/);
-assert.match(wrapperSource, /pool: readPool/);
+assert.doesNotMatch(wrapperSource, /const readPool = deps\.readPool \|\| getPool\(\)/);
+assert.doesNotMatch(wrapperSource, /pool: readPool/);
 assert.ok(manifestSource.includes('node test-tenant-platform-plugin-1052-governed-readiness.mjs'));
 
 await assert.rejects(

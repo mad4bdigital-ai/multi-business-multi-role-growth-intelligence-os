@@ -30,6 +30,7 @@ const NONCE = "nonce:phase-b-001";
 const EVIDENCE = "c".repeat(64);
 const ISSUER = "mad4b://staging-recovery-certification";
 const KEY_ID = "recovery-certification-test";
+const IMAGE = "sha256:" + "d".repeat(64);
 
 function validStagingCertification() {
   return {
@@ -48,7 +49,7 @@ function validStagingCertification() {
     lifecycle_trace: { durable_inspection: { status: "pass" } },
     negative_tests: { all_passed: true, cases: {} },
     audit_evidence: { durable: true, evidence_hash: "e".repeat(64), canonical_payload_hash: "f".repeat(64) },
-    artifact_integrity: { valid: true },
+    artifact_integrity: { valid: true, manifest_sha256: "a".repeat(64), app_image_digest: IMAGE },
     expires_at: new Date(Date.now() + 60_000).toISOString(),
     safety: {
       production_mutation_performed: false,
@@ -152,6 +153,100 @@ test("GitHub-hosted signer is exact-main bound and local verifier accepts only p
   });
   assert.equal(verified.valid, true);
   assert.equal(verified.ingress_key_separation_verified, true);
+});
+
+test("public trust accepts governed PEM values transported with escaped newlines", () => {
+  const trust = loadStagingRecoveryCertificationPublicTrust({
+    RECOVERY_STAGING_CERTIFICATION_PUBLIC_KEY: publicPem.replaceAll("\n", "\\n"),
+    RECOVERY_STAGING_CERTIFICATION_KEY_ID: KEY_ID,
+    RECOVERY_STAGING_CERTIFICATION_ISSUER: ISSUER,
+    REMOTE_MCP_TRUSTED_INGRESS_PUBLIC_KEY: ingressPublicPem.replaceAll("\n", "\\n"),
+  });
+  assert.equal(trust.contract, STAGING_RECOVERY_CERTIFICATION_TRUST_CONTRACT);
+  assert.equal(trust.separation_verified, true);
+});
+
+test("public trust rejects missing, malformed, or post-signature image digest tampering", () => {
+  const verificationReport = report();
+  const signerEnv = {
+    GITHUB_ACTIONS: "true",
+    RUNNER_ENVIRONMENT: "github-hosted",
+    GITHUB_REF: "refs/heads/main",
+    GITHUB_REF_NAME: "main",
+    GITHUB_SHA: SHA,
+    RECOVERY_STAGING_CERTIFICATION_PRIVATE_KEY: privatePem,
+    RECOVERY_STAGING_CERTIFICATION_ISSUER: ISSUER,
+    RECOVERY_STAGING_CERTIFICATION_KEY_ID: KEY_ID,
+    ACTIVATION_GATEWAY_INGRESS_PUBLIC_KEY_SHA256: ingressFingerprint,
+  };
+  const trust = loadStagingRecoveryCertificationPublicTrust({
+    RECOVERY_STAGING_CERTIFICATION_PUBLIC_KEY: publicPem,
+    RECOVERY_STAGING_CERTIFICATION_KEY_ID: KEY_ID,
+    RECOVERY_STAGING_CERTIFICATION_ISSUER: ISSUER,
+    REMOTE_MCP_TRUSTED_INGRESS_PUBLIC_KEY: ingressPublicPem,
+  });
+  const signed = signVerifiedRecoveryEvidence({
+    payload: payload(verificationReport),
+    verificationReport,
+    env: signerEnv,
+  });
+
+  for (const artifact_integrity of [
+    { valid: true, manifest_sha256: "a".repeat(64) },
+    { valid: true, manifest_sha256: "a".repeat(64), app_image_digest: "sha256:bad" },
+  ]) {
+    const candidate = structuredClone(signed);
+    candidate.payload.stagingCertification.artifact_integrity = artifact_integrity;
+    assert.throws(
+      () => verifyStagingRecoverySignedCertificationRecord(candidate, {
+        trust,
+        expectedSha: SHA,
+        expectedTargetFingerprint: TARGET,
+        expectedRunId: RUN,
+        expectedNonce: NONCE,
+      }),
+      (error) => error?.code === "RECOVERY_CERTIFICATION_ARTIFACT_INTEGRITY_INVALID",
+    );
+  }
+
+  const validFormatWrongDigest = structuredClone(signed);
+  validFormatWrongDigest.payload.stagingCertification.artifact_integrity.app_image_digest =
+    "sha256:" + "e".repeat(64);
+  assert.throws(
+    () => verifyStagingRecoverySignedCertificationRecord(validFormatWrongDigest, {
+      trust,
+      expectedSha: SHA,
+      expectedTargetFingerprint: TARGET,
+      expectedRunId: RUN,
+      expectedNonce: NONCE,
+    }),
+    (error) => error?.code === "RECOVERY_CERTIFICATION_SIGNATURE_INVALID",
+  );
+});
+
+test("Recovery certification trust accepts governed ingress fingerprint without raw ingress PEM", () => {
+  const trust = loadStagingRecoveryCertificationPublicTrust({
+    RECOVERY_STAGING_CERTIFICATION_PUBLIC_KEY: publicPem,
+    RECOVERY_STAGING_CERTIFICATION_KEY_ID: KEY_ID,
+    RECOVERY_STAGING_CERTIFICATION_ISSUER: ISSUER,
+    ACTIVATION_GATEWAY_INGRESS_PUBLIC_KEY_SHA256: ingressFingerprint,
+  });
+  assert.equal(trust.separation_verified, true);
+  assert.equal(trust.activation_gateway_ingress_public_key_sha256, ingressFingerprint);
+  assert.equal(trust.activation_gateway_ingress_trust_source, "governed_fingerprint");
+});
+
+test("Recovery certification trust rejects disagreement between raw ingress key and governed fingerprint", () => {
+  assert.throws(
+    () => loadStagingRecoveryCertificationPublicTrust({
+      RECOVERY_STAGING_CERTIFICATION_PUBLIC_KEY: publicPem,
+      RECOVERY_STAGING_CERTIFICATION_KEY_ID: KEY_ID,
+      RECOVERY_STAGING_CERTIFICATION_ISSUER: ISSUER,
+      REMOTE_MCP_TRUSTED_INGRESS_PUBLIC_KEY: ingressPublicPem,
+      ACTIVATION_GATEWAY_INGRESS_PUBLIC_KEY_SHA256: "f".repeat(64),
+    }),
+    (error) => error?.code === "RECOVERY_CERTIFICATION_INGRESS_TRUST_MISMATCH",
+  );
 });
 
 test("Recovery certification trust fails closed when Activation Gateway ingress trust is unavailable", () => {

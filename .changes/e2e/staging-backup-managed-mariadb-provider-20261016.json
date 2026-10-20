@@ -1,0 +1,126 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-backup-managed-mariadb-provider-20261016",
+  "title": "Purpose-scoped audited Staging MariaDB reader administration adapter",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-backup-managed-mariadb-provider-20261016.json",
+      ".github/derived-state-governance.json",
+      ".github/governance/test-authority-registry.json",
+      "http-generic-api/config/repository-governance-constitution.json",
+      "docs/governance/configuration-drift-baseline-extensions.json",
+      "docs/runbooks/staging-backup-managed-mariadb-provider-20261016.md",
+      "http-generic-api/stagingBackupManagedMariaDbProvider.mjs",
+      "http-generic-api/test-staging-backup-managed-mariadb-provider.mjs",
+      "local-connector/staging-backup-db-admin-broker.mjs",
+      "local-connector/staging-backup-db-broker-file-state.mjs",
+      "local-connector/test-staging-backup-db-admin-broker.mjs",
+      "local-connector/test-staging-backup-db-broker-file-state.mjs"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Implement a purpose-limited Staging-only managed MariaDB provider behind an independently approved DB broker, with fixed table-grant SQL and verified reader census/revoke. No broker binding, live grant, or Production mutation is authorized.",
+      "e2e_journeys": [
+        {
+          "id": "staging-managed-mariadb-backup-reader-synthetic",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Independent approved Staging Local Connector managed-DB broker",
+          "entrypoint": "runWithIndependentStagingBackupBroker -> createManagedStagingBackupReaderAdapters -> runGovernedStagingBackupReaderCensus",
+          "terminal_outcome": "Synthetic exact 4x SELECT grant, verified policy count, revocation and absence readback; any missing broker attestation, invalid binding, excessive privilege, partial grant failure or bad cleanup fails closed without real database operations.",
+          "steps": [
+            "Build exact SHA-bound plan and owner-signed short-lived approval in synthetic fixture; keep signature creation outside source provider.",
+            "Inject a fake managed administration session attested for Staging-only broker authority and reject root, writer or runtime_app identities.",
+            "Inspect fixed four Backup registry table names and confirm the temporary principal does not already exist.",
+            "Simulate exact CREATE USER with hidden random credential and four fixed table-level SELECT grants.",
+            "Read back effective grants and simulate a real SELECT-only policy census through the independent reader driver.",
+            "Revoke the exact temporary principal with independent absence readback even after partial CREATE/GRANT or census errors.",
+            "Verify failed cleanup or replay never creates positive certification; no live SQL grants or Production mutation.",
+            "In a synthetic broker handoff, bind a short-lived one-shot session to exact plan hash and run ID, verify owner signature before opening it, and require closure even after errors.",
+            "Exercise independent local process broker rules, exact SQL allowlist, pre-use identity validation, expired operation cleanup and private durable atomic replay/audit state without connecting to real MariaDB."
+          ],
+          "assertions": [
+            "No generic SQL, SSH, device-command, HTTP execution route, root login or Production broker is added.",
+            "No caller-supplied dynamic principal, host, schema, table, privilege, policy key or SQL is accepted.",
+            "An independently broker-attested admin session, observed database identity, signed owner authorization and replay guard are mandatory.",
+            "Partial user creation or grant error always enters cleanup and fails closed if cleanup cannot be verified.",
+            "Only synthetic tests execute; real MariaDB privileged broker provisioning requires separate, independently permitted operator approval.",
+            "An invalid or expired broker operation ticket, forged plan or failed admin-session close must never yield positive acceptance.",
+            "The independent broker code requires externally held pinned operation signing trust, separate OS-isolated DBA identity/credential custody, privately ACL-protected append-only audit and replay ledger; none may default to runtime_app, HTTP execution or a generic shell."
+          ],
+          "tests": [
+            {
+              "id": "staging-managed-mariadb-provider",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-backup-managed-mariadb-provider.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-reader-grant-lifecycle",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-backup-reader-grant-lifecycle.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-independent-backup-reader",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-backup-independent-policy-reader.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-independent-db-broker-core",
+              "runner": "node",
+              "working_directory": "local-connector",
+              "path": "test-staging-backup-db-admin-broker.mjs",
+              "args": []
+            },
+            {
+              "id": "staging-independent-db-broker-persistence",
+              "runner": "node",
+              "working_directory": "local-connector",
+              "path": "test-staging-backup-db-broker-file-state.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/staging-backup-managed-mariadb-provider-20261016.json",
+            ".github/derived-state-governance.json",
+            ".github/governance/test-authority-registry.json",
+            "http-generic-api/config/repository-governance-constitution.json",
+            "docs/governance/configuration-drift-baseline-extensions.json",
+      "docs/runbooks/staging-backup-managed-mariadb-provider-20261016.md",
+            "http-generic-api/stagingBackupManagedMariaDbProvider.mjs",
+            "http-generic-api/test-staging-backup-managed-mariadb-provider.mjs",
+            "local-connector/staging-backup-db-admin-broker.mjs",
+            "local-connector/staging-backup-db-broker-file-state.mjs",
+            "local-connector/test-staging-backup-db-admin-broker.mjs",
+            "local-connector/test-staging-backup-db-broker-file-state.mjs"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}

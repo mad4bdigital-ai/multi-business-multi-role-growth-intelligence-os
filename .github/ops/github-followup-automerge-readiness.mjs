@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { isAuthorizedMainAnySource, allowedCheckSource, latestSameCycleAttestorStatus } from "./github-finalizer-check-source.mjs";
 
 const repository = String(process.env.GITHUB_REPOSITORY || "").trim();
 const token = String(process.env.GH_TOKEN || "").trim();
@@ -11,6 +13,13 @@ const requiredContext = String(process.env.REQUIRED_CHECK_CONTEXT || "Derived St
 const managedRulesetName = String(process.env.MANAGED_RULESET_NAME || "MAD4B main review policy").trim();
 const expectedAttestorAppId = Number(process.env.EXPECTED_ATTESTOR_APP_ID || 0);
 const expectedStatusCreatorId = Number(process.env.EXPECTED_STATUS_CREATOR_ID || 0);
+const expectedAttestorStatusId = Number(process.env.EXPECTED_ATTESTOR_STATUS_ID || 0);
+const expectedHeadAttestorStatusId = Number(process.env.EXPECTED_HEAD_ATTESTOR_STATUS_ID || 0);
+const expectedHeadStatusCreatorId = Number(process.env.EXPECTED_HEAD_STATUS_CREATOR_ID || 0);
+const governanceConstitution = JSON.parse(readFileSync(new URL("../../http-generic-api/config/repository-governance-constitution.json", import.meta.url), "utf8"));
+const mainSourcePolicy = governanceConstitution?.branches?.main || {};
+const anySourceEnabled = isAuthorizedMainAnySource(mainSourcePolicy);
+
 const prNumber = String(process.env.PR_NUMBER || "").trim();
 
 const SHA40 = /^[a-f0-9]{40}$/;
@@ -25,6 +34,10 @@ assert.ok(requiredContext, "REQUIRED_CHECK_CONTEXT is required.");
 assert.ok(managedRulesetName, "MANAGED_RULESET_NAME is required.");
 assert.ok(Number.isInteger(expectedAttestorAppId) && expectedAttestorAppId > 0, "EXPECTED_ATTESTOR_APP_ID must be a positive GitHub App id.");
 assert.ok(Number.isInteger(expectedStatusCreatorId) && expectedStatusCreatorId > 0, "EXPECTED_STATUS_CREATOR_ID must be a positive GitHub status creator id.");
+assert.ok(Number.isSafeInteger(expectedAttestorStatusId) && expectedAttestorStatusId > 0, "EXPECTED_ATTESTOR_STATUS_ID must prove the exact same-cycle published status.");
+assert.ok(Number.isSafeInteger(expectedHeadAttestorStatusId) && expectedHeadAttestorStatusId > 0, "EXPECTED_HEAD_ATTESTOR_STATUS_ID must prove the exact same-cycle required HEAD status.");
+assert.ok(Number.isInteger(expectedHeadStatusCreatorId) && expectedHeadStatusCreatorId > 0 && expectedHeadStatusCreatorId === expectedStatusCreatorId, "HEAD and candidate status creator IDs must identify the same App.");
+assert.notEqual(expectedHeadAttestorStatusId, expectedAttestorStatusId, "Candidate and HEAD publications must have distinct status IDs.");
 assert.match(prNumber, /^[1-9][0-9]*$/, "PR_NUMBER must be numeric.");
 
 async function github(pathname) {
@@ -74,6 +87,7 @@ function fail(status, message, details = {}) {
     required_check: requiredContext,
     expected_attestor_app_id: expectedAttestorAppId,
     expected_status_creator_id: expectedStatusCreatorId,
+    expected_attestor_status_id: expectedAttestorStatusId,
     native_auto_merge_required: false,
     safe_to_register_auto_merge: false,
     safe_to_merge_now: false,
@@ -126,8 +140,8 @@ if (activeRuleTypes.has("merge_queue")) {
 
 const activeBindings = requiredStatusBindings(activeRules);
 const activeBinding = activeBindings.find((entry) => entry.context === requiredContext);
-if (!activeBinding || activeBinding.integration_id !== expectedAttestorAppId) {
-  fail("blocked_required_check_app_binding_missing", `${requiredContext} is not actively bound to the exact trusted attestor App.`, {
+if (!allowedCheckSource(activeBinding, { context: requiredContext, appId: expectedAttestorAppId, anySourceOptIn: anySourceEnabled })) {
+  fail("blocked_required_check_app_binding_missing", `${requiredContext} is neither App-bound nor explicitly any-source with trusted candidate attestation.`, {
     observed_base_sha: observedBaseHead,
     observed_required_status_bindings: activeBindings,
   });
@@ -156,8 +170,8 @@ if (!Array.isArray(managedRuleset?.bypass_actors) || managedRuleset.bypass_actor
 }
 const managedBindings = requiredStatusBindings(managedRuleset?.rules || []);
 const managedBinding = managedBindings.find((entry) => entry.context === requiredContext);
-if (!managedBinding || managedBinding.integration_id !== expectedAttestorAppId) {
-  fail("blocked_managed_ruleset_attestor_binding_missing", "Managed governance ruleset is not bound to the exact trusted attestor App.", {
+if (!allowedCheckSource(managedBinding, { context: requiredContext, appId: expectedAttestorAppId, anySourceOptIn: anySourceEnabled })) {
+  fail("blocked_managed_ruleset_attestor_binding_missing", "Managed governance ruleset lacks an approved App-bound or independently-attested any-source setting.", {
     observed_base_sha: observedBaseHead,
     managed_ruleset_id: Number(managedMatches[0].id),
     observed_required_status_bindings: managedBindings,
@@ -208,15 +222,30 @@ if (blockingLabels.length > 0) {
 }
 
 const statuses = await github(`commits/${expectedCandidate}/statuses?per_page=100`);
-const trustedStatuses = (Array.isArray(statuses) ? statuses : []).filter((status) =>
-  status?.context === requiredContext
-  && status?.state === "success"
-  && Number(status?.creator?.id || 0) === expectedStatusCreatorId
-);
-if (trustedStatuses.length < 1) {
+// GitHub returns newest statuses first. Never accept an older trusted success
+// when an untrusted actor has overwritten the same context in any-source mode.
+const latestIsTrusted = latestSameCycleAttestorStatus(statuses, {
+  context: requiredContext, statusId: expectedAttestorStatusId, creatorId: expectedStatusCreatorId,
+});
+if (!latestIsTrusted) {
   fail("blocked_exact_attestor_status_missing", "Exact merge candidate does not expose the same-cycle trusted attestor success status.", {
     observed_base_sha: observedBaseHead,
     candidate_sha: expectedCandidate,
+    status_context: requiredContext,
+  });
+}
+
+// GitHub enforces the required context on the PR head; checking the candidate
+// status alone is insufficient even when candidate governance attestation passes.
+const headStatuses = await github(`commits/${expectedPrHead}/statuses?per_page=100`);
+const latestHeadIsTrusted = latestSameCycleAttestorStatus(headStatuses, {
+  context: requiredContext, statusId: expectedHeadAttestorStatusId,
+  creatorId: expectedHeadStatusCreatorId,
+});
+if (!latestHeadIsTrusted) {
+  fail("blocked_exact_head_attestor_status_missing", "PR HEAD does not expose the same-cycle trusted required status.", {
+    observed_base_sha: observedBaseHead,
+    source_head_sha: expectedPrHead,
     status_context: requiredContext,
   });
 }
@@ -238,10 +267,16 @@ const receipt = {
   bypass_actor_count: 0,
   required_check: requiredContext,
   required_check_enforced: true,
-  required_check_app_bound: true,
+  required_check_app_bound: activeBinding.integration_id === expectedAttestorAppId && managedBinding.integration_id === expectedAttestorAppId,
+  required_check_source_mode: activeBinding.integration_id === null ? "any_source_with_independent_finalizer_readback" : "app_bound",
+  any_source_server_publisher_identity_enforced: false,
+  latest_attestor_status_id: expectedAttestorStatusId,
   expected_attestor_app_id: expectedAttestorAppId,
   expected_status_creator_id: expectedStatusCreatorId,
-  exact_attestor_status_proven: true,
+  exact_attestor_status_proven: latestIsTrusted,
+  required_head_status_id: expectedHeadAttestorStatusId,
+  required_head_status_creator_id: expectedHeadStatusCreatorId,
+  exact_head_attestor_status_proven: latestHeadIsTrusted,
   followup_pr: Number(prNumber),
   manual_objection_present: false,
   safe_to_register_auto_merge: false,

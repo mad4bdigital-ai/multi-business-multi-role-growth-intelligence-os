@@ -8,15 +8,15 @@
     "7eaf87af3c9df2a3aa55a9f6adbd93d4d7bc4334c58084cb382d851af888e4a2"
   ],
   "db_catalog_fingerprint_match": true,
-  "file_count": 7861,
-  "route_count": 1118,
-  "write_route_count": 683,
+  "file_count": 8212,
+  "route_count": 1123,
+  "write_route_count": 685,
   "classified_write_surface_count": 44,
-  "classified_write_route_count": 683,
+  "classified_write_route_count": 685,
   "unclassified_write_route_count": 0,
-  "intentionally_unmapped_write_route_count": 639,
-  "sensitive_intentionally_unmapped_write_route_count": 639,
-  "migration_count": 450,
+  "intentionally_unmapped_write_route_count": 641,
+  "sensitive_intentionally_unmapped_write_route_count": 641,
+  "migration_count": 453,
   "registry_evidence_count": 118,
   "write_scope_count": 6,
   "bound_write_scope_count": 0,
@@ -409,8 +409,8 @@
     },
     {
       "route_id": "http-generic-api/routes/adminCliRoutes.js#POST:/gcloud:0",
-      "source_line": 2578,
-      "source_offset": 116348,
+      "source_line": 2569,
+      "source_offset": 116232,
       "method": "POST",
       "path": "/gcloud",
       "file": "http-generic-api/routes/adminCliRoutes.js",
@@ -418,8 +418,8 @@
     },
     {
       "route_id": "http-generic-api/routes/adminCliRoutes.js#POST:/github:1",
-      "source_line": 2595,
-      "source_offset": 117114,
+      "source_line": 2586,
+      "source_offset": 116998,
       "method": "POST",
       "path": "/github",
       "file": "http-generic-api/routes/adminCliRoutes.js",
@@ -427,8 +427,8 @@
     },
     {
       "route_id": "http-generic-api/routes/adminCliRoutes.js#POST:/control:2",
-      "source_line": 2612,
-      "source_offset": 117872,
+      "source_line": 2603,
+      "source_offset": 117756,
       "method": "POST",
       "path": "/control",
       "file": "http-generic-api/routes/adminCliRoutes.js",
@@ -436,8 +436,8 @@
     },
     {
       "route_id": "http-generic-api/routes/adminCliRoutes.js#GET:/dns:3",
-      "source_line": 2615,
-      "source_offset": 118095,
+      "source_line": 2606,
+      "source_offset": 117979,
       "method": "GET",
       "path": "/dns",
       "file": "http-generic-api/routes/adminCliRoutes.js",
@@ -445,8 +445,8 @@
     },
     {
       "route_id": "http-generic-api/routes/adminCliRoutes.js#POST:/dns:4",
-      "source_line": 2627,
-      "source_offset": 118900,
+      "source_line": 2618,
+      "source_offset": 118784,
       "method": "POST",
       "path": "/dns",
       "file": "http-generic-api/routes/adminCliRoutes.js",
@@ -454,8 +454,8 @@
     },
     {
       "route_id": "http-generic-api/routes/adminCliRoutes.js#DELETE:/dns:5",
-      "source_line": 2647,
-      "source_offset": 120139,
+      "source_line": 2638,
+      "source_offset": 120023,
       "method": "DELETE",
       "path": "/dns",
       "file": "http-generic-api/routes/adminCliRoutes.js",
@@ -463,8 +463,8 @@
     },
     {
       "route_id": "http-generic-api/routes/adminCliRoutes.js#POST:/hostinger:6",
-      "source_line": 2666,
-      "source_offset": 121141,
+      "source_line": 2657,
+      "source_offset": 121025,
       "method": "POST",
       "path": "/hostinger",
       "file": "http-generic-api/routes/adminCliRoutes.js",
@@ -472,35 +472,44 @@
     },
     {
       "route_id": "http-generic-api/routes/adminCliRoutes.js#POST:/cloudflare:7",
-      "source_line": 2685,
-      "source_offset": 121861,
+      "source_line": 2676,
+      "source_offset": 121745,
       "method": "POST",
       "path": "/cloudflare",
       "file": "http-generic-api/routes/adminCliRoutes.js",
       "write": true
     },
     {
-      "route_id": "http-generic-api/routes/adminCliRoutes.js#GET:/local-connector/install-bundle:8",
-      "source_line": 2727,
-      "source_offset": 123613,
+      "route_id": "http-generic-api/routes/adminCliRoutes.js#GET:/local-connector/devices:8",
+      "source_line": 2711,
+      "source_offset": 123012,
+      "method": "GET",
+      "path": "/local-connector/devices",
+      "file": "http-generic-api/routes/adminCliRoutes.js",
+      "write": false
+    },
+    {
+      "route_id": "http-generic-api/routes/adminCliRoutes.js#GET:/local-connector/install-bundle:9",
+      "source_line": 2732,
+      "source_offset": 124123,
       "method": "GET",
       "path": "/local-connector/install-bundle",
       "file": "http-generic-api/routes/adminCliRoutes.js",
       "write": false
     },
     {
-      "route_id": "http-generic-api/routes/adminCliRoutes.js#POST:/local-connector/self-repair:9",
-      "source_line": 2837,
-      "source_offset": 128242,
+      "route_id": "http-generic-api/routes/adminCliRoutes.js#POST:/local-connector/self-repair:10",
+      "source_line": 2782,
+      "source_offset": 126942,
       "method": "POST",
       "path": "/local-connector/self-repair",
       "file": "http-generic-api/routes/adminCliRoutes.js",
       "write": true
     },
     {
-      "route_id": "http-generic-api/routes/adminCliRoutes.js#GET:/data-source/census:10",
-      "source_line": 3194,
-      "source_offset": 143938,
+      "route_id": "http-generic-api/routes/adminCliRoutes.js#GET:/data-source/census:11",
+      "source_line": 3136,
+      "source_offset": 142863,
       "method": "GET",
       "path": "/data-source/census",
       "file": "http-generic-api/routes/adminCliRoutes.js",
@@ -508,8 +517,8 @@
     },
     {
       "route_id": "http-generic-api/routes/adminHostBreakglassRoutes.js#GET:/admin/runtime-bootstrap/catalog:0",
-      "source_line": 102,
-      "source_offset": 5078,
+      "source_line": 107,
+      "source_offset": 5287,
       "method": "GET",
       "path": "/admin/runtime-bootstrap/catalog",
       "file": "http-generic-api/routes/adminHostBreakglassRoutes.js",
@@ -517,8 +526,8 @@
     },
     {
       "route_id": "http-generic-api/routes/adminHostBreakglassRoutes.js#POST:/admin/runtime-bootstrap/plan:1",
-      "source_line": 118,
-      "source_offset": 5754,
+      "source_line": 123,
+      "source_offset": 5963,
       "method": "POST",
       "path": "/admin/runtime-bootstrap/plan",
       "file": "http-generic-api/routes/adminHostBreakglassRoutes.js",
@@ -526,8 +535,8 @@
     },
     {
       "route_id": "http-generic-api/routes/adminHostBreakglassRoutes.js#POST:/admin/runtime-bootstrap/runs:2",
-      "source_line": 122,
-      "source_offset": 6009,
+      "source_line": 127,
+      "source_offset": 6218,
       "method": "POST",
       "path": "/admin/runtime-bootstrap/runs",
       "file": "http-generic-api/routes/adminHostBreakglassRoutes.js",
@@ -535,8 +544,8 @@
     },
     {
       "route_id": "http-generic-api/routes/adminHostBreakglassRoutes.js#GET:/admin/runtime-bootstrap/runs/:correlation_id:3",
-      "source_line": 133,
-      "source_offset": 6497,
+      "source_line": 138,
+      "source_offset": 6706,
       "method": "GET",
       "path": "/admin/runtime-bootstrap/runs/:correlation_id",
       "file": "http-generic-api/routes/adminHostBreakglassRoutes.js",
@@ -1264,8 +1273,8 @@
     },
     {
       "route_id": "http-generic-api/routes/authRoutes.js#POST:/platform-jwt/issue:0",
-      "source_line": 1045,
-      "source_offset": 42464,
+      "source_line": 1074,
+      "source_offset": 43627,
       "method": "POST",
       "path": "/platform-jwt/issue",
       "file": "http-generic-api/routes/authRoutes.js",
@@ -1273,8 +1282,8 @@
     },
     {
       "route_id": "http-generic-api/routes/authRoutes.js#GET:/oauth/authorize:1",
-      "source_line": 1141,
-      "source_offset": 45875,
+      "source_line": 1170,
+      "source_offset": 47038,
       "method": "GET",
       "path": "/oauth/authorize",
       "file": "http-generic-api/routes/authRoutes.js",
@@ -1282,8 +1291,8 @@
     },
     {
       "route_id": "http-generic-api/routes/authRoutes.js#POST:/oauth/code:2",
-      "source_line": 1213,
-      "source_offset": 48937,
+      "source_line": 1260,
+      "source_offset": 50722,
       "method": "POST",
       "path": "/oauth/code",
       "file": "http-generic-api/routes/authRoutes.js",
@@ -1291,8 +1300,8 @@
     },
     {
       "route_id": "http-generic-api/routes/authRoutes.js#POST:/oauth/token:3",
-      "source_line": 1401,
-      "source_offset": 57613,
+      "source_line": 1509,
+      "source_offset": 61679,
       "method": "POST",
       "path": "/oauth/token",
       "file": "http-generic-api/routes/authRoutes.js",
@@ -1300,8 +1309,8 @@
     },
     {
       "route_id": "http-generic-api/routes/authRoutes.js#POST:/register:4",
-      "source_line": 1569,
-      "source_offset": 65719,
+      "source_line": 1677,
+      "source_offset": 69785,
       "method": "POST",
       "path": "/register",
       "file": "http-generic-api/routes/authRoutes.js",
@@ -1309,8 +1318,8 @@
     },
     {
       "route_id": "http-generic-api/routes/authRoutes.js#POST:/login:5",
-      "source_line": 1578,
-      "source_offset": 66078,
+      "source_line": 1686,
+      "source_offset": 70144,
       "method": "POST",
       "path": "/login",
       "file": "http-generic-api/routes/authRoutes.js",
@@ -1318,8 +1327,8 @@
     },
     {
       "route_id": "http-generic-api/routes/authRoutes.js#POST:/oauth/revoke:6",
-      "source_line": 1587,
-      "source_offset": 66424,
+      "source_line": 1695,
+      "source_offset": 70490,
       "method": "POST",
       "path": "/oauth/revoke",
       "file": "http-generic-api/routes/authRoutes.js",
@@ -1327,8 +1336,8 @@
     },
     {
       "route_id": "http-generic-api/routes/authRoutes.js#POST:/password/forgot:7",
-      "source_line": 1602,
-      "source_offset": 67479,
+      "source_line": 1710,
+      "source_offset": 71545,
       "method": "POST",
       "path": "/password/forgot",
       "file": "http-generic-api/routes/authRoutes.js",
@@ -1336,8 +1345,8 @@
     },
     {
       "route_id": "http-generic-api/routes/authRoutes.js#GET:/password/reset:8",
-      "source_line": 1664,
-      "source_offset": 70538,
+      "source_line": 1772,
+      "source_offset": 74604,
       "method": "GET",
       "path": "/password/reset",
       "file": "http-generic-api/routes/authRoutes.js",
@@ -1345,8 +1354,8 @@
     },
     {
       "route_id": "http-generic-api/routes/authRoutes.js#POST:/password/reset:9",
-      "source_line": 1677,
-      "source_offset": 72712,
+      "source_line": 1785,
+      "source_offset": 76778,
       "method": "POST",
       "path": "/password/reset",
       "file": "http-generic-api/routes/authRoutes.js",
@@ -1354,8 +1363,8 @@
     },
     {
       "route_id": "http-generic-api/routes/authRoutes.js#POST:/google:10",
-      "source_line": 1738,
-      "source_offset": 75527,
+      "source_line": 1846,
+      "source_offset": 79593,
       "method": "POST",
       "path": "/google",
       "file": "http-generic-api/routes/authRoutes.js",
@@ -1993,8 +2002,8 @@
     },
     {
       "route_id": "http-generic-api/routes/connectorAgentRoutes.js#GET:/connector-agent/version:0",
-      "source_line": 904,
-      "source_offset": 45739,
+      "source_line": 1017,
+      "source_offset": 52203,
       "method": "GET",
       "path": "/connector-agent/version",
       "file": "http-generic-api/routes/connectorAgentRoutes.js",
@@ -2002,8 +2011,8 @@
     },
     {
       "route_id": "http-generic-api/routes/connectorAgentRoutes.js#GET:/connector-agent/manifest.json:1",
-      "source_line": 934,
-      "source_offset": 46891,
+      "source_line": 1047,
+      "source_offset": 53355,
       "method": "GET",
       "path": "/connector-agent/manifest.json",
       "file": "http-generic-api/routes/connectorAgentRoutes.js",
@@ -2011,8 +2020,8 @@
     },
     {
       "route_id": "http-generic-api/routes/connectorAgentRoutes.js#GET:/connector-agent/installer.ps1:2",
-      "source_line": 980,
-      "source_offset": 48509,
+      "source_line": 1093,
+      "source_offset": 54973,
       "method": "GET",
       "path": "/connector-agent/installer.ps1",
       "file": "http-generic-api/routes/connectorAgentRoutes.js",
@@ -2020,8 +2029,8 @@
     },
     {
       "route_id": "http-generic-api/routes/connectorAgentRoutes.js#POST:/connector-agent/installer/redeem:3",
-      "source_line": 1032,
-      "source_offset": 51177,
+      "source_line": 1152,
+      "source_offset": 58066,
       "method": "POST",
       "path": "/connector-agent/installer/redeem",
       "file": "http-generic-api/routes/connectorAgentRoutes.js",
@@ -2029,8 +2038,8 @@
     },
     {
       "route_id": "http-generic-api/routes/connectorAgentRoutes.js#GET:/connector-agent/files/:fileName:4",
-      "source_line": 1077,
-      "source_offset": 53663,
+      "source_line": 1208,
+      "source_offset": 61409,
       "method": "GET",
       "path": "/connector-agent/files/:fileName",
       "file": "http-generic-api/routes/connectorAgentRoutes.js",
@@ -2038,8 +2047,8 @@
     },
     {
       "route_id": "http-generic-api/routes/connectorAgentRoutes.js#GET:/connector-agent/policy:5",
-      "source_line": 1094,
-      "source_offset": 54472,
+      "source_line": 1225,
+      "source_offset": 62218,
       "method": "GET",
       "path": "/connector-agent/policy",
       "file": "http-generic-api/routes/connectorAgentRoutes.js",
@@ -2047,8 +2056,8 @@
     },
     {
       "route_id": "http-generic-api/routes/connectorAgentRoutes.js#POST:/connector-agent/heartbeat:6",
-      "source_line": 1167,
-      "source_offset": 57847,
+      "source_line": 1302,
+      "source_offset": 65951,
       "method": "POST",
       "path": "/connector-agent/heartbeat",
       "file": "http-generic-api/routes/connectorAgentRoutes.js",
@@ -2056,8 +2065,8 @@
     },
     {
       "route_id": "http-generic-api/routes/connectorProxyRoutes.js#POST:/local-manager/device/agent-runtime:0",
-      "source_line": 901,
-      "source_offset": 36140,
+      "source_line": 902,
+      "source_offset": 36137,
       "method": "POST",
       "path": "/local-manager/device/agent-runtime",
       "file": "http-generic-api/routes/connectorProxyRoutes.js",
@@ -2065,8 +2074,8 @@
     },
     {
       "route_id": "http-generic-api/routes/connectorProxyRoutes.js#GET:/connector/:device_id/diagnostics:1",
-      "source_line": 936,
-      "source_offset": 37256,
+      "source_line": 937,
+      "source_offset": 37253,
       "method": "GET",
       "path": "/connector/:device_id/diagnostics",
       "file": "http-generic-api/routes/connectorProxyRoutes.js",
@@ -2074,8 +2083,8 @@
     },
     {
       "route_id": "http-generic-api/routes/connectorProxyRoutes.js#GET:/connector/:device_id/policy:2",
-      "source_line": 941,
-      "source_offset": 37558,
+      "source_line": 942,
+      "source_offset": 37555,
       "method": "GET",
       "path": "/connector/:device_id/policy",
       "file": "http-generic-api/routes/connectorProxyRoutes.js",
@@ -2083,8 +2092,8 @@
     },
     {
       "route_id": "http-generic-api/routes/connectorProxyRoutes.js#GET:/connector/:device_id/health:3",
-      "source_line": 946,
-      "source_offset": 37842,
+      "source_line": 947,
+      "source_offset": 37839,
       "method": "GET",
       "path": "/connector/:device_id/health",
       "file": "http-generic-api/routes/connectorProxyRoutes.js",
@@ -2092,8 +2101,8 @@
     },
     {
       "route_id": "http-generic-api/routes/connectorProxyRoutes.js#POST:/connector/:device_id/shell:4",
-      "source_line": 951,
-      "source_offset": 38126,
+      "source_line": 952,
+      "source_offset": 38123,
       "method": "POST",
       "path": "/connector/:device_id/shell",
       "file": "http-generic-api/routes/connectorProxyRoutes.js",
@@ -2101,8 +2110,8 @@
     },
     {
       "route_id": "http-generic-api/routes/connectorProxyRoutes.js#POST:/connector/:device_id/files:5",
-      "source_line": 958,
-      "source_offset": 38457,
+      "source_line": 959,
+      "source_offset": 38454,
       "method": "POST",
       "path": "/connector/:device_id/files",
       "file": "http-generic-api/routes/connectorProxyRoutes.js",
@@ -2110,8 +2119,8 @@
     },
     {
       "route_id": "http-generic-api/routes/connectorProxyRoutes.js#POST:/connector/:device_id/dependencies:6",
-      "source_line": 965,
-      "source_offset": 38796,
+      "source_line": 966,
+      "source_offset": 38793,
       "method": "POST",
       "path": "/connector/:device_id/dependencies",
       "file": "http-generic-api/routes/connectorProxyRoutes.js",
@@ -2119,8 +2128,8 @@
     },
     {
       "route_id": "http-generic-api/routes/connectorProxyRoutes.js#POST:/connector/:device_id/agent-runtime:7",
-      "source_line": 970,
-      "source_offset": 39093,
+      "source_line": 971,
+      "source_offset": 39090,
       "method": "POST",
       "path": "/connector/:device_id/agent-runtime",
       "file": "http-generic-api/routes/connectorProxyRoutes.js",
@@ -2128,8 +2137,8 @@
     },
     {
       "route_id": "http-generic-api/routes/connectorProxyRoutes.js#POST:/connector/:device_id/apps:8",
-      "source_line": 975,
-      "source_offset": 39392,
+      "source_line": 976,
+      "source_offset": 39389,
       "method": "POST",
       "path": "/connector/:device_id/apps",
       "file": "http-generic-api/routes/connectorProxyRoutes.js",
@@ -2137,8 +2146,8 @@
     },
     {
       "route_id": "http-generic-api/routes/connectorProxyRoutes.js#POST:/connector/:device_id/browser:9",
-      "source_line": 980,
-      "source_offset": 39673,
+      "source_line": 981,
+      "source_offset": 39670,
       "method": "POST",
       "path": "/connector/:device_id/browser",
       "file": "http-generic-api/routes/connectorProxyRoutes.js",
@@ -2146,8 +2155,8 @@
     },
     {
       "route_id": "http-generic-api/routes/connectorProxyRoutes.js#POST:/connector/:device_id/browser4:10",
-      "source_line": 985,
-      "source_offset": 39960,
+      "source_line": 986,
+      "source_offset": 39957,
       "method": "POST",
       "path": "/connector/:device_id/browser4",
       "file": "http-generic-api/routes/connectorProxyRoutes.js",
@@ -2155,8 +2164,8 @@
     },
     {
       "route_id": "http-generic-api/routes/connectorProxyRoutes.js#POST:/connector/:device_id/auto-browser:11",
-      "source_line": 990,
-      "source_offset": 40260,
+      "source_line": 991,
+      "source_offset": 40257,
       "method": "POST",
       "path": "/connector/:device_id/auto-browser",
       "file": "http-generic-api/routes/connectorProxyRoutes.js",
@@ -2164,8 +2173,8 @@
     },
     {
       "route_id": "http-generic-api/routes/connectorProxyRoutes.js#POST:/connector/:device_id/ps:12",
-      "source_line": 995,
-      "source_offset": 40568,
+      "source_line": 996,
+      "source_offset": 40565,
       "method": "POST",
       "path": "/connector/:device_id/ps",
       "file": "http-generic-api/routes/connectorProxyRoutes.js",
@@ -2173,8 +2182,8 @@
     },
     {
       "route_id": "http-generic-api/routes/connectorProxyRoutes.js#POST:/connector/:device_id/win:13",
-      "source_line": 1000,
-      "source_offset": 40856,
+      "source_line": 1001,
+      "source_offset": 40853,
       "method": "POST",
       "path": "/connector/:device_id/win",
       "file": "http-generic-api/routes/connectorProxyRoutes.js",
@@ -2182,8 +2191,8 @@
     },
     {
       "route_id": "http-generic-api/routes/connectorProxyRoutes.js#POST:/connector/:device_id/n8n:14",
-      "source_line": 1005,
-      "source_offset": 41146,
+      "source_line": 1006,
+      "source_offset": 41143,
       "method": "POST",
       "path": "/connector/:device_id/n8n",
       "file": "http-generic-api/routes/connectorProxyRoutes.js",
@@ -2191,8 +2200,8 @@
     },
     {
       "route_id": "http-generic-api/routes/connectorProxyRoutes.js#POST:/connector/:device_id/cf:15",
-      "source_line": 1012,
-      "source_offset": 41474,
+      "source_line": 1013,
+      "source_offset": 41471,
       "method": "POST",
       "path": "/connector/:device_id/cf",
       "file": "http-generic-api/routes/connectorProxyRoutes.js",
@@ -2200,8 +2209,8 @@
     },
     {
       "route_id": "http-generic-api/routes/connectorProxyRoutes.js#POST:/connector/:device_id/fetch-upload:16",
-      "source_line": 1019,
-      "source_offset": 41818,
+      "source_line": 1020,
+      "source_offset": 41815,
       "method": "POST",
       "path": "/connector/:device_id/fetch-upload",
       "file": "http-generic-api/routes/connectorProxyRoutes.js",
@@ -2209,8 +2218,8 @@
     },
     {
       "route_id": "http-generic-api/routes/connectorProxyRoutes.js#POST:/connector/:device_id/github:17",
-      "source_line": 1024,
-      "source_offset": 42115,
+      "source_line": 1025,
+      "source_offset": 42112,
       "method": "POST",
       "path": "/connector/:device_id/github",
       "file": "http-generic-api/routes/connectorProxyRoutes.js",
@@ -2218,8 +2227,8 @@
     },
     {
       "route_id": "http-generic-api/routes/connectorProxyRoutes.js#POST:/connector/:device_id/gcloud:18",
-      "source_line": 1029,
-      "source_offset": 42400,
+      "source_line": 1030,
+      "source_offset": 42397,
       "method": "POST",
       "path": "/connector/:device_id/gcloud",
       "file": "http-generic-api/routes/connectorProxyRoutes.js",
@@ -2227,8 +2236,8 @@
     },
     {
       "route_id": "http-generic-api/routes/connectorProxyRoutes.js#POST:/connector/:device_id/shell-fetch-upload:19",
-      "source_line": 1034,
-      "source_offset": 42685,
+      "source_line": 1035,
+      "source_offset": 42682,
       "method": "POST",
       "path": "/connector/:device_id/shell-fetch-upload",
       "file": "http-generic-api/routes/connectorProxyRoutes.js",
@@ -2299,8 +2308,8 @@
     },
     {
       "route_id": "http-generic-api/routes/credentialIntakeRoutes.js#POST:/credential-intake/sessions:0",
-      "source_line": 783,
-      "source_offset": 36140,
+      "source_line": 784,
+      "source_offset": 36255,
       "method": "POST",
       "path": "/credential-intake/sessions",
       "file": "http-generic-api/routes/credentialIntakeRoutes.js",
@@ -2308,8 +2317,8 @@
     },
     {
       "route_id": "http-generic-api/routes/credentialIntakeRoutes.js#GET:/credential-intake/:token/schema:1",
-      "source_line": 816,
-      "source_offset": 37606,
+      "source_line": 817,
+      "source_offset": 37721,
       "method": "GET",
       "path": "/credential-intake/:token/schema",
       "file": "http-generic-api/routes/credentialIntakeRoutes.js",
@@ -2317,8 +2326,8 @@
     },
     {
       "route_id": "http-generic-api/routes/credentialIntakeRoutes.js#GET:/credential-intake/:token:2",
-      "source_line": 833,
-      "source_offset": 38361,
+      "source_line": 834,
+      "source_offset": 38476,
       "method": "GET",
       "path": "/credential-intake/:token",
       "file": "http-generic-api/routes/credentialIntakeRoutes.js",
@@ -2326,8 +2335,8 @@
     },
     {
       "route_id": "http-generic-api/routes/credentialIntakeRoutes.js#POST:/credential-intake/:token:3",
-      "source_line": 859,
-      "source_offset": 39714,
+      "source_line": 860,
+      "source_offset": 39829,
       "method": "POST",
       "path": "/credential-intake/:token",
       "file": "http-generic-api/routes/credentialIntakeRoutes.js",
@@ -2335,8 +2344,8 @@
     },
     {
       "route_id": "http-generic-api/routes/credentialRoutes.js#POST:/credentials/effective/status:0",
-      "source_line": 322,
-      "source_offset": 12777,
+      "source_line": 354,
+      "source_offset": 14501,
       "method": "POST",
       "path": "/credentials/effective/status",
       "file": "http-generic-api/routes/credentialRoutes.js",
@@ -2344,8 +2353,8 @@
     },
     {
       "route_id": "http-generic-api/routes/credentialRoutes.js#POST:/credentials/effective/plan:1",
-      "source_line": 336,
-      "source_offset": 13473,
+      "source_line": 368,
+      "source_offset": 15197,
       "method": "POST",
       "path": "/credentials/effective/plan",
       "file": "http-generic-api/routes/credentialRoutes.js",
@@ -2353,8 +2362,8 @@
     },
     {
       "route_id": "http-generic-api/routes/credentialRoutes.js#POST:/credentials/secrets/upsert:2",
-      "source_line": 350,
-      "source_offset": 14213,
+      "source_line": 382,
+      "source_offset": 15937,
       "method": "POST",
       "path": "/credentials/secrets/upsert",
       "file": "http-generic-api/routes/credentialRoutes.js",
@@ -2362,8 +2371,8 @@
     },
     {
       "route_id": "http-generic-api/routes/credentialRoutes.js#POST:/credentials/intake/promote-platform-secrets:3",
-      "source_line": 465,
-      "source_offset": 19935,
+      "source_line": 497,
+      "source_offset": 21659,
       "method": "POST",
       "path": "/credentials/intake/promote-platform-secrets",
       "file": "http-generic-api/routes/credentialRoutes.js",
@@ -2371,8 +2380,8 @@
     },
     {
       "route_id": "http-generic-api/routes/credentialRoutes.js#POST:/credentials/intake/promote-local-connector-key:4",
-      "source_line": 590,
-      "source_offset": 26479,
+      "source_line": 624,
+      "source_offset": 28378,
       "method": "POST",
       "path": "/credentials/intake/promote-local-connector-key",
       "file": "http-generic-api/routes/credentialRoutes.js",
@@ -2380,8 +2389,8 @@
     },
     {
       "route_id": "http-generic-api/routes/credentialRoutes.js#POST:/credentials/bindings/promote:5",
-      "source_line": 671,
-      "source_offset": 30865,
+      "source_line": 705,
+      "source_offset": 32764,
       "method": "POST",
       "path": "/credentials/bindings/promote",
       "file": "http-generic-api/routes/credentialRoutes.js",
@@ -2389,8 +2398,8 @@
     },
     {
       "route_id": "http-generic-api/routes/credentialRoutes.js#GET:/credentials/bindings:6",
-      "source_line": 828,
-      "source_offset": 38577,
+      "source_line": 862,
+      "source_offset": 40476,
       "method": "GET",
       "path": "/credentials/bindings",
       "file": "http-generic-api/routes/credentialRoutes.js",
@@ -2596,8 +2605,8 @@
     },
     {
       "route_id": "http-generic-api/routes/deploymentInfoRoutes.js#POST:/deployment-info/runtime-bootstrap-dry-run:0",
-      "source_line": 307,
-      "source_offset": 10186,
+      "source_line": 333,
+      "source_offset": 11439,
       "method": "POST",
       "path": "/deployment-info/runtime-bootstrap-dry-run",
       "file": "http-generic-api/routes/deploymentInfoRoutes.js",
@@ -2605,8 +2614,8 @@
     },
     {
       "route_id": "http-generic-api/routes/deploymentInfoRoutes.js#POST:/deployment-info/runtime-bootstrap-role-dry-run:1",
-      "source_line": 371,
-      "source_offset": 14734,
+      "source_line": 397,
+      "source_offset": 15987,
       "method": "POST",
       "path": "/deployment-info/runtime-bootstrap-role-dry-run",
       "file": "http-generic-api/routes/deploymentInfoRoutes.js",
@@ -2614,8 +2623,8 @@
     },
     {
       "route_id": "http-generic-api/routes/deploymentInfoRoutes.js#GET:/deployment-info/runtime-binding:2",
-      "source_line": 449,
-      "source_offset": 18329,
+      "source_line": 475,
+      "source_offset": 19582,
       "method": "GET",
       "path": "/deployment-info/runtime-binding",
       "file": "http-generic-api/routes/deploymentInfoRoutes.js",
@@ -2623,8 +2632,8 @@
     },
     {
       "route_id": "http-generic-api/routes/deploymentInfoRoutes.js#GET:/deployment-info:3",
-      "source_line": 456,
-      "source_offset": 18641,
+      "source_line": 482,
+      "source_offset": 19894,
       "method": "GET",
       "path": "/deployment-info",
       "file": "http-generic-api/routes/deploymentInfoRoutes.js",
@@ -3027,18 +3036,36 @@
       "write": true
     },
     {
-      "route_id": "http-generic-api/routes/deviceToolsRoutes.js#GET:/device/tools:0",
-      "source_line": 50,
-      "source_offset": 1713,
+      "route_id": "http-generic-api/routes/deviceToolsRoutes.js#POST:/device/tools/devices/:device_id/health:0",
+      "source_line": 85,
+      "source_offset": 3828,
+      "method": "POST",
+      "path": "/device/tools/devices/:device_id/health",
+      "file": "http-generic-api/routes/deviceToolsRoutes.js",
+      "write": true
+    },
+    {
+      "route_id": "http-generic-api/routes/deviceToolsRoutes.js#GET:/device/tools/devices:1",
+      "source_line": 125,
+      "source_offset": 5706,
+      "method": "GET",
+      "path": "/device/tools/devices",
+      "file": "http-generic-api/routes/deviceToolsRoutes.js",
+      "write": false
+    },
+    {
+      "route_id": "http-generic-api/routes/deviceToolsRoutes.js#GET:/device/tools:2",
+      "source_line": 150,
+      "source_offset": 6764,
       "method": "GET",
       "path": "/device/tools",
       "file": "http-generic-api/routes/deviceToolsRoutes.js",
       "write": false
     },
     {
-      "route_id": "http-generic-api/routes/deviceToolsRoutes.js#POST:/device/tools/call:1",
-      "source_line": 71,
-      "source_offset": 2535,
+      "route_id": "http-generic-api/routes/deviceToolsRoutes.js#POST:/device/tools/call:3",
+      "source_line": 171,
+      "source_offset": 7586,
       "method": "POST",
       "path": "/device/tools/call",
       "file": "http-generic-api/routes/deviceToolsRoutes.js",
@@ -3694,8 +3721,8 @@
     },
     {
       "route_id": "http-generic-api/routes/gptToolsRoutes.js#POST:/admin/act-as-user/sessions:0",
-      "source_line": 4645,
-      "source_offset": 218264,
+      "source_line": 4646,
+      "source_offset": 218398,
       "method": "POST",
       "path": "/admin/act-as-user/sessions",
       "file": "http-generic-api/routes/gptToolsRoutes.js",
@@ -3703,8 +3730,8 @@
     },
     {
       "route_id": "http-generic-api/routes/gptToolsRoutes.js#POST:/admin/act-as-user/sessions/:sessionId/revoke:1",
-      "source_line": 4661,
-      "source_offset": 219458,
+      "source_line": 4662,
+      "source_offset": 219592,
       "method": "POST",
       "path": "/admin/act-as-user/sessions/:sessionId/revoke",
       "file": "http-generic-api/routes/gptToolsRoutes.js",
@@ -3712,8 +3739,8 @@
     },
     {
       "route_id": "http-generic-api/routes/gptToolsRoutes.js#GET:/gpt/tools:2",
-      "source_line": 4675,
-      "source_offset": 220444,
+      "source_line": 4676,
+      "source_offset": 220578,
       "method": "GET",
       "path": "/gpt/tools",
       "file": "http-generic-api/routes/gptToolsRoutes.js",
@@ -3721,8 +3748,8 @@
     },
     {
       "route_id": "http-generic-api/routes/gptToolsRoutes.js#POST:/gpt/tools/call:3",
-      "source_line": 4718,
-      "source_offset": 222329,
+      "source_line": 4719,
+      "source_offset": 222463,
       "method": "POST",
       "path": "/gpt/tools/call",
       "file": "http-generic-api/routes/gptToolsRoutes.js",
@@ -3731,7 +3758,7 @@
     {
       "route_id": "http-generic-api/routes/gptToolsRoutesLegacy.js#GET:/gpt/tools:0",
       "source_line": 4362,
-      "source_offset": 204702,
+      "source_offset": 204728,
       "method": "GET",
       "path": "/gpt/tools",
       "file": "http-generic-api/routes/gptToolsRoutesLegacy.js",
@@ -3740,7 +3767,7 @@
     {
       "route_id": "http-generic-api/routes/gptToolsRoutesLegacy.js#POST:/gpt/tools/call:1",
       "source_line": 4396,
-      "source_offset": 206039,
+      "source_offset": 206065,
       "method": "POST",
       "path": "/gpt/tools/call",
       "file": "http-generic-api/routes/gptToolsRoutesLegacy.js",
@@ -4126,8 +4153,8 @@
     },
     {
       "route_id": "http-generic-api/routes/localConnectorInstallRoutes.js#POST:/local-connector/install/device-download-link:0",
-      "source_line": 1267,
-      "source_offset": 54633,
+      "source_line": 1290,
+      "source_offset": 56538,
       "method": "POST",
       "path": "/local-connector/install/device-download-link",
       "file": "http-generic-api/routes/localConnectorInstallRoutes.js",
@@ -4135,8 +4162,8 @@
     },
     {
       "route_id": "http-generic-api/routes/localConnectorInstallRoutes.js#POST:/local-connector/install/download-link:1",
-      "source_line": 1359,
-      "source_offset": 59309,
+      "source_line": 1360,
+      "source_offset": 60556,
       "method": "POST",
       "path": "/local-connector/install/download-link",
       "file": "http-generic-api/routes/localConnectorInstallRoutes.js",
@@ -4144,8 +4171,8 @@
     },
     {
       "route_id": "http-generic-api/routes/localConnectorInstallRoutes.js#GET:/local-connector/install/download:2",
-      "source_line": 1405,
-      "source_offset": 61757,
+      "source_line": 1418,
+      "source_offset": 63678,
       "method": "GET",
       "path": "/local-connector/install/download",
       "file": "http-generic-api/routes/localConnectorInstallRoutes.js",
@@ -4153,8 +4180,8 @@
     },
     {
       "route_id": "http-generic-api/routes/localConnectorInstallRoutes.js#POST:/local-connector/install:3",
-      "source_line": 1450,
-      "source_offset": 64083,
+      "source_line": 1467,
+      "source_offset": 66310,
       "method": "POST",
       "path": "/local-connector/install",
       "file": "http-generic-api/routes/localConnectorInstallRoutes.js",
@@ -4162,8 +4189,8 @@
     },
     {
       "route_id": "http-generic-api/routes/localConnectorInstallRoutes.js#POST:/local-connector/install:4",
-      "source_line": 1462,
-      "source_offset": 64723,
+      "source_line": 1479,
+      "source_offset": 66950,
       "method": "POST",
       "path": "/local-connector/install",
       "file": "http-generic-api/routes/localConnectorInstallRoutes.js",
@@ -4171,8 +4198,8 @@
     },
     {
       "route_id": "http-generic-api/routes/localConnectorInstallRoutes.js#GET:/local-connector/install/status:5",
-      "source_line": 1630,
-      "source_offset": 72565,
+      "source_line": 1647,
+      "source_offset": 74792,
       "method": "GET",
       "path": "/local-connector/install/status",
       "file": "http-generic-api/routes/localConnectorInstallRoutes.js",
@@ -4180,8 +4207,8 @@
     },
     {
       "route_id": "http-generic-api/routes/localConnectorInstallRoutes.js#DELETE:/local-connector/uninstall:6",
-      "source_line": 1724,
-      "source_offset": 77287,
+      "source_line": 1741,
+      "source_offset": 79514,
       "method": "DELETE",
       "path": "/local-connector/uninstall",
       "file": "http-generic-api/routes/localConnectorInstallRoutes.js",
@@ -4252,8 +4279,8 @@
     },
     {
       "route_id": "http-generic-api/routes/localManagerBetaRoutes.js#GET:/app/local-manager:0",
-      "source_line": 961,
-      "source_offset": 56276,
+      "source_line": 897,
+      "source_offset": 54641,
       "method": "GET",
       "path": "/app/local-manager",
       "file": "http-generic-api/routes/localManagerBetaRoutes.js",
@@ -4261,8 +4288,8 @@
     },
     {
       "route_id": "http-generic-api/routes/localManagerBetaRoutes.js#GET:/app/local-manager/update/windows:1",
-      "source_line": 967,
-      "source_offset": 56502,
+      "source_line": 903,
+      "source_offset": 54867,
       "method": "GET",
       "path": "/app/local-manager/update/windows",
       "file": "http-generic-api/routes/localManagerBetaRoutes.js",
@@ -4270,8 +4297,8 @@
     },
     {
       "route_id": "http-generic-api/routes/localManagerBetaRoutes.js#GET:/app/local-manager/download/windows:2",
-      "source_line": 973,
-      "source_offset": 56774,
+      "source_line": 910,
+      "source_offset": 55339,
       "method": "GET",
       "path": "/app/local-manager/download/windows",
       "file": "http-generic-api/routes/localManagerBetaRoutes.js",
@@ -4279,8 +4306,8 @@
     },
     {
       "route_id": "http-generic-api/routes/localManagerBetaRoutes.js#GET:/app/local-manager/sign-in:3",
-      "source_line": 978,
-      "source_offset": 56959,
+      "source_line": 920,
+      "source_offset": 56085,
       "method": "GET",
       "path": "/app/local-manager/sign-in",
       "file": "http-generic-api/routes/localManagerBetaRoutes.js",
@@ -4288,8 +4315,8 @@
     },
     {
       "route_id": "http-generic-api/routes/localManagerBetaRoutes.js#GET:/app/local-manager/sign-up:4",
-      "source_line": 994,
-      "source_offset": 57912,
+      "source_line": 936,
+      "source_offset": 57038,
       "method": "GET",
       "path": "/app/local-manager/sign-up",
       "file": "http-generic-api/routes/localManagerBetaRoutes.js",
@@ -4297,8 +4324,8 @@
     },
     {
       "route_id": "http-generic-api/routes/localManagerBetaRoutes.js#GET:/app/local-manager/link-device:5",
-      "source_line": 1010,
-      "source_offset": 58817,
+      "source_line": 952,
+      "source_offset": 57943,
       "method": "GET",
       "path": "/app/local-manager/link-device",
       "file": "http-generic-api/routes/localManagerBetaRoutes.js",
@@ -4306,8 +4333,8 @@
     },
     {
       "route_id": "http-generic-api/routes/localManagerBetaRoutes.js#GET:/app/local-manager/devices:6",
-      "source_line": 1016,
-      "source_offset": 59081,
+      "source_line": 958,
+      "source_offset": 58207,
       "method": "GET",
       "path": "/app/local-manager/devices",
       "file": "http-generic-api/routes/localManagerBetaRoutes.js",
@@ -4315,8 +4342,8 @@
     },
     {
       "route_id": "http-generic-api/routes/localManagerBetaRoutes.js#GET:/app/local-manager/routes:7",
-      "source_line": 1022,
-      "source_offset": 59319,
+      "source_line": 964,
+      "source_offset": 58445,
       "method": "GET",
       "path": "/app/local-manager/routes",
       "file": "http-generic-api/routes/localManagerBetaRoutes.js",
@@ -4324,8 +4351,8 @@
     },
     {
       "route_id": "http-generic-api/routes/localManagerBetaRoutes.js#GET:/app/local-manager/backups:8",
-      "source_line": 1038,
-      "source_offset": 60130,
+      "source_line": 980,
+      "source_offset": 59256,
       "method": "GET",
       "path": "/app/local-manager/backups",
       "file": "http-generic-api/routes/localManagerBetaRoutes.js",
@@ -4333,8 +4360,8 @@
     },
     {
       "route_id": "http-generic-api/routes/localManagerBetaRoutes.js#GET:/app/local-manager/settings:9",
-      "source_line": 1054,
-      "source_offset": 60950,
+      "source_line": 996,
+      "source_offset": 60076,
       "method": "GET",
       "path": "/app/local-manager/settings",
       "file": "http-generic-api/routes/localManagerBetaRoutes.js",
@@ -4342,8 +4369,8 @@
     },
     {
       "route_id": "http-generic-api/routes/localManagerBetaRoutes.js#POST:/local-manager/device-link/start:10",
-      "source_line": 1070,
-      "source_offset": 61703,
+      "source_line": 1012,
+      "source_offset": 60829,
       "method": "POST",
       "path": "/local-manager/device-link/start",
       "file": "http-generic-api/routes/localManagerBetaRoutes.js",
@@ -4351,8 +4378,8 @@
     },
     {
       "route_id": "http-generic-api/routes/localManagerBetaRoutes.js#GET:/local-manager/device-link/preview:11",
-      "source_line": 1071,
-      "source_offset": 61815,
+      "source_line": 1013,
+      "source_offset": 60941,
       "method": "GET",
       "path": "/local-manager/device-link/preview",
       "file": "http-generic-api/routes/localManagerBetaRoutes.js",
@@ -4360,8 +4387,8 @@
     },
     {
       "route_id": "http-generic-api/routes/localManagerBetaRoutes.js#POST:/local-manager/device-link/poll:12",
-      "source_line": 1072,
-      "source_offset": 61930,
+      "source_line": 1014,
+      "source_offset": 61056,
       "method": "POST",
       "path": "/local-manager/device-link/poll",
       "file": "http-generic-api/routes/localManagerBetaRoutes.js",
@@ -4369,8 +4396,8 @@
     },
     {
       "route_id": "http-generic-api/routes/localManagerBetaRoutes.js#POST:/local-manager/device-link/approve:13",
-      "source_line": 1073,
-      "source_offset": 62040,
+      "source_line": 1015,
+      "source_offset": 61166,
       "method": "POST",
       "path": "/local-manager/device-link/approve",
       "file": "http-generic-api/routes/localManagerBetaRoutes.js",
@@ -4378,8 +4405,8 @@
     },
     {
       "route_id": "http-generic-api/routes/localManagerBetaRoutes.js#GET:/local-manager/device-link/devices:14",
-      "source_line": 1074,
-      "source_offset": 62119,
+      "source_line": 1016,
+      "source_offset": 61245,
       "method": "GET",
       "path": "/local-manager/device-link/devices",
       "file": "http-generic-api/routes/localManagerBetaRoutes.js",
@@ -4387,8 +4414,8 @@
     },
     {
       "route_id": "http-generic-api/routes/localManagerBetaRoutes.js#POST:/local-manager/device-link/devices/:sessionId/revoke:15",
-      "source_line": 1075,
-      "source_offset": 62190,
+      "source_line": 1017,
+      "source_offset": 61316,
       "method": "POST",
       "path": "/local-manager/device-link/devices/:sessionId/revoke",
       "file": "http-generic-api/routes/localManagerBetaRoutes.js",
@@ -4396,8 +4423,8 @@
     },
     {
       "route_id": "http-generic-api/routes/localManagerBetaRoutes.js#GET:/local-manager/device/session:16",
-      "source_line": 1076,
-      "source_offset": 62321,
+      "source_line": 1018,
+      "source_offset": 61447,
       "method": "GET",
       "path": "/local-manager/device/session",
       "file": "http-generic-api/routes/localManagerBetaRoutes.js",
@@ -4405,8 +4432,8 @@
     },
     {
       "route_id": "http-generic-api/routes/localManagerBetaRoutes.js#GET:/local-manager/device/controls:17",
-      "source_line": 1077,
-      "source_offset": 62386,
+      "source_line": 1019,
+      "source_offset": 61512,
       "method": "GET",
       "path": "/local-manager/device/controls",
       "file": "http-generic-api/routes/localManagerBetaRoutes.js",
@@ -4414,8 +4441,8 @@
     },
     {
       "route_id": "http-generic-api/routes/localManagerBetaRoutes.js#POST:/local-manager/device/n8n/provision:18",
-      "source_line": 1078,
-      "source_offset": 62453,
+      "source_line": 1020,
+      "source_offset": 61579,
       "method": "POST",
       "path": "/local-manager/device/n8n/provision",
       "file": "http-generic-api/routes/localManagerBetaRoutes.js",
@@ -4423,8 +4450,8 @@
     },
     {
       "route_id": "http-generic-api/routes/localManagerBetaRoutes.js#GET:/app/local-manager/admin:19",
-      "source_line": 1080,
-      "source_offset": 62563,
+      "source_line": 1022,
+      "source_offset": 61689,
       "method": "GET",
       "path": "/app/local-manager/admin",
       "file": "http-generic-api/routes/localManagerBetaRoutes.js",
@@ -4432,8 +4459,8 @@
     },
     {
       "route_id": "http-generic-api/routes/localManagerBetaRoutes.js#GET:/local-manager/beta:20",
-      "source_line": 1086,
-      "source_offset": 62797,
+      "source_line": 1028,
+      "source_offset": 61923,
       "method": "GET",
       "path": "/local-manager/beta",
       "file": "http-generic-api/routes/localManagerBetaRoutes.js",
@@ -4441,8 +4468,8 @@
     },
     {
       "route_id": "http-generic-api/routes/localManagerBetaRoutes.js#GET:/local-manager/beta/status:21",
-      "source_line": 1092,
-      "source_offset": 63013,
+      "source_line": 1034,
+      "source_offset": 62139,
       "method": "GET",
       "path": "/local-manager/beta/status",
       "file": "http-generic-api/routes/localManagerBetaRoutes.js",
@@ -5746,8 +5773,8 @@
     },
     {
       "route_id": "http-generic-api/routes/platformPluginRoutes.js#GET:/platform/plugins/catalog:0",
-      "source_line": 202,
-      "source_offset": 7659,
+      "source_line": 203,
+      "source_offset": 7759,
       "method": "GET",
       "path": "/platform/plugins/catalog",
       "file": "http-generic-api/routes/platformPluginRoutes.js",
@@ -5755,8 +5782,8 @@
     },
     {
       "route_id": "http-generic-api/routes/platformPluginRoutes.js#POST:/platform/plugins/resolve:1",
-      "source_line": 215,
-      "source_offset": 8268,
+      "source_line": 216,
+      "source_offset": 8368,
       "method": "POST",
       "path": "/platform/plugins/resolve",
       "file": "http-generic-api/routes/platformPluginRoutes.js",
@@ -5764,8 +5791,8 @@
     },
     {
       "route_id": "http-generic-api/routes/platformPluginRoutes.js#POST:/platform/action-manifest/resolve:2",
-      "source_line": 238,
-      "source_offset": 9557,
+      "source_line": 239,
+      "source_offset": 9657,
       "method": "POST",
       "path": "/platform/action-manifest/resolve",
       "file": "http-generic-api/routes/platformPluginRoutes.js",
@@ -5773,8 +5800,8 @@
     },
     {
       "route_id": "http-generic-api/routes/platformPluginRoutes.js#POST:/platform/execution-readiness/dry-run:3",
-      "source_line": 246,
-      "source_offset": 9940,
+      "source_line": 247,
+      "source_offset": 10040,
       "method": "POST",
       "path": "/platform/execution-readiness/dry-run",
       "file": "http-generic-api/routes/platformPluginRoutes.js",
@@ -5782,8 +5809,8 @@
     },
     {
       "route_id": "http-generic-api/routes/platformPluginRoutes.js#POST:/platform/orchestration/readback:4",
-      "source_line": 254,
-      "source_offset": 10331,
+      "source_line": 255,
+      "source_offset": 10431,
       "method": "POST",
       "path": "/platform/orchestration/readback",
       "file": "http-generic-api/routes/platformPluginRoutes.js",
@@ -5791,8 +5818,8 @@
     },
     {
       "route_id": "http-generic-api/routes/platformPluginRoutes.js#POST:/platform/health/scorecard:5",
-      "source_line": 262,
-      "source_offset": 10723,
+      "source_line": 263,
+      "source_offset": 10823,
       "method": "POST",
       "path": "/platform/health/scorecard",
       "file": "http-generic-api/routes/platformPluginRoutes.js",
@@ -5800,8 +5827,8 @@
     },
     {
       "route_id": "http-generic-api/routes/platformPluginRoutes.js#POST:/platform/health/scorecard/snapshot-record:6",
-      "source_line": 270,
-      "source_offset": 11097,
+      "source_line": 271,
+      "source_offset": 11197,
       "method": "POST",
       "path": "/platform/health/scorecard/snapshot-record",
       "file": "http-generic-api/routes/platformPluginRoutes.js",
@@ -5809,8 +5836,8 @@
     },
     {
       "route_id": "http-generic-api/routes/platformPluginRoutes.js#POST:/platform/health/scorecard/remediation-plan:7",
-      "source_line": 278,
-      "source_offset": 11513,
+      "source_line": 279,
+      "source_offset": 11613,
       "method": "POST",
       "path": "/platform/health/scorecard/remediation-plan",
       "file": "http-generic-api/routes/platformPluginRoutes.js",
@@ -5818,8 +5845,8 @@
     },
     {
       "route_id": "http-generic-api/routes/platformPluginRoutes.js#POST:/platform/health/scorecard/tenant-rollout:8",
-      "source_line": 286,
-      "source_offset": 11936,
+      "source_line": 287,
+      "source_offset": 12036,
       "method": "POST",
       "path": "/platform/health/scorecard/tenant-rollout",
       "file": "http-generic-api/routes/platformPluginRoutes.js",
@@ -5827,8 +5854,8 @@
     },
     {
       "route_id": "http-generic-api/routes/platformPluginRoutes.js#POST:/platform/health/scorecard/ledger-hygiene:9",
-      "source_line": 294,
-      "source_offset": 12353,
+      "source_line": 295,
+      "source_offset": 12453,
       "method": "POST",
       "path": "/platform/health/scorecard/ledger-hygiene",
       "file": "http-generic-api/routes/platformPluginRoutes.js",
@@ -5836,8 +5863,8 @@
     },
     {
       "route_id": "http-generic-api/routes/platformPluginRoutes.js#POST:/platform/orchestration/ads-provider/snapshot-propose:10",
-      "source_line": 302,
-      "source_offset": 12770,
+      "source_line": 303,
+      "source_offset": 12870,
       "method": "POST",
       "path": "/platform/orchestration/ads-provider/snapshot-propose",
       "file": "http-generic-api/routes/platformPluginRoutes.js",
@@ -5845,8 +5872,8 @@
     },
     {
       "route_id": "http-generic-api/routes/platformPluginRoutes.js#POST:/platform/orchestration/ads-provider/snapshot-record:11",
-      "source_line": 310,
-      "source_offset": 13196,
+      "source_line": 311,
+      "source_offset": 13296,
       "method": "POST",
       "path": "/platform/orchestration/ads-provider/snapshot-record",
       "file": "http-generic-api/routes/platformPluginRoutes.js",
@@ -5854,8 +5881,8 @@
     },
     {
       "route_id": "http-generic-api/routes/platformPluginRoutes.js#POST:/platform/orchestration/support-ticket/snapshot-propose:12",
-      "source_line": 318,
-      "source_offset": 13618,
+      "source_line": 319,
+      "source_offset": 13718,
       "method": "POST",
       "path": "/platform/orchestration/support-ticket/snapshot-propose",
       "file": "http-generic-api/routes/platformPluginRoutes.js",
@@ -5863,8 +5890,8 @@
     },
     {
       "route_id": "http-generic-api/routes/platformPluginRoutes.js#POST:/platform/orchestration/support-ticket/snapshot-record:13",
-      "source_line": 326,
-      "source_offset": 14048,
+      "source_line": 327,
+      "source_offset": 14148,
       "method": "POST",
       "path": "/platform/orchestration/support-ticket/snapshot-record",
       "file": "http-generic-api/routes/platformPluginRoutes.js",
@@ -5872,8 +5899,8 @@
     },
     {
       "route_id": "http-generic-api/routes/platformPluginRoutes.js#POST:/platform/plugins/smoke-certifications/certify:14",
-      "source_line": 334,
-      "source_offset": 14474,
+      "source_line": 335,
+      "source_offset": 14574,
       "method": "POST",
       "path": "/platform/plugins/smoke-certifications/certify",
       "file": "http-generic-api/routes/platformPluginRoutes.js",
@@ -5881,8 +5908,8 @@
     },
     {
       "route_id": "http-generic-api/routes/platformPluginRoutes.js#POST:/platform/plugins/smoke-certifications/status:15",
-      "source_line": 342,
-      "source_offset": 14889,
+      "source_line": 343,
+      "source_offset": 14989,
       "method": "POST",
       "path": "/platform/plugins/smoke-certifications/status",
       "file": "http-generic-api/routes/platformPluginRoutes.js",
@@ -5890,8 +5917,8 @@
     },
     {
       "route_id": "http-generic-api/routes/platformPluginRoutes.js#POST:/platform/plugins/smoke-certifications/policies/resolve:16",
-      "source_line": 350,
-      "source_offset": 15307,
+      "source_line": 351,
+      "source_offset": 15407,
       "method": "POST",
       "path": "/platform/plugins/smoke-certifications/policies/resolve",
       "file": "http-generic-api/routes/platformPluginRoutes.js",
@@ -5899,8 +5926,8 @@
     },
     {
       "route_id": "http-generic-api/routes/platformPluginRoutes.js#POST:/platform/plugins/smoke-certifications/policies/list:17",
-      "source_line": 358,
-      "source_offset": 15757,
+      "source_line": 359,
+      "source_offset": 15857,
       "method": "POST",
       "path": "/platform/plugins/smoke-certifications/policies/list",
       "file": "http-generic-api/routes/platformPluginRoutes.js",
@@ -5908,8 +5935,8 @@
     },
     {
       "route_id": "http-generic-api/routes/platformPluginRoutes.js#POST:/platform/plugins/smoke-certifications/policies/upsert:18",
-      "source_line": 366,
-      "source_offset": 16200,
+      "source_line": 367,
+      "source_offset": 16300,
       "method": "POST",
       "path": "/platform/plugins/smoke-certifications/policies/upsert",
       "file": "http-generic-api/routes/platformPluginRoutes.js",
@@ -5917,8 +5944,8 @@
     },
     {
       "route_id": "http-generic-api/routes/platformPluginRoutes.js#POST:/platform/plugins/smoke-certifications/policies/history:19",
-      "source_line": 374,
-      "source_offset": 16647,
+      "source_line": 375,
+      "source_offset": 16747,
       "method": "POST",
       "path": "/platform/plugins/smoke-certifications/policies/history",
       "file": "http-generic-api/routes/platformPluginRoutes.js",
@@ -5926,8 +5953,8 @@
     },
     {
       "route_id": "http-generic-api/routes/platformPluginRoutes.js#POST:/platform/plugins/smoke-certifications/policies/rollback-preview:20",
-      "source_line": 382,
-      "source_offset": 17101,
+      "source_line": 383,
+      "source_offset": 17201,
       "method": "POST",
       "path": "/platform/plugins/smoke-certifications/policies/rollback-preview",
       "file": "http-generic-api/routes/platformPluginRoutes.js",
@@ -5935,8 +5962,8 @@
     },
     {
       "route_id": "http-generic-api/routes/platformPluginRoutes.js#POST:/platform/plugins/smoke-certifications/policies/rollback-apply:21",
-      "source_line": 390,
-      "source_offset": 17577,
+      "source_line": 391,
+      "source_offset": 17677,
       "method": "POST",
       "path": "/platform/plugins/smoke-certifications/policies/rollback-apply",
       "file": "http-generic-api/routes/platformPluginRoutes.js",
@@ -5944,8 +5971,8 @@
     },
     {
       "route_id": "http-generic-api/routes/platformPluginRoutes.js#POST:/platform/plugins/smoke-certifications/recertification-queue:22",
-      "source_line": 398,
-      "source_offset": 18047,
+      "source_line": 399,
+      "source_offset": 18147,
       "method": "POST",
       "path": "/platform/plugins/smoke-certifications/recertification-queue",
       "file": "http-generic-api/routes/platformPluginRoutes.js",
@@ -5953,8 +5980,8 @@
     },
     {
       "route_id": "http-generic-api/routes/platformPluginRoutes.js#POST:/platform/plugins/smoke-certifications/recertification-batch:23",
-      "source_line": 406,
-      "source_offset": 18489,
+      "source_line": 407,
+      "source_offset": 18589,
       "method": "POST",
       "path": "/platform/plugins/smoke-certifications/recertification-batch",
       "file": "http-generic-api/routes/platformPluginRoutes.js",
@@ -5962,8 +5989,8 @@
     },
     {
       "route_id": "http-generic-api/routes/platformPluginRoutes.js#POST:/platform/remote-runtime/targets/upsert:24",
-      "source_line": 414,
-      "source_offset": 18930,
+      "source_line": 415,
+      "source_offset": 19030,
       "method": "POST",
       "path": "/platform/remote-runtime/targets/upsert",
       "file": "http-generic-api/routes/platformPluginRoutes.js",
@@ -5971,8 +5998,8 @@
     },
     {
       "route_id": "http-generic-api/routes/platformPluginRoutes.js#POST:/platform/remote-runtime/targets/validate:25",
-      "source_line": 440,
-      "source_offset": 20462,
+      "source_line": 441,
+      "source_offset": 20562,
       "method": "POST",
       "path": "/platform/remote-runtime/targets/validate",
       "file": "http-generic-api/routes/platformPluginRoutes.js",
@@ -5980,179 +6007,188 @@
     },
     {
       "route_id": "http-generic-api/routes/platformPluginRoutes.js#POST:/platform/remote-runtime/dispatch-dry-run:26",
-      "source_line": 453,
-      "source_offset": 21126,
+      "source_line": 454,
+      "source_offset": 21226,
       "method": "POST",
       "path": "/platform/remote-runtime/dispatch-dry-run",
       "file": "http-generic-api/routes/platformPluginRoutes.js",
       "write": true
     },
     {
-      "route_id": "http-generic-api/routes/platformPluginRoutes.js#POST:/platform/remote-runtime/hosting/ssh-probe:27",
-      "source_line": 469,
-      "source_offset": 21951,
+      "route_id": "http-generic-api/routes/platformPluginRoutes.js#POST:/platform/remote-runtime/hosting/recovery-allowlist/discover:27",
+      "source_line": 471,
+      "source_offset": 22145,
+      "method": "POST",
+      "path": "/platform/remote-runtime/hosting/recovery-allowlist/discover",
+      "file": "http-generic-api/routes/platformPluginRoutes.js",
+      "write": true
+    },
+    {
+      "route_id": "http-generic-api/routes/platformPluginRoutes.js#POST:/platform/remote-runtime/hosting/ssh-probe:28",
+      "source_line": 483,
+      "source_offset": 22711,
       "method": "POST",
       "path": "/platform/remote-runtime/hosting/ssh-probe",
       "file": "http-generic-api/routes/platformPluginRoutes.js",
       "write": true
     },
     {
-      "route_id": "http-generic-api/routes/platformPluginRoutes.js#POST:/platform/remote-runtime/hosting/deploy-release:28",
-      "source_line": 480,
-      "source_offset": 22460,
+      "route_id": "http-generic-api/routes/platformPluginRoutes.js#POST:/platform/remote-runtime/hosting/deploy-release:29",
+      "source_line": 494,
+      "source_offset": 23220,
       "method": "POST",
       "path": "/platform/remote-runtime/hosting/deploy-release",
       "file": "http-generic-api/routes/platformPluginRoutes.js",
       "write": true
     },
     {
-      "route_id": "http-generic-api/routes/platformPluginRoutes.js#GET:/platform/remote-runtime/hosting/deploy-runs/:deploymentRunId:29",
-      "source_line": 491,
-      "source_offset": 23005,
+      "route_id": "http-generic-api/routes/platformPluginRoutes.js#GET:/platform/remote-runtime/hosting/deploy-runs/:deploymentRunId:30",
+      "source_line": 505,
+      "source_offset": 23765,
       "method": "GET",
       "path": "/platform/remote-runtime/hosting/deploy-runs/:deploymentRunId",
       "file": "http-generic-api/routes/platformPluginRoutes.js",
       "write": false
     },
     {
-      "route_id": "http-generic-api/routes/platformPluginRoutes.js#POST:/platform/remote-runtime/local-path/execute-readonly:30",
-      "source_line": 498,
-      "source_offset": 23396,
+      "route_id": "http-generic-api/routes/platformPluginRoutes.js#POST:/platform/remote-runtime/local-path/execute-readonly:31",
+      "source_line": 512,
+      "source_offset": 24156,
       "method": "POST",
       "path": "/platform/remote-runtime/local-path/execute-readonly",
       "file": "http-generic-api/routes/platformPluginRoutes.js",
       "write": true
     },
     {
-      "route_id": "http-generic-api/routes/platformPluginRoutes.js#POST:/platform/remote-runtime/targets/catalog:31",
-      "source_line": 602,
-      "source_offset": 28008,
+      "route_id": "http-generic-api/routes/platformPluginRoutes.js#POST:/platform/remote-runtime/targets/catalog:32",
+      "source_line": 616,
+      "source_offset": 28768,
       "method": "POST",
       "path": "/platform/remote-runtime/targets/catalog",
       "file": "http-generic-api/routes/platformPluginRoutes.js",
       "write": true
     },
     {
-      "route_id": "http-generic-api/routes/platformPluginRoutes.js#POST:/platform/remote-runtime/probe:32",
-      "source_line": 618,
-      "source_offset": 28861,
+      "route_id": "http-generic-api/routes/platformPluginRoutes.js#POST:/platform/remote-runtime/probe:33",
+      "source_line": 632,
+      "source_offset": 29621,
       "method": "POST",
       "path": "/platform/remote-runtime/probe",
       "file": "http-generic-api/routes/platformPluginRoutes.js",
       "write": true
     },
     {
-      "route_id": "http-generic-api/routes/platformPluginRoutes.js#POST:/platform/plugins/install-policy:33",
-      "source_line": 632,
-      "source_offset": 29571,
+      "route_id": "http-generic-api/routes/platformPluginRoutes.js#POST:/platform/plugins/install-policy:34",
+      "source_line": 646,
+      "source_offset": 30331,
       "method": "POST",
       "path": "/platform/plugins/install-policy",
       "file": "http-generic-api/routes/platformPluginRoutes.js",
       "write": true
     },
     {
-      "route_id": "http-generic-api/routes/platformPluginRoutes.js#POST:/platform/plugins/action-templates:34",
-      "source_line": 650,
-      "source_offset": 30531,
+      "route_id": "http-generic-api/routes/platformPluginRoutes.js#POST:/platform/plugins/action-templates:35",
+      "source_line": 664,
+      "source_offset": 31291,
       "method": "POST",
       "path": "/platform/plugins/action-templates",
       "file": "http-generic-api/routes/platformPluginRoutes.js",
       "write": true
     },
     {
-      "route_id": "http-generic-api/routes/platformPluginRoutes.js#POST:/platform/plugins/dispatch-rest:35",
-      "source_line": 673,
-      "source_offset": 31826,
+      "route_id": "http-generic-api/routes/platformPluginRoutes.js#POST:/platform/plugins/dispatch-rest:36",
+      "source_line": 687,
+      "source_offset": 32586,
       "method": "POST",
       "path": "/platform/plugins/dispatch-rest",
       "file": "http-generic-api/routes/platformPluginRoutes.js",
       "write": true
     },
     {
-      "route_id": "http-generic-api/routes/platformPluginRoutes.js#POST:/platform/plugins/action-grants:36",
-      "source_line": 709,
-      "source_offset": 34202,
+      "route_id": "http-generic-api/routes/platformPluginRoutes.js#POST:/platform/plugins/action-grants:37",
+      "source_line": 723,
+      "source_offset": 34962,
       "method": "POST",
       "path": "/platform/plugins/action-grants",
       "file": "http-generic-api/routes/platformPluginRoutes.js",
       "write": true
     },
     {
-      "route_id": "http-generic-api/routes/platformPluginRoutes.js#POST:/platform/plugins/install:37",
-      "source_line": 729,
-      "source_offset": 35296,
+      "route_id": "http-generic-api/routes/platformPluginRoutes.js#POST:/platform/plugins/install:38",
+      "source_line": 743,
+      "source_offset": 36056,
       "method": "POST",
       "path": "/platform/plugins/install",
       "file": "http-generic-api/routes/platformPluginRoutes.js",
       "write": true
     },
     {
-      "route_id": "http-generic-api/routes/platformPluginRoutes.js#POST:/platform/plugins/contributions:38",
-      "source_line": 747,
-      "source_offset": 36232,
+      "route_id": "http-generic-api/routes/platformPluginRoutes.js#POST:/platform/plugins/contributions:39",
+      "source_line": 761,
+      "source_offset": 36992,
       "method": "POST",
       "path": "/platform/plugins/contributions",
       "file": "http-generic-api/routes/platformPluginRoutes.js",
       "write": true
     },
     {
-      "route_id": "http-generic-api/routes/platformPluginRoutes.js#POST:/platform/plugins/contributions/certify:39",
-      "source_line": 771,
-      "source_offset": 37524,
+      "route_id": "http-generic-api/routes/platformPluginRoutes.js#POST:/platform/plugins/contributions/certify:40",
+      "source_line": 785,
+      "source_offset": 38284,
       "method": "POST",
       "path": "/platform/plugins/contributions/certify",
       "file": "http-generic-api/routes/platformPluginRoutes.js",
       "write": true
     },
     {
-      "route_id": "http-generic-api/routes/platformPluginRoutes.js#POST:/platform/plugins/contributions/promote:40",
-      "source_line": 783,
-      "source_offset": 38159,
+      "route_id": "http-generic-api/routes/platformPluginRoutes.js#POST:/platform/plugins/contributions/promote:41",
+      "source_line": 797,
+      "source_offset": 38919,
       "method": "POST",
       "path": "/platform/plugins/contributions/promote",
       "file": "http-generic-api/routes/platformPluginRoutes.js",
       "write": true
     },
     {
-      "route_id": "http-generic-api/routes/platformPluginRoutes.js#POST:/platform/plugins/contributions/activate-private:41",
-      "source_line": 796,
-      "source_offset": 38834,
+      "route_id": "http-generic-api/routes/platformPluginRoutes.js#POST:/platform/plugins/contributions/activate-private:42",
+      "source_line": 810,
+      "source_offset": 39594,
       "method": "POST",
       "path": "/platform/plugins/contributions/activate-private",
       "file": "http-generic-api/routes/platformPluginRoutes.js",
       "write": true
     },
     {
-      "route_id": "http-generic-api/routes/platformPluginRoutes.js#POST:/platform/plugins/contributions/resolve-private:42",
-      "source_line": 809,
-      "source_offset": 39507,
+      "route_id": "http-generic-api/routes/platformPluginRoutes.js#POST:/platform/plugins/contributions/resolve-private:43",
+      "source_line": 823,
+      "source_offset": 40267,
       "method": "POST",
       "path": "/platform/plugins/contributions/resolve-private",
       "file": "http-generic-api/routes/platformPluginRoutes.js",
       "write": true
     },
     {
-      "route_id": "http-generic-api/routes/platformPluginRoutes.js#POST:/platform/plugins/contributions/dispatch-rest:43",
-      "source_line": 824,
-      "source_offset": 40371,
+      "route_id": "http-generic-api/routes/platformPluginRoutes.js#POST:/platform/plugins/contributions/dispatch-rest:44",
+      "source_line": 838,
+      "source_offset": 41131,
       "method": "POST",
       "path": "/platform/plugins/contributions/dispatch-rest",
       "file": "http-generic-api/routes/platformPluginRoutes.js",
       "write": true
     },
     {
-      "route_id": "http-generic-api/routes/platformPluginRoutes.js#GET:/platform/plugins/contributions:44",
-      "source_line": 841,
-      "source_offset": 41308,
+      "route_id": "http-generic-api/routes/platformPluginRoutes.js#GET:/platform/plugins/contributions:45",
+      "source_line": 855,
+      "source_offset": 42068,
       "method": "GET",
       "path": "/platform/plugins/contributions",
       "file": "http-generic-api/routes/platformPluginRoutes.js",
       "write": false
     },
     {
-      "route_id": "http-generic-api/routes/platformPluginRoutes.js#GET:/platform/plugins/contributions/:contribution_id:45",
-      "source_line": 853,
-      "source_offset": 41812,
+      "route_id": "http-generic-api/routes/platformPluginRoutes.js#GET:/platform/plugins/contributions/:contribution_id:46",
+      "source_line": 867,
+      "source_offset": 42572,
       "method": "GET",
       "path": "/platform/plugins/contributions/:contribution_id",
       "file": "http-generic-api/routes/platformPluginRoutes.js",
@@ -6313,8 +6349,8 @@
     },
     {
       "route_id": "http-generic-api/routes/recoveryKernelRoutes.js#POST:/admin/recovery/kernel/call:0",
-      "source_line": 237,
-      "source_offset": 9113,
+      "source_line": 244,
+      "source_offset": 9329,
       "method": "POST",
       "path": "/admin/recovery/kernel/call",
       "file": "http-generic-api/routes/recoveryKernelRoutes.js",
@@ -6322,8 +6358,8 @@
     },
     {
       "route_id": "http-generic-api/routes/recoveryKernelRoutes.js#POST:/admin/recovery/kernel/platform-converge:1",
-      "source_line": 303,
-      "source_offset": 11787,
+      "source_line": 310,
+      "source_offset": 12003,
       "method": "POST",
       "path": "/admin/recovery/kernel/platform-converge",
       "file": "http-generic-api/routes/recoveryKernelRoutes.js",
@@ -6331,8 +6367,8 @@
     },
     {
       "route_id": "http-generic-api/routes/recoveryKernelRoutes.js#POST:/admin/recovery/kernel/approval-challenge:2",
-      "source_line": 332,
-      "source_offset": 12944,
+      "source_line": 339,
+      "source_offset": 13160,
       "method": "POST",
       "path": "/admin/recovery/kernel/approval-challenge",
       "file": "http-generic-api/routes/recoveryKernelRoutes.js",
@@ -6340,8 +6376,8 @@
     },
     {
       "route_id": "http-generic-api/routes/recoveryKernelRoutes.js#POST:/admin/recovery/kernel/execute-approved:3",
-      "source_line": 359,
-      "source_offset": 14069,
+      "source_line": 366,
+      "source_offset": 14285,
       "method": "POST",
       "path": "/admin/recovery/kernel/execute-approved",
       "file": "http-generic-api/routes/recoveryKernelRoutes.js",
@@ -6349,8 +6385,8 @@
     },
     {
       "route_id": "http-generic-api/routes/recoveryKernelRoutes.js#POST:/admin/recovery/kernel/execute:4",
-      "source_line": 363,
-      "source_offset": 14394,
+      "source_line": 370,
+      "source_offset": 14610,
       "method": "POST",
       "path": "/admin/recovery/kernel/execute",
       "file": "http-generic-api/routes/recoveryKernelRoutes.js",
@@ -6358,8 +6394,8 @@
     },
     {
       "route_id": "http-generic-api/routes/recoveryKernelRoutes.js#GET:/admin/recovery/kernel/runs/:run_id:5",
-      "source_line": 365,
-      "source_offset": 14467,
+      "source_line": 372,
+      "source_offset": 14683,
       "method": "GET",
       "path": "/admin/recovery/kernel/runs/:run_id",
       "file": "http-generic-api/routes/recoveryKernelRoutes.js",
@@ -6367,8 +6403,8 @@
     },
     {
       "route_id": "http-generic-api/routes/recoveryKernelRoutes.js#GET:/admin/recovery/kernel/evidence/:run_id:6",
-      "source_line": 374,
-      "source_offset": 14838,
+      "source_line": 381,
+      "source_offset": 15054,
       "method": "GET",
       "path": "/admin/recovery/kernel/evidence/:run_id",
       "file": "http-generic-api/routes/recoveryKernelRoutes.js",
@@ -6376,8 +6412,8 @@
     },
     {
       "route_id": "http-generic-api/routes/recoverySystemToolOverlayRoutes.js#POST:/system/tools/call:0",
-      "source_line": 388,
-      "source_offset": 17306,
+      "source_line": 389,
+      "source_offset": 17388,
       "method": "POST",
       "path": "/system/tools/call",
       "file": "http-generic-api/routes/recoverySystemToolOverlayRoutes.js",
@@ -6385,8 +6421,8 @@
     },
     {
       "route_id": "http-generic-api/routes/recoverySystemToolOverlayRoutes.js#POST:/admin/system/tools/call:1",
-      "source_line": 389,
-      "source_offset": 17388,
+      "source_line": 390,
+      "source_offset": 17470,
       "method": "POST",
       "path": "/admin/system/tools/call",
       "file": "http-generic-api/routes/recoverySystemToolOverlayRoutes.js",
@@ -6890,7 +6926,7 @@
     {
       "route_id": "http-generic-api/routes/repositoryAutomationRoutes.js#POST:/admin/repository-automation/plan:0",
       "source_line": 75,
-      "source_offset": 3110,
+      "source_offset": 3161,
       "method": "POST",
       "path": "/admin/repository-automation/plan",
       "file": "http-generic-api/routes/repositoryAutomationRoutes.js",
@@ -6899,43 +6935,52 @@
     {
       "route_id": "http-generic-api/routes/repositoryAutomationRoutes.js#POST:/admin/repository-automation/run:1",
       "source_line": 86,
-      "source_offset": 3517,
+      "source_offset": 3568,
       "method": "POST",
       "path": "/admin/repository-automation/run",
       "file": "http-generic-api/routes/repositoryAutomationRoutes.js",
       "write": true
     },
     {
-      "route_id": "http-generic-api/routes/repositoryAutomationRoutes.js#POST:/admin/repository-automation/policy-controller:2",
-      "source_line": 98,
-      "source_offset": 4033,
+      "route_id": "http-generic-api/routes/repositoryAutomationRoutes.js#GET:/admin/repository-automation/attestor-contract:2",
+      "source_line": 100,
+      "source_offset": 4241,
+      "method": "GET",
+      "path": "/admin/repository-automation/attestor-contract",
+      "file": "http-generic-api/routes/repositoryAutomationRoutes.js",
+      "write": false
+    },
+    {
+      "route_id": "http-generic-api/routes/repositoryAutomationRoutes.js#POST:/admin/repository-automation/policy-controller:3",
+      "source_line": 104,
+      "source_offset": 4431,
       "method": "POST",
       "path": "/admin/repository-automation/policy-controller",
       "file": "http-generic-api/routes/repositoryAutomationRoutes.js",
       "write": true
     },
     {
-      "route_id": "http-generic-api/routes/repositoryAutomationRoutes.js#POST:/admin/repository-automation/status:3",
-      "source_line": 110,
-      "source_offset": 4595,
+      "route_id": "http-generic-api/routes/repositoryAutomationRoutes.js#POST:/admin/repository-automation/status:4",
+      "source_line": 116,
+      "source_offset": 4993,
       "method": "POST",
       "path": "/admin/repository-automation/status",
       "file": "http-generic-api/routes/repositoryAutomationRoutes.js",
       "write": true
     },
     {
-      "route_id": "http-generic-api/routes/repositoryAutomationRoutes.js#POST:/admin/repository-automation/hygiene-scan:4",
-      "source_line": 119,
-      "source_offset": 4944,
+      "route_id": "http-generic-api/routes/repositoryAutomationRoutes.js#POST:/admin/repository-automation/hygiene-scan:5",
+      "source_line": 125,
+      "source_offset": 5342,
       "method": "POST",
       "path": "/admin/repository-automation/hygiene-scan",
       "file": "http-generic-api/routes/repositoryAutomationRoutes.js",
       "write": true
     },
     {
-      "route_id": "http-generic-api/routes/repositoryAutomationRoutes.js#POST:/admin/repository-automation/reconciliation-lease:5",
-      "source_line": 128,
-      "source_offset": 5309,
+      "route_id": "http-generic-api/routes/repositoryAutomationRoutes.js#POST:/admin/repository-automation/reconciliation-lease:6",
+      "source_line": 134,
+      "source_offset": 5707,
       "method": "POST",
       "path": "/admin/repository-automation/reconciliation-lease",
       "file": "http-generic-api/routes/repositoryAutomationRoutes.js",
@@ -8086,8 +8131,8 @@
     },
     {
       "route_id": "http-generic-api/routes/stagingRecoveryAdminRoutes.js#GET:/admin/recovery/staging/contract:0",
-      "source_line": 256,
-      "source_offset": 19378,
+      "source_line": 290,
+      "source_offset": 20590,
       "method": "GET",
       "path": "/admin/recovery/staging/contract",
       "file": "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
@@ -8095,8 +8140,8 @@
     },
     {
       "route_id": "http-generic-api/routes/stagingRecoveryAdminRoutes.js#GET:/admin/recovery/staging/readiness:1",
-      "source_line": 257,
-      "source_offset": 19530,
+      "source_line": 291,
+      "source_offset": 20742,
       "method": "GET",
       "path": "/admin/recovery/staging/readiness",
       "file": "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
@@ -8104,8 +8149,8 @@
     },
     {
       "route_id": "http-generic-api/routes/stagingRecoveryAdminRoutes.js#GET:/admin/recovery/staging/certification:2",
-      "source_line": 265,
-      "source_offset": 20194,
+      "source_line": 299,
+      "source_offset": 21406,
       "method": "GET",
       "path": "/admin/recovery/staging/certification",
       "file": "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
@@ -8113,8 +8158,8 @@
     },
     {
       "route_id": "http-generic-api/routes/stagingRecoveryAdminRoutes.js#POST:/admin/recovery/staging/gateway/rollout-plan:3",
-      "source_line": 273,
-      "source_offset": 21184,
+      "source_line": 307,
+      "source_offset": 22396,
       "method": "POST",
       "path": "/admin/recovery/staging/gateway/rollout-plan",
       "file": "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
@@ -8122,8 +8167,8 @@
     },
     {
       "route_id": "http-generic-api/routes/stagingRecoveryAdminRoutes.js#POST:/admin/recovery/staging/gateway/dark-deploy-dry-run:4",
-      "source_line": 281,
-      "source_offset": 21742,
+      "source_line": 315,
+      "source_offset": 22954,
       "method": "POST",
       "path": "/admin/recovery/staging/gateway/dark-deploy-dry-run",
       "file": "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
@@ -8131,8 +8176,8 @@
     },
     {
       "route_id": "http-generic-api/routes/stagingRecoveryAdminRoutes.js#POST:/admin/recovery/staging/bootstrap-ticket/verify:5",
-      "source_line": 290,
-      "source_offset": 22301,
+      "source_line": 324,
+      "source_offset": 23513,
       "method": "POST",
       "path": "/admin/recovery/staging/bootstrap-ticket/verify",
       "file": "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
@@ -8140,8 +8185,8 @@
     },
     {
       "route_id": "http-generic-api/routes/stagingRecoveryAdminRoutes.js#POST:/admin/recovery/staging/bootstrap-ticket/finalize:6",
-      "source_line": 324,
-      "source_offset": 25056,
+      "source_line": 358,
+      "source_offset": 26268,
       "method": "POST",
       "path": "/admin/recovery/staging/bootstrap-ticket/finalize",
       "file": "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
@@ -8149,8 +8194,8 @@
     },
     {
       "route_id": "http-generic-api/routes/stagingRecoveryAdminRoutes.js#POST:/admin/recovery/staging/bootstrap-partial-receipt:7",
-      "source_line": 353,
-      "source_offset": 27606,
+      "source_line": 387,
+      "source_offset": 28818,
       "method": "POST",
       "path": "/admin/recovery/staging/bootstrap-partial-receipt",
       "file": "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
@@ -8968,8 +9013,8 @@
     },
     {
       "route_id": "http-generic-api/routes/systemLayerRoutes.js#GET:/system/tools:0",
-      "source_line": 2808,
-      "source_offset": 116378,
+      "source_line": 2799,
+      "source_offset": 115997,
       "method": "GET",
       "path": "/system/tools",
       "file": "http-generic-api/routes/systemLayerRoutes.js",
@@ -8977,8 +9022,8 @@
     },
     {
       "route_id": "http-generic-api/routes/systemLayerRoutes.js#GET:/system/tools/catalog-observability:1",
-      "source_line": 2828,
-      "source_offset": 117020,
+      "source_line": 2819,
+      "source_offset": 116639,
       "method": "GET",
       "path": "/system/tools/catalog-observability",
       "file": "http-generic-api/routes/systemLayerRoutes.js",
@@ -8986,8 +9031,8 @@
     },
     {
       "route_id": "http-generic-api/routes/systemLayerRoutes.js#GET:/system/tools/:toolName:2",
-      "source_line": 2839,
-      "source_offset": 117372,
+      "source_line": 2830,
+      "source_offset": 116991,
       "method": "GET",
       "path": "/system/tools/:toolName",
       "file": "http-generic-api/routes/systemLayerRoutes.js",
@@ -8995,8 +9040,8 @@
     },
     {
       "route_id": "http-generic-api/routes/systemLayerRoutes.js#POST:/system/capabilities/resolve:3",
-      "source_line": 2850,
-      "source_offset": 117733,
+      "source_line": 2841,
+      "source_offset": 117352,
       "method": "POST",
       "path": "/system/capabilities/resolve",
       "file": "http-generic-api/routes/systemLayerRoutes.js",
@@ -9004,8 +9049,8 @@
     },
     {
       "route_id": "http-generic-api/routes/systemLayerRoutes.js#POST:/system/tools/call:4",
-      "source_line": 2861,
-      "source_offset": 118097,
+      "source_line": 2852,
+      "source_offset": 117716,
       "method": "POST",
       "path": "/system/tools/call",
       "file": "http-generic-api/routes/systemLayerRoutes.js",
@@ -9013,8 +9058,8 @@
     },
     {
       "route_id": "http-generic-api/routes/systemLayerRoutes.js#GET:/system/connectors:5",
-      "source_line": 2918,
-      "source_offset": 120088,
+      "source_line": 2909,
+      "source_offset": 119707,
       "method": "GET",
       "path": "/system/connectors",
       "file": "http-generic-api/routes/systemLayerRoutes.js",
@@ -9022,8 +9067,8 @@
     },
     {
       "route_id": "http-generic-api/routes/systemLayerRoutes.js#GET:/system/connectors/:system_id:6",
-      "source_line": 2927,
-      "source_offset": 120442,
+      "source_line": 2918,
+      "source_offset": 120061,
       "method": "GET",
       "path": "/system/connectors/:system_id",
       "file": "http-generic-api/routes/systemLayerRoutes.js",
@@ -9031,8 +9076,8 @@
     },
     {
       "route_id": "http-generic-api/routes/systemLayerRoutes.js#GET:/admin/system/connectors:7",
-      "source_line": 2936,
-      "source_offset": 120788,
+      "source_line": 2927,
+      "source_offset": 120407,
       "method": "GET",
       "path": "/admin/system/connectors",
       "file": "http-generic-api/routes/systemLayerRoutes.js",
@@ -9040,8 +9085,8 @@
     },
     {
       "route_id": "http-generic-api/routes/systemLayerRoutes.js#GET:/admin/system/connectors/:system_id:8",
-      "source_line": 2945,
-      "source_offset": 121144,
+      "source_line": 2936,
+      "source_offset": 120763,
       "method": "GET",
       "path": "/admin/system/connectors/:system_id",
       "file": "http-generic-api/routes/systemLayerRoutes.js",
@@ -9049,8 +9094,8 @@
     },
     {
       "route_id": "http-generic-api/routes/systemLayerRoutes.js#GET:/admin/system/tools:9",
-      "source_line": 2954,
-      "source_offset": 121492,
+      "source_line": 2945,
+      "source_offset": 121111,
       "method": "GET",
       "path": "/admin/system/tools",
       "file": "http-generic-api/routes/systemLayerRoutes.js",
@@ -9058,8 +9103,8 @@
     },
     {
       "route_id": "http-generic-api/routes/systemLayerRoutes.js#POST:/admin/system/tools/call:10",
-      "source_line": 2969,
-      "source_offset": 121982,
+      "source_line": 2960,
+      "source_offset": 121601,
       "method": "POST",
       "path": "/admin/system/tools/call",
       "file": "http-generic-api/routes/systemLayerRoutes.js",
@@ -9067,8 +9112,8 @@
     },
     {
       "route_id": "http-generic-api/routes/systemLayerRoutes.js#GET:/admin/apis-services/google-auth-platform:11",
-      "source_line": 3025,
-      "source_offset": 123966,
+      "source_line": 3016,
+      "source_offset": 123585,
       "method": "GET",
       "path": "/admin/apis-services/google-auth-platform",
       "file": "http-generic-api/routes/systemLayerRoutes.js",
@@ -9076,8 +9121,8 @@
     },
     {
       "route_id": "http-generic-api/routes/systemLayerRoutes.js#GET:/admin/apis-services/google-auth-platform/:tab:12",
-      "source_line": 3034,
-      "source_offset": 124295,
+      "source_line": 3025,
+      "source_offset": 123914,
       "method": "GET",
       "path": "/admin/apis-services/google-auth-platform/:tab",
       "file": "http-generic-api/routes/systemLayerRoutes.js",
@@ -9085,8 +9130,8 @@
     },
     {
       "route_id": "http-generic-api/routes/systemLayerRoutes.js#POST:/admin/apis-services/google-auth-platform/:tab:13",
-      "source_line": 3043,
-      "source_offset": 124659,
+      "source_line": 3034,
+      "source_offset": 124278,
       "method": "POST",
       "path": "/admin/apis-services/google-auth-platform/:tab",
       "file": "http-generic-api/routes/systemLayerRoutes.js",
@@ -9094,8 +9139,8 @@
     },
     {
       "route_id": "http-generic-api/routes/systemLayerRoutes.js#GET:/admin/apis-services/credentials:14",
-      "source_line": 3052,
-      "source_offset": 125029,
+      "source_line": 3043,
+      "source_offset": 124648,
       "method": "GET",
       "path": "/admin/apis-services/credentials",
       "file": "http-generic-api/routes/systemLayerRoutes.js",
@@ -9103,8 +9148,8 @@
     },
     {
       "route_id": "http-generic-api/routes/systemLayerRoutes.js#POST:/admin/apis-services/credentials:15",
-      "source_line": 3061,
-      "source_offset": 125377,
+      "source_line": 3052,
+      "source_offset": 124996,
       "method": "POST",
       "path": "/admin/apis-services/credentials",
       "file": "http-generic-api/routes/systemLayerRoutes.js",
@@ -9310,8 +9355,8 @@
     },
     {
       "route_id": "http-generic-api/routes/tenantGptOAuthTokenExchangeRoutes.js#POST:/auth/oauth/token:0",
-      "source_line": 302,
-      "source_offset": 11521,
+      "source_line": 329,
+      "source_offset": 12522,
       "method": "POST",
       "path": "/auth/oauth/token",
       "file": "http-generic-api/routes/tenantGptOAuthTokenExchangeRoutes.js",
@@ -10399,7 +10444,7 @@
     },
     {
       "scope_key": "hostinger.deploy",
-      "route_id": "http-generic-api/routes/platformPluginRoutes.js#POST:/platform/remote-runtime/hosting/deploy-release:28",
+      "route_id": "http-generic-api/routes/platformPluginRoutes.js#POST:/platform/remote-runtime/hosting/deploy-release:29",
       "method": "POST",
       "path": "/platform/remote-runtime/hosting/deploy-release",
       "file": "http-generic-api/routes/platformPluginRoutes.js",
@@ -11590,10 +11635,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/adminCliRoutes.js",
-        "source_line": 2578,
+        "source_line": 2569,
         "handler_window_lines": [
-          2578,
-          2593
+          2569,
+          2584
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -11658,10 +11703,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/adminCliRoutes.js",
-        "source_line": 2595,
+        "source_line": 2586,
         "handler_window_lines": [
-          2595,
-          2610
+          2586,
+          2601
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -11724,10 +11769,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/adminCliRoutes.js",
-        "source_line": 2612,
+        "source_line": 2603,
         "handler_window_lines": [
-          2612,
-          2614
+          2603,
+          2605
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -11786,10 +11831,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/adminCliRoutes.js",
-        "source_line": 2627,
+        "source_line": 2618,
         "handler_window_lines": [
-          2627,
-          2646
+          2618,
+          2637
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -11858,10 +11903,10 @@
       "operation_class": "delete",
       "evidence": {
         "file": "http-generic-api/routes/adminCliRoutes.js",
-        "source_line": 2647,
+        "source_line": 2638,
         "handler_window_lines": [
-          2647,
-          2664
+          2638,
+          2655
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -11930,10 +11975,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/adminCliRoutes.js",
-        "source_line": 2666,
+        "source_line": 2657,
         "handler_window_lines": [
-          2666,
-          2683
+          2657,
+          2674
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -11997,10 +12042,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/adminCliRoutes.js",
-        "source_line": 2685,
+        "source_line": 2676,
         "handler_window_lines": [
-          2685,
-          2726
+          2676,
+          2710
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -12012,7 +12057,6 @@
         },
         "signals": {
           "provider": [
-            "cloudflare",
             "cloudflare",
             "cloudflare"
           ],
@@ -12027,8 +12071,7 @@
           ],
           "mutation": [
             "write",
-            "execute",
-            "install"
+            "execute"
           ]
         },
         "static_only": true,
@@ -12062,17 +12105,17 @@
       "owner": "remote-mcp-governance"
     },
     {
-      "route_id": "http-generic-api/routes/adminCliRoutes.js#POST:/local-connector/self-repair:9",
+      "route_id": "http-generic-api/routes/adminCliRoutes.js#POST:/local-connector/self-repair:10",
       "classification": "intentionally_unmapped",
       "mapping_status": "blocked",
       "domain": "connector",
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/adminCliRoutes.js",
-        "source_line": 2837,
+        "source_line": 2782,
         "handler_window_lines": [
-          2837,
-          3192
+          2782,
+          3134
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -12091,18 +12134,20 @@
           "db_registry": [],
           "authority": [
             "admin",
-            "authority",
-            "admin"
+            "scope",
+            "admin",
+            "scope",
+            "capability"
           ],
           "readback": [
             "select",
             "select",
-            "select",
-            "res.json"
+            "res.json",
+            "readback",
+            "readback",
+            "verify"
           ],
           "mutation": [
-            "update",
-            "update",
             "write",
             "install"
           ]
@@ -12149,10 +12194,10 @@
       "operation_class": "execute",
       "evidence": {
         "file": "http-generic-api/routes/adminHostBreakglassRoutes.js",
-        "source_line": 118,
+        "source_line": 123,
         "handler_window_lines": [
-          118,
-          121
+          123,
+          126
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -12212,10 +12257,10 @@
       "operation_class": "execute",
       "evidence": {
         "file": "http-generic-api/routes/adminHostBreakglassRoutes.js",
-        "source_line": 122,
+        "source_line": 127,
         "handler_window_lines": [
-          122,
-          132
+          127,
+          137
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -15113,10 +15158,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/authRoutes.js",
-        "source_line": 1045,
+        "source_line": 1074,
         "handler_window_lines": [
-          1045,
-          1139
+          1074,
+          1168
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -15179,10 +15224,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/authRoutes.js",
-        "source_line": 1213,
+        "source_line": 1260,
         "handler_window_lines": [
-          1213,
-          1399
+          1260,
+          1507
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -15203,8 +15248,8 @@
             "lease"
           ],
           "readback": [
-            "select",
-            "verify"
+            "verify",
+            "select"
           ],
           "mutation": []
         },
@@ -15246,10 +15291,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/authRoutes.js",
-        "source_line": 1401,
+        "source_line": 1509,
         "handler_window_lines": [
-          1401,
-          1568
+          1509,
+          1676
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -15312,10 +15357,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/authRoutes.js",
-        "source_line": 1569,
+        "source_line": 1677,
         "handler_window_lines": [
-          1569,
-          1577
+          1677,
+          1685
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -15372,10 +15417,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/authRoutes.js",
-        "source_line": 1578,
+        "source_line": 1686,
         "handler_window_lines": [
-          1578,
-          1586
+          1686,
+          1694
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -15432,10 +15477,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/authRoutes.js",
-        "source_line": 1587,
+        "source_line": 1695,
         "handler_window_lines": [
-          1587,
-          1601
+          1695,
+          1709
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -15492,10 +15537,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/authRoutes.js",
-        "source_line": 1602,
+        "source_line": 1710,
         "handler_window_lines": [
-          1602,
-          1663
+          1710,
+          1771
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -15555,10 +15600,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/authRoutes.js",
-        "source_line": 1677,
+        "source_line": 1785,
         "handler_window_lines": [
-          1677,
-          1737
+          1785,
+          1845
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -15621,10 +15666,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/authRoutes.js",
-        "source_line": 1738,
+        "source_line": 1846,
         "handler_window_lines": [
-          1738,
-          1748
+          1846,
+          1856
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -18576,10 +18621,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/connectorAgentRoutes.js",
-        "source_line": 1032,
+        "source_line": 1152,
         "handler_window_lines": [
-          1032,
-          1075
+          1152,
+          1206
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -18594,10 +18639,12 @@
           "db_registry": [],
           "authority": [
             "capability",
-            "capability"
+            "capability",
+            "scope"
           ],
           "readback": [
             "verify",
+            "select",
             "select",
             "select"
           ],
@@ -18649,10 +18696,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/connectorAgentRoutes.js",
-        "source_line": 1167,
+        "source_line": 1302,
         "handler_window_lines": [
-          1167,
-          1186
+          1302,
+          1321
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -18713,10 +18760,10 @@
       "operation_class": "execute",
       "evidence": {
         "file": "http-generic-api/routes/connectorProxyRoutes.js",
-        "source_line": 901,
+        "source_line": 902,
         "handler_window_lines": [
-          901,
-          934
+          902,
+          935
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -18777,10 +18824,10 @@
       "operation_class": "execute",
       "evidence": {
         "file": "http-generic-api/routes/connectorProxyRoutes.js",
-        "source_line": 951,
+        "source_line": 952,
         "handler_window_lines": [
-          951,
-          956
+          952,
+          957
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -18843,10 +18890,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/connectorProxyRoutes.js",
-        "source_line": 958,
+        "source_line": 959,
         "handler_window_lines": [
-          958,
-          963
+          959,
+          964
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -18907,10 +18954,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/connectorProxyRoutes.js",
-        "source_line": 965,
+        "source_line": 966,
         "handler_window_lines": [
-          965,
-          968
+          966,
+          969
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -18969,10 +19016,10 @@
       "operation_class": "execute",
       "evidence": {
         "file": "http-generic-api/routes/connectorProxyRoutes.js",
-        "source_line": 970,
+        "source_line": 971,
         "handler_window_lines": [
-          970,
-          973
+          971,
+          974
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -19031,10 +19078,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/connectorProxyRoutes.js",
-        "source_line": 975,
+        "source_line": 976,
         "handler_window_lines": [
-          975,
-          978
+          976,
+          979
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -19093,10 +19140,10 @@
       "operation_class": "execute",
       "evidence": {
         "file": "http-generic-api/routes/connectorProxyRoutes.js",
-        "source_line": 980,
+        "source_line": 981,
         "handler_window_lines": [
-          980,
-          983
+          981,
+          984
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -19157,10 +19204,10 @@
       "operation_class": "execute",
       "evidence": {
         "file": "http-generic-api/routes/connectorProxyRoutes.js",
-        "source_line": 985,
+        "source_line": 986,
         "handler_window_lines": [
-          985,
-          988
+          986,
+          989
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -19223,10 +19270,10 @@
       "operation_class": "execute",
       "evidence": {
         "file": "http-generic-api/routes/connectorProxyRoutes.js",
-        "source_line": 990,
+        "source_line": 991,
         "handler_window_lines": [
-          990,
-          993
+          991,
+          994
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -19289,10 +19336,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/connectorProxyRoutes.js",
-        "source_line": 995,
+        "source_line": 996,
         "handler_window_lines": [
-          995,
-          998
+          996,
+          999
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -19353,10 +19400,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/connectorProxyRoutes.js",
-        "source_line": 1000,
+        "source_line": 1001,
         "handler_window_lines": [
-          1000,
-          1003
+          1001,
+          1004
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -19417,10 +19464,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/connectorProxyRoutes.js",
-        "source_line": 1005,
+        "source_line": 1006,
         "handler_window_lines": [
-          1005,
-          1010
+          1006,
+          1011
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -19481,10 +19528,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/connectorProxyRoutes.js",
-        "source_line": 1012,
+        "source_line": 1013,
         "handler_window_lines": [
-          1012,
-          1017
+          1013,
+          1018
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -19547,10 +19594,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/connectorProxyRoutes.js",
-        "source_line": 1019,
+        "source_line": 1020,
         "handler_window_lines": [
-          1019,
-          1022
+          1020,
+          1023
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -19609,10 +19656,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/connectorProxyRoutes.js",
-        "source_line": 1024,
+        "source_line": 1025,
         "handler_window_lines": [
-          1024,
-          1027
+          1025,
+          1028
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -19669,10 +19716,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/connectorProxyRoutes.js",
-        "source_line": 1029,
+        "source_line": 1030,
         "handler_window_lines": [
-          1029,
-          1032
+          1030,
+          1033
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -19731,10 +19778,10 @@
       "operation_class": "execute",
       "evidence": {
         "file": "http-generic-api/routes/connectorProxyRoutes.js",
-        "source_line": 1034,
+        "source_line": 1035,
         "handler_window_lines": [
-          1034,
-          1043
+          1035,
+          1044
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -19865,10 +19912,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/credentialIntakeRoutes.js",
-        "source_line": 783,
+        "source_line": 784,
         "handler_window_lines": [
-          783,
-          814
+          784,
+          815
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -19927,10 +19974,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/credentialIntakeRoutes.js",
-        "source_line": 859,
+        "source_line": 860,
         "handler_window_lines": [
-          859,
-          951
+          860,
+          952
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -19989,10 +20036,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/credentialRoutes.js",
-        "source_line": 322,
+        "source_line": 354,
         "handler_window_lines": [
-          322,
-          335
+          354,
+          367
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -20051,10 +20098,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/credentialRoutes.js",
-        "source_line": 336,
+        "source_line": 368,
         "handler_window_lines": [
-          336,
-          349
+          368,
+          381
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -20116,10 +20163,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/credentialRoutes.js",
-        "source_line": 350,
+        "source_line": 382,
         "handler_window_lines": [
-          350,
-          464
+          382,
+          496
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -20186,10 +20233,10 @@
       "operation_class": "deploy",
       "evidence": {
         "file": "http-generic-api/routes/credentialRoutes.js",
-        "source_line": 465,
+        "source_line": 497,
         "handler_window_lines": [
-          465,
-          589
+          497,
+          623
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -20254,10 +20301,10 @@
       "operation_class": "deploy",
       "evidence": {
         "file": "http-generic-api/routes/credentialRoutes.js",
-        "source_line": 590,
+        "source_line": 624,
         "handler_window_lines": [
-          590,
-          670
+          624,
+          704
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -20323,10 +20370,10 @@
       "operation_class": "deploy",
       "evidence": {
         "file": "http-generic-api/routes/credentialRoutes.js",
-        "source_line": 671,
+        "source_line": 705,
         "handler_window_lines": [
-          671,
-          827
+          705,
+          861
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -21258,10 +21305,10 @@
       "operation_class": "execute",
       "evidence": {
         "file": "http-generic-api/routes/deploymentInfoRoutes.js",
-        "source_line": 307,
+        "source_line": 333,
         "handler_window_lines": [
-          307,
-          369
+          333,
+          395
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -21322,10 +21369,10 @@
       "operation_class": "execute",
       "evidence": {
         "file": "http-generic-api/routes/deploymentInfoRoutes.js",
-        "source_line": 371,
+        "source_line": 397,
         "handler_window_lines": [
-          371,
-          447
+          397,
+          473
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -23163,17 +23210,89 @@
       "reason": "registry_mutation_requires_live_schema_and_policy_contract"
     },
     {
-      "route_id": "http-generic-api/routes/deviceToolsRoutes.js#POST:/device/tools/call:1",
+      "route_id": "http-generic-api/routes/deviceToolsRoutes.js#POST:/device/tools/devices/:device_id/health:0",
       "classification": "intentionally_unmapped",
       "mapping_status": "blocked",
       "domain": "application_domain",
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/deviceToolsRoutes.js",
-        "source_line": 71,
+        "source_line": 85,
         "handler_window_lines": [
-          71,
-          112
+          85,
+          124
+        ],
+        "evidence_flags": {
+          "handler_window_present": true,
+          "provider_signal": true,
+          "db_registry_signal": false,
+          "authority_signal": true,
+          "readback_signal": true,
+          "mutation_signal": true
+        },
+        "signals": {
+          "provider": [
+            "request(",
+            "dispatch"
+          ],
+          "db_registry": [],
+          "authority": [
+            "scope",
+            "scope",
+            "admin"
+          ],
+          "readback": [
+            "select"
+          ],
+          "mutation": [
+            "dispatch"
+          ]
+        },
+        "static_only": true,
+        "secrets_included": false
+      },
+      "evidence_confidence": {
+        "level": "low_static",
+        "basis": "handler_window_signals_only",
+        "authorizes": false
+      },
+      "promotion_prerequisites": [
+        "explicit_resource_operation_scope_binding",
+        "live_resource_authority_binding",
+        "approval_policy_evidence",
+        "capability_envelope_evidence",
+        "lease_evidence",
+        "staging_environment",
+        "same_cycle_readback_contract",
+        "provider_adapter_allowlist",
+        "provider_idempotency",
+        "provider_rollback_or_compensation"
+      ],
+      "promotion_status": "blocked",
+      "scope_keys": [],
+      "resource_candidate": "application_domain",
+      "resource_key": null,
+      "operation_key": null,
+      "authority_required": true,
+      "provider_mutation_allowed": false,
+      "readback_required": true,
+      "owner": "application-domain-governance",
+      "classification_confidence": "heuristic_requires_manual_confirmation",
+      "risk_class": "high",
+      "reason": "registry_mutation_requires_live_schema_and_policy_contract"
+    },
+    {
+      "route_id": "http-generic-api/routes/deviceToolsRoutes.js#POST:/device/tools/call:3",
+      "classification": "intentionally_unmapped",
+      "mapping_status": "blocked",
+      "domain": "application_domain",
+      "operation_class": "create_or_request",
+      "evidence": {
+        "file": "http-generic-api/routes/deviceToolsRoutes.js",
+        "source_line": 171,
+        "handler_window_lines": [
+          171,
+          212
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -26451,10 +26570,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/gptToolsRoutes.js",
-        "source_line": 4645,
+        "source_line": 4646,
         "handler_window_lines": [
-          4645,
-          4660
+          4646,
+          4661
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -26521,10 +26640,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/gptToolsRoutes.js",
-        "source_line": 4661,
+        "source_line": 4662,
         "handler_window_lines": [
-          4661,
-          4674
+          4662,
+          4675
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -26581,10 +26700,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/gptToolsRoutes.js",
-        "source_line": 4718,
+        "source_line": 4719,
         "handler_window_lines": [
-          4718,
-          4816
+          4719,
+          4817
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -27853,10 +27972,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/localConnectorInstallRoutes.js",
-        "source_line": 1267,
+        "source_line": 1290,
         "handler_window_lines": [
-          1267,
-          1358
+          1290,
+          1359
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -27870,18 +27989,17 @@
           "provider": [],
           "db_registry": [],
           "authority": [
-            "admin",
             "authority",
-            "capability"
+            "capability",
+            "admin"
           ],
           "readback": [
-            "select",
             "select"
           ],
           "mutation": [
             "install",
             "install",
-            "update",
+            "write",
             "create",
             "create"
           ]
@@ -27928,10 +28046,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/localConnectorInstallRoutes.js",
-        "source_line": 1359,
+        "source_line": 1360,
         "handler_window_lines": [
-          1359,
-          1404
+          1360,
+          1417
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -27999,10 +28117,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/localConnectorInstallRoutes.js",
-        "source_line": 1450,
+        "source_line": 1467,
         "handler_window_lines": [
-          1450,
-          1461
+          1467,
+          1478
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -28067,10 +28185,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/localConnectorInstallRoutes.js",
-        "source_line": 1462,
+        "source_line": 1479,
         "handler_window_lines": [
-          1462,
-          1629
+          1479,
+          1646
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -28145,10 +28263,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/localConnectorInstallRoutes.js",
-        "source_line": 1724,
+        "source_line": 1741,
         "handler_window_lines": [
-          1724,
-          1764
+          1741,
+          1781
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -28493,10 +28611,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/localManagerBetaRoutes.js",
-        "source_line": 1070,
+        "source_line": 1012,
         "handler_window_lines": [
-          1070,
-          1070
+          1012,
+          1012
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -28551,10 +28669,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/localManagerBetaRoutes.js",
-        "source_line": 1072,
+        "source_line": 1014,
         "handler_window_lines": [
-          1072,
-          1072
+          1014,
+          1014
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -28609,10 +28727,10 @@
       "operation_class": "decision",
       "evidence": {
         "file": "http-generic-api/routes/localManagerBetaRoutes.js",
-        "source_line": 1073,
+        "source_line": 1015,
         "handler_window_lines": [
-          1073,
-          1073
+          1015,
+          1015
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -28667,10 +28785,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/localManagerBetaRoutes.js",
-        "source_line": 1075,
+        "source_line": 1017,
         "handler_window_lines": [
-          1075,
-          1075
+          1017,
+          1017
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -28725,10 +28843,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/localManagerBetaRoutes.js",
-        "source_line": 1078,
+        "source_line": 1020,
         "handler_window_lines": [
-          1078,
-          1078
+          1020,
+          1020
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -34423,10 +34541,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/platformPluginRoutes.js",
-        "source_line": 215,
+        "source_line": 216,
         "handler_window_lines": [
-          215,
-          236
+          216,
+          237
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -34490,10 +34608,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/platformPluginRoutes.js",
-        "source_line": 238,
+        "source_line": 239,
         "handler_window_lines": [
-          238,
-          244
+          239,
+          245
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -34553,10 +34671,10 @@
       "operation_class": "execute",
       "evidence": {
         "file": "http-generic-api/routes/platformPluginRoutes.js",
-        "source_line": 246,
+        "source_line": 247,
         "handler_window_lines": [
-          246,
-          252
+          247,
+          253
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -34615,10 +34733,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/platformPluginRoutes.js",
-        "source_line": 254,
+        "source_line": 255,
         "handler_window_lines": [
-          254,
-          260
+          255,
+          261
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -34680,10 +34798,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/platformPluginRoutes.js",
-        "source_line": 262,
+        "source_line": 263,
         "handler_window_lines": [
-          262,
-          268
+          263,
+          269
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -34743,10 +34861,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/platformPluginRoutes.js",
-        "source_line": 270,
+        "source_line": 271,
         "handler_window_lines": [
-          270,
-          276
+          271,
+          277
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -34806,10 +34924,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/platformPluginRoutes.js",
-        "source_line": 278,
+        "source_line": 279,
         "handler_window_lines": [
-          278,
-          284
+          279,
+          285
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -34868,10 +34986,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/platformPluginRoutes.js",
-        "source_line": 286,
+        "source_line": 287,
         "handler_window_lines": [
-          286,
-          292
+          287,
+          293
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -34930,10 +35048,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/platformPluginRoutes.js",
-        "source_line": 294,
+        "source_line": 295,
         "handler_window_lines": [
-          294,
-          300
+          295,
+          301
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -34993,10 +35111,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/platformPluginRoutes.js",
-        "source_line": 302,
+        "source_line": 303,
         "handler_window_lines": [
-          302,
-          308
+          303,
+          309
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -35056,10 +35174,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/platformPluginRoutes.js",
-        "source_line": 310,
+        "source_line": 311,
         "handler_window_lines": [
-          310,
-          316
+          311,
+          317
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -35119,10 +35237,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/platformPluginRoutes.js",
-        "source_line": 318,
+        "source_line": 319,
         "handler_window_lines": [
-          318,
-          324
+          319,
+          325
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -35181,10 +35299,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/platformPluginRoutes.js",
-        "source_line": 326,
+        "source_line": 327,
         "handler_window_lines": [
-          326,
-          332
+          327,
+          333
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -35243,10 +35361,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/platformPluginRoutes.js",
-        "source_line": 334,
+        "source_line": 335,
         "handler_window_lines": [
-          334,
-          340
+          335,
+          341
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -35306,10 +35424,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/platformPluginRoutes.js",
-        "source_line": 342,
+        "source_line": 343,
         "handler_window_lines": [
-          342,
-          348
+          343,
+          349
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -35369,10 +35487,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/platformPluginRoutes.js",
-        "source_line": 350,
+        "source_line": 351,
         "handler_window_lines": [
-          350,
-          356
+          351,
+          357
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -35432,10 +35550,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/platformPluginRoutes.js",
-        "source_line": 358,
+        "source_line": 359,
         "handler_window_lines": [
-          358,
-          364
+          359,
+          365
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -35495,10 +35613,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/platformPluginRoutes.js",
-        "source_line": 366,
+        "source_line": 367,
         "handler_window_lines": [
-          366,
-          372
+          367,
+          373
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -35558,10 +35676,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/platformPluginRoutes.js",
-        "source_line": 374,
+        "source_line": 375,
         "handler_window_lines": [
-          374,
-          380
+          375,
+          381
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -35621,10 +35739,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/platformPluginRoutes.js",
-        "source_line": 382,
+        "source_line": 383,
         "handler_window_lines": [
-          382,
-          388
+          383,
+          389
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -35684,10 +35802,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/platformPluginRoutes.js",
-        "source_line": 390,
+        "source_line": 391,
         "handler_window_lines": [
-          390,
-          396
+          391,
+          397
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -35747,10 +35865,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/platformPluginRoutes.js",
-        "source_line": 398,
+        "source_line": 399,
         "handler_window_lines": [
-          398,
-          404
+          399,
+          405
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -35810,10 +35928,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/platformPluginRoutes.js",
-        "source_line": 406,
+        "source_line": 407,
         "handler_window_lines": [
-          406,
-          412
+          407,
+          413
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -35873,10 +35991,10 @@
       "operation_class": "execute",
       "evidence": {
         "file": "http-generic-api/routes/platformPluginRoutes.js",
-        "source_line": 414,
+        "source_line": 415,
         "handler_window_lines": [
-          414,
-          438
+          415,
+          439
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -35938,10 +36056,10 @@
       "operation_class": "execute",
       "evidence": {
         "file": "http-generic-api/routes/platformPluginRoutes.js",
-        "source_line": 440,
+        "source_line": 441,
         "handler_window_lines": [
-          440,
-          451
+          441,
+          452
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -36003,10 +36121,10 @@
       "operation_class": "execute",
       "evidence": {
         "file": "http-generic-api/routes/platformPluginRoutes.js",
-        "source_line": 453,
+        "source_line": 454,
         "handler_window_lines": [
-          453,
-          467
+          454,
+          470
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -36024,7 +36142,8 @@
           "db_registry": [],
           "authority": [
             "admin",
-            "approval"
+            "approval",
+            "authority"
           ],
           "readback": [
             "response"
@@ -36069,17 +36188,85 @@
       "reason": "platform_control_plane_requires_explicit_capability_and_change_control"
     },
     {
-      "route_id": "http-generic-api/routes/platformPluginRoutes.js#POST:/platform/remote-runtime/hosting/ssh-probe:27",
+      "route_id": "http-generic-api/routes/platformPluginRoutes.js#POST:/platform/remote-runtime/hosting/recovery-allowlist/discover:27",
       "classification": "intentionally_unmapped",
       "mapping_status": "blocked",
       "domain": "hostinger",
       "operation_class": "execute",
       "evidence": {
         "file": "http-generic-api/routes/platformPluginRoutes.js",
-        "source_line": 469,
+        "source_line": 471,
         "handler_window_lines": [
-          469,
-          478
+          471,
+          481
+        ],
+        "evidence_flags": {
+          "handler_window_present": true,
+          "provider_signal": true,
+          "db_registry_signal": false,
+          "authority_signal": true,
+          "readback_signal": true,
+          "mutation_signal": false
+        },
+        "signals": {
+          "provider": [
+            "hostinger",
+            "hostinger"
+          ],
+          "db_registry": [],
+          "authority": [
+            "admin"
+          ],
+          "readback": [
+            "response"
+          ],
+          "mutation": []
+        },
+        "static_only": true,
+        "secrets_included": false
+      },
+      "evidence_confidence": {
+        "level": "low_static",
+        "basis": "handler_window_signals_only",
+        "authorizes": false
+      },
+      "promotion_prerequisites": [
+        "explicit_resource_operation_scope_binding",
+        "live_resource_authority_binding",
+        "approval_policy_evidence",
+        "capability_envelope_evidence",
+        "lease_evidence",
+        "staging_environment",
+        "same_cycle_readback_contract",
+        "provider_adapter_allowlist",
+        "provider_idempotency",
+        "provider_rollback_or_compensation"
+      ],
+      "promotion_status": "blocked",
+      "scope_keys": [],
+      "resource_candidate": "hostinger",
+      "resource_key": null,
+      "operation_key": null,
+      "authority_required": true,
+      "provider_mutation_allowed": false,
+      "readback_required": true,
+      "owner": "hostinger-governance",
+      "classification_confidence": "heuristic_requires_manual_confirmation",
+      "risk_class": "critical",
+      "reason": "platform_control_plane_requires_explicit_capability_and_change_control"
+    },
+    {
+      "route_id": "http-generic-api/routes/platformPluginRoutes.js#POST:/platform/remote-runtime/hosting/ssh-probe:28",
+      "classification": "intentionally_unmapped",
+      "mapping_status": "blocked",
+      "domain": "hostinger",
+      "operation_class": "execute",
+      "evidence": {
+        "file": "http-generic-api/routes/platformPluginRoutes.js",
+        "source_line": 483,
+        "handler_window_lines": [
+          483,
+          492
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -36138,17 +36325,17 @@
       "reason": "platform_control_plane_requires_explicit_capability_and_change_control"
     },
     {
-      "route_id": "http-generic-api/routes/platformPluginRoutes.js#POST:/platform/remote-runtime/hosting/deploy-release:28",
+      "route_id": "http-generic-api/routes/platformPluginRoutes.js#POST:/platform/remote-runtime/hosting/deploy-release:29",
       "classification": "shadow_candidate",
       "mapping_status": "blocked_until_explicit_binding",
       "domain": "hostinger",
       "operation_class": "execute",
       "evidence": {
         "file": "http-generic-api/routes/platformPluginRoutes.js",
-        "source_line": 480,
+        "source_line": 494,
         "handler_window_lines": [
-          480,
-          489
+          494,
+          503
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -36209,17 +36396,17 @@
       "owner": "remote-mcp-governance"
     },
     {
-      "route_id": "http-generic-api/routes/platformPluginRoutes.js#POST:/platform/remote-runtime/local-path/execute-readonly:30",
+      "route_id": "http-generic-api/routes/platformPluginRoutes.js#POST:/platform/remote-runtime/local-path/execute-readonly:31",
       "classification": "intentionally_unmapped",
       "mapping_status": "blocked",
       "domain": "platform_control_plane",
       "operation_class": "execute",
       "evidence": {
         "file": "http-generic-api/routes/platformPluginRoutes.js",
-        "source_line": 498,
+        "source_line": 512,
         "handler_window_lines": [
-          498,
-          600
+          512,
+          614
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -36287,79 +36474,16 @@
       "reason": "platform_control_plane_requires_explicit_capability_and_change_control"
     },
     {
-      "route_id": "http-generic-api/routes/platformPluginRoutes.js#POST:/platform/remote-runtime/targets/catalog:31",
+      "route_id": "http-generic-api/routes/platformPluginRoutes.js#POST:/platform/remote-runtime/targets/catalog:32",
       "classification": "intentionally_unmapped",
       "mapping_status": "blocked",
       "domain": "platform_control_plane",
       "operation_class": "execute",
       "evidence": {
         "file": "http-generic-api/routes/platformPluginRoutes.js",
-        "source_line": 602,
+        "source_line": 616,
         "handler_window_lines": [
-          602,
-          616
-        ],
-        "evidence_flags": {
-          "handler_window_present": true,
-          "provider_signal": false,
-          "db_registry_signal": false,
-          "authority_signal": true,
-          "readback_signal": true,
-          "mutation_signal": false
-        },
-        "signals": {
-          "provider": [],
-          "db_registry": [],
-          "authority": [
-            "admin"
-          ],
-          "readback": [
-            "response"
-          ],
-          "mutation": []
-        },
-        "static_only": true,
-        "secrets_included": false
-      },
-      "evidence_confidence": {
-        "level": "low_static",
-        "basis": "handler_window_signals_only",
-        "authorizes": false
-      },
-      "promotion_prerequisites": [
-        "explicit_resource_operation_scope_binding",
-        "live_resource_authority_binding",
-        "approval_policy_evidence",
-        "capability_envelope_evidence",
-        "lease_evidence",
-        "staging_environment",
-        "same_cycle_readback_contract",
-        "live_db_registry_readback"
-      ],
-      "promotion_status": "blocked",
-      "scope_keys": [],
-      "resource_candidate": "platform_control_plane",
-      "resource_key": null,
-      "operation_key": null,
-      "authority_required": true,
-      "provider_mutation_allowed": false,
-      "readback_required": true,
-      "owner": "platform-control-plane-governance",
-      "classification_confidence": "heuristic_requires_manual_confirmation",
-      "risk_class": "critical",
-      "reason": "platform_control_plane_requires_explicit_capability_and_change_control"
-    },
-    {
-      "route_id": "http-generic-api/routes/platformPluginRoutes.js#POST:/platform/remote-runtime/probe:32",
-      "classification": "intentionally_unmapped",
-      "mapping_status": "blocked",
-      "domain": "platform_control_plane",
-      "operation_class": "execute",
-      "evidence": {
-        "file": "http-generic-api/routes/platformPluginRoutes.js",
-        "source_line": 618,
-        "handler_window_lines": [
-          618,
+          616,
           630
         ],
         "evidence_flags": {
@@ -36413,17 +36537,80 @@
       "reason": "platform_control_plane_requires_explicit_capability_and_change_control"
     },
     {
-      "route_id": "http-generic-api/routes/platformPluginRoutes.js#POST:/platform/plugins/install-policy:33",
+      "route_id": "http-generic-api/routes/platformPluginRoutes.js#POST:/platform/remote-runtime/probe:33",
+      "classification": "intentionally_unmapped",
+      "mapping_status": "blocked",
+      "domain": "platform_control_plane",
+      "operation_class": "execute",
+      "evidence": {
+        "file": "http-generic-api/routes/platformPluginRoutes.js",
+        "source_line": 632,
+        "handler_window_lines": [
+          632,
+          644
+        ],
+        "evidence_flags": {
+          "handler_window_present": true,
+          "provider_signal": false,
+          "db_registry_signal": false,
+          "authority_signal": true,
+          "readback_signal": true,
+          "mutation_signal": false
+        },
+        "signals": {
+          "provider": [],
+          "db_registry": [],
+          "authority": [
+            "admin"
+          ],
+          "readback": [
+            "response"
+          ],
+          "mutation": []
+        },
+        "static_only": true,
+        "secrets_included": false
+      },
+      "evidence_confidence": {
+        "level": "low_static",
+        "basis": "handler_window_signals_only",
+        "authorizes": false
+      },
+      "promotion_prerequisites": [
+        "explicit_resource_operation_scope_binding",
+        "live_resource_authority_binding",
+        "approval_policy_evidence",
+        "capability_envelope_evidence",
+        "lease_evidence",
+        "staging_environment",
+        "same_cycle_readback_contract",
+        "live_db_registry_readback"
+      ],
+      "promotion_status": "blocked",
+      "scope_keys": [],
+      "resource_candidate": "platform_control_plane",
+      "resource_key": null,
+      "operation_key": null,
+      "authority_required": true,
+      "provider_mutation_allowed": false,
+      "readback_required": true,
+      "owner": "platform-control-plane-governance",
+      "classification_confidence": "heuristic_requires_manual_confirmation",
+      "risk_class": "critical",
+      "reason": "platform_control_plane_requires_explicit_capability_and_change_control"
+    },
+    {
+      "route_id": "http-generic-api/routes/platformPluginRoutes.js#POST:/platform/plugins/install-policy:34",
       "classification": "intentionally_unmapped",
       "mapping_status": "blocked",
       "domain": "platform_control_plane",
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/platformPluginRoutes.js",
-        "source_line": 632,
+        "source_line": 646,
         "handler_window_lines": [
-          632,
-          648
+          646,
+          662
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -36479,17 +36666,17 @@
       "reason": "platform_control_plane_requires_explicit_capability_and_change_control"
     },
     {
-      "route_id": "http-generic-api/routes/platformPluginRoutes.js#POST:/platform/plugins/action-templates:34",
+      "route_id": "http-generic-api/routes/platformPluginRoutes.js#POST:/platform/plugins/action-templates:35",
       "classification": "intentionally_unmapped",
       "mapping_status": "blocked",
       "domain": "platform_control_plane",
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/platformPluginRoutes.js",
-        "source_line": 650,
+        "source_line": 664,
         "handler_window_lines": [
-          650,
-          671
+          664,
+          685
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -36544,17 +36731,17 @@
       "reason": "platform_control_plane_requires_explicit_capability_and_change_control"
     },
     {
-      "route_id": "http-generic-api/routes/platformPluginRoutes.js#POST:/platform/plugins/dispatch-rest:35",
+      "route_id": "http-generic-api/routes/platformPluginRoutes.js#POST:/platform/plugins/dispatch-rest:36",
       "classification": "intentionally_unmapped",
       "mapping_status": "blocked",
       "domain": "platform_control_plane",
       "operation_class": "execute",
       "evidence": {
         "file": "http-generic-api/routes/platformPluginRoutes.js",
-        "source_line": 673,
+        "source_line": 687,
         "handler_window_lines": [
-          673,
-          707
+          687,
+          721
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -36618,17 +36805,17 @@
       "reason": "platform_control_plane_requires_explicit_capability_and_change_control"
     },
     {
-      "route_id": "http-generic-api/routes/platformPluginRoutes.js#POST:/platform/plugins/action-grants:36",
+      "route_id": "http-generic-api/routes/platformPluginRoutes.js#POST:/platform/plugins/action-grants:37",
       "classification": "intentionally_unmapped",
       "mapping_status": "blocked",
       "domain": "platform_control_plane",
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/platformPluginRoutes.js",
-        "source_line": 709,
+        "source_line": 723,
         "handler_window_lines": [
-          709,
-          727
+          723,
+          741
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -36681,17 +36868,17 @@
       "reason": "platform_control_plane_requires_explicit_capability_and_change_control"
     },
     {
-      "route_id": "http-generic-api/routes/platformPluginRoutes.js#POST:/platform/plugins/install:37",
+      "route_id": "http-generic-api/routes/platformPluginRoutes.js#POST:/platform/plugins/install:38",
       "classification": "intentionally_unmapped",
       "mapping_status": "blocked",
       "domain": "platform_control_plane",
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/platformPluginRoutes.js",
-        "source_line": 729,
+        "source_line": 743,
         "handler_window_lines": [
-          729,
-          745
+          743,
+          759
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -36747,17 +36934,17 @@
       "reason": "platform_control_plane_requires_explicit_capability_and_change_control"
     },
     {
-      "route_id": "http-generic-api/routes/platformPluginRoutes.js#POST:/platform/plugins/contributions:38",
+      "route_id": "http-generic-api/routes/platformPluginRoutes.js#POST:/platform/plugins/contributions:39",
       "classification": "intentionally_unmapped",
       "mapping_status": "blocked",
       "domain": "platform_control_plane",
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/platformPluginRoutes.js",
-        "source_line": 747,
+        "source_line": 761,
         "handler_window_lines": [
-          747,
-          769
+          761,
+          783
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -36814,17 +37001,17 @@
       "reason": "platform_control_plane_requires_explicit_capability_and_change_control"
     },
     {
-      "route_id": "http-generic-api/routes/platformPluginRoutes.js#POST:/platform/plugins/contributions/certify:39",
+      "route_id": "http-generic-api/routes/platformPluginRoutes.js#POST:/platform/plugins/contributions/certify:40",
       "classification": "intentionally_unmapped",
       "mapping_status": "blocked",
       "domain": "platform_control_plane",
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/platformPluginRoutes.js",
-        "source_line": 771,
+        "source_line": 785,
         "handler_window_lines": [
-          771,
-          781
+          785,
+          795
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -36878,17 +37065,17 @@
       "reason": "platform_control_plane_requires_explicit_capability_and_change_control"
     },
     {
-      "route_id": "http-generic-api/routes/platformPluginRoutes.js#POST:/platform/plugins/contributions/promote:40",
+      "route_id": "http-generic-api/routes/platformPluginRoutes.js#POST:/platform/plugins/contributions/promote:41",
       "classification": "intentionally_unmapped",
       "mapping_status": "blocked",
       "domain": "platform_control_plane",
       "operation_class": "deploy",
       "evidence": {
         "file": "http-generic-api/routes/platformPluginRoutes.js",
-        "source_line": 783,
+        "source_line": 797,
         "handler_window_lines": [
-          783,
-          794
+          797,
+          808
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -36942,17 +37129,17 @@
       "reason": "platform_control_plane_requires_explicit_capability_and_change_control"
     },
     {
-      "route_id": "http-generic-api/routes/platformPluginRoutes.js#POST:/platform/plugins/contributions/activate-private:41",
+      "route_id": "http-generic-api/routes/platformPluginRoutes.js#POST:/platform/plugins/contributions/activate-private:42",
       "classification": "intentionally_unmapped",
       "mapping_status": "blocked",
       "domain": "platform_control_plane",
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/platformPluginRoutes.js",
-        "source_line": 796,
+        "source_line": 810,
         "handler_window_lines": [
-          796,
-          807
+          810,
+          821
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -37005,17 +37192,17 @@
       "reason": "platform_control_plane_requires_explicit_capability_and_change_control"
     },
     {
-      "route_id": "http-generic-api/routes/platformPluginRoutes.js#POST:/platform/plugins/contributions/resolve-private:42",
+      "route_id": "http-generic-api/routes/platformPluginRoutes.js#POST:/platform/plugins/contributions/resolve-private:43",
       "classification": "intentionally_unmapped",
       "mapping_status": "blocked",
       "domain": "platform_control_plane",
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/platformPluginRoutes.js",
-        "source_line": 809,
+        "source_line": 823,
         "handler_window_lines": [
-          809,
-          822
+          823,
+          836
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -37070,17 +37257,17 @@
       "reason": "platform_control_plane_requires_explicit_capability_and_change_control"
     },
     {
-      "route_id": "http-generic-api/routes/platformPluginRoutes.js#POST:/platform/plugins/contributions/dispatch-rest:43",
+      "route_id": "http-generic-api/routes/platformPluginRoutes.js#POST:/platform/plugins/contributions/dispatch-rest:44",
       "classification": "intentionally_unmapped",
       "mapping_status": "blocked",
       "domain": "platform_control_plane",
       "operation_class": "execute",
       "evidence": {
         "file": "http-generic-api/routes/platformPluginRoutes.js",
-        "source_line": 824,
+        "source_line": 838,
         "handler_window_lines": [
-          824,
-          839
+          838,
+          853
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -37935,10 +38122,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/recoveryKernelRoutes.js",
-        "source_line": 237,
+        "source_line": 244,
         "handler_window_lines": [
-          237,
-          301
+          244,
+          308
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -38007,10 +38194,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/recoveryKernelRoutes.js",
-        "source_line": 303,
+        "source_line": 310,
         "handler_window_lines": [
-          303,
-          330
+          310,
+          337
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -38074,10 +38261,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/recoveryKernelRoutes.js",
-        "source_line": 332,
+        "source_line": 339,
         "handler_window_lines": [
-          332,
-          357
+          339,
+          364
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -38137,10 +38324,10 @@
       "operation_class": "decision",
       "evidence": {
         "file": "http-generic-api/routes/recoveryKernelRoutes.js",
-        "source_line": 359,
+        "source_line": 366,
         "handler_window_lines": [
-          359,
-          362
+          366,
+          369
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -38202,10 +38389,10 @@
       "operation_class": "execute",
       "evidence": {
         "file": "http-generic-api/routes/recoveryKernelRoutes.js",
-        "source_line": 363,
+        "source_line": 370,
         "handler_window_lines": [
-          363,
-          363
+          370,
+          370
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -38265,10 +38452,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/recoverySystemToolOverlayRoutes.js",
-        "source_line": 388,
+        "source_line": 389,
         "handler_window_lines": [
-          388,
-          388
+          389,
+          389
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -38325,10 +38512,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/recoverySystemToolOverlayRoutes.js",
-        "source_line": 389,
+        "source_line": 390,
         "handler_window_lines": [
-          389,
-          402
+          390,
+          403
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -40083,7 +40270,7 @@
         "source_line": 374,
         "handler_window_lines": [
           374,
-          398
+          405
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -40091,7 +40278,7 @@
           "db_registry_signal": false,
           "authority_signal": false,
           "readback_signal": true,
-          "mutation_signal": false
+          "mutation_signal": true
         },
         "signals": {
           "provider": [],
@@ -40100,7 +40287,9 @@
           "readback": [
             "verify"
           ],
-          "mutation": []
+          "mutation": [
+            "write"
+          ]
         },
         "static_only": true,
         "secrets_included": false
@@ -40792,7 +40981,7 @@
         "source_line": 86,
         "handler_window_lines": [
           86,
-          96
+          99
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -40807,7 +40996,8 @@
           "db_registry": [],
           "authority": [
             "admin",
-            "admin"
+            "admin",
+            "capability"
           ],
           "readback": [
             "response"
@@ -40848,17 +41038,17 @@
       "reason": "registry_mutation_requires_live_schema_and_policy_contract"
     },
     {
-      "route_id": "http-generic-api/routes/repositoryAutomationRoutes.js#POST:/admin/repository-automation/policy-controller:2",
+      "route_id": "http-generic-api/routes/repositoryAutomationRoutes.js#POST:/admin/repository-automation/policy-controller:3",
       "classification": "intentionally_unmapped",
       "mapping_status": "blocked",
       "domain": "github",
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/repositoryAutomationRoutes.js",
-        "source_line": 98,
+        "source_line": 104,
         "handler_window_lines": [
-          98,
-          108
+          104,
+          114
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -40917,17 +41107,17 @@
       "reason": "registry_mutation_requires_live_schema_and_policy_contract"
     },
     {
-      "route_id": "http-generic-api/routes/repositoryAutomationRoutes.js#POST:/admin/repository-automation/status:3",
+      "route_id": "http-generic-api/routes/repositoryAutomationRoutes.js#POST:/admin/repository-automation/status:4",
       "classification": "intentionally_unmapped",
       "mapping_status": "blocked",
       "domain": "github",
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/repositoryAutomationRoutes.js",
-        "source_line": 110,
+        "source_line": 116,
         "handler_window_lines": [
-          110,
-          117
+          116,
+          123
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -40983,17 +41173,17 @@
       "reason": "registry_mutation_requires_live_schema_and_policy_contract"
     },
     {
-      "route_id": "http-generic-api/routes/repositoryAutomationRoutes.js#POST:/admin/repository-automation/hygiene-scan:4",
+      "route_id": "http-generic-api/routes/repositoryAutomationRoutes.js#POST:/admin/repository-automation/hygiene-scan:5",
       "classification": "intentionally_unmapped",
       "mapping_status": "blocked",
       "domain": "github",
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/repositoryAutomationRoutes.js",
-        "source_line": 119,
+        "source_line": 125,
         "handler_window_lines": [
-          119,
-          126
+          125,
+          132
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -41049,17 +41239,17 @@
       "reason": "registry_mutation_requires_live_schema_and_policy_contract"
     },
     {
-      "route_id": "http-generic-api/routes/repositoryAutomationRoutes.js#POST:/admin/repository-automation/reconciliation-lease:5",
+      "route_id": "http-generic-api/routes/repositoryAutomationRoutes.js#POST:/admin/repository-automation/reconciliation-lease:6",
       "classification": "intentionally_unmapped",
       "mapping_status": "blocked",
       "domain": "github",
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/repositoryAutomationRoutes.js",
-        "source_line": 128,
+        "source_line": 134,
         "handler_window_lines": [
-          128,
-          139
+          134,
+          145
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -45812,10 +46002,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
-        "source_line": 273,
+        "source_line": 307,
         "handler_window_lines": [
-          273,
-          280
+          307,
+          314
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -45875,10 +46065,10 @@
       "operation_class": "execute",
       "evidence": {
         "file": "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
-        "source_line": 281,
+        "source_line": 315,
         "handler_window_lines": [
-          281,
-          288
+          315,
+          322
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -45940,10 +46130,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
-        "source_line": 290,
+        "source_line": 324,
         "handler_window_lines": [
-          290,
-          322
+          324,
+          356
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -46009,10 +46199,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
-        "source_line": 324,
+        "source_line": 358,
         "handler_window_lines": [
-          324,
-          351
+          358,
+          385
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -46078,10 +46268,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/stagingRecoveryAdminRoutes.js",
-        "source_line": 353,
+        "source_line": 387,
         "handler_window_lines": [
-          353,
-          367
+          387,
+          401
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -50328,10 +50518,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/systemLayerRoutes.js",
-        "source_line": 2850,
+        "source_line": 2841,
         "handler_window_lines": [
-          2850,
-          2859
+          2841,
+          2850
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -50388,10 +50578,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/systemLayerRoutes.js",
-        "source_line": 2861,
+        "source_line": 2852,
         "handler_window_lines": [
-          2861,
-          2916
+          2852,
+          2907
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -50458,10 +50648,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/systemLayerRoutes.js",
-        "source_line": 2969,
+        "source_line": 2960,
         "handler_window_lines": [
-          2969,
-          3023
+          2960,
+          3014
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -50530,10 +50720,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/systemLayerRoutes.js",
-        "source_line": 3043,
+        "source_line": 3034,
         "handler_window_lines": [
-          3043,
-          3050
+          3034,
+          3041
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -50590,10 +50780,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/systemLayerRoutes.js",
-        "source_line": 3061,
+        "source_line": 3052,
         "handler_window_lines": [
-          3061,
-          3083
+          3052,
+          3074
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -51058,10 +51248,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/tenantGptOAuthTokenExchangeRoutes.js",
-        "source_line": 302,
+        "source_line": 329,
         "handler_window_lines": [
-          302,
-          578
+          329,
+          607
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -54469,18 +54659,18 @@
   ],
   "evidence_graph": {
     "node_counts": {
-      "routes": 683,
+      "routes": 685,
       "domains": 11,
       "handler_files": 137
     },
     "edge_counts": {
-      "route_to_handler_file": 683,
-      "route_to_domain": 683,
-      "route_to_provider_signal": 100,
+      "route_to_handler_file": 685,
+      "route_to_domain": 685,
+      "route_to_provider_signal": 102,
       "route_to_db_registry_signal": 0,
-      "route_to_authority_signal": 432,
-      "route_to_readback_signal": 387,
-      "route_to_mutation_signal": 390,
+      "route_to_authority_signal": 434,
+      "route_to_readback_signal": 389,
+      "route_to_mutation_signal": 392,
       "route_to_explicit_scope_candidate": 44
     },
     "execution_edges_are_non_authorizing": true,
@@ -58146,6 +58336,38 @@
       "catalog_fingerprints": []
     },
     {
+      "path": "http-generic-api/migrations/20261007_credential_platform_binding_policy.sql",
+      "tables": [
+        "implicit",
+        "admin_platform_endpoint_tools",
+        "display_name"
+      ],
+      "write_scopes": [],
+      "catalog_fingerprints": []
+    },
+    {
+      "path": "http-generic-api/migrations/20261008_admin_local_connector_target_catalog_alignment.sql",
+      "tables": [
+        "admin_platform_endpoint_tools",
+        "signed",
+        "identity",
+        "description"
+      ],
+      "write_scopes": [],
+      "catalog_fingerprints": []
+    },
+    {
+      "path": "http-generic-api/migrations/20261009_hostinger_recovery_allowlist_discovery.sql",
+      "tables": [
+        "remote_runtime_command_allowlists",
+        "notes",
+        "admin_platform_endpoint_tools",
+        "description"
+      ],
+      "write_scopes": [],
+      "catalog_fingerprints": []
+    },
+    {
       "path": "http-generic-api/migrations/202_sprint66_tenant_ssh_cli_allowlisted_execute_tool.sql",
       "tables": [
         "tenant_platform_endpoint_tools",
@@ -61016,8 +61238,8 @@
     {
       "severity": "high",
       "code": "INTENTIONALLY_UNMAPPED_WRITE_ROUTES_BLOCKED",
-      "count": 639,
-      "sensitive_count": 639
+      "count": 641,
+      "sensitive_count": 641
     },
     {
       "severity": "medium",

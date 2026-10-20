@@ -2,11 +2,25 @@ import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { getGitHubAppInstallationToken, resolveGitHubAppConfig } from "./githubAppAuth.js";
 
-export const GITHUB_REPOSITORY_GOVERNANCE_ATTESTATION_VERSION = "github-repository-governance-attestation-v3";
+export const GITHUB_REPOSITORY_GOVERNANCE_ATTESTATION_VERSION = "github-repository-governance-attestation-v4";
 export const GOVERNANCE_ATTESTATION_CONTEXTS = Object.freeze({
   main: Object.freeze({ context: "Derived State Closure", confirm: "ATTEST_DERIVED_STATE_CLOSURE", executed_relation: "executed_is_merge_candidate" }),
   Production: Object.freeze({ context: "Governed Production Promotion", confirm: "ATTEST_GOVERNED_PRODUCTION_PROMOTION", executed_relation: "executed_source_tree_equals_merge_candidate_tree" }),
 });
+// An authenticated read-only preflight, called before any GitHub App status POST.
+// This distinguishes the exact-HEAD capable protocol from legacy candidate-only v3.
+export function readGithubRepositoryGovernanceAttestationContract() {
+  return {
+    contract: GITHUB_REPOSITORY_GOVERNANCE_ATTESTATION_VERSION,
+    mode: "preflight",
+    supported_branches: Object.keys(GOVERNANCE_ATTESTATION_CONTEXTS),
+    candidate_same_cycle_readback_supported: true,
+    main_exact_head_status_supported: true,
+    native_status_provider: "installed_github_app",
+    mutation_executed: false,
+    secrets_included: false,
+  };
+}
 const CONSTITUTION_URL = new URL("./config/repository-governance-constitution.json", import.meta.url);
 const CONSTITUTION_CONTRACT = "mad4b.repository-governance-constitution.v1";
 const SHA_RE = /^[0-9a-f]{40}$/i;
@@ -71,6 +85,26 @@ function normalizeDigest(value) {
   const raw = compact(value, 96).toLowerCase();
   const digest = raw.startsWith("sha256:") ? raw.slice(7) : raw;
   return DIGEST_RE.test(digest) ? digest : "";
+}
+async function publishExactAppStatus({ base, sha, token, context, description, fetchImpl }) {
+  const created = requireResult(await request({
+    method: "POST", path: `${base}/statuses/${sha}`, token, fetchImpl,
+    body: { state: "success", context, description },
+  }), "github_governance_attestation_status_create_failed", "Unable to publish trusted exact-SHA status.");
+  if (created?.sha !== sha || created?.state !== "success" || created?.context !== context
+      || !Number.isSafeInteger(Number(created?.id)) || Number(created.id) <= 0
+      || !Number.isSafeInteger(Number(created?.creator?.id)) || Number(created.creator.id) <= 0) {
+    throw error(409, "github_governance_attestation_status_response_mismatch", "Published status identity does not match the requested SHA/context/creator.");
+  }
+  const statuses = requireResult(await request({
+    path: `${base}/commits/${sha}/statuses?per_page=100`, token, fetchImpl,
+  }), "github_governance_attestation_status_readback_failed", "Unable to read back trusted exact-SHA status.");
+  const newest = (Array.isArray(statuses) ? statuses : []).find((status) => status?.context === context);
+  if (Number(newest?.id) !== Number(created.id) || Number(newest?.creator?.id) !== Number(created.creator.id)
+      || newest?.state !== "success" || newest?.sha !== sha) {
+    throw error(409, "github_governance_attestation_same_cycle_readback_failed", "The newest exact-SHA status is not the same-cycle trusted App publication.");
+  }
+  return created;
 }
 function normalize(input = {}) {
   const owner = compact(input.owner, 191), repo = compact(input.repo, 191), branch = compact(input.default_branch || input.branch || "main", 191) || "main";
@@ -141,10 +175,46 @@ export async function runGithubRepositoryGovernanceAttestation(input = {}, deps 
     relation = "executed_source_tree_equals_merge_candidate_tree";
   }
   const fingerprint = governanceAttestationFingerprint({ contract: GITHUB_REPOSITORY_GOVERNANCE_ATTESTATION_VERSION, app_id: appId, repository: `${n.owner}/${n.repo}`, branch: n.branch, context: n.policy.context, pr_number: n.prNumber, source_head_sha: n.sourceHeadSha, base_sha: n.baseSha, candidate_sha: n.candidateSha, executed_sha: n.executedSha, executed_relation: relation, evidence_sha256: n.evidenceSha256, source_run_id: n.sourceRunId, source_artifact_id: sourceProvenance.artifact_id });
-  const created = requireResult(await request({ method: "POST", path: `${base}/statuses/${n.candidateSha}`, token, fetchImpl, body: { state: "success", context: n.policy.context, description: `${n.branch} governance attested ${fingerprint.slice(0, 12)}`.slice(0, 140) } }), "github_governance_attestation_status_create_failed", "Unable to publish final governance status.");
-  if (created?.state !== "success" || created?.context !== n.policy.context) throw error(409, "github_governance_attestation_status_response_mismatch", "Published status does not match context/state.");
-  const statuses = requireResult(await request({ path: `${base}/commits/${n.candidateSha}/statuses?per_page=100`, token, fetchImpl }), "github_governance_attestation_status_readback_failed", "Unable to read back final status.");
-  const matching = (Array.isArray(statuses) ? statuses : []).filter((status) => status?.context === n.policy.context && status?.state === "success" && String(status?.creator?.id || "") === String(created?.creator?.id || ""));
-  if (!matching.length) throw error(409, "github_governance_attestation_same_cycle_readback_failed", "Same-cycle readback did not prove the published status.");
-  return { contract: GITHUB_REPOSITORY_GOVERNANCE_ATTESTATION_VERSION, mode: "attest", repository: `${n.owner}/${n.repo}`, branch: n.branch, context: n.policy.context, pr_number: n.prNumber, source_head_sha: n.sourceHeadSha, base_sha: n.baseSha, candidate_sha: n.candidateSha, executed_sha: n.executedSha, executed_relation: relation, candidate_tree_sha: candidateTreeSha, executed_tree_sha: executedTreeSha, evidence_sha256: n.evidenceSha256, source_run_id: n.sourceRunId, source_provenance: sourceProvenance, app_id: appId, attestation_fingerprint: fingerprint, status_id: Number(created?.id || 0) || null, status_creator_id: Number(created?.creator?.id || 0) || null, same_cycle_readback_proven: true, mutation_executed: true, repository_content_mutation_executed: false, force_push_executed: false, secrets_included: false };
+  const description = `${n.branch} governance attested ${fingerprint.slice(0, 12)}`.slice(0, 140);
+  // The candidate status proves the exact evaluated merge tree; keep its identity as
+  // the existing finalizer contract so the merge-readiness gate still verifies it.
+  const candidateStatus = await publishExactAppStatus({
+    base, sha: n.candidateSha, token, context: n.policy.context, description, fetchImpl,
+  });
+  let headStatus = null;
+  if (n.branch === "main") {
+    // GitHub's required-status gate for this PR expects the source HEAD, not only
+    // the ephemeral refs/pull/N/merge candidate. Never sign the HEAD until the
+    // candidate evidence, owner, base and live PR identity have been authenticated.
+    const beforeHead = requireResult(await request({
+      path: `${base}/pulls/${n.prNumber}`, token, fetchImpl,
+    }), "github_governance_attestation_pr_final_read_failed", "Unable to verify PR identity before publishing HEAD status.");
+    const exactPr = (p) => p?.state === "open" && p?.draft === false
+      && p?.base?.ref === "main" && String(p?.base?.sha || "").toLowerCase() === n.baseSha
+      && String(p?.head?.sha || "").toLowerCase() === n.sourceHeadSha
+      && String(p?.merge_commit_sha || "").toLowerCase() === n.candidateSha;
+    if (!exactPr(beforeHead)) throw error(409, "github_governance_attestation_head_status_pr_drift", "PR identity changed before required HEAD attestation.");
+    headStatus = await publishExactAppStatus({
+      base, sha: n.sourceHeadSha, token, context: n.policy.context, description, fetchImpl,
+    });
+    const afterHead = requireResult(await request({
+      path: `${base}/pulls/${n.prNumber}`, token, fetchImpl,
+    }), "github_governance_attestation_pr_final_read_failed", "Unable to verify PR identity after publishing HEAD status.");
+    if (!exactPr(afterHead)) throw error(409, "github_governance_attestation_head_status_pr_drift", "PR identity changed after required HEAD attestation; merge must remain blocked.");
+  }
+  return {
+    contract: GITHUB_REPOSITORY_GOVERNANCE_ATTESTATION_VERSION, mode: "attest",
+    repository: `${n.owner}/${n.repo}`, branch: n.branch, context: n.policy.context,
+    pr_number: n.prNumber, source_head_sha: n.sourceHeadSha, base_sha: n.baseSha,
+    candidate_sha: n.candidateSha, executed_sha: n.executedSha, executed_relation: relation,
+    candidate_tree_sha: candidateTreeSha, executed_tree_sha: executedTreeSha,
+    evidence_sha256: n.evidenceSha256, source_run_id: n.sourceRunId,
+    source_provenance: sourceProvenance, app_id: appId, attestation_fingerprint: fingerprint,
+    status_id: Number(candidateStatus.id), status_creator_id: Number(candidateStatus.creator.id),
+    head_status_id: headStatus ? Number(headStatus.id) : null,
+    head_status_creator_id: headStatus ? Number(headStatus.creator.id) : null,
+    native_required_head_status_proven: n.branch === "main" && !!headStatus,
+    same_cycle_readback_proven: true, mutation_executed: true,
+    repository_content_mutation_executed: false, force_push_executed: false, secrets_included: false,
+  };
 }

@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import { createHash } from "node:crypto";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 const BASE = String(process.env.RUNTIME_BASE_URL || "https://auth.mad4b.com").replace(/\/+$/u, "");
 const KEY = String(process.env.BACKEND_API_KEY || "");
@@ -12,6 +13,7 @@ const COMMENT = String(process.env.COMMENT_BODY || "").trim();
 const EVIDENCE_DIR = String(process.env.EVIDENCE_DIR || ".artifacts/production-recovery-baseline-rebuild");
 const WORKFLOW_RUN_ID = String(process.env.GITHUB_RUN_ID || "");
 const WORKFLOW_RUN_ATTEMPT = String(process.env.GITHUB_RUN_ATTEMPT || "1");
+const WORKFLOW_SOURCE_SHA = String(process.env.GITHUB_SHA || "").trim().toLowerCase();
 
 const REBUILD = /^APPLY_HOSTINGER_RUNTIME_BASELINE_REBUILD:([0-9a-f]{40}):production-runtime:governance,runtime_persistence$/u;
 const APPROVE = /^APPROVE PRODUCTION RECOVERY (approval:[0-9a-f]{16,64}) (step:[0-9a-f]{16,64}) ([0-9a-f]{40})$/u;
@@ -24,14 +26,16 @@ const FINDING = /^finding:[0-9a-f]{16,64}$/u;
 const RUN = /^run:[A-Za-z0-9._:-]{8,160}$/u;
 const ROLES = Object.freeze(["governance", "runtime_persistence"]);
 const MARKER = "mad4b-production-recovery-approval-v1:";
-const SOURCE_PARITY_PATHS = Object.freeze([
-  ".github/ops/production-recovery-baseline-rebuild-governed.mjs",
+const CONTROLLER_SOURCE_PATH = ".github/ops/production-recovery-baseline-rebuild-governed.mjs";
+const RUNTIME_BOOTSTRAP_PATH = "http-generic-api/runtimeBootstrapContract.js";
+const RUNTIME_BOOTSTRAP_COMPATIBILITY_CONTRACT = "mad4b.production-recovery-runtime-bootstrap-operation-compatibility.v1";
+const PRODUCTION_RUNTIME_PARITY_PATHS = Object.freeze([
   "http-generic-api/productionRecoveryBaselineAuthorityBinding.js",
   "http-generic-api/productionRecoveryHostLocalBaselineRebuild.js",
   "http-generic-api/productionRecoveryOperationalAdapters.js",
   "http-generic-api/recoveryActionBridge.js",
   "http-generic-api/recoveryKernel.js",
-  "http-generic-api/runtimeBootstrapContract.js",
+  RUNTIME_BOOTSTRAP_PATH,
 ]);
 
 function safe(value, max = 512) {
@@ -57,6 +61,7 @@ function writeEvidence(name, value) {
 function requireBase() {
   if (!KEY) fail("RECOVERY_BRIDGE_BACKEND_KEY_MISSING", "BACKEND_API_KEY is unavailable.");
   if (!GH) fail("RECOVERY_BRIDGE_GITHUB_TOKEN_MISSING", "GitHub token is unavailable.");
+  if (!SHA40.test(WORKFLOW_SOURCE_SHA)) fail("RECOVERY_BRIDGE_WORKFLOW_SOURCE_SHA_INVALID", "GITHUB_SHA must identify the exact trusted current-main controller source.");
   if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/u.test(REPO)) {
     fail("RECOVERY_BRIDGE_REPOSITORY_INVALID", "Repository identity is invalid.");
   }
@@ -133,10 +138,192 @@ function sha256Bytes(value) {
   return createHash("sha256").update(value).digest("hex");
 }
 
+function replaceReviewedCompatibilityFragment(source, from, to, label) {
+  const first = source.indexOf(from);
+  if (first < 0 || source.indexOf(from, first + from.length) >= 0) {
+    return { ok: false, source, label };
+  }
+  return {
+    ok: true,
+    source: source.slice(0, first) + to + source.slice(first + from.length),
+    label,
+  };
+}
+
+export function projectRuntimeBootstrapRecoveryCompatibility(source) {
+  let projected = String(source || "");
+  const reviewedTransformations = [];
+  const replacements = [
+    {
+      label: "migration_file_path_signature",
+      from: 'function migrationFilePath(repoRoot, file, { artifactScope = "canonical", contract = null } = {}) {',
+      to: "function migrationFilePath(repoRoot, file) {",
+    },
+    {
+      label: "staging_recovery_only_scope_extension",
+      from: `  const scope = String(artifactScope || "canonical").trim();
+  let rootName = null;
+  if (scope === "canonical") {
+    rootName = "migrations";
+  } else if (scope === "staging_recovery_only") {
+    const declared = Array.isArray(contract?.staging_readiness_remediation?.schema_repair_migrations)
+      && contract.staging_readiness_remediation.schema_repair_migrations.some((entry) => entry?.file === normalized && String(entry?.artifact_scope || "").trim() === "staging_recovery_only");
+    if (!declared) throw bootstrapError("bootstrap_migration_artifact_scope_denied", "Recovery-only migration artifacts require the matching Staging remediation declaration", { file: normalized, artifact_scope: scope });
+    rootName = "staging-recovery-migrations";
+  } else {
+    throw bootstrapError("bootstrap_migration_artifact_scope_invalid", "Migration artifact scope is not registered", { file: normalized, artifact_scope: scope });
+  }
+  const root = path.resolve(repoRoot, "http-generic-api", rootName);
+`,
+      to: '  const root = path.resolve(repoRoot, "http-generic-api", "migrations");\n',
+    },
+    {
+      label: "migration_path_escape_error_shape",
+      from: 'throw bootstrapError("bootstrap_migration_path_invalid", "Migration path escaped repository-owned migration root", { file: normalized, artifact_scope: scope });',
+      to: 'throw bootstrapError("bootstrap_migration_path_invalid", "Migration path escaped repository migrations root", { file: normalized });',
+    },
+    {
+      label: "migration_missing_error_shape",
+      from: 'throw bootstrapError("bootstrap_migration_missing", "Allowlisted migration artifact is missing", { file: normalized, artifact_scope: scope });',
+      to: 'throw bootstrapError("bootstrap_migration_missing", "Allowlisted migration artifact is missing", { file: normalized });',
+    },
+    {
+      label: "incident_migration_signature",
+      from: "async function applyIncidentMigration(connection, repoRoot, migration, spec, database, mutationEvidence, contract) {",
+      to: "async function applyIncidentMigration(connection, repoRoot, migration, spec, database, mutationEvidence) {",
+    },
+    {
+      label: "incident_migration_scoped_path",
+      from: '  const absolute = migrationFilePath(repoRoot, migration, { artifactScope: spec.artifact_scope || "canonical", contract });',
+      to: "  const absolute = migrationFilePath(repoRoot, migration);",
+    },
+    {
+      label: "incident_migration_read_scoped_path",
+      from: '      const migrationSql = fs.readFileSync(migrationFilePath(repoRoot, migration, { artifactScope: spec.artifact_scope || "canonical", contract }), "utf8");',
+      to: '      const migrationSql = fs.readFileSync(migrationFilePath(repoRoot, migration), "utf8");',
+    },
+    {
+      label: "incident_migration_apply_contract_argument",
+      from: "      migrationResults.push(await applyIncidentMigration(connection, repoRoot, migration, spec, target.database, mutationEvidence, contract));",
+      to: "      migrationResults.push(await applyIncidentMigration(connection, repoRoot, migration, spec, target.database, mutationEvidence));",
+    },
+  ];
+
+  for (const replacement of replacements) {
+    const result = replaceReviewedCompatibilityFragment(projected, replacement.from, replacement.to, replacement.label);
+    if (!result.ok) {
+      return {
+        verified: false,
+        compatibility_contract: RUNTIME_BOOTSTRAP_COMPATIBILITY_CONTRACT,
+        failure: "reviewed_transformation_missing_or_ambiguous",
+        failed_transformation: replacement.label,
+        replacement_count: reviewedTransformations.length,
+        reviewed_transformations: reviewedTransformations,
+        projected_source: null,
+        secrets_included: false,
+      };
+    }
+    projected = result.source;
+    reviewedTransformations.push(replacement.label);
+  }
+
+  return {
+    verified: true,
+    compatibility_contract: RUNTIME_BOOTSTRAP_COMPATIBILITY_CONTRACT,
+    replacement_count: reviewedTransformations.length,
+    reviewed_transformations: reviewedTransformations,
+    projected_source: projected,
+    secrets_included: false,
+  };
+}
+
+export function evaluateRuntimeBootstrapRecoveryCompatibility({ currentSource, productionSource } = {}) {
+  const current = String(currentSource || "");
+  const production = String(productionSource || "");
+  const projection = projectRuntimeBootstrapRecoveryCompatibility(current);
+  const canonicalSeedPathPreserved =
+    current.includes("const absolute = migrationFilePath(repoRoot, file);")
+    && production.includes("const absolute = migrationFilePath(repoRoot, file);");
+  const baselineBoundaryPresent =
+    current.includes('if (roleSelectiveRebuild) {')
+    && current.includes('status: "baseline_rebuild_complete"')
+    && production.includes('if (roleSelectiveRebuild) {')
+    && production.includes('status: "baseline_rebuild_complete"');
+  const additiveStagingScopePresent =
+    current.includes('artifactScope = "canonical"')
+    && current.includes('scope === "staging_recovery_only"')
+    && current.includes('rootName = "staging-recovery-migrations"');
+  const projectedMatchesExactProduction =
+    projection.verified === true
+    && projection.projected_source === production;
+
+  return {
+    verified:
+      projectedMatchesExactProduction
+      && canonicalSeedPathPreserved
+      && baselineBoundaryPresent
+      && additiveStagingScopePresent,
+    compatibility_contract: RUNTIME_BOOTSTRAP_COMPATIBILITY_CONTRACT,
+    operation: "database.rebuild_empty",
+    selected_roles: [...ROLES],
+    projected_source_matches_exact_production: projectedMatchesExactProduction,
+    canonical_seed_path_preserved: canonicalSeedPathPreserved,
+    baseline_rebuild_boundary_present: baselineBoundaryPresent,
+    additive_staging_recovery_scope_only: additiveStagingScopePresent,
+    replacement_count: projection.replacement_count || 0,
+    reviewed_transformations: projection.reviewed_transformations || [],
+    failure: projection.failure || null,
+    failed_transformation: projection.failed_transformation || null,
+    secrets_included: false,
+  };
+}
+
+async function assertCurrentMainControllerAuthority(expectedProductionSha) {
+  const [owner, repo] = REPO.split("/");
+  const mainRef = await github("/repos/" + owner + "/" + repo + "/git/ref/heads/main");
+  const currentMainSha = safe(mainRef?.object?.sha, 64).toLowerCase();
+  if (!SHA40.test(currentMainSha) || currentMainSha !== WORKFLOW_SOURCE_SHA) {
+    fail("RECOVERY_BRIDGE_CONTROLLER_MAIN_MISMATCH", "Recovery controller must execute from the exact current main SHA.", {
+      workflow_source_sha: WORKFLOW_SOURCE_SHA || null,
+      current_main_sha: currentMainSha || null,
+    });
+  }
+
+  const comparison = await github(
+    "/repos/" + owner + "/" + repo + "/compare/" + expectedProductionSha + "..." + WORKFLOW_SOURCE_SHA,
+  );
+  const productionIsAncestor =
+    ["ahead", "identical"].includes(String(comparison?.status || ""))
+    && safe(comparison?.base_commit?.sha, 64).toLowerCase() === expectedProductionSha
+    && safe(comparison?.merge_base_commit?.sha, 64).toLowerCase() === expectedProductionSha;
+  if (!productionIsAncestor) {
+    fail("RECOVERY_BRIDGE_PRODUCTION_ANCESTRY_INVALID", "Exact Production must remain an ancestor of the current-main Recovery controller.", {
+      expected_production_sha: expectedProductionSha,
+      workflow_source_sha: WORKFLOW_SOURCE_SHA,
+      compare_status: safe(comparison?.status, 64) || null,
+    });
+  }
+
+  const controllerBytes = fs.readFileSync(CONTROLLER_SOURCE_PATH);
+  return {
+    contract: "mad4b.production-recovery-current-main-controller-authority.v1",
+    controller_source_path: CONTROLLER_SOURCE_PATH,
+    controller_source_sha: WORKFLOW_SOURCE_SHA,
+    controller_sha256: sha256Bytes(controllerBytes),
+    current_main_sha: currentMainSha,
+    production_sha: expectedProductionSha,
+    controller_is_exact_current_main: true,
+    production_is_ancestor_of_workflow_source: true,
+    secrets_included: false,
+  };
+}
+
 async function assertSourceParity(expectedSha) {
   const [owner, repo] = REPO.split("/");
+  const controller = await assertCurrentMainControllerAuthority(expectedSha);
   const evidence = [];
-  for (const file of SOURCE_PARITY_PATHS) {
+
+  for (const file of PRODUCTION_RUNTIME_PARITY_PATHS) {
     const local = fs.readFileSync(file);
     const encodedPath = file.split("/").map((part) => encodeURIComponent(part)).join("/");
     const remote = await github("/repos/" + owner + "/" + repo + "/contents/" + encodedPath + "?ref=" + encodeURIComponent(expectedSha));
@@ -146,21 +333,83 @@ async function assertSourceParity(expectedSha) {
     const production = Buffer.from(String(remote.content).replace(/\s+/gu, ""), "base64");
     const localHash = sha256Bytes(local);
     const productionHash = sha256Bytes(production);
-    if (localHash !== productionHash) {
-      fail("RECOVERY_BRIDGE_SOURCE_PARITY_MISMATCH", "Workflow source differs from the exact Production Recovery implementation; execution is blocked until source parity is restored.", {
+
+    if (localHash === productionHash) {
+      evidence.push({
+        path: file,
+        mode: "byte_identical",
+        local_sha256: localHash,
+        production_sha256: productionHash,
+      });
+      continue;
+    }
+
+    if (file !== RUNTIME_BOOTSTRAP_PATH) {
+      fail("RECOVERY_BRIDGE_SOURCE_PARITY_MISMATCH", "Production Recovery runtime source differs outside the reviewed operation-scoped compatibility surface.", {
         path: file,
         expected_sha: expectedSha,
         local_sha256: localHash,
         production_sha256: productionHash,
       });
     }
-    evidence.push({ path: file, sha256: localHash });
+
+    const compatibility = evaluateRuntimeBootstrapRecoveryCompatibility({
+      currentSource: local.toString("utf8"),
+      productionSource: production.toString("utf8"),
+    });
+    if (!compatibility.verified) {
+      fail("RECOVERY_BRIDGE_OPERATION_COMPATIBILITY_INVALID", "runtimeBootstrapContract drift is not the exact reviewed database.rebuild_empty-compatible extension.", {
+        path: file,
+        expected_sha: expectedSha,
+        local_sha256: localHash,
+        production_sha256: productionHash,
+        compatibility_contract: compatibility.compatibility_contract,
+        projected_source_matches_exact_production: compatibility.projected_source_matches_exact_production,
+        canonical_seed_path_preserved: compatibility.canonical_seed_path_preserved,
+        baseline_rebuild_boundary_present: compatibility.baseline_rebuild_boundary_present,
+        additive_staging_recovery_scope_only: compatibility.additive_staging_recovery_scope_only,
+        replacement_count: compatibility.replacement_count,
+        failed_transformation: compatibility.failed_transformation,
+      });
+    }
+    evidence.push({
+      path: file,
+      mode: "operation_scoped_compatibility",
+      local_sha256: localHash,
+      production_sha256: productionHash,
+      compatibility_contract: compatibility.compatibility_contract,
+      operation: compatibility.operation,
+      selected_roles: compatibility.selected_roles,
+      projected_source_matches_exact_production: true,
+      canonical_seed_path_preserved: true,
+      baseline_rebuild_boundary_present: true,
+      additive_staging_recovery_scope_only: true,
+      replacement_count: compatibility.replacement_count,
+      reviewed_transformations: compatibility.reviewed_transformations,
+    });
   }
-  return {
-    contract: "mad4b.production-recovery-source-parity.v1",
-    expected_sha: expectedSha,
+
+  const compatibilityMode = evidence.every((item) => item.mode === "byte_identical")
+    ? "exact_byte_parity"
+    : "reviewed_operation_scoped_compatibility";
+  const stableEvidence = {
+    controller,
+    operation: "database.rebuild_empty",
+    selected_roles: [...ROLES],
     files: evidence,
-    source_parity_hash: sha256Bytes(Buffer.from(JSON.stringify(evidence), "utf8")),
+  };
+  return {
+    contract: "mad4b.production-recovery-source-compatibility.v2",
+    expected_sha: expectedSha,
+    controller,
+    operation: "database.rebuild_empty",
+    selected_roles: [...ROLES],
+    compatibility_mode: compatibilityMode,
+    files: evidence,
+    source_parity_hash: sha256Bytes(Buffer.from(JSON.stringify(stableEvidence), "utf8")),
+    production_runtime_exact_or_operation_compatible: true,
+    controller_exact_current_main: true,
+    production_is_ancestor_of_workflow_source: true,
     secrets_included: false,
   };
 }
@@ -317,6 +566,9 @@ async function prepare() {
     idempotency_namespace: namespace,
     created_by_run_id: WORKFLOW_RUN_ID,
     source_parity_hash: sourceParity.source_parity_hash,
+    source_compatibility_contract: sourceParity.contract,
+    source_compatibility_mode: sourceParity.compatibility_mode,
+    controller_source_sha: sourceParity.controller?.controller_source_sha || null,
     secrets_included: false,
   };
 
@@ -348,6 +600,10 @@ async function prepare() {
     approval_id: first.approval_id,
     evidence_comment_id: comment?.id || null,
     source_parity_hash: sourceParity.source_parity_hash,
+    source_compatibility_contract: sourceParity.contract,
+    source_compatibility_mode: sourceParity.compatibility_mode,
+    controller_source_sha: sourceParity.controller?.controller_source_sha || null,
+    production_runtime_exact_or_operation_compatible: sourceParity.production_runtime_exact_or_operation_compatible === true,
     database_mutation_performed: false,
     provider_mutation_performed: false,
   });
@@ -386,6 +642,15 @@ async function execute() {
   const state = await lookupMarker(approvalId, stepId, expectedSha);
   if (!PLAN.test(state.plan_id) || !SHA256.test(String(state.plan_hash || "")) || !Array.isArray(state.steps)) {
     fail("RECOVERY_BRIDGE_APPROVAL_MARKER_INVALID", "Approval marker is malformed.");
+  }
+  if (state.source_compatibility_contract !== sourceParity.contract || state.source_compatibility_mode !== sourceParity.compatibility_mode) {
+    fail("RECOVERY_BRIDGE_SOURCE_COMPATIBILITY_MODE_CHANGED", "Recovery source compatibility authority changed between prepare and execute; a fresh prepare cycle is required.", {
+      expected_sha: expectedSha,
+      prepared_contract: state.source_compatibility_contract || null,
+      current_contract: sourceParity.contract,
+      prepared_mode: state.source_compatibility_mode || null,
+      current_mode: sourceParity.compatibility_mode,
+    });
   }
   if (!SHA256.test(String(state.source_parity_hash || "")) || state.source_parity_hash !== sourceParity.source_parity_hash) {
     fail("RECOVERY_BRIDGE_SOURCE_PARITY_CHANGED", "Critical Recovery source parity changed between prepare and execute; a fresh prepare cycle is required.", {
@@ -531,18 +796,20 @@ async function main() {
   else await execute();
 }
 
-main().catch((error) => {
-  const failure = {
-    contract: "mad4b.production-recovery-governed-bridge-failure.v1",
-    ok: false,
-    phase: PHASE || null,
-    code: safe(error?.code || "RECOVERY_BRIDGE_FAILED", 128),
-    message: safe(error?.message || "Production Recovery governed bridge failed.", 320),
-    details: error?.details && typeof error.details === "object" ? error.details : null,
-    automatic_rerun_allowed: false,
-    secrets_included: false,
-  };
-  try { writeEvidence("failure.json", failure); } catch {}
-  process.stderr.write(JSON.stringify(failure) + "\n");
-  process.exitCode = 1;
-});
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  main().catch((error) => {
+    const failure = {
+      contract: "mad4b.production-recovery-governed-bridge-failure.v1",
+      ok: false,
+      phase: PHASE || null,
+      code: safe(error?.code || "RECOVERY_BRIDGE_FAILED", 128),
+      message: safe(error?.message || "Production Recovery governed bridge failed.", 320),
+      details: error?.details && typeof error.details === "object" ? error.details : null,
+      automatic_rerun_allowed: false,
+      secrets_included: false,
+    };
+    try { writeEvidence("failure.json", failure); } catch {}
+    process.stderr.write(JSON.stringify(failure) + "\n");
+    process.exitCode = 1;
+  });
+}

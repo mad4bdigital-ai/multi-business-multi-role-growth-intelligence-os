@@ -3,6 +3,13 @@ import { testCommands as spec012Commands } from "./manifests/test-manifest-spec0
 import { testCommands as spec017Commands } from "./manifests/test-manifest-spec017.mjs";
 import { testCommands as upstreamMainCommands } from "./manifests/test-manifest-upstream-main.mjs";
 
+const connectorRecoveryTestCommands = Object.freeze([
+  "node ../local-connector/test-connector-staging-recovery.mjs",
+  "node ../local-connector/test-connector-developer-sessions.mjs",
+  "node ../local-connector/test-device-mcp-approval-broker.mjs",
+  "node test-connector-staging-mcp-distribution.mjs",
+]);
+
 const upstreamCommands = [
   "node test-local-connector-installer-capability.mjs",
   "node test-full-schema-metadata-census.mjs",
@@ -21,10 +28,17 @@ const upstreamCommands = [
   "node test-growth-control-provider-approval-holds.mjs",
   "node test-production-config-preflight.mjs",
   "node test-control-plane-write-authority.mjs",
+  "node test-staging-startup-mutation-policy.mjs",
   "node test-mcp-catalog-schema-guard.mjs",
   "node test-mcp-catalog-schema-preflight.mjs",
+  "node test-hostinger-recovery-capability-discovery.mjs",
+  "node test-hostinger-recovery-seed-replay.mjs",
+  "node test-hostinger-recovery-provider-safety.mjs",
+  "node test-admin-local-connector-target.mjs",
+  "node test-admin-self-recovery-contract.mjs",
   "node test-production-activation-readiness.mjs",
   "node test-staging-independent-schema-contract.mjs",
+  "node test-staging-immutable-artifact-integrity.mjs",
   "node test-staging-recovery-admin-surface.mjs",
   "node test-staging-recovery-gateway-preflight.mjs",
   "node test-staging-recovery-route-policy.mjs",
@@ -32,6 +46,7 @@ const upstreamCommands = [
   "node test-staging-recovery-certification-public-trust.mjs",
   "node test-staging-recovery-certification-signing-authority.mjs",
   "node test-staging-recovery-certification-protocol.mjs",
+  "node test-staging-recovery-external-acquisition-authority.mjs",
   "node test-recovery-activation-readiness.mjs",
   "node test-production-recovery-canary-readiness.mjs",
   "node test-recovery-kernel.mjs",
@@ -61,7 +76,9 @@ const upstreamCommands = [
 // this source file without executing imports. Keep these literals discoverable
 // here while Set-based composition prevents duplicate runtime execution.
 const staticDiscoveryCommands = [
+  "node test-device-tools-diagnostics.mjs",
   "node test-derived-state-converged-automerge-source-event.mjs",
+  "node test-github-repository-governance-attestation.mjs",
   "node scripts/activation-surface-coverage-check.mjs --changed",
   "node test-activation-deployment-projection-service.mjs",
   "node test-activation-followup-hardening.mjs",
@@ -132,6 +149,7 @@ const staticDiscoveryCommands = [
   "node test-remote-mcp-disabled-startup-boundary.mjs",
   "node scripts/test-generated-artifact-refresh-maintenance-tool.mjs",
   "node scripts/test-generated-artifact-refresh-pr-publisher.mjs",
+  "node scripts/test-governed-refresh-idempotency.mjs",
   "node test-github-file-patch-plan-runtime.mjs",
   "node test-github-list-issue-comments-endpoint.mjs",
   "node test-github-issue-comment-exact-response-parity.mjs",
@@ -204,6 +222,7 @@ const staticDiscoveryCommands = [
   "node test-ticket-external-delivery-completion-certification.mjs",
   "node test-local-connector-transport-errors.mjs",
   "node test-local-manager-pairing-security.mjs",
+  "node test-local-manager-environment-recovery.mjs",
   "node test-transport-response-chunk-schema-recovery.mjs",
   "node test-user-dashboard-dynamic-tabs-bridge.mjs",
   "node test-workflow-registry-authority-resolver.mjs",
@@ -221,5 +240,6 @@ export const testCommands = Object.freeze([
     ...upstreamMainCommands,
     ...upstreamCommands,
     ...staticDiscoveryCommands,
+    ...connectorRecoveryTestCommands,
   ]),
 ]);

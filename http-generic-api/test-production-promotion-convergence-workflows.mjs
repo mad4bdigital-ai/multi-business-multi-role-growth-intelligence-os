@@ -7,6 +7,13 @@ const launcher = read(".github/workflows/governed-production-promotion-request-l
 const candidate = read(".github/workflows/production-promotion-candidate.yml");
 const mainSourcePinGuard = read(".github/workflows/governed-production-main-source-pin-guard.yml");
 const releaseSourcePinGate = read(".github/workflows/governed-production-release-source-pin-gate.yml");
+// The trusted source pin checks bounded hotfix and release-cut identities independently.
+assert.match(releaseSourcePinGate, /Classify exact Production PR without granting authority/u);
+assert.match(releaseSourcePinGate, /production-security-hotfix-source-pin\.mjs/u);
+assert.match(releaseSourcePinGate, /steps\.classify\.outputs\.mode == 'release'/u);
+assert.match(releaseSourcePinGate, /steps\.classify\.outputs\.mode == 'hotfix'/u);
+assert.match(releaseSourcePinGate, /Production Promotion Semantic Source-Pin Gate/u);
+assert.match(releaseSourcePinGate, /--reviews-file/u);
 const postFinalizationGuard = read(".github/workflows/governed-production-promotion-post-finalization-guard.yml");
 const certifiedReleaseCut = read(".github/workflows/production-certified-release-cut-validation.yml");
 const semanticSourcePinGate = releaseSourcePinGate;
@@ -20,6 +27,10 @@ const runtimeStartupEnvironment = read("http-generic-api/scripts/runtime-startup
 const gateResolver = read(".github/scripts/production-promotion-supporting-gates.mjs");
 const evidenceHelper = read(".github/scripts/production-promotion-release-cut-evidence.mjs");
 const registry = JSON.parse(read(".github/contracts/production-promotion-supporting-gates.v1.json"));
+const stagingAutoPilot = read("autopilot-portable-staging/Start-AutoPilot.ps1");
+const stagingCertificationCompatibility = read("http-generic-api/scripts/staging-certification-runtime-integrity-compat.mjs");
+const stagingGatewayCompatibility = read("http-generic-api/scripts/staging-certification-gateway-compat.mjs");
+const stagingResumeDeclaration = JSON.parse(read(".changes/e2e/production-promotion-staging-resume-20260930.json"));
 
 const object = (digit) => String(digit).repeat(40);
 const treeEntry = (path, digit) => ({ path, mode: "100644", type: "blob", object: object(digit) });
@@ -170,6 +181,150 @@ assert.doesNotMatch(launcher, /source-pinned main moved during convergence/u);
 assert.doesNotMatch(launcher, /MAX_ATTEMPTS=3/u);
 assert.doesNotMatch(launcher, /gh pr merge/u);
 assert.doesNotMatch(launcher, /contents:\s*write/u);
+
+for (const required of [
+  /governed_production_promotion_staging_resume\.v1/u,
+  /WAITING_FOR_STAGING/u,
+  /GOVERNED_PRODUCTION_STAGING_RESUME_ARMED/u,
+  /github-actions\[bot\]/u,
+  /same governed request can be explicitly re-dispatched/u,
+]) assert.match(
+  `${launcher}\n${JSON.stringify(stagingResumeDeclaration)}`,
+  required,
+);
+
+const operationalPhase = stagingResumeDeclaration.phases.find((phase) => phase.id === "operational");
+assert.equal(operationalPhase?.status, "implemented");
+assert.equal(stagingResumeDeclaration.environment_impact?.live_staging_certification_required, true);
+assert.equal(stagingResumeDeclaration.environment_impact?.production_mutation_allowed, false);
+
+for (const required of [
+  /AllowGovernedReleaseCutAncestor/u,
+  /PromotionRequestPr/u,
+  /PromotionRequestHeadSha/u,
+  /PromotionCandidateSha/u,
+  /PinnedProductionSha/u,
+  /GovernedResumeConfirmation/u,
+  /DEPLOY_STAGING_RELEASE_CUT_/u,
+  /GOVERNED_PRODUCTION_STAGING_RESUME_ARMED/u,
+  /Governed release-cut resume requires exactly one matching WAITING_FOR_STAGING marker/u,
+  /Governed release-cut resume release cut is not an ancestor of current main/u,
+  /Governed release-cut resume Production moved/u,
+  /Governed release-cut resume candidate first parent changed/u,
+  /Governed release-cut resume candidate second parent changed/u,
+  /Governed release-cut resume candidate tree changed/u,
+  /Governed release-cut resume request marker parent changed/u,
+  /Governed release-cut resume request marker tree changed/u,
+  /production_mutation = \$false/u,
+  /provider_mutation = \$false/u,
+  /secrets_included = \$false/u,
+]) assert.match(stagingAutoPilot, required);
+
+assert.match(
+  stagingAutoPilot,
+  /if \(\$remoteCommit -ne \$ExpectedCommit\.ToLowerInvariant\(\)\) \{[\s\S]*?Assert-GovernedReleaseCutResume \$remoteCommit[\s\S]*?fetch", "origin", \$ExpectedCommit, "--depth=2"/u,
+);
+assert.match(stagingAutoPilot, /ConvertFrom-GovernedStagingResumeMarker/u);
+assert.match(stagingAutoPilot, /trustedResumeMarkerIds/u);
+assert.match(stagingAutoPilot, /--paginate/u);
+assert.match(stagingAutoPilot, /\.\[\] \| \[\.id, \.user\.login\] \| @tsv/u);
+assert.match(stagingAutoPilot, /\$row -split "`t", 2/u);
+assert.match(stagingAutoPilot, /\$commentLogin -eq "github-actions\[bot\]"/u);
+assert.match(stagingAutoPilot, /issues\/comments\/\$commentId/u);
+assert.match(stagingAutoPilot, /trusted marker author identity changed/u);
+assert.doesNotMatch(stagingAutoPilot, /select\(\.user\.login == "github-actions\[bot\]"/u);
+assert.doesNotMatch(stagingAutoPilot, /\$commentsRaw\s*=/u);
+assert.match(stagingAutoPilot, /ContainsKey\("request_pr"\)/u);
+assert.match(stagingAutoPilot, /ContainsKey\("merge_executed"\)/u);
+assert.match(stagingAutoPilot, /trusted_marker_candidates/u);
+assert.match(stagingAutoPilot, /Assert-PortableManifestIntegrity/u);
+assert.match(stagingAutoPilot, /driver-manifest/u);
+assert.match(stagingAutoPilot, /\$governedHistoricalResume = \$true/u);
+assert.match(stagingAutoPilot, /git status --porcelain --untracked-files=no|status", "--porcelain", "--untracked-files=no/u);
+assert.match(stagingAutoPilot, /historical release payload uses exact Git commit\/tree authority instead of historical generated manifest hashes/u);
+assert.match(stagingAutoPilot, /historical_manifest_trusted = \$false/u);
+assert.match(stagingAutoPilot, /function\s+New-StagingCertificationCompatibilitySnapshot\b/u);
+assert.match(stagingAutoPilot, /staging-certification-runtime-integrity-compat\.mjs/u);
+assert.match(stagingAutoPilot, /Certification compatibility snapshot requires local HEAD to equal current control-plane main/u);
+assert.match(stagingAutoPilot, /\$runtimeIntegrityOnlyBlocker = \([\s\S]*?\$governedHistoricalResume[\s\S]*?Count -eq 1[\s\S]*?runtime_integrity_verified/u);
+assert.match(stagingAutoPilot, /Invoke-StagingCertificationCompatibilityVerifier/u);
+assert.match(stagingAutoPilot, /certification_blocking_failures = @\(\)/u);
+assert.match(stagingAutoPilot, /certification_compatibility_mode"; Value = "runtime_integrity_immutable_artifact"/u);
+assert.match(stagingAutoPilot, /\$recoveredStatus = if \(@\(\$certificationDegradedReasons\)\.Count -gt 0\) \{ "degraded" \} else \{ "ready" \}/u);
+assert.match(stagingAutoPilot, /Remove-Item -LiteralPath \$CertificationCompatibilityRoot -Recurse -Force/u);
+assert.doesNotMatch(stagingAutoPilot, /certification_blocking_failures = @\(\)[\s\S]*?if \(-not \$governedHistoricalResume\)/u);
+assert.match(stagingCertificationCompatibility, /evaluateImmutableStagingArtifactIntegrity/u);
+assert.match(stagingCertificationCompatibility, /new URL\("\/deployment-info", baseUrl\)/u);
+assert.match(stagingCertificationCompatibility, /immutable_artifact_verified: immutable\.verified === true/u);
+assert.match(stagingCertificationCompatibility, /mutation_performed: false/u);
+assert.match(stagingCertificationCompatibility, /secrets_included: false/u);
+assert.doesNotMatch(stagingCertificationCompatibility, /database_mutation|provider_mutation|production_deploy/u);
+assert.match(stagingAutoPilot, /staging-certification-gateway-compat\.mjs/u);
+assert.match(stagingAutoPilot, /Invoke-StagingGatewayCompatibilityVerifier/u);
+assert.match(stagingAutoPilot, /gateway_compatibility_mode"; Value = "historical_app_current_worker"/u);
+assert.match(stagingAutoPilot, /gateway_recovery_trusted_ingress[\s\S]*?gateway_exact_commit[\s\S]*?gateway_upstream_ready/u);
+assert.match(stagingAutoPilot, /remainingReasons = @\(\$currentDegradedReasons \| Where-Object \{ \$_ -notin \$compatibleReasons \}\)/u);
+assert.match(stagingGatewayCompatibility, /BUNDLE_PATHS/u);
+assert.match(stagingGatewayCompatibility, /merge-base", "--is-ancestor"/u);
+assert.match(stagingGatewayCompatibility, /ready_upstream_is_historical_release/u);
+assert.match(stagingGatewayCompatibility, /health_source_commit_is_current_worker/u);
+assert.match(stagingGatewayCompatibility, /local_trust_current_worker_sha/u);
+assert.match(stagingGatewayCompatibility, /upstreamEvidenceVerified/u);
+assert.match(stagingGatewayCompatibility, /workerBundleSha256/u);
+assert.match(stagingGatewayCompatibility, /database_connection_performed: false/u);
+assert.match(stagingGatewayCompatibility, /provider_mutation_performed: false/u);
+assert.match(stagingGatewayCompatibility, /production_mutation_performed: false/u);
+assert.match(stagingGatewayCompatibility, /secrets_included: false/u);
+assert.doesNotMatch(stagingGatewayCompatibility, /wrangler|cloudflare|deploy\s+worker|database\.query|mysql/u);
+assert.match(stagingAutoPilot, /Initialize-StagingEnvironment[\s\S]*?-RepositoryPath \$RepositoryPath[\s\S]*?-TunnelMode \$TunnelMode[\s\S]*?-EnableActivationGateway:\$EnableActivationGateway/u);
+assert.match(stagingAutoPilot, /environment-bootstrap/u);
+assert.match(stagingAutoPilot, /generated_key_count/u);
+assert.doesNotMatch(stagingAutoPilot, /\$generatedLocalSecrets\s*=/u);
+assert.doesNotMatch(stagingAutoPilot, /\$localSecrets\s*=/u);
+assert.doesNotMatch(stagingAutoPilot, /function\s+Get-StagingEnvValue\b/u);
+assert.doesNotMatch(stagingAutoPilot, /function\s+Set-StagingEnvValue\b/u);
+assert.match(stagingAutoPilot, /function\s+Invoke-StagingDockerBuild\b/u);
+assert.match(stagingAutoPilot, /frontend grpc server closed unexpectedly/u);
+assert.match(stagingAutoPilot, /Invoke-StagingDockerBuild \(\$composeArgs \+ @\("build", "app"\)\) -MaxAttempts 2/u);
+assert.match(stagingAutoPilot, /transient_recovered/u);
+assert.match(stagingAutoPilot, /Docker build failed without a retryable BuildKit frontend transport signature/u);
+assert.match(stagingAutoPilot, /Docker build failed after bounded BuildKit frontend retry/u);
+assert.match(stagingAutoPilot, /function\s+Invoke-StagingComposeUpWithZombieRecovery\b/u);
+assert.match(stagingAutoPilot, /is zombie and can not be killed/u);
+assert.match(stagingAutoPilot, /Invoke-StagingComposeUpWithZombieRecovery \$composeArgs -MaxAttempts 2/u);
+assert.match(stagingAutoPilot, /Refusing Docker Desktop restart while non-Staging containers are running/u);
+assert.match(stagingAutoPilot, /Zombie container is not owned by the current Staging Compose project/u);
+assert.match(stagingAutoPilot, /Invoke-StagingDockerCaptured @\("desktop", "restart"\)/u);
+assert.match(stagingAutoPilot, /Wait-StagingDockerEngine -TimeoutSeconds 120/u);
+assert.match(stagingAutoPilot, /volumes_deleted = \$false/u);
+assert.match(stagingAutoPilot, /images_deleted = \$false/u);
+assert.match(stagingAutoPilot, /cache_pruned = \$false/u);
+assert.doesNotMatch(stagingAutoPilot, /docker\s+(?:container\s+)?rm\s+-f/u);
+assert.match(stagingAutoPilot, /\$previousErrorActionPreference = \$ErrorActionPreference/u);
+assert.match(stagingAutoPilot, /\$ErrorActionPreference = "Continue"[\s\S]*?& docker @Arguments 2>&1[\s\S]*?\$code = \$LASTEXITCODE[\s\S]*?finally \{[\s\S]*?\$ErrorActionPreference = \$previousErrorActionPreference/u);
+assert.match(stagingAutoPilot, /Set-StrictMode -Version Latest[\s\S]*?\$ErrorActionPreference = "Stop"/u);
+assert.doesNotMatch(stagingAutoPilot, /docker\s+(?:buildx\s+)?(?:prune|rm)\b/u);
+assert.doesNotMatch(stagingAutoPilot, /builder\s+(?:prune|rm)\b/u);
+assert.match(stagingAutoPilot, /if \(-not \$governedHistoricalResume\) \{[\s\S]*?Assert-PortableManifestIntegrity \$RepositoryPath \$Manifest "payload-manifest"/u);
+assert.doesNotMatch(stagingAutoPilot, /\$resumePrefix\s*=/u);
+assert.doesNotMatch(stagingAutoPilot, /\.StartsWith\(\$resumePrefix/u);
+assert.match(stagingAutoPilot, /Compare|compare\/\$releaseCut\.\.\.\$currentMain/u);
+assert.doesNotMatch(stagingAutoPilot, /gh\s+workflow\s+run/u);
+assert.doesNotMatch(stagingAutoPilot, /gh\s+pr\s+merge/u);
+assert.doesNotMatch(stagingAutoPilot, /git\s+push/u);
+
+{
+  const sourceStart = launcher.indexOf("- name: Resolve authorized release cut and request identity");
+  const sourceEnd = launcher.indexOf("- name: Initialize convergence evidence", sourceStart);
+  assert.ok(sourceStart >= 0 && sourceEnd > sourceStart, "launcher source step must remain discoverable");
+  const sourceStep = launcher.slice(sourceStart, sourceEnd);
+  assert.match(sourceStep, /require_sha\(\) \{/u, "source step must define require_sha locally before first use");
+  assert.ok(
+    sourceStep.indexOf("require_sha()") < sourceStep.indexOf('require_sha CURRENT_MAIN_API_SHA "$CURRENT_MAIN_API_SHA"'),
+    "require_sha must be defined in the same shell step before CURRENT_MAIN_API_SHA validation",
+  );
+}
+
 
 for (const gate of registry.gates) {
   assert.equal(gate.required, true);
@@ -333,6 +488,7 @@ assert.doesNotMatch(evidenceHelper, /candidate_tree_matches_main: true/u);
 
 await import("./test-response-chunk-ownership-governed-rollout-control.mjs");
 
+await import("./scripts/production-security-hotfix-source-pin-self-test.mjs");
 console.log(JSON.stringify({
   contract: "mad4b.production-promotion-release-cut-convergence.v2",
   ok: true,

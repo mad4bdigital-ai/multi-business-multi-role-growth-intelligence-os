@@ -8,7 +8,7 @@ import { promisify } from "node:util";
 import { getPool, getRuntimePersistencePool } from "../db.js";
 import {
   assertMcpCatalogLevelColumn,
-  readMcpCatalogSchemaReadiness,
+  readMcpCatalogSchemaReadinessSafe,
   buildMcpCatalogSchemaNotReadyResponse,
   isMcpCatalogSchemaNotReadyError,
 } from "../mcpCatalogSchemaGuard.js";
@@ -2642,7 +2642,8 @@ async function fetchTools(callerType, executionCapsule = null) {
 }
 
 export async function readGptToolsCatalogSchemaReadiness() {
-  return readMcpCatalogSchemaReadiness({ pool: getPool() });
+  // Admin/tenant reporting must not certify Schema from an unknown DB/principal.
+  return readMcpCatalogSchemaReadinessSafe({ pool: getPool(), env: process.env });
 }
 
 async function resolveToolPreflightDescriptor(callerType, toolKey, executionCapsule = null) {
@@ -3333,7 +3334,7 @@ async function dispatchToolImpl(callerType, toolKey, args, req, runtimeDeps = {}
       const result = await runGovernedMigrationExecution(args || {}, {
         authorizeApply: async (inspection) => {
           const resolved = await resolveCapabilityExecutionEnvelope({
-            pool: getPool(),
+            pool: getGovernancePool(),
             source: args || {},
             acceptedAppKeys: ["platform_orchestration"],
             acceptedIntents: ["governed_migration_execute", "governed_migration_apply", "migration_apply", "governed_migration_runner"],
@@ -3348,7 +3349,7 @@ async function dispatchToolImpl(callerType, toolKey, args, req, runtimeDeps = {}
             throw capabilityEnvelopeError(resolved, "Governed migration apply requires a ready platform_orchestration capability envelope.");
           }
           await markCapabilityEnvelopeReferenced({
-            pool: getPool(),
+            writerPool: getGovernancePool(),
             envelopeId: resolved.envelope_id,
             executionRef: `governed_migration_execute:${inspection.migration}`,
           });

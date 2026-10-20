@@ -35,6 +35,7 @@ export async function probeLocalConnectorPublicHealth({ tunnelUrl, fetchImpl = f
   try {
     const response = await fetchImpl(`${baseUrl}/health`, {
       method: "GET",
+      redirect: "manual",
       headers: { Accept: "application/json" },
       signal: AbortSignal.timeout(Math.max(1000, Math.min(Number(timeoutMs) || 8000, 30000))),
     });
@@ -172,6 +173,7 @@ export async function probeLocalConnectorAuthenticatedHealth({
     try {
       const response = await fetchImpl(baseUrl + "/policy", {
         method: "GET",
+        redirect: "manual",
         headers: {
           Accept: "application/json",
           Authorization: "Bearer " + candidates[index].token,
@@ -215,6 +217,8 @@ export async function probeLocalConnectorAuthenticatedHealth({
         http_status: response.status,
         service: body?.service || null,
         principal_scope: body?.principal_scope || null,
+        device_id: typeof body?.device_id === "string" ? body.device_id : null,
+        config_id: typeof body?.config_id === "string" ? body.config_id : null,
         credential_source: candidates[index].source || null,
         credential_attempt_count: index + 1,
         credential_fallback_used: index > 0,

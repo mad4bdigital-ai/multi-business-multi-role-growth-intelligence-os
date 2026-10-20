@@ -12,9 +12,16 @@ const SHA_PATTERN = /^[0-9a-f]{40}$/u;
 const NAME_PATTERN = /^[a-z][a-z0-9_-]{1,31}$/u;
 const APPROVED_ENDPOINT_HOSTS = new Map([
   ["auth", "auth.mad4b.com"],
+  ["auth-deployment", "auth.mad4b.com"],
   ["connector", "connector.mad4b.com"],
   ["dev", "dev.mad4b.com"]
 ]);
+const APPROVED_ENDPOINT_PATHS = Object.freeze({
+  auth: "/version",
+  "auth-deployment": "/deployment-info",
+  connector: "/version",
+  dev: "/version",
+});
 const DEFAULT_OUTPUT_DIR = path.join("artifacts", "production-runtime-parity-evidence");
 const DEFAULT_TIMEOUT_MS = 12_000;
 const MAX_BODY_BYTES = 64 * 1024;
@@ -157,7 +164,10 @@ export function validateConfiguration({ expectedSha, expectedBranch, endpoints, 
     if (parsed.protocol !== "https:") throw new EvidenceError("endpoint_https_required", `Endpoint ${name} must use HTTPS.`);
     if (parsed.username || parsed.password) throw new EvidenceError("endpoint_credentials_forbidden", `Endpoint ${name} must not contain credentials.`);
     if (parsed.search || parsed.hash) throw new EvidenceError("endpoint_query_forbidden", `Endpoint ${name} must not contain query or fragment data.`);
-    if (parsed.pathname !== "/version") throw new EvidenceError("endpoint_path_invalid", `Endpoint ${name} must target exactly /version.`);
+    const approvedPath = APPROVED_ENDPOINT_PATHS[name];
+    if (parsed.pathname !== approvedPath) {
+      throw new EvidenceError("endpoint_path_invalid", `Endpoint ${name} must target exactly ${approvedPath}.`);
+    }
     if (parsed.port && parsed.port !== "443") throw new EvidenceError("endpoint_port_forbidden", `Endpoint ${name} must use port 443.`);
     if (parsed.hostname.toLowerCase() !== approvedHost) throw new EvidenceError("endpoint_host_mismatch", `Endpoint ${name} must use ${approvedHost}.`);
     return {
@@ -169,6 +179,16 @@ export function validateConfiguration({ expectedSha, expectedBranch, endpoints, 
     };
   });
   if (requiredCount < 1) throw new EvidenceError("required_endpoint_missing", "At least one endpoint must be required.");
+  const endpointByName = new Map(normalized.map((endpoint) => [endpoint.name, endpoint]));
+  for (const requiredName of ["auth", "auth-deployment"]) {
+    const endpoint = endpointByName.get(requiredName);
+    if (!endpoint || endpoint.required !== true) {
+      throw new EvidenceError(
+        "production_identity_endpoint_missing",
+        `Production runtime parity requires required endpoints auth=/version and auth-deployment=/deployment-info; missing ${requiredName}.`
+      );
+    }
+  }
   return { expectedSha, expectedBranch: "Production", timeoutMs, endpoints: normalized };
 }
 
@@ -306,17 +326,62 @@ async function probeEndpoint(endpoint, configuration, dependencies) {
     } catch {
       throw new EvidenceError("response_json_invalid", `Endpoint ${endpoint.name} did not return valid JSON.`);
     }
-    const rawService = payload?.service;
-    const rawSha = payload?.deployment?.deployed_commit_sha;
-    const rawBranch = payload?.deployment?.manifest?.branch;
-    result.runtime = {
-      service: rawService === EXPECTED_SERVICE ? EXPECTED_SERVICE : null,
-      deployed_commit_sha: SHA_PATTERN.test(String(rawSha ?? "")) ? String(rawSha) : null,
-      deployment_branch: rawBranch === "Production" ? "Production" : null
-    };
-    if (rawService !== EXPECTED_SERVICE) throw new EvidenceError("service_identity_mismatch", `Endpoint ${endpoint.name} returned an unexpected service identity.`);
-    if (rawSha !== configuration.expectedSha) throw new EvidenceError("deployed_sha_mismatch", `Endpoint ${endpoint.name} is not running the expected Production SHA.`);
-    if (rawBranch !== configuration.expectedBranch) throw new EvidenceError("deployment_branch_mismatch", `Endpoint ${endpoint.name} is not reporting the expected Production branch.`);
+    if (endpoint.name === "auth-deployment") {
+      const rawService = payload?.service;
+      const rawSha = payload?.gitCommitFull;
+      const rawBranch = payload?.gitBranch;
+      const canonicalProvenancePresent = Boolean(
+        SHA_PATTERN.test(String(rawSha ?? ""))
+          && rawBranch === "Production"
+          && String(payload?.provenanceSource || "").trim()
+          && payload?.evidence?.canonical_manifest_detected === true
+      );
+      const runtimeEnvironment = payload?.runtime_environment || {};
+      const runtimeIdentityReady = runtimeEnvironment?.ok === true
+        && runtimeEnvironment?.environment_key === "production"
+        && runtimeEnvironment?.runtime_variant === "production_hostinger_autodeploy"
+        && runtimeEnvironment?.canonical_runtime_variant === "production_hostinger_autodeploy"
+        && runtimeEnvironment?.runtime_class === "hostinger_autodeploy"
+        && runtimeEnvironment?.runtime_class_explicit === true
+        && runtimeEnvironment?.source_branch === "Production"
+        && runtimeEnvironment?.raw_values_exposed === false
+        && runtimeEnvironment?.secrets_included === false;
+      result.runtime = {
+        service: rawService === "growth-intelligence-platform" ? "growth-intelligence-platform" : null,
+        deployed_commit_sha: SHA_PATTERN.test(String(rawSha ?? "")) ? String(rawSha).toLowerCase() : null,
+        deployment_branch: rawBranch === "Production" ? "Production" : null,
+        canonical_provenance_present: canonicalProvenancePresent,
+        runtime_environment: {
+          ok: runtimeEnvironment?.ok === true,
+          environment_key: runtimeEnvironment?.environment_key || null,
+          runtime_variant: runtimeEnvironment?.runtime_variant || null,
+          canonical_runtime_variant: runtimeEnvironment?.canonical_runtime_variant || null,
+          runtime_class: runtimeEnvironment?.runtime_class || null,
+          runtime_class_explicit: runtimeEnvironment?.runtime_class_explicit === true,
+          source_branch: runtimeEnvironment?.source_branch || null,
+          reason: runtimeEnvironment?.reason || null,
+          raw_values_exposed: false,
+          secrets_included: false,
+        },
+      };
+      if (rawService !== "growth-intelligence-platform") throw new EvidenceError("service_identity_mismatch", `Endpoint ${endpoint.name} returned an unexpected service identity.`);
+      if (!canonicalProvenancePresent) throw new EvidenceError("canonical_deployment_provenance_missing", `Endpoint ${endpoint.name} did not prove canonical deployment-manifest provenance.`);
+      if (String(rawSha || "").toLowerCase() !== configuration.expectedSha) throw new EvidenceError("deployed_sha_mismatch", `Endpoint ${endpoint.name} is not running the expected Production SHA.`);
+      if (rawBranch !== configuration.expectedBranch) throw new EvidenceError("deployment_branch_mismatch", `Endpoint ${endpoint.name} is not reporting the expected Production branch.`);
+      if (!runtimeIdentityReady) throw new EvidenceError("runtime_environment_identity_not_explicit", `Endpoint ${endpoint.name} did not prove the explicit production_hostinger_autodeploy runtime identity.`);
+    } else {
+      const rawService = payload?.service;
+      const rawSha = payload?.deployment?.deployed_commit_sha;
+      const rawBranch = payload?.deployment?.manifest?.branch;
+      result.runtime = {
+        service: rawService === EXPECTED_SERVICE ? EXPECTED_SERVICE : null,
+        deployed_commit_sha: SHA_PATTERN.test(String(rawSha ?? "")) ? String(rawSha) : null,
+        deployment_branch: rawBranch === "Production" ? "Production" : null
+      };
+      if (rawService !== EXPECTED_SERVICE) throw new EvidenceError("service_identity_mismatch", `Endpoint ${endpoint.name} returned an unexpected service identity.`);
+      if (rawSha !== configuration.expectedSha) throw new EvidenceError("deployed_sha_mismatch", `Endpoint ${endpoint.name} is not running the expected Production SHA.`);
+      if (rawBranch !== configuration.expectedBranch) throw new EvidenceError("deployment_branch_mismatch", `Endpoint ${endpoint.name} is not reporting the expected Production branch.`);
+    }
     result.status = "passed";
   } catch (error) {
     result.failure = safeFailure(error, "endpoint_probe_failed");
@@ -343,7 +408,8 @@ function renderMarkdown(report) {
   ];
   for (const endpoint of report.endpoints) {
     const marker = endpoint.status === "passed" ? "PASS" : endpoint.status === "optional_failed" ? "WARN" : "FAIL";
-    lines.push(`- ${marker} \`${endpoint.name}\` (${endpoint.required ? "required" : "optional"}): HTTP ${endpoint.http?.status ?? "n/a"}, SHA \`${endpoint.runtime?.deployed_commit_sha || "unavailable"}\`, branch \`${endpoint.runtime?.deployment_branch || "unavailable"}\``);
+    const runtimeClass = endpoint.runtime?.runtime_environment?.runtime_class || "n/a";
+    lines.push(`- ${marker} \`${endpoint.name}\` (${endpoint.required ? "required" : "optional"}): HTTP ${endpoint.http?.status ?? "n/a"}, SHA \`${endpoint.runtime?.deployed_commit_sha || "unavailable"}\`, branch \`${endpoint.runtime?.deployment_branch || "unavailable"}\`, runtime class \`${runtimeClass}\``);
     if (endpoint.failure) lines.push(`  - ${endpoint.failure.code}: ${endpoint.failure.message}`);
   }
   if (report.first_failure) lines.push("", "## First blocking failure", "", `- Endpoint: \`${report.first_failure.endpoint}\``, `- Code: \`${report.first_failure.code}\``, `- Message: ${report.first_failure.message}`);

@@ -27,25 +27,43 @@ function readOverlay() {
   return overlay;
 }
 
-function verifyMigration(entry) {
+function resolveMigrationArtifact(entry) {
   const file = String(entry?.file || "").trim();
   if (!file || file.includes("/") || file.includes("\\") || file.includes("..")) {
     fail("staging_bootstrap_migration_path_invalid", "Staging readiness migration must be a canonical migration filename.", { file });
   }
-  const absolute = path.join(HERE, "migrations", file);
-  if (!fs.existsSync(absolute) || !fs.statSync(absolute).isFile()) {
-    fail("staging_bootstrap_migration_missing", "Cataloged Staging readiness migration is missing from the repository.", { file });
+  const artifactScope = String(entry?.artifact_scope || "canonical").trim();
+  const rootName = artifactScope === "canonical"
+    ? "migrations"
+    : artifactScope === "staging_recovery_only"
+      ? "staging-recovery-migrations"
+      : null;
+  if (!rootName) {
+    fail("staging_bootstrap_migration_artifact_scope_invalid", "Staging readiness migration artifact_scope is not registered.", { file, artifact_scope: artifactScope });
   }
-  const sql = fs.readFileSync(absolute, "utf8");
+  const root = path.resolve(HERE, rootName);
+  const absolute = path.resolve(root, file);
+  if (!absolute.startsWith(`${root}${path.sep}`)) {
+    fail("staging_bootstrap_migration_path_invalid", "Staging readiness migration escaped its repository-owned artifact root.", { file, artifact_scope: artifactScope });
+  }
+  return { file, artifact_scope: artifactScope, absolute };
+}
+
+function verifyMigration(entry) {
+  const artifact = resolveMigrationArtifact(entry);
+  if (!fs.existsSync(artifact.absolute) || !fs.statSync(artifact.absolute).isFile()) {
+    fail("staging_bootstrap_migration_missing", "Cataloged Staging readiness migration is missing from the repository.", { file: artifact.file, artifact_scope: artifact.artifact_scope });
+  }
+  const sql = fs.readFileSync(artifact.absolute, "utf8");
   const sha256 = crypto.createHash("sha256").update(sql).digest("hex");
   if (sha256 !== String(entry.sha256 || "").trim().toLowerCase()) {
-    fail("staging_bootstrap_migration_checksum_mismatch", "Cataloged Staging readiness migration checksum does not match the repository file.", { file });
+    fail("staging_bootstrap_migration_checksum_mismatch", "Cataloged Staging readiness migration checksum does not match the repository file.", { file: artifact.file, artifact_scope: artifact.artifact_scope });
   }
   const statements = splitMigrationSqlStatements(sql);
   if (statements.length !== Number(entry.statement_count || 0)) {
-    fail("staging_bootstrap_migration_statement_count_mismatch", "Cataloged Staging readiness migration statement count does not match the repository file.", { file, expected: Number(entry.statement_count || 0), actual: statements.length });
+    fail("staging_bootstrap_migration_statement_count_mismatch", "Cataloged Staging readiness migration statement count does not match the repository file.", { file: artifact.file, expected: Number(entry.statement_count || 0), actual: statements.length });
   }
-  return { file, sha256, statement_count: statements.length };
+  return { file: artifact.file, sha256, statement_count: statements.length, artifact_scope: artifact.artifact_scope };
 }
 
 export function readStagingRuntimeBootstrapContract() {
@@ -76,6 +94,7 @@ export function readStagingRuntimeBootstrapContract() {
       allowed_modes: [...entry.allowed_modes],
       role: entry.role,
       requires_tables: [...entry.requires_tables],
+      artifact_scope: verified.artifact_scope,
     };
     base.postconditions[verified.file] = structuredClone(entry.postconditions || []);
   }
@@ -92,7 +111,7 @@ export function publicStagingReadinessRemediationContract() {
     target_environment: contract.target_binding.required_environment,
     schema_repair_migrations: Object.entries(contract.migrations)
       .filter(([file]) => (contract.staging_readiness_remediation?.schema_repair_migrations || []).some((entry) => entry.file === file))
-      .map(([file, spec]) => ({ file, sha256: spec.sha256, statement_count: spec.statement_count, allowed_modes: [...spec.allowed_modes], role: spec.role })),
+      .map(([file, spec]) => ({ file, sha256: spec.sha256, statement_count: spec.statement_count, allowed_modes: [...spec.allowed_modes], role: spec.role, artifact_scope: spec.artifact_scope || "canonical" })),
     surface_authority_compatibility: structuredClone(contract.staging_readiness_remediation?.surface_authority_compatibility || {}),
     access_repair: structuredClone(contract.staging_readiness_remediation?.access_repair || {}),
     external_evidence: structuredClone(contract.staging_readiness_remediation?.external_evidence || {}),

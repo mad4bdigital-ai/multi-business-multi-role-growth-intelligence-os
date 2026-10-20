@@ -453,6 +453,55 @@ Use `v_platform_capability_readiness_vector` for independent readiness dimension
 
 Detailed operator contract: `docs/platform-capability-assurance-graph.md`.
 
+### Staging Recovery external evidence
+
+Registration, OAuth, and Network observations use the canonical
+`mad4b.recovery-external-observation.v1` integrity contract with exact
+SHA/target, freshness, no secrets, source provenance and a recomputed evidence
+hash. Source labels, caller-provided `source_authenticity_verified`, operator
+confirmation and environment flags are not source authority.
+
+PR-B1 replaces the old static acquisition boolean with the branded,
+server-constructed `mad4b.recovery-external-acquisition-authority.v1`.
+The authority accepts only a valid Ed25519
+`mad4b.recovery-external-acquisition-receipt.v1` signed by the dedicated
+Staging acquisition key. The receipt binds the exact deployment SHA, target
+fingerprint, issuer, key ID, acquisition run, TTL and the Registration/OAuth/
+Network evidence hashes plus source-proof hashes. The acquisition key is
+separate from Gateway trusted-ingress and Staging certification signing keys.
+
+Network acquisition authority requires the same
+`GET /admin/recovery/staging/contract` path, method and empty-body SHA-256 for
+direct origin and Activation Gateway, with direct matching exactly one canonical
+denial pair: `403 / RECOVERY_TRUSTED_INGRESS_REQUIRED` or
+`404 / RECOVERY_STAGING_HOST_UNAVAILABLE`, and Gateway 2xx. The Network
+evidence layer and acquisition receipt signer/verifier use the same canonical
+status+reason classifier; generic or mixed `401/403/404/5xx` combinations are
+not authority.
+
+OAuth acquisition accepts only the complete ordered server correlation:
+`authorize_received`, `login_consent_completed`,
+`authorization_code_issued`, `callback_received`,
+`token_exchange_completed`, `resource_request_verified`. Events must share
+the same correlation/session/client, Staging issuer/resource and a
+server-observed redirect-URI hash, remain fresh, and never contain token,
+authorization-code, client-secret or credential payloads.
+
+PR-B1 remains intentionally fail-closed for live certification: no trusted
+server-side OAuth correlation export is currently wired to the acquisition
+workflow, and ChatGPT registration parity does not prove that the observation
+originated from ChatGPT Builder. Therefore the PR-B1 workflow verifies Network
+evidence, records the OAuth/Registration source-authority gaps, and must leave
+`receipt_signed=false`. It must not read the private acquisition key on that
+blocked path. No manual JSON, nonce, operator acknowledgement, or fabricated
+`verified=true` object may substitute for those source authorities.
+
+The local canary, independent GitHub countersign, certification signing payload
+and readiness re-verify the acquisition receipt. Readiness may expose
+`external_acquisition_authority=true` only as a result of successful receipt
+verification against the exact current SHA/target. See
+`docs/runbooks/staging-recovery-phase-b-certification.md`.
+
 ### Platform Plugin smoke certification governance
 
 Platform Plugin REST actions must not be treated as dispatch-ready just because `app_integrations`, action bindings, or endpoint rows exist. The public dispatch path must resolve readiness, credential/connection state, action grants, and smoke certification before execution.

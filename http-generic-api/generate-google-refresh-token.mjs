@@ -25,6 +25,7 @@ import { resolve, dirname }            from "node:path";
 import { fileURLToPath }               from "node:url";
 import { exec }                        from "node:child_process";
 import { google }                      from "googleapis";
+import { managedGoogleCapabilityRegistry } from "./managedGoogleOAuthCapabilityRegistry.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ENV_PATH  = resolve(__dirname, ".env");
@@ -51,26 +52,9 @@ if (!CLIENT_ID || !CLIENT_SECRET) {
   process.exit(1);
 }
 
-const SCOPES = [
-  "https://www.googleapis.com/auth/spreadsheets",
-  "https://www.googleapis.com/auth/documents",
-  "https://www.googleapis.com/auth/drive",
-  "https://www.googleapis.com/auth/analytics.readonly",
-  "https://www.googleapis.com/auth/analytics",
-  "https://www.googleapis.com/auth/analytics.edit",
-  "https://www.googleapis.com/auth/analytics.manage.users",
-  "https://www.googleapis.com/auth/analytics.provision",
-  "https://www.googleapis.com/auth/doubleclicksearch",
-  "https://www.googleapis.com/auth/webmasters",
-  "https://www.googleapis.com/auth/tagmanager.readonly",
-  "https://www.googleapis.com/auth/tagmanager.edit.containers",
-  "https://www.googleapis.com/auth/tagmanager.manage.accounts",
-  "https://www.googleapis.com/auth/tagmanager.manage.users",
-  "https://www.googleapis.com/auth/tagmanager.delete.containers",
-  "https://www.googleapis.com/auth/tagmanager.edit.containerversions",
-  "https://www.googleapis.com/auth/tagmanager.publish",
-  "https://www.googleapis.com/auth/adwords",
-];
+const registry = managedGoogleCapabilityRegistry();
+const fullOwnerCapabilities = registry.profiles.full_owner;
+const SCOPES = [...new Set(fullOwnerCapabilities.map((capabilityId) => registry.capabilities[capabilityId]?.scope).filter(Boolean))];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -123,7 +107,7 @@ if (codeArg) {
 // ── Print URL only (headless / SSH) ──────────────────────────────────────────
 if (printUrl) {
   const oauth2 = new google.auth.OAuth2(CLIENT_ID, CLIENT_SECRET, "urn:ietf:wg:oauth:2.0:oob");
-  const url    = oauth2.generateAuthUrl({ access_type: "offline", scope: SCOPES, prompt: "consent" });
+  const url    = oauth2.generateAuthUrl({ access_type: "offline", scope: SCOPES, prompt: "consent", include_granted_scopes: true });
   console.log("\n=== Google OAuth2 — Manual Mode ===\n");
   console.log("1. Open this URL in your browser:\n");
   console.log(url);
@@ -137,7 +121,7 @@ if (printUrl) {
 const PORT         = 3000;
 const REDIRECT_URI = `http://localhost:${PORT}/oauth2callback`;
 const oauth2       = new google.auth.OAuth2(CLIENT_ID, CLIENT_SECRET, REDIRECT_URI);
-const authUrl      = oauth2.generateAuthUrl({ access_type: "offline", scope: SCOPES, prompt: "consent" });
+const authUrl      = oauth2.generateAuthUrl({ access_type: "offline", scope: SCOPES, prompt: "consent", include_granted_scopes: true });
 
 const server = createServer(async (req, res) => {
   const url = new URL(req.url, `http://localhost:${PORT}`);

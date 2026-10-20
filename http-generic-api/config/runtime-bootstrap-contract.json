@@ -329,6 +329,14 @@
       "credential_binding_prefix": "DB_",
       "migration_ledger": "separate_governance_migration_ledger",
       "secrets_included": false
+    },
+    "20260929_tenant_gpt_oauth_authorization_code_correlation_ref.sql": {
+      "ownership_domain": "runtime",
+      "database_target_role": "runtime",
+      "target_role": "runtime",
+      "credential_binding_prefix": "DB_",
+      "migration_ledger": "separate_governance_migration_ledger",
+      "secrets_included": false
     }
   },
   "bootstrap_credentials": {
@@ -605,6 +613,21 @@
       "direct_fallback_authorized": true,
       "direct_fallback_idempotent": true,
       "requires_tables": []
+    },
+    "20260929_tenant_gpt_oauth_authorization_code_correlation_ref.sql": {
+      "sha256": "bd126fbdb98b641041dda7aa465dbed5a36984652c0cd9141a5ae625a6d5353c",
+      "statement_count": 2,
+      "allowed_modes": [
+        "dry_run",
+        "apply_migration",
+        "apply_grants"
+      ],
+      "role": "reviewed_runtime_apply_candidate",
+      "direct_fallback_authorized": true,
+      "direct_fallback_idempotent": true,
+      "requires_tables": [
+        "tenant_gpt_oauth_authorization_codes"
+      ]
     }
   },
   "grant_policy": {
@@ -1160,6 +1183,18 @@
         "key_value": "managed_n8n_client",
         "value_column": "status",
         "expected_value": "active"
+      }
+    ],
+    "20260929_tenant_gpt_oauth_authorization_code_correlation_ref.sql": [
+      {
+        "type": "column",
+        "table": "tenant_gpt_oauth_authorization_codes",
+        "column": "request_correlation_ref"
+      },
+      {
+        "type": "index",
+        "table": "tenant_gpt_oauth_authorization_codes",
+        "index": "idx_tenant_gpt_oauth_codes_correlation_ref"
       }
     ]
   },

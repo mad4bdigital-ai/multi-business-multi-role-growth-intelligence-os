@@ -1,5 +1,7 @@
 import crypto from "node:crypto";
+import fs from "node:fs";
 import { PLATFORM_TENANT_ID } from "./agentSkillGrantRequestService.js";
+import { resolveEffectiveCredential } from "./credentialResolver.js";
 import { createCloudflareApiClient } from "./activationGatewayRolloutTool.js";
 import { readCanonicalDeploymentIdentity } from "./deploymentManifest.js";
 import { buildStagingActivationGatewayBundle, stableJson } from "./stagingActivationGatewayBundle.js";
@@ -31,6 +33,20 @@ const STAGING_CERTIFICATION_KEY = "staging_activation_gateway_apply_v1";
 const STAGING_CAPABILITY_KEY = "admin_cloudflare_v1";
 const STAGING_OPERATION_INTENT = "activation_gateway.staging_apply";
 const STAGING_RUNTIME_SURFACE = "activation_gateway_dark_deploy";
+const STAGING_CLOUDFLARE_TARGET_KEY = "staging_activation_gateway_cloudflare";
+const STAGING_CLOUDFLARE_SYSTEM_ID = "84310000-0000-4000-8000-000000000001";
+const STAGING_CLOUDFLARE_CREDENTIAL_ROLE = "cloudflare_api_token";
+const STAGING_APPLY_CONFIG_KEY = "staging_activation_gateway_apply";
+const STAGING_PLAN_PURPOSE_APPLY = "apply";
+const STAGING_PLAN_PURPOSE_CERTIFICATION = "transaction_certification";
+const STAGING_CERTIFICATION_TTL_SECONDS = 6 * 60 * 60;
+
+function stagingCertificationEvidencePrefix(expectedSourceCommit, expectedPolicyHash) {
+  const source = compact(expectedSourceCommit, 64).toLowerCase();
+  const policy = compact(expectedPolicyHash, 64).toLowerCase();
+  if (!SHA_RE.test(source) || !SHA256_RE.test(policy)) return "";
+  return `staging-gateway-certification:${source}:${policy}:`;
+}
 
 function compact(value, max = 1024) {
   return String(value ?? "").trim().slice(0, max);
@@ -56,6 +72,182 @@ function adapterError(code, message, status = 400, details = {}) {
 
 function truthy(value) {
   return ["1", "true", "yes", "on", "enabled"].includes(String(value ?? "").trim().toLowerCase());
+}
+
+const DEFAULT_STAGING_CLOUDFLARE_API_TOKEN_FILE = "/run/secrets/staging_cloudflare_api_token";
+
+function resolveServerHeldCloudflareToken(env = process.env) {
+  const configuredFile = compact(
+    env.STAGING_CLOUDFLARE_API_TOKEN_FILE || DEFAULT_STAGING_CLOUDFLARE_API_TOKEN_FILE,
+    2048,
+  );
+  if (configuredFile) {
+    try {
+      const token = fs.readFileSync(configuredFile, "utf8").trim();
+      if (token) return token.slice(0, 4096);
+    } catch (error) {
+      if (!["ENOENT", "EACCES"].includes(error?.code)) {
+        throw adapterError(
+          "staging_activation_gateway_provider_secret_unreadable",
+          "Legacy server-held Staging Cloudflare credential could not be read.",
+          503,
+          { secret_file_configured: true, secret_file_readable: false },
+        );
+      }
+    }
+  }
+  return compact(env.CLOUDFLARE_API_TOKEN, 4096);
+}
+
+async function resolveManagedCloudflareCredential(runtimePool, deps = {}) {
+  if (deps.cloudflareClient) {
+    const ready = Boolean(deps.cloudflareClient.token_present);
+    return {
+      ready,
+      managed: ready,
+      token: "",
+      status: ready ? "resolved" : "blocked_missing_secret",
+      source: "injected_server_client",
+      binding_id: null,
+      owner_type: "platform",
+      secrets_included: false,
+    };
+  }
+  const result = await resolveEffectiveCredential({
+    tenantId: PLATFORM_TENANT_ID,
+    systemId: STAGING_CLOUDFLARE_SYSTEM_ID,
+    actionKey: STAGING_RUNTIME_SURFACE,
+    targetKey: STAGING_CLOUDFLARE_TARGET_KEY,
+    credentialRole: STAGING_CLOUDFLARE_CREDENTIAL_ROLE,
+    includeSecret: true,
+    environmentKey: "staging",
+    allowPlatformBinding: true,
+    allowPlatformFallback: true,
+  }, {
+    pool: runtimePool,
+    decryptToken: deps.decryptToken,
+    decryptCredentials: deps.decryptCredentials,
+    env: deps.env || process.env,
+  });
+  const token = compact(result?.secret, 4096);
+  if (result?.status === "resolved" && token && result?.source === "credential_bindings") {
+    return {
+      ready: true,
+      managed: true,
+      token,
+      status: result.status,
+      source: result.source,
+      binding_id: result.binding_id || null,
+      owner_type: result.owner_type || null,
+      secrets_included: false,
+    };
+  }
+  const legacyToken = resolveServerHeldCloudflareToken(deps.env || process.env);
+  return {
+    ready: Boolean(token || legacyToken),
+    managed: false,
+    token: token || legacyToken,
+    status: result?.status || (legacyToken ? "legacy_resolved" : "blocked_missing_secret"),
+    source: token ? (result?.source || "unmanaged_resolver_source") : (legacyToken ? "legacy_secret_file_or_env" : (result?.source || "credential_resolver")),
+    binding_id: result?.binding_id || null,
+    owner_type: result?.owner_type || null,
+    secrets_included: false,
+  };
+}
+
+function resolveZeroOrOneManagedRow(rows, code, message) {
+  const boundedRows = Array.isArray(rows) ? rows : [];
+  if (boundedRows.length > 1) throw adapterError(code, message, 503);
+  if (boundedRows.length === 0) return null;
+  const [row] = boundedRows;
+  return row;
+}
+
+async function resolveStagingApplyFeatureGate(runtimePool, env = process.env) {
+  const [rows] = await runtimePool.query(
+    `SELECT config_key,
+            config_json,
+            status,
+            updated_at
+       FROM platform_runtime_config
+      WHERE config_key=?
+      LIMIT 2`,
+    [STAGING_APPLY_CONFIG_KEY],
+  );
+  const row = resolveZeroOrOneManagedRow(
+    rows,
+    "staging_activation_gateway_feature_gate_ambiguous",
+    "Managed Staging apply feature gate is ambiguous.",
+  );
+  if (row) {
+    const config = parseJson(row.config_json, {});
+    return {
+      enabled: row.status === "active" && (config?.enabled === true || truthy(config?.enabled)),
+      managed: true,
+      source: "platform_runtime_config",
+      config_key: STAGING_APPLY_CONFIG_KEY,
+      status: row.status,
+      secrets_included: false,
+    };
+  }
+  return {
+    enabled: truthy(env.STAGING_ACTIVATION_GATEWAY_APPLY_ENABLED),
+    managed: false,
+    source: "legacy_env_bootstrap",
+    config_key: STAGING_APPLY_CONFIG_KEY,
+    status: "missing",
+    secrets_included: false,
+  };
+}
+
+async function resolveStagingDispatchCertification(governancePool, {
+  expectedSourceCommit = "",
+  expectedPolicyHash = "",
+} = {}) {
+  const [rows] = await governancePool.query(
+    `SELECT certification_key, certification_status, smoke_strategy,
+            dispatch_allowed, apply_allowed, requires_resource_authority,
+            requires_dry_run, requires_audit_evidence, requires_readback,
+            last_evidence_ref, last_certified_at, expires_at
+       FROM runtime_dispatch_certification_registry
+      WHERE certification_key=?
+      LIMIT 2`,
+    [STAGING_CERTIFICATION_KEY],
+  );
+  const row = resolveZeroOrOneManagedRow(
+    rows,
+    "staging_activation_gateway_dispatch_certification_ambiguous",
+    "Staging dispatch certification is ambiguous.",
+  );
+  const evidencePrefix = stagingCertificationEvidencePrefix(expectedSourceCommit, expectedPolicyHash);
+  const evidenceBound = Boolean(evidencePrefix && compact(row?.last_evidence_ref, 255).startsWith(evidencePrefix)
+    && /^[0-9a-f]{64}$/u.test(compact(row?.last_evidence_ref, 255).slice(evidencePrefix.length)));
+  const notExpired = Boolean(row?.expires_at && new Date(row.expires_at).getTime() > Date.now());
+  const contractReady = Boolean(row
+    && row.smoke_strategy === "independent_same_cycle_staging_gateway_transaction_certification"
+    && Number(row.requires_resource_authority || 0) === 1
+    && Number(row.requires_dry_run || 0) === 1
+    && Number(row.requires_audit_evidence || 0) === 1
+    && Number(row.requires_readback || 0) === 1);
+  const ready = Boolean(contractReady
+    && row.certification_status === "certified"
+    && Number(row.dispatch_allowed || 0) === 1
+    && Number(row.apply_allowed || 0) === 1
+    && evidenceBound
+    && notExpired);
+  return {
+    ready,
+    status: row?.certification_status || "missing",
+    dispatch_allowed: Boolean(row?.dispatch_allowed),
+    apply_allowed: Boolean(row?.apply_allowed),
+    requires_readback: Boolean(row?.requires_readback),
+    smoke_strategy: row?.smoke_strategy || null,
+    evidence_bound: evidenceBound,
+    last_evidence_ref: row?.last_evidence_ref || null,
+    last_certified_at: row?.last_certified_at || null,
+    expires_at: row?.expires_at || null,
+    secrets_included: false,
+  };
 }
 
 function resolveStagingGatewayDataPools(deps = {}) {
@@ -193,6 +385,7 @@ async function resolveServerResourceBinding(pool, bindingId) {
     account_id: accountId,
     script_name: scriptName,
     resource_uri: row.resource_uri,
+    permission_level: row.permission_level,
     allowed_modes: modes,
     authority_source: row.authority_source || null,
     secrets_included: false,
@@ -367,19 +560,23 @@ async function assertEnvelopeForApply({ runtimePool, governancePool, auth, input
     || binding.principal_type !== principalType || binding.principal_id !== principalId) {
     throw adapterError("staging_activation_gateway_envelope_plan_binding_mismatch", "Capability envelope is not bound to this exact execution and convergence plan.", 403);
   }
-  const [certRows] = await governancePool.query(
-    `SELECT certification_key, certification_status, dispatch_allowed, apply_allowed, requires_readback, expires_at
-       FROM runtime_dispatch_certification_registry
-      WHERE certification_key=?
-        AND dispatch_allowed=1
-        AND apply_allowed=1
-        AND requires_readback=1
-        AND (expires_at IS NULL OR expires_at>NOW())
-      LIMIT 1`,
-    [STAGING_CERTIFICATION_KEY],
-  );
-  if (!certRows?.[0] || certRows[0].certification_status !== "certified") throw adapterError("staging_activation_gateway_dispatch_certification_missing", "Independent Staging Activation Gateway apply certification is missing or expired.", 403);
-  return { ...envelope, certification: certRows[0] };
+  const certification = await resolveStagingDispatchCertification(governancePool, {
+    expectedSourceCommit: plan.expected_source_commit,
+    expectedPolicyHash: plan.expected_policy_hash,
+  });
+  if (!certification.ready) {
+    throw adapterError(
+      "staging_activation_gateway_dispatch_certification_missing",
+      "Independent exact-build Staging Activation Gateway apply certification is missing, stale, or expired.",
+      403,
+      {
+        certification_status: certification.status,
+        evidence_bound: certification.evidence_bound,
+        expires_at: certification.expires_at,
+      },
+    );
+  }
+  return { ...envelope, certification };
 }
 
 function deploymentList(response) {
@@ -414,6 +611,59 @@ async function readPublicJson(fetchImpl, url, timeoutMs = 10000) {
   }
 }
 
+// Public drift recovery is authorized only when the signed Worker identity is healthy,
+// its policy is exact, and /ready fails solely because the upstream release changed.
+// This does not change the Gateway's normal fail-closed /ready behavior.
+function classifyStagingGatewayCertificationBaseline(health, ready, expectedCommit, expectedPolicyHash) {
+  const body = health?.body || {};
+  const sourceCommit = compact(body.sourceCommit, 40).toLowerCase();
+  const workerBuildSha = compact(body.workerBuildSha, 40).toLowerCase();
+  const workerBundleSha256 = compact(body.workerBundleSha256, 64).toLowerCase();
+  const canonicalHealth = health?.ok === true && health?.status === 200 && body.ok === true
+    && body.stale === false && body.policyKey === "activation_gateway_staging"
+    && body.policyHash === expectedPolicyHash && SHA_RE.test(sourceCommit)
+    && workerBuildSha === sourceCommit && SHA256_RE.test(workerBundleSha256)
+    && body.secretsIncluded === false;
+  const trust = ready?.body?.recoveryTrustedIngress || ready?.body?.trustedIngress || null;
+  const trustExact = trust?.contract === "mad4b.staging.activation-recovery-origin-trust.v2"
+    && trust?.policy_hash === expectedPolicyHash
+    && trust?.deployment_sha === sourceCommit
+    && trust?.worker_bundle_sha256 === workerBundleSha256
+    && trust?.trusted_ingress_mode === "signature"
+    && trust?.secrets_included === false
+    && Boolean(compact(trust?.key_id, 191))
+    && Boolean(compact(trust?.public_key, 4096));
+  const healthyReady = ready?.ok === true && ready?.status === 200 && ready?.body?.ok === true
+    && ready.body.policyHash === expectedPolicyHash
+    && ready.body.upstreamSourceCommit === expectedCommit
+    && trustExact;
+  const exactRelease = canonicalHealth && sourceCommit === expectedCommit && healthyReady;
+  const driftOnly = canonicalHealth && sourceCommit !== expectedCommit && !ready?.ok
+    && ready?.status === 503
+    && ready?.body?.error?.code === "GATEWAY_UPSTREAM_DEPLOYMENT_EVIDENCE_MISMATCH"
+    && ready.body.error.details?.policy_hash_matches === true
+    && ready.body.error.details?.source_commit_matches === false;
+  return Object.freeze({
+    ready: exactRelease || driftOnly,
+    mode: exactRelease ? "healthy_exact" : driftOnly ? "release_identity_drift" : "blocked",
+    observed_source_commit: canonicalHealth ? sourceCommit : null,
+    observed_worker_bundle_sha256: canonicalHealth ? workerBundleSha256 : null,
+    expected_source_commit: expectedCommit,
+    expected_policy_hash: expectedPolicyHash,
+    health_status: health?.status || 0,
+    ready_status: ready?.status || 0,
+    secrets_included: false,
+  });
+}
+
+async function observeStagingGatewayCertificationBaseline(fetchImpl, publicHost, expectedCommit, expectedPolicyHash, timeoutMs) {
+  const [health, ready] = await Promise.all([
+    readPublicJson(fetchImpl, `https://${publicHost}/health`, timeoutMs),
+    readPublicJson(fetchImpl, `https://${publicHost}/ready`, timeoutMs),
+  ]);
+  return { health, ready, classification: classifyStagingGatewayCertificationBaseline(health, ready, expectedCommit, expectedPolicyHash) };
+}
+
 function buildUploadForm(bundle, plan, compatibilityDate = "2026-08-31") {
   const formData = new FormData();
   const bindings = Object.entries(bundle.worker_secrets).map(([name, text]) => ({ type: "secret_text", name, text: String(text) }));
@@ -424,7 +674,7 @@ function buildUploadForm(bundle, plan, compatibilityDate = "2026-08-31") {
   return formData;
 }
 
-async function rollback({ client, accountId, scriptName, previousDeployment, scriptExistedBefore, previousHealth, previousReady, fetchImpl, publicHost, timeoutMs }) {
+async function rollback({ client, accountId, scriptName, previousDeployment, scriptExistedBefore, previousHealth, previousReady, fetchImpl, publicHost, timeoutMs, baselineMode = "healthy_exact", expectedSourceCommit = "", expectedPolicyHash = "" }) {
   if (previousDeployment?.id && deploymentVersions(previousDeployment).length) {
     const versions = deploymentVersions(previousDeployment);
     const apiPath = `/accounts/${accountId}/workers/scripts/${scriptName}/deployments`;
@@ -432,11 +682,8 @@ async function rollback({ client, accountId, scriptName, previousDeployment, scr
     if (!response?.ok) return { attempted: true, rollback_verified: false, api_restore_ok: false, secrets_included: false };
     const current = deploymentList(await providerRequest(client, { apiPath, method: "GET" }, "rollback_inventory_read"))[0];
     const deploymentReadbackOk = stableJson(deploymentVersions(current).sort((a,b)=>a.version_id.localeCompare(b.version_id))) === stableJson(versions.sort((a,b)=>a.version_id.localeCompare(b.version_id)));
-    const [health, ready] = await Promise.all([
-      readPublicJson(fetchImpl, `https://${publicHost}/health`, timeoutMs),
-      readPublicJson(fetchImpl, `https://${publicHost}/ready`, timeoutMs),
-    ]);
     const healthIdentity = (body) => ({ sourceCommit: body?.sourceCommit, workerBuildSha: body?.workerBuildSha,
+      workerBundleSha256: body?.workerBundleSha256,
       policyHash: body?.policyHash, policyKey: body?.policyKey });
     const readyIdentity = (body) => {
       const trust = body?.recoveryTrustedIngress || body?.trustedIngress || {};
@@ -444,13 +691,39 @@ async function rollback({ client, accountId, scriptName, previousDeployment, scr
         key_id: trust.key_id, public_key: trust.public_key, policy_hash: trust.policy_hash,
         deployment_sha: trust.deployment_sha };
     };
-    const publicHealthRestored = health.ok && previousHealth?.ok && health.body?.ok === true
-      && stableJson(healthIdentity(health.body)) === stableJson(healthIdentity(previousHealth.body));
-    const publicTrustRestored = ready.ok && previousReady?.ok && ready.body?.ok === true
-      && stableJson(readyIdentity(ready.body)) === stableJson(readyIdentity(previousReady.body));
+    let publicHealthRestored = false;
+    let publicTrustRestored = false;
+    let degradedBaselineRestored = false;
+    // Cloudflare's public deployment can lag its control-plane readback.
+    for (let attempt = 0; attempt < 12; attempt++) {
+      const [health, ready] = await Promise.all([
+        readPublicJson(fetchImpl, `https://${publicHost}/health`, timeoutMs),
+        readPublicJson(fetchImpl, `https://${publicHost}/ready`, timeoutMs),
+      ]);
+      publicHealthRestored = health.ok && previousHealth?.ok && health.status === previousHealth.status
+        && health.body?.ok === true
+        && stableJson(healthIdentity(health.body)) === stableJson(healthIdentity(previousHealth.body));
+      publicTrustRestored = baselineMode !== "release_identity_drift" && ready.ok && previousReady?.ok
+        && ready.status === previousReady.status && ready.body?.ok === true
+        && stableJson(readyIdentity(ready.body)) === stableJson(readyIdentity(previousReady.body));
+      if (baselineMode === "release_identity_drift") {
+        const restored = classifyStagingGatewayCertificationBaseline(health, ready, expectedSourceCommit, expectedPolicyHash);
+        degradedBaselineRestored = restored.ready && restored.mode === "release_identity_drift"
+          && restored.observed_source_commit === previousHealth?.body?.sourceCommit
+          && previousReady?.status === 503
+          && previousReady?.body?.error?.code === "GATEWAY_UPSTREAM_DEPLOYMENT_EVIDENCE_MISMATCH"
+          && previousReady?.body?.error?.details?.policy_hash_matches === true
+          && previousReady?.body?.error?.details?.source_commit_matches === false;
+      }
+      if (publicHealthRestored && (publicTrustRestored || degradedBaselineRestored)) break;
+      if (attempt < 11) await new Promise((resolve) => setTimeout(resolve, 1500));
+    }
     return { attempted: true, api_restore_ok: true, deployment_readback_ok: deploymentReadbackOk,
+      baseline_mode: baselineMode,
       public_health_restored: publicHealthRestored, public_trust_restored: publicTrustRestored,
-      rollback_verified: deploymentReadbackOk && publicHealthRestored && publicTrustRestored,
+      degraded_baseline_restored: degradedBaselineRestored,
+      rollback_verified: deploymentReadbackOk && publicHealthRestored
+        && (publicTrustRestored || degradedBaselineRestored),
       previous_deployment_id: previousDeployment.id, secrets_included: false };
   }
   if (scriptExistedBefore !== false) return { attempted: false, rollback_verified: false, manual_recovery_required: true, secrets_included: false };
@@ -461,6 +734,10 @@ async function rollback({ client, accountId, scriptName, previousDeployment, scr
 }
 
 export async function buildStagingActivationGatewayApplyPlan(input = {}, deps = {}) {
+  const planPurpose = deps.planPurpose === STAGING_PLAN_PURPOSE_CERTIFICATION
+    ? STAGING_PLAN_PURPOSE_CERTIFICATION
+    : STAGING_PLAN_PURPOSE_APPLY;
+  const certificationPurpose = planPurpose === STAGING_PLAN_PURPOSE_CERTIFICATION;
   const registry = deps.registry || readEnvironmentConvergenceRegistry();
   const { gateway, target, binding_id: bindingId } = requiredProfile(registry);
   const { runtimePool, governancePool } = resolveStagingGatewayDataPools(deps);
@@ -482,41 +759,81 @@ export async function buildStagingActivationGatewayApplyPlan(input = {}, deps = 
   if (bundle.policy_hash !== expectedPolicyHash) throw adapterError("staging_activation_gateway_built_policy_hash_mismatch", "Built Staging Gateway policy does not match the exact environment profile.", 409);
   const bundleSha = sha256(stableJson({ files: bundle.files, worker_secrets: bundle.worker_secrets, origin_trust: bundle.origin_trust }));
   const secretSetSha = sha256(stableJson(bundle.worker_secrets));
+  const baseline = certificationPurpose
+    ? (await observeStagingGatewayCertificationBaseline(
+      deps.smokeFetch || deps.fetchImpl || globalThis.fetch, gateway.public_host,
+      expectedSourceCommit, expectedPolicyHash, deps.smokeTimeoutMs)).classification
+    : null;
   const planId = crypto.randomUUID();
   const planBody = { contract: "mad4b.staging.activation-gateway-execution-plan.v1", plan_id: planId,
+    purpose: planPurpose,
+    ...(certificationPurpose ? { certification_baseline: {
+      mode: baseline.mode, observed_source_commit: baseline.observed_source_commit,
+      observed_worker_bundle_sha256: baseline.ready ? baseline.observed_worker_bundle_sha256 : null,
+      expected_policy_hash: expectedPolicyHash,
+    } } : {}),
     environment_convergence_plan_sha256: convergencePlanSha, expected_source_commit: expectedSourceCommit,
     expected_policy_hash: expectedPolicyHash, resource_binding_id: binding.binding_id,
     workspace_id: workspace?.workspace_id || null, account_id: binding.account_id, script_name: binding.script_name,
     bundle_sha256: bundleSha, secret_set_sha256: secretSetSha,
     trust_key_id: bundle.origin_trust.key_id, trust_public_key_sha256: sha256(bundle.origin_trust.public_key),
-    expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString() };
+    // This Governance DB column is TIMESTAMP(0): persist a whole-second instant so
+    // the exact-digest plan and SQL readback remain identical before provider writes.
+    expires_at: new Date(Math.ceil((Date.now() + 30 * 60 * 1000) / 1000) * 1000).toISOString() };
   const planSha = sha256(stableJson(planBody));
-  const providerTokenPresent = Boolean(deps.cloudflareClient?.token_present ?? (deps.env || process.env).CLOUDFLARE_API_TOKEN);
+  const env = deps.env || process.env;
+  const providerCredential = await resolveManagedCloudflareCredential(runtimePool, { ...deps, env });
+  const providerTokenPresent = providerCredential.ready === true;
+  const managedCredentialReady = providerCredential.managed === true && providerCredential.ready === true;
   const semanticWorkspaceReady = semanticReadiness.ready === true && Boolean(workspace?.workspace_id);
-  const client = semanticWorkspaceReady
-    ? (deps.cloudflareClient || createCloudflareApiClient({ fetchImpl: deps.fetchImpl, token: (deps.env || process.env).CLOUDFLARE_API_TOKEN, timeoutMs: deps.cloudflareTimeoutMs }))
+  const client = semanticWorkspaceReady && managedCredentialReady
+    ? (deps.cloudflareClient || createCloudflareApiClient({ fetchImpl: deps.fetchImpl, token: providerCredential.token, timeoutMs: deps.cloudflareTimeoutMs }))
     : null;
-  const featureEnabled = truthy((deps.env || process.env).STAGING_ACTIVATION_GATEWAY_APPLY_ENABLED);
+  const featureGate = await resolveStagingApplyFeatureGate(runtimePool, env);
+  const dispatchCertification = await resolveStagingDispatchCertification(governancePool, {
+    expectedSourceCommit,
+    expectedPolicyHash,
+  });
+  const allowedModes = Array.isArray(binding.allowed_modes) ? binding.allowed_modes : parseJson(binding.allowed_modes_json, []);
+  const elevatedAuthorityReady = binding.permission_level === "admin" && allowedModes.includes("staging_apply");
   const checks = [
     { key: "profile_bound", ok: true },
     { key: "server_resource_binding_valid", ok: true },
     { key: "workspace_resolved", ok: Boolean(workspace?.workspace_id) },
     { key: "platform_admin_semantic_readiness", ok: semanticReadiness.ready === true, detail: { status: semanticReadiness.status } },
-    { key: "cloudflare_token_present_server_side", ok: providerTokenPresent },
-    { key: "staging_apply_feature_gate_enabled", ok: featureEnabled },
+    { key: "cloudflare_token_present_server_side", ok: providerTokenPresent, detail: { source: providerCredential.source } },
+    { key: "managed_cloudflare_credential_binding_ready", ok: managedCredentialReady, detail: { status: providerCredential.status, binding_id: providerCredential.binding_id } },
+    { key: "staging_apply_feature_gate_enabled", ok: featureGate.enabled === true },
+    { key: "staging_apply_feature_gate_managed", ok: featureGate.managed === true, detail: { source: featureGate.source, config_key: featureGate.config_key } },
+    { key: "elevated_platform_resource_authority", ok: elevatedAuthorityReady, detail: { permission_level: binding.permission_level } },
+    ...(certificationPurpose
+      ? [
+        { key: "certification_public_baseline_supported", ok: baseline.ready,
+          detail: { mode: baseline.mode, observed_source_commit: baseline.observed_source_commit,
+            health_status: baseline.health_status, ready_status: baseline.ready_status } },
+        { key: "dispatch_certification_registry_present", ok: dispatchCertification.status !== "missing", detail: { status: dispatchCertification.status } },
+        { key: "dispatch_certification_requires_certification", ok: dispatchCertification.ready !== true, detail: { status: dispatchCertification.status } },
+      ]
+      : [{ key: "dispatch_certification_ready", ok: dispatchCertification.ready === true, detail: { status: dispatchCertification.status } }]),
     { key: "exact_policy_hash", ok: bundle.policy_hash === expectedPolicyHash },
     { key: "exact_source_commit", ok: bundle.source_sha === expectedSourceCommit },
   ].map((item) => ({ ...item, secrets_included: false }));
+  const planReady = checks.every((check) => check.ok);
   return {
     ok: true,
-    tool: "activation_gateway_dark_deploy",
-    adapter: "staging_activation_gateway_profile_apply",
+    tool: certificationPurpose ? "activation_gateway_transaction_certification" : "activation_gateway_dark_deploy",
+    adapter: certificationPurpose ? "staging_activation_gateway_transaction_certification" : "staging_activation_gateway_profile_apply",
     mode: "dry_run",
     environment: "staging",
+    plan_purpose: planPurpose,
     classification: semanticReadiness.ready !== true
       ? `staging_activation_gateway_${semanticReadiness.status}`
-      : (checks.every((check) => check.ok) ? "staging_activation_gateway_apply_ready" : "staging_activation_gateway_apply_blocked"),
-    apply_ready: checks.every((check) => check.ok),
+      : (planReady
+        ? (certificationPurpose ? "staging_activation_gateway_certification_ready" : "staging_activation_gateway_apply_ready")
+        : (certificationPurpose ? "staging_activation_gateway_certification_blocked" : "staging_activation_gateway_apply_blocked")),
+    apply_ready: certificationPurpose ? false : planReady,
+    certification_ready: certificationPurpose ? planReady : dispatchCertification.ready === true,
+    ...(certificationPurpose ? { certification_baseline: baseline } : {}),
     ...planBody,
     plan_sha256: planSha,
     envelope_binding: { binding_sha256: planSha, capability_sha256: convergencePlanSha },
@@ -532,7 +849,9 @@ export async function buildStagingActivationGatewayApplyPlan(input = {}, deps = 
     resource_binding: binding,
     workspace: workspace ? { workspace_id: workspace.workspace_id, workspace_key: workspace.workspace_key, workspace_type: workspace.workspace_type } : null,
     workspace_readiness: semanticReadiness,
-    required_confirmation: `DEPLOY_STAGING_GATEWAY_${expectedSourceCommit.slice(0, 12).toUpperCase()}_${planSha.slice(0, 12).toUpperCase()}`,
+    required_confirmation: certificationPurpose
+      ? `CERTIFY_STAGING_GATEWAY_TRANSACTION_${expectedSourceCommit.slice(0, 12).toUpperCase()}_${planSha.slice(0, 12).toUpperCase()}`
+      : `DEPLOY_STAGING_GATEWAY_${expectedSourceCommit.slice(0, 12).toUpperCase()}_${planSha.slice(0, 12).toUpperCase()}`,
     required_capability: {
       app_key: "cloudflare",
       capability_key: STAGING_CAPABILITY_KEY,
@@ -543,13 +862,30 @@ export async function buildStagingActivationGatewayApplyPlan(input = {}, deps = 
       operator_acknowledgement_is_execution_authority: false,
       typed_confirmation_required_for_apply: true,
       approval_required_for_apply: false,
+      managed_credential_required_for_apply: true,
+      managed_feature_gate_required_for_apply: true,
+      dispatch_certification_required_for_apply: !certificationPurpose,
+      independent_transaction_certification: certificationPurpose,
+    },
+    managed_provider_authority: {
+      credential_source: providerCredential.source,
+      credential_status: providerCredential.status,
+      credential_binding_id: providerCredential.binding_id,
+      feature_gate_source: featureGate.source,
+      feature_gate_config_key: featureGate.config_key,
+      dispatch_certification_status: dispatchCertification.status,
+      elevated_authority_source: elevatedAuthorityReady ? "exact_platform_resource_authority" : null,
+      legacy_secret_transport_is_execution_authority: false,
+      legacy_env_feature_gate_is_execution_authority: false,
+      secrets_included: false,
     },
     checks,
     trust_bundle_contract: bundle.origin_trust.contract,
     provider_target_caller_selectable: false,
     provider_credentials_returned: false,
     workflow_dispatch: false,
-    staging_certification_ready: false,
+    staging_certification_ready: dispatchCertification.ready,
+    certification_transaction_required: dispatchCertification.ready !== true,
     production_mutation: false,
     business_database_mutation: false,
     schema_mutation: false,
@@ -560,13 +896,20 @@ export async function buildStagingActivationGatewayApplyPlan(input = {}, deps = 
   };
 }
 
+export async function buildStagingActivationGatewayCertificationPlan(input = {}, deps = {}) {
+  return buildStagingActivationGatewayApplyPlan(input, {
+    ...deps,
+    planPurpose: STAGING_PLAN_PURPOSE_CERTIFICATION,
+  });
+}
+
 export async function runStagingActivationGatewayApply(input = {}, deps = {}) {
   const mode = compact(input.mode || "dry_run", 16).toLowerCase();
   if (!["dry_run", "apply"].includes(mode)) throw adapterError("staging_activation_gateway_mode_invalid", "mode must be dry_run or apply.");
   const { runtimePool, governancePool } = resolveStagingGatewayDataPools(deps);
   const env = deps.env || process.env;
   if (mode === "dry_run") {
-    const plan = await buildStagingActivationGatewayApplyPlan(input, { ...deps, includeInternal: true });
+    const plan = await buildStagingActivationGatewayApplyPlan(input, { ...deps, includeInternal: true, planPurpose: STAGING_PLAN_PURPOSE_APPLY });
     const { _internal, _planBody, ...publicPlan } = plan;
     if (plan.apply_ready) await saveStagingGatewayExecutionPlan(governancePool, plan, _internal.bundle, { env });
     return { ...publicPlan, mode, execution: { will_execute: false, executed: false }, governance_state_mutation: plan.apply_ready };
@@ -581,6 +924,7 @@ export async function runStagingActivationGatewayApply(input = {}, deps = {}) {
   const planBody = parseJson(row.plan_body_json);
   if (!planBody || sha256(stableJson(planBody)) !== planSha || planBody.plan_id !== planId
     || planBody.contract !== "mad4b.staging.activation-gateway-execution-plan.v1"
+    || planBody.purpose !== STAGING_PLAN_PURPOSE_APPLY
     || row.bundle_ref !== `staging-gateway:${planId}`
     || new Date(planBody.expires_at).getTime() !== new Date(row.expires_at).getTime()
     || planBody.environment_convergence_plan_sha256 !== convergencePlanSha
@@ -631,7 +975,17 @@ export async function runStagingActivationGatewayApply(input = {}, deps = {}) {
     bundle_sha256: row.bundle_sha256, secret_set_sha256: row.secret_set_sha256 };
   const publicPlan = { ...plan };
   if (typeof deps.audit !== "function") throw adapterError("staging_activation_gateway_audit_required", "Durable audit sink is required before provider mutation.", 503);
-  if (!truthy(env.STAGING_ACTIVATION_GATEWAY_APPLY_ENABLED)) throw adapterError("staging_activation_gateway_apply_disabled", "Staging apply feature gate is disabled.", 403);
+  const featureGate = await resolveStagingApplyFeatureGate(runtimePool, env);
+  if (!featureGate.enabled || !featureGate.managed) throw adapterError("staging_activation_gateway_apply_disabled", "Managed Staging apply feature gate is disabled or unavailable.", 403, { feature_gate_source: featureGate.source });
+  const providerCredential = await resolveManagedCloudflareCredential(runtimePool, { ...deps, env });
+  if (!providerCredential.ready || !providerCredential.managed) {
+    throw adapterError(
+      "staging_activation_gateway_managed_cloudflare_credential_missing",
+      "Managed DB-backed Staging Cloudflare credential binding is unavailable.",
+      503,
+      { credential_status: providerCredential.status, credential_source: providerCredential.source, binding_id: providerCredential.binding_id },
+    );
+  }
   const nonce = compact(input.execution_nonce, 128);
   if (!SAFE_NONCE_RE.test(nonce)) throw adapterError("staging_activation_gateway_execution_nonce_invalid", "Apply requires execution_nonce with 8 to 128 safe characters.");
   const envelope = await assertEnvelopeForApply({ runtimePool, governancePool, auth, input, expectedCommitSha: plan.expected_source_commit, workspaceId: workspace.workspace_id, plan });
@@ -639,7 +993,7 @@ export async function runStagingActivationGatewayApply(input = {}, deps = {}) {
   const executionNonceSha256 = sha256(nonce);
   await claimStagingGatewayExecutionPlan(governancePool, { planId, planSha256: planSha, convergencePlanSha256: convergencePlanSha });
 
-  const client = deps.cloudflareClient || createCloudflareApiClient({ fetchImpl: deps.fetchImpl, token: env.CLOUDFLARE_API_TOKEN, timeoutMs: deps.cloudflareTimeoutMs });
+  const client = deps.cloudflareClient || createCloudflareApiClient({ fetchImpl: deps.fetchImpl, token: providerCredential.token, timeoutMs: deps.cloudflareTimeoutMs });
   const accountId = plan.resource_binding.account_id;
   const scriptName = plan.resource_binding.script_name;
   const fetchImpl = deps.smokeFetch || deps.fetchImpl || globalThis.fetch;
@@ -648,6 +1002,7 @@ export async function runStagingActivationGatewayApply(input = {}, deps = {}) {
   let scriptExistedBefore = null;
   let previousHealth = null;
   let previousReady = null;
+  let previousBaselineMode; // Resolved only after public baseline proof.
   let envelopeClaimed = false;
   let rollbackResult = null;
   try {
@@ -674,16 +1029,25 @@ export async function runStagingActivationGatewayApply(input = {}, deps = {}) {
       throw adapterError("staging_activation_gateway_previous_deployment_unresolved", "Existing Worker has no exact previous deployment to restore.", 409);
     }
     if (previousDeployment) {
-      previousHealth = await readPublicJson(fetchImpl, `https://${plan.profile_binding.public_host}/health`, deps.smokeTimeoutMs);
-      previousReady = await readPublicJson(fetchImpl, `https://${plan.profile_binding.public_host}/ready`, deps.smokeTimeoutMs);
-      const previousTrust = previousReady.body?.recoveryTrustedIngress || previousReady.body?.trustedIngress;
-      if (!previousHealth.ok || !previousReady.ok
-        || !SHA_RE.test(compact(previousHealth.body?.sourceCommit, 40).toLowerCase())
-        || !SHA256_RE.test(compact(previousHealth.body?.policyHash, 64).toLowerCase())
-        || !SHA_RE.test(compact(previousReady.body?.upstreamSourceCommit, 40).toLowerCase())
-        || !compact(previousTrust?.key_id, 191) || !compact(previousTrust?.public_key, 4096)) {
-        throw adapterError("staging_activation_gateway_previous_public_state_unresolved", "Previous public health and trust identity must be captured before provider mutation.", 409);
+      const publicBaseline = await observeStagingGatewayCertificationBaseline(
+        fetchImpl, plan.profile_binding.public_host, plan.expected_source_commit,
+        plan.expected_policy_hash, deps.smokeTimeoutMs);
+      previousHealth = publicBaseline.health;
+      previousReady = publicBaseline.ready;
+      // A 200 response alone is not a trusted baseline: require signed build
+      // identity and complete origin trust parity even for legacy healthy apply.
+      const previouslyDeployedSha = compact(previousHealth.body?.sourceCommit, 40).toLowerCase();
+      const healthyBaseline = classifyStagingGatewayCertificationBaseline(
+        previousHealth, previousReady, previouslyDeployedSha, plan.expected_policy_hash);
+      const trustedHealthyBaseline = healthyBaseline.mode === "healthy_exact";
+      const boundedDrift = publicBaseline.classification.ready
+        && publicBaseline.classification.mode === "release_identity_drift";
+      if (!trustedHealthyBaseline && !boundedDrift) {
+        throw adapterError("staging_activation_gateway_previous_public_state_unresolved",
+          "Previous Worker must be healthy and trusted or prove exact release-identity drift before provider mutation.", 409,
+          { health_status: previousHealth.status, ready_status: previousReady.status });
       }
+      previousBaselineMode = boundedDrift ? "release_identity_drift" : "healthy_exact";
     }
     writesStarted = true;
     const version = await providerRequest(client, { apiPath: `/accounts/${accountId}/workers/scripts/${scriptName}/versions`, method: "POST", formData: buildUploadForm(bundle, plan) }, "version_upload");
@@ -699,26 +1063,39 @@ export async function runStagingActivationGatewayApply(input = {}, deps = {}) {
       throw adapterError("staging_activation_gateway_deployment_readback_missing", "Deployment readback did not prove the exact candidate version at 100%.", 502);
     }
 
-    const health = await readPublicJson(fetchImpl, `https://${plan.profile_binding.public_host}/health`, deps.smokeTimeoutMs);
-    const ready = await readPublicJson(fetchImpl, `https://${plan.profile_binding.public_host}/ready`, deps.smokeTimeoutMs);
-    const healthOk = health.ok && health.body?.ok === true && health.body?.stale === false
-      && compact(health.body?.sourceCommit, 64).toLowerCase() === plan.expected_source_commit
-      && compact(health.body?.workerBuildSha, 64).toLowerCase() === plan.expected_source_commit
-      && compact(health.body?.policyHash, 64).toLowerCase() === plan.expected_policy_hash
-      && health.body?.policyKey === "activation_gateway_staging";
-    const trust = ready.body?.recoveryTrustedIngress || ready.body?.trustedIngress || null;
-    const trustOk = ready.ok && ready.body?.ok === true
-      && compact(ready.body?.policyHash, 64).toLowerCase() === plan.expected_policy_hash
-      && compact(ready.body?.upstreamSourceCommit, 64).toLowerCase() === plan.expected_source_commit
-      && trust?.contract === bundle.origin_trust.contract
-      && compact(trust?.deployment_sha, 64).toLowerCase() === plan.expected_source_commit
-      && trust?.policy_hash === plan.expected_policy_hash
-      && trust?.key_id === bundle.origin_trust.key_id
-      && trust?.public_key === bundle.origin_trust.public_key
-      && trust?.issuer === bundle.origin_trust.issuer
-      && trust?.audience === bundle.origin_trust.audience
-      && trust?.canonical_host === bundle.origin_trust.canonical_host
-      && trust?.secrets_included === false;
+    // Control-plane deployment can become visible before the public Cloudflare edge converges.
+    let health;
+    let ready;
+    let healthOk = false;
+    let trustOk = false;
+    for (let attempt = 0; attempt < 12; attempt++) {
+      [health, ready] = await Promise.all([
+        readPublicJson(fetchImpl, `https://${plan.profile_binding.public_host}/health`, deps.smokeTimeoutMs),
+        readPublicJson(fetchImpl, `https://${plan.profile_binding.public_host}/ready`, deps.smokeTimeoutMs),
+      ]);
+      healthOk = health.ok && health.body?.ok === true && health.body?.stale === false
+        && compact(health.body?.sourceCommit, 64).toLowerCase() === plan.expected_source_commit
+        && compact(health.body?.workerBuildSha, 64).toLowerCase() === plan.expected_source_commit
+        && health.body?.workerBundleSha256 === bundle.worker_bundle_sha256
+        && compact(health.body?.policyHash, 64).toLowerCase() === plan.expected_policy_hash
+        && health.body?.policyKey === "activation_gateway_staging";
+      const trust = ready.body?.recoveryTrustedIngress || ready.body?.trustedIngress || null;
+      trustOk = ready.ok && ready.body?.ok === true
+        && compact(ready.body?.policyHash, 64).toLowerCase() === plan.expected_policy_hash
+        && compact(ready.body?.upstreamSourceCommit, 64).toLowerCase() === plan.expected_source_commit
+        && trust?.contract === bundle.origin_trust.contract
+        && compact(trust?.deployment_sha, 64).toLowerCase() === plan.expected_source_commit
+        && trust?.policy_hash === plan.expected_policy_hash
+        && trust?.key_id === bundle.origin_trust.key_id
+        && trust?.public_key === bundle.origin_trust.public_key
+        && trust?.worker_bundle_sha256 === bundle.worker_bundle_sha256
+        && trust?.issuer === bundle.origin_trust.issuer
+        && trust?.audience === bundle.origin_trust.audience
+        && trust?.canonical_host === bundle.origin_trust.canonical_host
+        && trust?.secrets_included === false;
+      if (healthOk && trustOk) break;
+      if (attempt < 11) await new Promise((resolve) => setTimeout(resolve, 1500));
+    }
     if (!healthOk || !trustOk) throw adapterError("staging_activation_gateway_public_readback_failed", "Exact public Staging Gateway health/ready/trust readback failed.", 502, { health_status: health.status, health_ok: healthOk, ready_status: ready.status, ready_ok: trustOk });
 
     await deps.audit({
@@ -757,7 +1134,10 @@ export async function runStagingActivationGatewayApply(input = {}, deps = {}) {
     };
   } catch (error) {
     if (writesStarted) {
-      try { rollbackResult = await rollback({ client, accountId, scriptName, previousDeployment, scriptExistedBefore, previousHealth, previousReady, fetchImpl, publicHost: plan.profile_binding.public_host, timeoutMs: deps.smokeTimeoutMs }); }
+      try { rollbackResult = await rollback({ client, accountId, scriptName, previousDeployment, scriptExistedBefore,
+        previousHealth, previousReady, fetchImpl, publicHost: plan.profile_binding.public_host,
+        timeoutMs: deps.smokeTimeoutMs, baselineMode: previousBaselineMode,
+        expectedSourceCommit: plan.expected_source_commit, expectedPolicyHash: plan.expected_policy_hash }); }
       catch (rollbackError) { rollbackResult = { ok: false, error: compact(rollbackError?.message, 300), secrets_included: false }; }
     }
     let failureAuditError = null;
@@ -785,4 +1165,636 @@ export async function runStagingActivationGatewayApply(input = {}, deps = {}) {
   }
 }
 
-export const _testingStagingGatewayTransaction = Object.freeze({ buildUploadForm, rollback, deploymentVersions });
+
+async function promoteStagingDispatchCertification(governancePool, {
+  planId,
+  evidenceRef,
+  expectedSourceCommit,
+  expectedPolicyHash,
+  expiresAt,
+} = {}) {
+  const evidencePrefix = stagingCertificationEvidencePrefix(expectedSourceCommit, expectedPolicyHash);
+  if (!/^[a-f0-9-]{36}$/u.test(compact(planId, 36))
+    || !evidencePrefix
+    || !compact(evidenceRef, 255).startsWith(evidencePrefix)) {
+    throw adapterError(
+      "staging_activation_gateway_certification_evidence_binding_invalid",
+      "Certification promotion requires exact plan, source, policy, and evidence bindings.",
+      400,
+    );
+  }
+  if (!governancePool?.getConnection) {
+    throw adapterError(
+      "staging_activation_gateway_certification_store_unavailable",
+      "Dedicated Governance DB writer is required to issue Staging Gateway certification.",
+      503,
+    );
+  }
+  const connection = await governancePool.getConnection();
+  try {
+    await connection.beginTransaction();
+    const [updated] = await connection.query(
+      `UPDATE runtime_dispatch_certification_registry
+          SET certification_status='certified',
+              dispatch_allowed=1,
+              apply_allowed=1,
+              requires_readback=1,
+              last_evidence_ref=?,
+              last_certified_at=NOW(),
+              expires_at=?,
+              notes='Independent same-cycle Staging Gateway provider transaction and verified rollback certification.'
+        WHERE certification_key=?
+          AND surface_key='activation_gateway_dark_deploy'
+          AND tool_or_action_key='activation_gateway_dark_deploy'
+          AND risk_class='D'
+          AND smoke_strategy='independent_same_cycle_staging_gateway_transaction_certification'
+          AND requires_resource_authority=1
+          AND requires_dry_run=1
+          AND requires_audit_evidence=1
+          AND requires_readback=1
+          AND (
+            (certification_status='pending' AND dispatch_allowed=0 AND apply_allowed=0)
+            OR
+            (certification_status='certified' AND expires_at IS NOT NULL AND expires_at<=NOW())
+          )`,
+      [evidenceRef, expiresAt, STAGING_CERTIFICATION_KEY],
+    );
+    if (Number(updated?.affectedRows || 0) !== 1) {
+      throw adapterError(
+        "staging_activation_gateway_certification_transition_rejected",
+        "Staging Gateway certification state was not eligible for an exact certification transition.",
+        409,
+      );
+    }
+    const [rows] = await connection.query(
+      `SELECT certification_key, certification_status, smoke_strategy,
+              dispatch_allowed, apply_allowed, requires_resource_authority, requires_dry_run,
+              requires_audit_evidence, requires_readback, last_evidence_ref,
+              last_certified_at, expires_at
+         FROM runtime_dispatch_certification_registry
+        WHERE certification_key=?
+        LIMIT 2`,
+      [STAGING_CERTIFICATION_KEY],
+    );
+    if (!Array.isArray(rows) || rows.length !== 1) {
+      throw adapterError(
+        "staging_activation_gateway_certification_readback_ambiguous",
+        "Staging Gateway certification readback was missing or ambiguous.",
+        503,
+      );
+    }
+    const [row] = rows;
+    const ready = row.certification_status === "certified"
+      && row.smoke_strategy === "independent_same_cycle_staging_gateway_transaction_certification"
+      && Number(row.dispatch_allowed || 0) === 1
+      && Number(row.apply_allowed || 0) === 1
+      && Number(row.requires_resource_authority || 0) === 1
+      && Number(row.requires_dry_run || 0) === 1
+      && Number(row.requires_audit_evidence || 0) === 1
+      && Number(row.requires_readback || 0) === 1
+      && row.last_evidence_ref === evidenceRef
+      && new Date(row.expires_at).getTime() > Date.now();
+    if (!ready) {
+      throw adapterError(
+        "staging_activation_gateway_certification_readback_failed",
+        "Same-cycle Staging Gateway certification readback did not prove exact dispatch and apply authority.",
+        500,
+      );
+    }
+    const [planUpdate] = await connection.query(
+      `UPDATE staging_activation_gateway_execution_plans
+          SET status='succeeded', completed_at=NOW()
+        WHERE plan_id=? AND status='executing'`,
+      [planId],
+    );
+    if (Number(planUpdate?.affectedRows || 0) !== 1) {
+      throw adapterError(
+        "staging_activation_gateway_certification_plan_finalize_failed",
+        "Certification row and execution-plan success could not be finalized atomically.",
+        500,
+      );
+    }
+    await connection.commit();
+    return {
+      ready: true,
+      status: row.certification_status,
+      dispatch_allowed: true,
+      apply_allowed: true,
+      requires_readback: true,
+      last_evidence_ref: row.last_evidence_ref,
+      last_certified_at: row.last_certified_at,
+      expires_at: row.expires_at,
+      secrets_included: false,
+    };
+  } catch (error) {
+    await connection.rollback().catch(() => {});
+    throw error;
+  } finally {
+    connection.release();
+  }
+}
+
+export async function runStagingActivationGatewayTransactionCertification(input = {}, deps = {}) {
+  const mode = compact(input.mode || "prepare", 16).toLowerCase();
+  if (!["prepare", "apply"].includes(mode)) {
+    throw adapterError(
+      "staging_activation_gateway_certification_mode_invalid",
+      "Certification mode must be prepare or apply.",
+    );
+  }
+  const env = deps.env || process.env;
+  if (compact(env.REMOTE_MCP_ENVIRONMENT, 32).toLowerCase() !== "staging") {
+    throw adapterError(
+      "staging_activation_gateway_certification_environment_denied",
+      "Independent Gateway transaction certification is restricted to Staging.",
+      403,
+    );
+  }
+  const { runtimePool, governancePool } = resolveStagingGatewayDataPools(deps);
+  if (mode === "prepare") {
+    const plan = await buildStagingActivationGatewayCertificationPlan(input, {
+      ...deps,
+      includeInternal: true,
+    });
+    const { _internal, _planBody, ...publicPlan } = plan;
+    if (plan.certification_ready) {
+      await saveStagingGatewayExecutionPlan(governancePool, plan, _internal.bundle, { env });
+    }
+    return {
+      ...publicPlan,
+      mode,
+      execution: { will_execute: false, executed: false },
+      governance_state_mutation: plan.certification_ready,
+      provider_mutation: false,
+      production_mutation: false,
+      secrets_included: false,
+    };
+  }
+
+  const planId = compact(input.plan_id, 36);
+  const planSha = compact(input.plan_sha256, 64).toLowerCase();
+  const convergencePlanSha = compact(input.environment_convergence_plan_sha256, 64).toLowerCase();
+  if (!/^[a-f0-9-]{36}$/u.test(planId) || !SHA256_RE.test(planSha) || !SHA256_RE.test(convergencePlanSha)) {
+    throw adapterError(
+      "staging_activation_gateway_certification_plan_identity_invalid",
+      "Exact certification plan ID, plan SHA-256, and convergence plan SHA-256 are required.",
+    );
+  }
+  const { row, bundle } = await loadStagingGatewayExecutionPlan(governancePool, {
+    planId,
+    planSha256: planSha,
+    convergencePlanSha256: convergencePlanSha,
+    env,
+  });
+  const planBody = parseJson(row.plan_body_json);
+  if (!planBody || sha256(stableJson(planBody)) !== planSha
+    || planBody.plan_id !== planId
+    || planBody.contract !== "mad4b.staging.activation-gateway-execution-plan.v1"
+    || planBody.purpose !== STAGING_PLAN_PURPOSE_CERTIFICATION
+    || row.bundle_ref !== `staging-gateway:${planId}`
+    || new Date(planBody.expires_at).getTime() !== new Date(row.expires_at).getTime()
+    || planBody.environment_convergence_plan_sha256 !== convergencePlanSha
+    || planBody.expected_source_commit !== row.expected_source_commit
+    || planBody.expected_policy_hash !== row.expected_policy_hash
+    || planBody.resource_binding_id !== row.resource_binding_id
+    || planBody.workspace_id !== row.workspace_id
+    || planBody.bundle_sha256 !== row.bundle_sha256
+    || planBody.secret_set_sha256 !== row.secret_set_sha256
+    || planBody.trust_key_id !== row.trust_key_id
+    || planBody.trust_public_key_sha256 !== row.trust_public_key_sha256) {
+    throw adapterError(
+      "staging_activation_gateway_certification_stale_plan",
+      "Stored certification plan identity differs from its exact digest.",
+      409,
+    );
+  }
+
+  const requiredConfirmation = `CERTIFY_STAGING_GATEWAY_TRANSACTION_${planBody.expected_source_commit.slice(0, 12).toUpperCase()}_${planSha.slice(0, 12).toUpperCase()}`;
+  if (compact(input.confirm, 128) !== requiredConfirmation) {
+    throw adapterError(
+      "staging_activation_gateway_certification_confirmation_mismatch",
+      "Typed confirmation does not match the exact certification plan.",
+      403,
+      { expected_confirmation: requiredConfirmation },
+    );
+  }
+  if (typeof deps.audit !== "function") {
+    throw adapterError(
+      "staging_activation_gateway_certification_audit_required",
+      "Durable audit sink is required before certification provider mutation.",
+      503,
+    );
+  }
+
+  const actualSourceCommit = await canonicalRuntimeCommit(deps);
+  if (actualSourceCommit !== planBody.expected_source_commit) {
+    throw adapterError(
+      "staging_activation_gateway_certification_runtime_commit_mismatch",
+      "Current Staging runtime no longer matches the exact certification plan.",
+      409,
+    );
+  }
+  const registry = deps.registry || readEnvironmentConvergenceRegistry();
+  const { gateway, binding_id: bindingId } = requiredProfile(registry);
+  if (compact(gateway.expected_policy_hash, 64).toLowerCase() !== planBody.expected_policy_hash) {
+    throw adapterError(
+      "staging_activation_gateway_certification_policy_mismatch",
+      "Current Staging Gateway policy no longer matches the exact certification plan.",
+      409,
+    );
+  }
+  const binding = await resolveServerResourceBinding(governancePool, bindingId);
+  assertCallerCannotSelectTarget(input, binding);
+  if (binding.binding_id !== planBody.resource_binding_id) {
+    throw adapterError(
+      "staging_activation_gateway_certification_resource_binding_mismatch",
+      "Current Staging resource authority no longer matches the exact certification plan.",
+      409,
+    );
+  }
+  const auth = deps.auth || {};
+  const workspaceContext = await resolveWorkspaceContext(runtimePool, auth, input);
+  if (workspaceContext.semantic_readiness.ready !== true
+    || workspaceContext.workspace?.workspace_id !== planBody.workspace_id) {
+    throw adapterError(
+      "staging_activation_gateway_certification_workspace_unready",
+      "Canonical Platform Admin Workspace is not ready or no longer matches the certification plan.",
+      409,
+    );
+  }
+  const featureGate = await resolveStagingApplyFeatureGate(runtimePool, env);
+  if (!featureGate.enabled || !featureGate.managed) {
+    throw adapterError(
+      "staging_activation_gateway_certification_feature_gate_unready",
+      "Managed Staging apply feature gate must be enabled before transaction certification.",
+      403,
+    );
+  }
+  const providerCredential = await resolveManagedCloudflareCredential(runtimePool, { ...deps, env });
+  if (!providerCredential.ready || !providerCredential.managed) {
+    throw adapterError(
+      "staging_activation_gateway_certification_managed_credential_missing",
+      "Managed DB-backed Staging Cloudflare credential is required for transaction certification.",
+      503,
+      { credential_status: providerCredential.status, credential_source: providerCredential.source },
+    );
+  }
+  const currentCertification = await resolveStagingDispatchCertification(governancePool, {
+    expectedSourceCommit: planBody.expected_source_commit,
+    expectedPolicyHash: planBody.expected_policy_hash,
+  });
+  if (currentCertification.ready) {
+    throw adapterError(
+      "staging_activation_gateway_certification_already_ready",
+      "Staging Gateway dispatch certification is already ready; redundant provider certification is forbidden.",
+      409,
+    );
+  }
+
+  const baselineMode = planBody.certification_baseline?.mode;
+  if (!["healthy_exact", "release_identity_drift"].includes(baselineMode)
+    || !SHA256_RE.test(planBody.certification_baseline?.observed_worker_bundle_sha256 || "")
+    || planBody.certification_baseline?.expected_policy_hash !== planBody.expected_policy_hash) {
+    throw adapterError("staging_activation_gateway_certification_baseline_binding_invalid",
+      "Prepared certification plan has no exact-bound public Gateway baseline.", 409);
+  }
+  const publicFetch = deps.smokeFetch || deps.fetchImpl || globalThis.fetch;
+  const preClaimBaseline = await observeStagingGatewayCertificationBaseline(
+    publicFetch, gateway.public_host, planBody.expected_source_commit, planBody.expected_policy_hash, deps.smokeTimeoutMs);
+  if (!preClaimBaseline.classification.ready
+    || preClaimBaseline.classification.mode !== baselineMode
+    || preClaimBaseline.classification.observed_source_commit !== planBody.certification_baseline.observed_source_commit
+    || preClaimBaseline.classification.observed_worker_bundle_sha256 !== planBody.certification_baseline.observed_worker_bundle_sha256) {
+    throw adapterError("staging_activation_gateway_certification_baseline_drifted",
+      "The current public Gateway baseline no longer matches the prepared certification plan.", 409);
+  }
+  const plan = {
+    ...planBody,
+    plan_sha256: planSha,
+    profile_binding: { public_host: gateway.public_host },
+    resource_binding: binding,
+  };
+  const client = deps.cloudflareClient || createCloudflareApiClient({
+    fetchImpl: deps.fetchImpl,
+    token: providerCredential.token,
+    timeoutMs: deps.cloudflareTimeoutMs,
+  });
+  const fetchImpl = deps.smokeFetch || deps.fetchImpl || globalThis.fetch;
+  const accountId = binding.account_id;
+  const scriptName = binding.script_name;
+  let writesStarted = false;
+  let rollbackResult = null;
+  let previousDeployment = null;
+  let previousHealth = null;
+  let previousReady = null;
+  let candidateVersionId = null;
+
+  await claimStagingGatewayExecutionPlan(governancePool, {
+    planId,
+    planSha256: planSha,
+    convergencePlanSha256: convergencePlanSha,
+  });
+  await transitionStagingGatewayExecutionPlan(governancePool, planId, "claimed", "executing");
+
+  try {
+    const scriptBefore = await client.request({
+      apiPath: `/accounts/${accountId}/workers/scripts/${scriptName}`,
+      method: "GET",
+    });
+    if (!scriptBefore?.ok) {
+      throw adapterError(
+        "staging_activation_gateway_certification_baseline_missing",
+        "Independent transaction certification requires an existing Staging Worker baseline that can be restored.",
+        409,
+        { status: Number(scriptBefore?.status || 0) },
+      );
+    }
+    const deploymentsBefore = await providerRequest(client, {
+      apiPath: `/accounts/${accountId}/workers/scripts/${scriptName}/deployments`,
+      method: "GET",
+    }, "certification_inventory_read");
+    const baselineDeployments = deploymentList(deploymentsBefore);
+    const [resolvedPreviousDeployment] = baselineDeployments;
+    previousDeployment = resolvedPreviousDeployment || null;
+    if (!previousDeployment?.id || !deploymentVersions(previousDeployment).length) {
+      throw adapterError(
+        "staging_activation_gateway_certification_baseline_unresolved",
+        "Existing Staging Worker has no exact previous deployment to restore after certification.",
+        409,
+      );
+    }
+    const claimedBaseline = await observeStagingGatewayCertificationBaseline(
+      fetchImpl, gateway.public_host, planBody.expected_source_commit, planBody.expected_policy_hash, deps.smokeTimeoutMs);
+    previousHealth = claimedBaseline.health;
+    previousReady = claimedBaseline.ready;
+    if (!claimedBaseline.classification.ready || claimedBaseline.classification.mode !== baselineMode
+      || claimedBaseline.classification.observed_source_commit !== planBody.certification_baseline.observed_source_commit
+      || claimedBaseline.classification.observed_worker_bundle_sha256 !== planBody.certification_baseline.observed_worker_bundle_sha256) {
+      throw adapterError(
+        "staging_activation_gateway_certification_public_baseline_unready",
+        "Claimed Gateway baseline differs from the prepared exact-commit certification plan.",
+        409,
+        { health_status: previousHealth.status, ready_status: previousReady.status, baseline_mode: baselineMode },
+      );
+    }
+
+    await deps.audit({
+      action: "activation_gateway.staging_transaction_certification.intent",
+      resource_type: "cloudflare_worker",
+      resource_id: scriptName,
+      payload: {
+        plan_id: planId,
+        plan_sha256: planSha,
+        environment_convergence_plan_sha256: convergencePlanSha,
+        expected_source_commit: planBody.expected_source_commit,
+        expected_policy_hash: planBody.expected_policy_hash,
+        previous_deployment_id: previousDeployment.id,
+        baseline_mode: baselineMode,
+        baseline_source_commit: planBody.certification_baseline.observed_source_commit,
+        baseline_worker_bundle_sha256: planBody.certification_baseline.observed_worker_bundle_sha256,
+        provider_mutation_performed: false,
+        rollback_required: true,
+        production_mutation: false,
+        secrets_included: false,
+      },
+    });
+
+    writesStarted = true;
+    const version = await providerRequest(client, {
+      apiPath: `/accounts/${accountId}/workers/scripts/${scriptName}/versions`,
+      method: "POST",
+      formData: buildUploadForm(bundle, plan),
+    }, "certification_version_upload");
+    candidateVersionId = compact(version?.result?.id || version?.result?.version?.id, 191);
+    if (!candidateVersionId) {
+      throw adapterError(
+        "staging_activation_gateway_certification_candidate_version_missing",
+        "Certification Version Upload did not return an exact candidate version ID.",
+        502,
+      );
+    }
+    await providerRequest(client, {
+      apiPath: `/accounts/${accountId}/workers/scripts/${scriptName}/deployments`,
+      method: "POST",
+      body: { strategy: "percentage", versions: [{ version_id: candidateVersionId, percentage: 100 }] },
+    }, "certification_version_deploy");
+    const deploymentsAfter = await providerRequest(client, {
+      apiPath: `/accounts/${accountId}/workers/scripts/${scriptName}/deployments`,
+      method: "GET",
+    }, "certification_deployment_readback");
+    const candidateDeployments = deploymentList(deploymentsAfter);
+    const [candidateDeployment] = candidateDeployments;
+    const candidateVersions = deploymentVersions(candidateDeployment);
+    const [candidateVersion] = candidateVersions;
+    if (!candidateDeployment?.id
+      || candidateVersions.length !== 1
+      || candidateVersion?.version_id !== candidateVersionId
+      || candidateVersion?.percentage !== 100) {
+      throw adapterError(
+        "staging_activation_gateway_certification_candidate_readback_failed",
+        "Certification provider readback did not prove the exact candidate version at 100%.",
+        502,
+      );
+    }
+
+    // A successful control-plane version readback is insufficient: require the
+    // candidate to become publicly healthy and upstream-ready before restoring it.
+    let candidatePublicVerified = false;
+    for (let attempt = 0; attempt < 12; attempt++) {
+      const candidate = await observeStagingGatewayCertificationBaseline(
+        fetchImpl, gateway.public_host, planBody.expected_source_commit, planBody.expected_policy_hash, deps.smokeTimeoutMs);
+      const candidateTrust = candidate.ready?.body?.recoveryTrustedIngress || null;
+      candidatePublicVerified = candidate.classification.ready && candidate.classification.mode === "healthy_exact"
+        && candidate.classification.observed_source_commit === planBody.expected_source_commit
+        && candidate.health?.body?.workerBundleSha256 === bundle.worker_bundle_sha256
+        && candidateTrust?.contract === "mad4b.staging.activation-recovery-origin-trust.v2"
+        && candidateTrust?.key_id === bundle.origin_trust.key_id
+        && candidateTrust?.public_key === bundle.origin_trust.public_key
+        && candidateTrust?.policy_hash === planBody.expected_policy_hash
+        && candidateTrust?.deployment_sha === planBody.expected_source_commit
+        && candidateTrust?.worker_bundle_sha256 === bundle.worker_bundle_sha256
+        && candidateTrust?.trusted_ingress_mode === "signature";
+      if (candidatePublicVerified) break;
+      if (attempt < 11) await new Promise((resolve) => setTimeout(resolve, 1500));
+    }
+    if (!candidatePublicVerified) {
+      throw adapterError("staging_activation_gateway_certification_candidate_public_unready",
+        "Exact candidate Worker did not prove public /health and /ready parity after version deployment.", 502);
+    }
+
+    rollbackResult = await rollback({
+      client,
+      accountId,
+      scriptName,
+      previousDeployment,
+      scriptExistedBefore: true,
+      previousHealth,
+      previousReady,
+      fetchImpl,
+      publicHost: gateway.public_host,
+      timeoutMs: deps.smokeTimeoutMs,
+      baselineMode, expectedSourceCommit: planBody.expected_source_commit,
+      expectedPolicyHash: planBody.expected_policy_hash,
+    });
+    if (rollbackResult?.rollback_verified !== true) {
+      throw adapterError(
+        "staging_activation_gateway_certification_rollback_unverified",
+        "Certification transaction rollback could not be proven in the same cycle.",
+        502,
+        { rollback: rollbackResult },
+      );
+    }
+
+    const evidence = {
+      contract: "mad4b.staging.activation-gateway-transaction-certification-evidence.v1",
+      plan_id: planId,
+      plan_sha256: planSha,
+      environment_convergence_plan_sha256: convergencePlanSha,
+      expected_source_commit: planBody.expected_source_commit,
+      expected_policy_hash: planBody.expected_policy_hash,
+      resource_binding_id: binding.binding_id,
+      previous_deployment_id: previousDeployment.id,
+      candidate_version_id: candidateVersionId,
+      candidate_deployment_readback: true,
+      rollback_verified: true,
+      baseline_mode: baselineMode,
+      baseline_source_commit: planBody.certification_baseline.observed_source_commit,
+      baseline_worker_bundle_sha256: planBody.certification_baseline.observed_worker_bundle_sha256,
+      candidate_public_ready_verified: candidatePublicVerified,
+      degraded_baseline_restored: rollbackResult.degraded_baseline_restored === true,
+      public_health_restored: rollbackResult.public_health_restored === true,
+      public_trust_restored: rollbackResult.public_trust_restored === true,
+      production_mutation: false,
+      dns_mutation: false,
+      custom_domain_mutation: false,
+      secrets_included: false,
+    };
+    const evidenceDigest = sha256(stableJson(evidence));
+    const evidencePrefix = stagingCertificationEvidencePrefix(
+      planBody.expected_source_commit,
+      planBody.expected_policy_hash,
+    );
+    const evidenceRef = `${evidencePrefix}${evidenceDigest}`;
+    await deps.audit({
+      action: "activation_gateway.staging_transaction_certification",
+      resource_type: "cloudflare_worker",
+      resource_id: scriptName,
+      payload: { ...evidence, evidence_sha256: evidenceDigest },
+    });
+    const expiresAt = new Date(Date.now() + STAGING_CERTIFICATION_TTL_SECONDS * 1000);
+    const certification = await promoteStagingDispatchCertification(governancePool, {
+      planId,
+      evidenceRef,
+      expectedSourceCommit: planBody.expected_source_commit,
+      expectedPolicyHash: planBody.expected_policy_hash,
+      expiresAt,
+    });
+
+    return {
+      ok: true,
+      contract: "mad4b.staging.activation-gateway-transaction-certification.v1",
+      classification: "staging_activation_gateway_transaction_certified",
+      mode: "apply",
+      plan_id: planId,
+      plan_sha256: planSha,
+      environment_convergence_plan_sha256: convergencePlanSha,
+      expected_source_commit: planBody.expected_source_commit,
+      expected_policy_hash: planBody.expected_policy_hash,
+      resource_binding_id: binding.binding_id,
+      candidate_version_id: candidateVersionId,
+      previous_deployment_id: previousDeployment.id,
+      rollback: rollbackResult,
+      candidate_public_ready_verified: candidatePublicVerified,
+      certification,
+      provider_mutation: true,
+      candidate_retained: false,
+      production_mutation: false,
+      database_mutation: false,
+      governance_state_mutation: true,
+      dns_mutation: false,
+      custom_domain_mutation: false,
+      provider_credentials_returned: false,
+      secrets_included: false,
+    };
+  } catch (error) {
+    if (writesStarted && rollbackResult?.rollback_verified !== true && previousDeployment) {
+      try {
+        rollbackResult = await rollback({
+          client,
+          accountId,
+          scriptName,
+          previousDeployment,
+          scriptExistedBefore: true,
+          previousHealth,
+          previousReady,
+          fetchImpl,
+          publicHost: gateway.public_host,
+          timeoutMs: deps.smokeTimeoutMs,
+          baselineMode, expectedSourceCommit: planBody.expected_source_commit,
+          expectedPolicyHash: planBody.expected_policy_hash,
+        });
+      } catch (rollbackError) {
+        rollbackResult = {
+          attempted: true,
+          rollback_verified: false,
+          error: compact(rollbackError?.message, 300),
+          secrets_included: false,
+        };
+      }
+    }
+    let failureAuditError = null;
+    try {
+      await deps.audit({
+        action: "activation_gateway.staging_transaction_certification_failed",
+        resource_type: "cloudflare_worker",
+        resource_id: scriptName,
+        payload: {
+          plan_id: planId,
+          plan_sha256: planSha,
+          environment_convergence_plan_sha256: convergencePlanSha,
+          candidate_version_id: candidateVersionId,
+          provider_write_attempted: writesStarted,
+          rollback_verified: rollbackResult?.rollback_verified === true,
+          error_code: error?.code || "staging_activation_gateway_transaction_certification_failed",
+          secrets_included: false,
+        },
+      });
+    } catch (failure) {
+      failureAuditError = compact(failure?.message, 300);
+    }
+    let planFailure = null;
+    try {
+      const [currentRows] = await governancePool.query(
+        `SELECT status FROM staging_activation_gateway_execution_plans WHERE plan_id=?`,
+        [planId],
+      );
+      const [currentPlanState] = Array.isArray(currentRows) ? currentRows : [];
+      if (["claimed", "executing", "succeeded"].includes(currentPlanState?.status)) {
+        await transitionStagingGatewayExecutionPlan(
+          governancePool,
+          planId,
+          currentPlanState.status,
+          "failed",
+        );
+      }
+    } catch (failure) {
+      planFailure = compact(failure?.message, 300);
+    }
+    throw adapterError(
+      error?.code || "staging_activation_gateway_transaction_certification_failed",
+      error?.message || "Staging Gateway transaction certification failed.",
+      error?.status || 502,
+      {
+        ...(error?.details || {}),
+        rollback: rollbackResult,
+        rollback_verified: rollbackResult?.rollback_verified === true,
+        plan_finalize_error: planFailure,
+        failure_audit_error: failureAuditError,
+        certification_issued: false,
+        replay_blocked: true,
+      },
+    );
+  }
+}
+
+export const _testingStagingGatewayTransaction = Object.freeze({ buildUploadForm, rollback, deploymentVersions, promoteStagingDispatchCertification, classifyStagingGatewayCertificationBaseline });

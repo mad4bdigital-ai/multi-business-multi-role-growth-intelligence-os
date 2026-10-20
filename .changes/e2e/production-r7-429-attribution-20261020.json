@@ -1,0 +1,86 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "production-r7-429-attribution-20261020",
+  "title": "R7 GET-only redacted HTTP 429 diagnostics",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "secrets_included": false,
+  "scope": {
+    "include": [
+      ".changes/e2e/production-r7-429-attribution-20261020.json",
+      ".github/scripts/production-r7-decision.mjs",
+      ".github/workflows/hostinger-production-runtime-readback-r7.yml",
+      "http-generic-api/test-hostinger-production-runtime-readback-r7.mjs",
+      ".github/scripts/production-r7-header-attribution.mjs"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Separate unread runtime identity caused by 429 from proven SHA mismatch; record only redacted fixed-domain HTTP header signals. On equal exact-SHA public readback, preserve concurrent missing runtime_environment and TRUSTED_INGRESS_ATTESTATION_REQUIRED as independent bounded blockers.",
+      "e2e_journeys": [
+        {
+          "id": "production-r7-bounded-http-429-attribution",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Exact owner-authorized R7 public GET workflow",
+          "entrypoint": ".github/workflows/hostinger-production-runtime-readback-r7.yml",
+          "terminal_outcome": "An inaccessible identity endpoint gives runtime_identity_blocked_http_429 and sha_mismatch_proven=false, while the workflow stores only safe header booleans/enums and preserves fail-closed production acceptance.",
+          "steps": [
+            "Keep public GET-only workflow and owner identity/ref gate unchanged.",
+            "Capture HTTP headers into ephemeral runner-only file outside artifact directory.",
+            "Persist redacted server-family and header presence booleans only, erase raw headers, and never claim rate-limit origin is proven.",
+            "Test five-429 case plus malicious cookies and credentials in headers.",
+            "Leave Production trusted ingress, Cloudflare, Hostinger and database mutations outside this PR.",
+            "Emit blocking_conditions from independent runtime environment and trusted-ingress evidence in addition to the primary classification."
+          ],
+          "assertions": [
+            "SHA mismatch cannot be proven when identity endpoint returned HTTP 429 and no SHA was read.",
+            "Raw HTTP header content, cookies, request IDs and authorization tokens are never serialized into artifacts.",
+            "Production/current acceptance remains fail-closed and all provider/secret/write operations remain disabled.",
+            "Missing runtime_environment and trusted ingress are both included without proving false SHA mismatch or permitting Production writes."
+          ],
+          "tests": [
+            {
+              "id": "r7-rate-limit-readonly-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-hostinger-production-runtime-readback-r7.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/scripts/production-r7-decision.mjs",
+            ".github/workflows/hostinger-production-runtime-readback-r7.yml",
+            "http-generic-api/test-hostinger-production-runtime-readback-r7.mjs",
+            ".github/scripts/production-r7-header-attribution.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "production",
+      "status": "blocked",
+      "objective": "No authorization to change Production runtime/provider state; HTTP 429 origin and trusted ingress readiness remain unresolved.",
+      "blockers": [
+        "Origin of 429 needs authoritative ingress/server logs or read-only provider-side evidence.",
+        "Missing signed ingress contract requires independent Production authority."
+      ]
+    }
+  ]
+}

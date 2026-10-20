@@ -349,6 +349,144 @@ function createPool(queryHandler) {
 }
 
 {
+  // Two different canonical Brands can have the same legacy target key/name.
+  // The current Tenant's grant is not permission to reveal another Brand's
+  // global metadata, and canonical-ID grants must retain exact identity.
+  let queryIndex = 0;
+  const pool = createPool((sql, params) => {
+    queryIndex += 1;
+    if (queryIndex === 1) {
+      assert(sql.includes("m.tenant_id = ?"));
+      assert.deepEqual(params, ["user-1", "workspace-1"]);
+      return [[{
+        workspace_id: "workspace-1", role: "owner", status: "active", workspace_status: "active",
+      }], []];
+    }
+    if (queryIndex === 2) {
+      assert(sql.includes("v_workspace_resource_grant_effective"));
+      return [[
+        { resource_ref: "brand:shared", permission: "view", source: "tenant-1", granted_at: "2026-10-15" },
+        { resource_ref: "brand-uuid-tenant1", permission: "view", source: "tenant-1", granted_at: "2026-10-15" },
+      ], []];
+    }
+    if (queryIndex === 3) {
+      assert(sql.includes("FROM brands"));
+      return [[
+        {
+          brand_id: "brand-uuid-tenant1", brand_name: "Shared",
+          normalized_brand_name: "shared", target_key: "shared",
+          brand_domain: "tenant1.example.test", base_url: "https://tenant1.example.test",
+          status: "active", brand_core_ready: 1,
+        },
+        {
+          brand_id: "brand-uuid-tenant2", brand_name: "Shared",
+          normalized_brand_name: "shared", target_key: "shared",
+          brand_domain: "private-tenant2.example.test",
+          base_url: "https://private-tenant2.example.test",
+          status: "active", brand_core_ready: 0,
+        },
+      ], []];
+    }
+    throw new Error(`Unexpected query: ${sql}`);
+  });
+  const result = await handleChatGptMcpRequest({
+    body: {
+      jsonrpc: "2.0", id: 61, method: "tools/call",
+      params: { name: "list_accessible_brands", arguments: { workspace_id: "workspace-1" } },
+    },
+    headers: {
+      ...transportHeaders,
+      authorization: "Bearer test-token",
+      "mcp-protocol-version": CHATGPT_MCP_PROTOCOL_VERSION,
+    },
+    env: enabledEnv,
+    pool,
+    verifyAuthorization: validAuthorization,
+    requestId: "request-ambiguous-brand-boundary",
+  });
+  assert.equal(queryIndex, 3);
+  assert.equal(result.status, 200);
+  assert.equal(result.body.result.structuredContent.ok, true);
+  const brands = result.body.result.structuredContent.brands;
+  assert.equal(brands.length, 2);
+  const aliasGrant = brands.find((entry) => entry.brand_ref === "brand:shared");
+  assert.equal(aliasGrant.brand_id, null);
+  assert.equal(aliasGrant.brand_domain, null);
+  assert.equal(aliasGrant.base_url, null);
+  assert.equal(aliasGrant.identity_read_mode, "legacy_resource_ref_only");
+  const exactGrant = brands.find((entry) => entry.brand_ref === "brand-uuid-tenant1");
+  assert.equal(exactGrant.brand_id, "brand-uuid-tenant1");
+  assert.equal(exactGrant.brand_domain, "tenant1.example.test");
+  assert(!JSON.stringify(result.body).includes("private-tenant2.example.test"));
+}
+
+{
+  // One user may be a member of Tenant A and B, but an OAuth grant that is
+  // explicitly tenant:A must not enumerate or access Tenant B.
+  const verifiedTenantA = () => ({
+    ok: true,
+    claims: {
+      user_id: "user-1",
+      tenant_id: "workspace-1",
+      auth_mode: "remote_mcp_oauth_2_1",
+      client_id: "mcp_stg_client-a",
+    },
+  });
+  const tenantOnlyPool = createPool((sql, params) => {
+    assert(sql.includes("FROM memberships m"));
+    assert(sql.includes("AND m.tenant_id = ?"));
+    assert.deepEqual(params, ["user-1", "workspace-1", 25]);
+    return [[{
+      workspace_id: "workspace-1",
+      display_name: "Tenant A",
+      role: "member",
+      membership_status: "active",
+      workspace_status: "active",
+    }], []];
+  });
+  const workspaces = await handleChatGptMcpRequest({
+    body: {
+      jsonrpc: "2.0", id: 62, method: "tools/call",
+      params: { name: "list_accessible_workspaces", arguments: {} },
+    },
+    headers: {
+      ...transportHeaders,
+      authorization: "Bearer test-tenant-a-oauth",
+      "mcp-protocol-version": CHATGPT_MCP_PROTOCOL_VERSION,
+    },
+    env: enabledEnv,
+    pool: tenantOnlyPool,
+    verifyAuthorization: verifiedTenantA,
+    requestId: "request-oauth-tenant-a-workspace-list",
+  });
+  assert.equal(workspaces.body.result.structuredContent.ok, true);
+  assert.deepEqual(workspaces.body.result.structuredContent.workspaces.map((x) => x.workspace_id), ["workspace-1"]);
+
+  // Deny before any DB access to the other workspace, including when
+  // the same user has a separate active membership in Tenant B.
+  let dbCalls = 0;
+  const denied = await handleChatGptMcpRequest({
+    body: {
+      jsonrpc: "2.0", id: 63, method: "tools/call",
+      params: { name: "list_accessible_brands", arguments: { workspace_id: "workspace-2" } },
+    },
+    headers: {
+      ...transportHeaders,
+      authorization: "Bearer test-tenant-a-oauth",
+      "mcp-protocol-version": CHATGPT_MCP_PROTOCOL_VERSION,
+    },
+    env: enabledEnv,
+    pool: createPool(() => { dbCalls += 1; throw new Error("Tenant B query must be denied"); }),
+    verifyAuthorization: verifiedTenantA,
+    requestId: "request-oauth-tenant-a-cross-tenant-denial",
+  });
+  assert.equal(dbCalls, 0);
+  assert.equal(denied.body.result.isError, true);
+  assert.equal(denied.body.result.structuredContent.error.code, "MCP_CONTEXT_DENIED");
+  assert(!JSON.stringify(denied.body).includes("workspace-2"));
+}
+
+{
   const result = await handleChatGptMcpRequest({
     body: { jsonrpc: "2.0", id: 7, method: "tools/list", params: {} },
     headers: {

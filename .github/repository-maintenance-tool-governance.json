@@ -144,6 +144,13 @@
       ],
       "report_contract": "mad4b.governed-generated-artifact-refresh.v1"
     },
+    "governed-refresh-idempotency": {
+      "description": "Read-only exact PR, source SHA and recipe idempotency preflight over trusted GitHub Actions writer-run metadata. Emits a fail-closed local report; cannot dispatch, write repository files or alter Production.",
+      "entrypoint": "http-generic-api/scripts/maintenance-tools/governed-refresh-idempotency.mjs",
+      "mode": "read_only",
+      "allowed_changed_path_patterns": [],
+      "report_contract": "mad4b.governed-refresh-idempotency.v1"
+    },
     "verify-hostinger-full-closure-safety": {
       "description": "Verify checksum-bound Hostinger full-closure safety evidence without mutating repository, runtime, provider, database, or external systems.",
       "entrypoint": "http-generic-api/scripts/maintenance-tools/verify-hostinger-full-closure-safety.mjs",
@@ -162,6 +169,13 @@
         "^docs/branch-hygiene\\.md$"
       ],
       "report_contract": "mad4b.branch-hygiene-report.v2"
+    },
+    "work-map-docs-only-guard": {
+      "description": "Inspect exact-head Git file deltas, without write operations, and fail closed if a governed Work Map docs-only writer would stage, commit, or push paths outside docs/work-maps; reject traversal and symlink output.",
+      "entrypoint": "http-generic-api/scripts/maintenance-tools/work-map-docs-only-guard.mjs",
+      "mode": "read_only",
+      "allowed_changed_path_patterns": [],
+      "report_contract": "mad4b.work-map-docs-only-scope.v1"
     }
   }
 }

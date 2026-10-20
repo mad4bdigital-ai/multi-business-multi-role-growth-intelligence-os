@@ -1,0 +1,96 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-gateway-provider-authority-transport-20260927",
+  "title": "Server-held Staging Activation Gateway provider authority transport",
+  "delivery_mode": "single_pr",
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-gateway-provider-authority-transport-20260927.json",
+      ".github/derived-state-governance.json",
+      "autopilot-portable-staging/Enable-StagingActivationGatewayProviderAuthority.ps1",
+      "autopilot-portable-staging/Staging-Environment.ps1",
+      "autopilot-portable-staging/Staging-WindowsCloudflared.ps1",
+      "autopilot-portable-staging/manifest.json",
+      "docs/governance/configuration-drift-baseline-extensions.json",
+      "docs/governance/platform-configuration-entry-registry.json",
+      "http-generic-api/.env.staging.example",
+      "http-generic-api/config/empty-provider-secret",
+      "http-generic-api/config/repository-governance-constitution.json",
+      "http-generic-api/docker-compose.staging.yml",
+      "http-generic-api/scripts/generate-portable-staging-manifest.mjs",
+      "http-generic-api/stagingActivationGatewayApplyAdapter.js",
+      "http-generic-api/test-staging-smart-gateway-convergence-contract.mjs"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Provide a server-held secret-file transport and explicit fail-closed feature gate for the Staging Activation Gateway while proving the shared adapter does not enable or mutate Production.",
+      "e2e_journeys": [
+        {
+          "id": "staging-gateway-provider-authority-contract",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Staging server authority",
+          "entrypoint": "Evaluate the Activation Gateway rollout plan with the provider credential absent, present through a server-held secret, and apply disabled by default.",
+          "terminal_outcome": "Staging can resolve provider authority only from the server-held secret-file transport; missing authority fails closed; Production remains non-mutating and separately bound.",
+          "steps": [
+            "Keep the provider token out of .env.staging and mount only the server-held Docker secret into the Staging app.",
+            "Default STAGING_ACTIVATION_GATEWAY_APPLY_ENABLED to false and require an explicit typed local provisioning step before enabling it.",
+            "Resolve the fixed Staging Worker resource binding without caller-selected account, script, resource, DNS or custom-domain targets.",
+            "Copy a legacy Staging tunnel token into the isolated Staging ProgramData namespace only when the canonical file is missing, without deleting the legacy file.",
+            "Require live Staging certification after deployment; do not authorize or perform a Production deployment from this change."
+          ],
+          "assertions": [
+            "No Cloudflare provider credential value is committed, returned or persisted in .env.staging.",
+            "Missing or unreadable server-held provider authority blocks before a provider call.",
+            "The feature gate remains false by default and cannot use the empty placeholder secret for apply.",
+            "The shared adapter delegates only the Staging profile path changed here; Production rollout implementation and Production resource binding are unchanged.",
+            "No database migration, DNS mutation, custom-domain mutation, provider mutation or Production deployment is performed by this PR.",
+            "secrets_included is false.",
+            "The critical feature declaration is registered exactly in Constitution.control_plane_paths and convergence.automation_control_paths; autonomous merge remains forbidden."
+          ],
+          "tests": [
+            {
+              "id": "staging-gateway-provider-authority-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-smart-gateway-convergence-contract.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/staging-gateway-provider-authority-transport-20260927.json",
+            ".github/derived-state-governance.json",
+            "autopilot-portable-staging/Enable-StagingActivationGatewayProviderAuthority.ps1",
+            "autopilot-portable-staging/Staging-Environment.ps1",
+            "autopilot-portable-staging/Staging-WindowsCloudflared.ps1",
+            "docs/governance/configuration-drift-baseline-extensions.json",
+            "docs/governance/platform-configuration-entry-registry.json",
+            "http-generic-api/config/repository-governance-constitution.json",
+            "http-generic-api/docker-compose.staging.yml",
+            "http-generic-api/stagingActivationGatewayApplyAdapter.js",
+            "http-generic-api/test-staging-smart-gateway-convergence-contract.mjs"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}

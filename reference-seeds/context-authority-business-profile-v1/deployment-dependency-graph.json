@@ -1,0 +1,120 @@
+{
+  "contract": "mad4b.context-deployment-dependencies.v1",
+  "status": "REFERENCE_NON_AUTHORIZING",
+  "mode_contract": "mad4b.context-deployment-mode.v1",
+  "plugin_adapter": {
+    "contract": "mad4b.deployment-mode-resolution.v1",
+    "supported_major": 1,
+    "min_minor": 1,
+    "identity_fields": [
+      "tenant_ref",
+      "brand_ref",
+      "site_uuid",
+      "blog_id",
+      "network_id",
+      "environment"
+    ],
+    "required_plugin_state": "RESOLVED_FOR_REVIEW_ONLY",
+    "required_portable_state": "BOUND_FOR_REVIEW_ONLY"
+  },
+  "modes": {
+    "shared_multi_tenant": {
+      "required_identity": [
+        "platform_tenant_registry",
+        "brand_registry",
+        "tenant_scope_policy"
+      ],
+      "required_trust": [
+        "platform_host_binding"
+      ],
+      "optional": [
+        "google_drive",
+        "wordpress"
+      ]
+    },
+    "dedicated_isolated": {
+      "required_identity": [
+        "deployment_identity",
+        "tenant_identity",
+        "brand_registry"
+      ],
+      "required_trust": [
+        "isolated_host_binding"
+      ],
+      "optional": [
+        "central_platform_control_plane",
+        "google_drive"
+      ]
+    },
+    "dedicated_autonomous": {
+      "required_identity": [
+        "sovereign_deployment_identity",
+        "tenant_identity",
+        "brand_registry"
+      ],
+      "required_trust": [
+        "independent_local_verifier",
+        "durable_local_replay_store"
+      ],
+      "optional": [
+        "central_platform_control_plane",
+        "google_drive"
+      ]
+    },
+    "wordpress_dedicated": {
+      "required_identity": [
+        "site_profile",
+        "bound_deployment_identity",
+        "brand_context_profile",
+        "wordpress_blog_network_identity"
+      ],
+      "required_trust": [
+        "wordpress_host_binding"
+      ],
+      "required_discovery": [
+        "wordpress_abilities_api",
+        "wp_read_policy",
+        "mcp_adapter"
+      ],
+      "optional": [
+        "google_drive",
+        "woocommerce",
+        "elementor",
+        "jetengine",
+        "wpml",
+        "rank_math"
+      ]
+    }
+  },
+  "dependency_failure": {
+    "missing_identity": "BLOCKED",
+    "missing_trust": "BLOCKED",
+    "missing_discovery": "DISCOVERY_BLOCKED_ONLY",
+    "missing_optional": "CAPABILITY_UNAVAILABLE_ONLY",
+    "incompatible_contract": "BLOCKED",
+    "stale_revision": "REVALIDATE",
+    "operator_mode_override": "BLOCKED",
+    "bootstrap_or_clone_drift": "QUARANTINED"
+  },
+  "version_policy": {
+    "major_mismatch": "BLOCKED",
+    "unknown_or_missing_version": "BLOCKED",
+    "minor_below_floor": "BLOCKED",
+    "patch_update": "COMPATIBILITY_CHECKS_REQUIRED",
+    "mode_change": "RE_ENROLL_AND_RECERTIFY"
+  },
+  "fallback_policy": {
+    "identity": "NONE",
+    "trust": "NONE",
+    "provider": "NO_SILENT_FALLBACK",
+    "source": "PER_SOURCE_QUARANTINE"
+  },
+  "invariant": {
+    "no_default_mode_auto_switch": true,
+    "provider_absence_cannot_change_tenant": true,
+    "provider_absence_cannot_change_brand": true,
+    "no_untrusted_input_as_authority": true,
+    "dependency_success_does_not_grant_write": true,
+    "no_cross_tenant_or_blog_fallback": true
+  }
+}

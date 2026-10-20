@@ -1,0 +1,573 @@
+{
+  "contract": "mad4b.reference.business-context.ontology.v1",
+  "status": "TEMPLATE_ONLY",
+  "custom_dimensions_allowed": true,
+  "custom_entity_types_allowed": true,
+  "custom_relations_allowed": true,
+  "reserved_identifiers": [
+    "__proto__",
+    "prototype",
+    "constructor"
+  ],
+  "entity_types": [
+    "business",
+    "brand",
+    "activity",
+    "offer",
+    "audience",
+    "persona",
+    "channel",
+    "workflow",
+    "integration",
+    "objective",
+    "metric",
+    "claim",
+    "source",
+    "policy",
+    "reviewer",
+    "locale_variant",
+    "context_projection"
+  ],
+  "dimensions": [
+    {
+      "key": "business.identity",
+      "summary": "Core legal/market identity",
+      "family": "identity",
+      "field_templates": [
+        "organization_name",
+        "brand_names",
+        "jurisdictions",
+        "languages"
+      ],
+      "open_fields": true,
+      "classification_default": "internal",
+      "candidate_owner_role": "business_owner",
+      "evidence_requirement": "source_plus_owner_review",
+      "policy_ref": "base.field_claim_resolution",
+      "status": "TEMPLATE_ONLY"
+    },
+    {
+      "key": "business.model",
+      "summary": "How value and revenue flow",
+      "family": "operations",
+      "field_templates": [
+        "activity_types",
+        "business_models",
+        "revenue_streams",
+        "distribution_modes"
+      ],
+      "open_fields": true,
+      "classification_default": "internal",
+      "candidate_owner_role": "business_owner",
+      "evidence_requirement": "source_plus_owner_review",
+      "policy_ref": "base.field_claim_resolution",
+      "status": "TEMPLATE_ONLY"
+    },
+    {
+      "key": "business.strategy",
+      "summary": "Strategy and positioning",
+      "family": "strategy",
+      "field_templates": [
+        "mission",
+        "vision",
+        "objectives",
+        "positioning",
+        "differentiators"
+      ],
+      "open_fields": true,
+      "classification_default": "internal",
+      "candidate_owner_role": "business_owner",
+      "evidence_requirement": "source_plus_owner_review",
+      "policy_ref": "base.field_claim_resolution",
+      "status": "TEMPLATE_ONLY"
+    },
+    {
+      "key": "business.offers",
+      "summary": "Products and services",
+      "family": "commercial",
+      "field_templates": [
+        "offer_families",
+        "product_specifications",
+        "exclusions",
+        "capability_claims"
+      ],
+      "open_fields": true,
+      "classification_default": "internal",
+      "candidate_owner_role": "business_owner",
+      "evidence_requirement": "source_plus_owner_review",
+      "policy_ref": "base.field_claim_resolution",
+      "status": "TEMPLATE_ONLY"
+    },
+    {
+      "key": "business.pricing",
+      "summary": "Commercial policies",
+      "family": "commercial",
+      "field_templates": [
+        "pricing_model",
+        "tiers",
+        "contractual_constraints"
+      ],
+      "open_fields": true,
+      "classification_default": "internal",
+      "candidate_owner_role": "business_owner",
+      "evidence_requirement": "source_plus_owner_review",
+      "policy_ref": "base.field_claim_resolution",
+      "status": "TEMPLATE_ONLY"
+    },
+    {
+      "key": "business.audiences",
+      "summary": "Customer and market segments",
+      "family": "marketing",
+      "field_templates": [
+        "segments",
+        "buyer_roles",
+        "buying_process",
+        "audience_needs"
+      ],
+      "open_fields": true,
+      "classification_default": "internal",
+      "candidate_owner_role": "business_owner",
+      "evidence_requirement": "source_plus_owner_review",
+      "policy_ref": "base.field_claim_resolution",
+      "status": "TEMPLATE_ONLY"
+    },
+    {
+      "key": "business.personas",
+      "summary": "Persona knowledge",
+      "family": "marketing",
+      "field_templates": [
+        "jobs_to_be_done",
+        "pains",
+        "objections",
+        "motivations",
+        "evidence_of_fit"
+      ],
+      "open_fields": true,
+      "classification_default": "internal",
+      "candidate_owner_role": "business_owner",
+      "evidence_requirement": "source_plus_owner_review",
+      "policy_ref": "base.field_claim_resolution",
+      "status": "TEMPLATE_ONLY"
+    },
+    {
+      "key": "business.journeys",
+      "summary": "Customer lifecycle",
+      "family": "operations",
+      "field_templates": [
+        "awareness",
+        "evaluation",
+        "onboarding",
+        "activation",
+        "retention"
+      ],
+      "open_fields": true,
+      "classification_default": "internal",
+      "candidate_owner_role": "business_owner",
+      "evidence_requirement": "source_plus_owner_review",
+      "policy_ref": "base.field_claim_resolution",
+      "status": "TEMPLATE_ONLY"
+    },
+    {
+      "key": "business.partnerships",
+      "summary": "Partnership ecosystem",
+      "family": "operations",
+      "field_templates": [
+        "supplier_types",
+        "channel_partners",
+        "service_dependencies"
+      ],
+      "open_fields": true,
+      "classification_default": "internal",
+      "candidate_owner_role": "business_owner",
+      "evidence_requirement": "source_plus_owner_review",
+      "policy_ref": "base.field_claim_resolution",
+      "status": "TEMPLATE_ONLY"
+    },
+    {
+      "key": "brand.identity",
+      "summary": "Brand expression",
+      "family": "brand",
+      "field_templates": [
+        "values",
+        "visual_system",
+        "tone_of_voice",
+        "positioning"
+      ],
+      "open_fields": true,
+      "classification_default": "internal",
+      "candidate_owner_role": "business_owner",
+      "evidence_requirement": "source_plus_owner_review",
+      "policy_ref": "base.field_claim_resolution",
+      "status": "TEMPLATE_ONLY"
+    },
+    {
+      "key": "brand.messaging",
+      "summary": "Claims and messaging",
+      "family": "brand",
+      "field_templates": [
+        "message_pillars",
+        "proof_points",
+        "cta_policy",
+        "prohibited_claims"
+      ],
+      "open_fields": true,
+      "classification_default": "internal",
+      "candidate_owner_role": "business_owner",
+      "evidence_requirement": "source_plus_owner_review",
+      "policy_ref": "base.field_claim_resolution",
+      "status": "TEMPLATE_ONLY"
+    },
+    {
+      "key": "content.editorial",
+      "summary": "Editorial governance",
+      "family": "content",
+      "field_templates": [
+        "style_guide",
+        "fact_checking",
+        "localization",
+        "author_rules"
+      ],
+      "open_fields": true,
+      "classification_default": "internal",
+      "candidate_owner_role": "editorial_owner",
+      "evidence_requirement": "source_plus_owner_review",
+      "policy_ref": "base.field_claim_resolution",
+      "status": "TEMPLATE_ONLY"
+    },
+    {
+      "key": "content.formats",
+      "summary": "Channel-specific formats",
+      "family": "content",
+      "field_templates": [
+        "website",
+        "blog",
+        "ads",
+        "social",
+        "email",
+        "video"
+      ],
+      "open_fields": true,
+      "classification_default": "internal",
+      "candidate_owner_role": "editorial_owner",
+      "evidence_requirement": "source_plus_owner_review",
+      "policy_ref": "base.field_claim_resolution",
+      "status": "TEMPLATE_ONLY"
+    },
+    {
+      "key": "content.seo",
+      "summary": "Search content ontology",
+      "family": "content",
+      "field_templates": [
+        "topics",
+        "search_intents",
+        "taxonomies",
+        "internal_links"
+      ],
+      "open_fields": true,
+      "classification_default": "internal",
+      "candidate_owner_role": "editorial_owner",
+      "evidence_requirement": "source_plus_owner_review",
+      "policy_ref": "base.field_claim_resolution",
+      "status": "TEMPLATE_ONLY"
+    },
+    {
+      "key": "sales.enablement",
+      "summary": "Selling and objections",
+      "family": "sales",
+      "field_templates": [
+        "qualification",
+        "pitch_types",
+        "objection_handling",
+        "collateral"
+      ],
+      "open_fields": true,
+      "classification_default": "internal",
+      "candidate_owner_role": "business_owner",
+      "evidence_requirement": "source_plus_owner_review",
+      "policy_ref": "base.field_claim_resolution",
+      "status": "TEMPLATE_ONLY"
+    },
+    {
+      "key": "sales.onboarding",
+      "summary": "Client activation",
+      "family": "sales",
+      "field_templates": [
+        "discovery",
+        "kickoff",
+        "configurations",
+        "training",
+        "handover"
+      ],
+      "open_fields": true,
+      "classification_default": "internal",
+      "candidate_owner_role": "business_owner",
+      "evidence_requirement": "source_plus_owner_review",
+      "policy_ref": "base.field_claim_resolution",
+      "status": "TEMPLATE_ONLY"
+    },
+    {
+      "key": "operations.delivery",
+      "summary": "Operational service model",
+      "family": "operations",
+      "field_templates": [
+        "fulfillment",
+        "responsibilities",
+        "quality_controls",
+        "sla_policy"
+      ],
+      "open_fields": true,
+      "classification_default": "internal",
+      "candidate_owner_role": "business_owner",
+      "evidence_requirement": "source_plus_owner_review",
+      "policy_ref": "base.field_claim_resolution",
+      "status": "TEMPLATE_ONLY"
+    },
+    {
+      "key": "operations.integrations",
+      "summary": "Technology/provider landscape",
+      "family": "operations",
+      "field_templates": [
+        "system_roles",
+        "connector_types",
+        "data_flows",
+        "dependencies"
+      ],
+      "open_fields": true,
+      "classification_default": "internal",
+      "candidate_owner_role": "business_owner",
+      "evidence_requirement": "source_plus_owner_review",
+      "policy_ref": "base.field_claim_resolution",
+      "status": "TEMPLATE_ONLY"
+    },
+    {
+      "key": "support.customer_success",
+      "summary": "Retention and service",
+      "family": "operations",
+      "field_templates": [
+        "support_levels",
+        "faq",
+        "adoption_playbooks",
+        "feedback_loop"
+      ],
+      "open_fields": true,
+      "classification_default": "internal",
+      "candidate_owner_role": "business_owner",
+      "evidence_requirement": "source_plus_owner_review",
+      "policy_ref": "base.field_claim_resolution",
+      "status": "TEMPLATE_ONLY"
+    },
+    {
+      "key": "analytics.measurement",
+      "summary": "Evidence-based measurement",
+      "family": "analytics",
+      "field_templates": [
+        "north_star_metrics",
+        "funnels",
+        "attribution",
+        "reporting"
+      ],
+      "open_fields": true,
+      "classification_default": "internal",
+      "candidate_owner_role": "measurement_owner",
+      "evidence_requirement": "source_plus_owner_review",
+      "policy_ref": "base.field_claim_resolution",
+      "status": "TEMPLATE_ONLY"
+    },
+    {
+      "key": "research.market",
+      "summary": "Market and competitor intelligence",
+      "family": "research",
+      "field_templates": [
+        "market_sizing",
+        "competitors",
+        "sources",
+        "review_dates"
+      ],
+      "open_fields": true,
+      "classification_default": "internal",
+      "candidate_owner_role": "business_owner",
+      "evidence_requirement": "source_plus_owner_review",
+      "policy_ref": "base.field_claim_resolution",
+      "status": "TEMPLATE_ONLY"
+    },
+    {
+      "key": "governance.compliance",
+      "summary": "Restrictions and regulated evidence",
+      "family": "governance",
+      "field_templates": [
+        "privacy",
+        "consent",
+        "data_residency",
+        "rights",
+        "retention"
+      ],
+      "open_fields": true,
+      "classification_default": "restricted",
+      "candidate_owner_role": "business_owner",
+      "evidence_requirement": "canonical_policy_or_owner_review",
+      "policy_ref": "base.field_claim_resolution",
+      "status": "TEMPLATE_ONLY"
+    },
+    {
+      "key": "knowledge.workflows",
+      "summary": "Knowledge work patterns",
+      "family": "knowledge",
+      "field_templates": [
+        "agent_roles",
+        "data_products",
+        "workflow_templates",
+        "review_loops"
+      ],
+      "open_fields": true,
+      "classification_default": "internal",
+      "candidate_owner_role": "business_owner",
+      "evidence_requirement": "source_plus_owner_review",
+      "policy_ref": "base.field_claim_resolution",
+      "status": "TEMPLATE_ONLY"
+    },
+    {
+      "key": "knowledge.sources",
+      "summary": "Knowledge provenance",
+      "family": "knowledge",
+      "field_templates": [
+        "source_registry",
+        "source_owners",
+        "evidence_freshness",
+        "disclosures"
+      ],
+      "open_fields": true,
+      "classification_default": "internal",
+      "candidate_owner_role": "business_owner",
+      "evidence_requirement": "source_plus_owner_review",
+      "policy_ref": "base.field_claim_resolution",
+      "status": "TEMPLATE_ONLY"
+    }
+  ],
+  "relations": [
+    {
+      "key": "has_brand",
+      "from": "business",
+      "to": "brand",
+      "cardinality": "one_to_many",
+      "version": "1",
+      "source_field_evidence_required": true,
+      "delegates_execution_authority": false
+    },
+    {
+      "key": "operates_activity",
+      "from": "business",
+      "to": "activity",
+      "cardinality": "many_to_many",
+      "version": "1",
+      "source_field_evidence_required": true,
+      "delegates_execution_authority": false
+    },
+    {
+      "key": "serves_segment",
+      "from": "offer",
+      "to": "audience",
+      "cardinality": "many_to_many",
+      "version": "1",
+      "source_field_evidence_required": true,
+      "delegates_execution_authority": false
+    },
+    {
+      "key": "has_persona",
+      "from": "audience",
+      "to": "persona",
+      "cardinality": "one_to_many",
+      "version": "1",
+      "source_field_evidence_required": true,
+      "delegates_execution_authority": false
+    },
+    {
+      "key": "supports_claim",
+      "from": "source",
+      "to": "claim",
+      "cardinality": "many_to_many",
+      "version": "1",
+      "source_field_evidence_required": true,
+      "delegates_execution_authority": false
+    },
+    {
+      "key": "contradicts_claim",
+      "from": "claim",
+      "to": "claim",
+      "cardinality": "many_to_many",
+      "version": "1",
+      "source_field_evidence_required": true,
+      "delegates_execution_authority": false
+    },
+    {
+      "key": "authorizes_claim",
+      "from": "reviewer",
+      "to": "claim",
+      "cardinality": "one_to_many",
+      "version": "1",
+      "source_field_evidence_required": true,
+      "delegates_execution_authority": false
+    },
+    {
+      "key": "delivered_through",
+      "from": "offer",
+      "to": "channel",
+      "cardinality": "many_to_many",
+      "version": "1",
+      "source_field_evidence_required": true,
+      "delegates_execution_authority": false
+    },
+    {
+      "key": "depends_on_system",
+      "from": "workflow",
+      "to": "integration",
+      "cardinality": "many_to_many",
+      "version": "1",
+      "source_field_evidence_required": true,
+      "delegates_execution_authority": false
+    },
+    {
+      "key": "measured_by",
+      "from": "objective",
+      "to": "metric",
+      "cardinality": "many_to_many",
+      "version": "1",
+      "source_field_evidence_required": true,
+      "delegates_execution_authority": false
+    },
+    {
+      "key": "governed_by",
+      "from": "dimension",
+      "to": "policy",
+      "cardinality": "many_to_many",
+      "version": "1",
+      "source_field_evidence_required": true,
+      "delegates_execution_authority": false
+    },
+    {
+      "key": "localized_as",
+      "from": "claim",
+      "to": "locale_variant",
+      "cardinality": "one_to_many",
+      "version": "1",
+      "source_field_evidence_required": true,
+      "delegates_execution_authority": false
+    },
+    {
+      "key": "derived_from",
+      "from": "context_projection",
+      "to": "claim",
+      "cardinality": "many_to_many",
+      "version": "1",
+      "source_field_evidence_required": true,
+      "delegates_execution_authority": false
+    }
+  ],
+  "extensions": {
+    "registered_by": "owner_reviewed_manifest",
+    "type_validation": "schema_ref_required",
+    "reuse": "inherit_or_compose_without_global_defaults",
+    "new_context_dimensions": "per_domain_registry_addition",
+    "revision_bound": true,
+    "authority_escalation_forbidden": true
+  }
+}

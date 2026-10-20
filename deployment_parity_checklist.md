@@ -1,5 +1,24 @@
 # Deployment Parity Checklist
 
+<!-- surface-contract-sql-review-index:20261015 -->
+## SQL surface-review register (2026-10-15)
+
+Deployment parity: verify schema prerequisites, exact staging readback, approved provider boundary and drift-free release evidence before promotion; this list does not authorize deployment. The detailed [SQL review ledger](docs/surface-contract-20261015-sql-review-ledger.md) (relative link interpreted from repository root) records evidence boundaries and outstanding acceptance checks. Entries below name the actual source migration, not a completed safety approval.
+
+- `20260808_github_issue_comment_dispatch_parity.sql` — GitHub Issue Comments provider registry and governed export
+- `20260810_github_issue_comment_exact_response_parity.sql` — GitHub Issue Comments 201-response registry reconciliation
+- `20260812_repository_reconciliation_admin_apply_activation.sql` — Guarded repository reconciliation activation and readiness
+- `20260815_custom_gpt_mcp_catalog_levels.sql` — Bounded Custom GPT tool catalog registry
+- `1038_sprint69_github_actions_workflow_control_dispatch.sql` — GitHub Actions workflow-control provider metadata
+- `1030_sprint69_default_blocker_recovery_governance_seed.sql` — Fail-closed recovery policy and taxonomy seed
+- `20260810_platform_runtime_registry_drift_reconciliation.sql` — Internal canonical capability and WordPress registry reconciliation
+- `1042_sprint69_support_ticket_lifecycle_sla_dedupe.sql` — Ticket SLA, deduplication and trigger/readback integrity
+- `1047_sprint69_tenant_request_inbox_and_chunk_store_hardening.sql` — Tenant request inbox and chunk ownership schema
+- `20260728_governed_response_chunk_ownership.sql` — Governed response-chunk ownership with separate apply approval
+
+**Status:** documentation inventory only; OpenAPI/proxy classification, SQL safety and governed migration readbacks remain independently enforced. Do not treat a document mention as a CI waiver.
+
+
 ## Brand-scoped user skill activation parity
 
 Migration `20260728_brand_scoped_user_skill_activation.sql` is parity-complete only when a separately authorized governed migration run records the reviewed checksum and statement count, schema readback confirms `brand_skill_policies`, `user_brand_skill_grants`, generated `active_scope_hash`, and `v_effective_user_brand_skill_grants`, and runtime readback confirms baseline `agent_skill_grants` remain required with no automatic policy seeding or skill activation. The migration performs no provider call, credential payload read, raw-secret access, external send/write, deployment, or restart; `secrets_included=false`. Repository merge and documentation do not authorize apply.
@@ -257,6 +276,9 @@ For `1024_sprint69_openapi_endpoint_inventory_sync.sql`, release parity requires
 - `20260920_wordpress_staging_plugin_deploy_v2_authority.sql` — SHA-256 `c7599c65fb858b92efd749895227af5f81ac8a4d778773c0dfbba2deeb8eda74`; surfaces: tools=1, routes=1; static preflight: pass/0; runtime reviews: verify_tool_registry_binding.
 - `20260920_wordpress_staging_plugin_deploy_v2_canonical_seed.sql` — SHA-256 `f6d9047bfda2c77a150ab0f5fca288f0504c9f6fe9deb268313c8c8d48e7f226`; surfaces: tools=1, routes=1; static preflight: pass/0; runtime reviews: verify_tool_registry_binding.
 - `20260922_local_manager_control_templates_registry.sql` — SHA-256 `e2e7cb35e32928d4c0ba5565e515bbc86408f7615d0cafee7b791a655f6de4b3`; surfaces: views=1; static preflight: pass/0; runtime reviews: verify_readback_view.
+- `20261007_credential_platform_binding_policy.sql` — SHA-256 `6f5efc7f0371f3dd91884a4c970009761e74cc346b9d8f2170ed026a55db4311`; surfaces: tools=1, routes=1; static preflight: pass/0; runtime reviews: verify_tool_registry_binding.
+- `20261008_admin_local_connector_target_catalog_alignment.sql` — SHA-256 `a09ba6885e41fc89224c93bb60688d3c1656b41f04e556def8b7d077541ef156`; surfaces: tools=1, routes=1; static preflight: pass/0; runtime reviews: verify_tool_registry_binding.
+- `20261009_hostinger_recovery_allowlist_discovery.sql` — SHA-256 `733aea4ea6272e1c604d22d32b71560601749c820e2e77ab7f532f494068cef2`; surfaces: tools=1, routes=1; static preflight: pass/0; runtime reviews: verify_tool_registry_binding.
 - `308_sprint69_activation_guidance_intelligence.sql` — SHA-256 `dde33c80a6a38b9968c76f30b12e6091b5ac794c707080c8f57d78c589df5077`; surfaces: routes=2; static preflight: pass/0; runtime reviews: none.
 - `308_sprint69_dynamic_governed_migration_reconciliation.sql` — SHA-256 `0635ebaa25216ae9e2da27b4ba08da697f14e36a73e289d3e7985878f8022fb4`; surfaces: tools=5; static preflight: pass/0; runtime reviews: verify_tool_registry_binding.
 - `309_sprint69_activation_guidance_invocation_registry.sql` — SHA-256 `1d74f06f2c6003a4a4ca78bbbe1972a2cb47ddcddeace35df847a8c4442ec28a`; surfaces: tools=5; static preflight: pass/0; runtime reviews: verify_tool_registry_binding.

@@ -1,0 +1,254 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "pr8461-device-hostinger-recovery-maintenance",
+  "title": "PR8461 bounded local device identity and Hostinger recovery source maintenance",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/pr8461-device-hostinger-recovery-maintenance.json",
+      ".github/derived-state-governance.json",
+      ".github/governance/test-authority-registry.json",
+      ".github/tests/repository-governance-closure.test.mjs",
+      "GPT_Admin_Assistant_Knowledge_Guide.md",
+      "autopilot-portable-staging/Clone-StagingDatabases.Legacy.ps1",
+      "autopilot-portable-staging/auto-deploy-policy.json",
+      "autopilot-portable-staging/autopilot-one-click-policy.json",
+      "autopilot-portable-staging/manifest.json",
+      "canonicals/openapi/custom-gpt-surfaces.yaml",
+      "docs/governance/configuration-drift-baseline-extensions.json",
+      "docs/governance/platform-configuration-entry-registry.json",
+      "docs/remote-mcp-write-scope-inventory.md",
+      "docs/runbooks/admin-local-connector-stale-device-closure-20261008.md",
+      "docs/runbooks/hostinger-recovery-allowlist-expansion-pr8461.md",
+      "docs/runbooks/pr8461-comprehensive-delivery-report-20261009.md",
+      "docs/runbooks/pr8461-deep-audit-handoff-20261009.md",
+      "docs/work-maps/README.md",
+      "docs/work-maps/data-model-domain-map.md",
+      "docs/work-maps/work-map-coverage-matrix.md",
+      "docs/write-scope-shadow-evidence-2026-08-15.json",
+      "http-generic-api/adminLocalConnectorTarget.js",
+      "http-generic-api/config/deployment-branch-policy.json",
+      "http-generic-api/config/repository-governance-constitution.json",
+      "http-generic-api/config/staging-database-role-migration-manifest.json",
+      "http-generic-api/frontend-operation-governance-tests.json",
+      "http-generic-api/frontend-operation-governance.generated.json",
+      "http-generic-api/frontend-surface-dispatch.generated.json",
+      "http-generic-api/frontend-surface-policy.json",
+      "http-generic-api/hostingerRecoveryCapabilityDiscovery.js",
+      "http-generic-api/hostingerRecoveryProviderContract.js",
+      "http-generic-api/installerCredentialEpoch.js",
+      "http-generic-api/localConnectorCompositeHealth.js",
+      "http-generic-api/localConnectorInstallerCapability.js",
+      "http-generic-api/mcpCatalogSchemaGuard.js",
+      "http-generic-api/migrations/20261008_admin_local_connector_target_catalog_alignment.sql",
+      "http-generic-api/migrations/20261009_hostinger_recovery_allowlist_discovery.sql",
+      "http-generic-api/openapi.yaml",
+      "http-generic-api/openapi/generated/custom-admin-schema-index.json",
+      "http-generic-api/openapi/generated/custom-gpt-registration-manifest.json",
+      "http-generic-api/openapi/openapi-mutation-policy.generated.json",
+      "http-generic-api/openapi/openapi.custom-gpt.activation-admin.production.yaml",
+      "http-generic-api/openapi/openapi.custom-gpt.activation-admin.staging.yaml",
+      "http-generic-api/openapi/openapi.custom-gpt.activation-admin.yaml",
+      "http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.production.yaml",
+      "http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.staging.yaml",
+      "http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.yaml",
+      "http-generic-api/openapi/openapi.custom-gpt.recovery-admin.production.yaml",
+      "http-generic-api/openapi/openapi.custom-gpt.recovery-admin.staging.yaml",
+      "http-generic-api/openapi/openapi.custom-gpt.staging-admin.yaml",
+      "http-generic-api/openapi/openapi.tenant-gpt.activation.production.yaml",
+      "http-generic-api/openapi/openapi.tenant-gpt.activation.staging.yaml",
+      "http-generic-api/openapi/openapi.tenant-gpt.activation.yaml",
+      "http-generic-api/openapi/openapi.tenant-gpt.auth.production.yaml",
+      "http-generic-api/openapi/openapi.tenant-gpt.auth.staging.yaml",
+      "http-generic-api/openapi/openapi.tenant-gpt.auth.yaml",
+      "http-generic-api/releaseReadiness.js",
+      "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
+      "http-generic-api/routes/adminCliRoutes.js",
+      "http-generic-api/routes/connectorAgentRoutes.js",
+      "http-generic-api/routes/gptToolsRoutes.js",
+      "http-generic-api/routes/localConnectorInstallRoutes.js",
+      "http-generic-api/routes/platformPluginRoutes.js",
+      "http-generic-api/scripts/governed-migration-runner-legacy.mjs",
+      "http-generic-api/scripts/governed-migration-runner.mjs",
+      "http-generic-api/scripts/manifests/test-manifest-spec011.mjs",
+      "http-generic-api/scripts/manifests/test-manifest-upstream-main.mjs",
+      "http-generic-api/scripts/test-manifest.mjs",
+      "http-generic-api/tenantGptOperationalReadiness.js",
+      "http-generic-api/test-admin-control.mjs",
+      "http-generic-api/test-admin-local-connector-target.mjs",
+      "http-generic-api/test-admin-self-recovery-contract.mjs",
+      "http-generic-api/test-connect-routes.mjs",
+      "http-generic-api/test-environment-impact-closure.mjs",
+      "http-generic-api/test-gpt-tools-route-syntax-regression.mjs",
+      "http-generic-api/test-hostinger-recovery-capability-discovery.mjs",
+      "http-generic-api/test-hostinger-recovery-provider-safety.mjs",
+      "http-generic-api/test-hostinger-recovery-seed-replay.mjs",
+      "http-generic-api/test-installer-credential-epoch.mjs",
+      "http-generic-api/test-local-connector-composite-health.mjs",
+      "http-generic-api/test-local-manager-environment-recovery.mjs",
+      "http-generic-api/test-mcp-catalog-schema-guard.mjs",
+      "http-generic-api/test-mcp-catalog-schema-preflight.mjs",
+      "http-generic-api/test-openapi-split-governance.mjs",
+      "http-generic-api/test-platform-tool-dispatch-binding-integrity.mjs",
+      "http-generic-api/test-spec-kit-work-map-governance-gate.mjs",
+      "http-generic-api/test-staging-auto-deploy-contract.mjs",
+      "http-generic-api/test-staging-database-readiness-repair.mjs",
+      "http-generic-api/test-staging-one-click-autopilot-core.mjs",
+      "http-generic-api/test-staging-schema-bundle-builder.mjs",
+      "http-generic-api/test-tenant-gpt-operational-readiness.mjs",
+      "http-generic-api/test-windows-staging-bootstrap-supervisor.mjs",
+      "local-connector/connector-watchdog.ps1",
+      "local-connector/server.mjs",
+      "runtime_confirmation_procedure.md",
+      "specs/004-tenant-asset-federation/work-map-integration.json",
+      "specs/008-governed-pr-delivery-orchestration/work-map-integration.json",
+      "specs/009-local-connector-reachability-recovery/e2e-phases.json",
+      "specs/009-local-connector-reachability-recovery/pr8461-adversarial-closure.md",
+      "specs/009-local-connector-reachability-recovery/work-map-integration.json",
+      "specs/011-tenant-gpt-effective-capability-envelope/work-map-integration.json",
+      "specs/014-gemini-evidence-intake-automation/work-map-integration.json",
+      "specs/014-governed-hostinger-storage-orchestration/e2e-phases.json",
+      "specs/014-governed-hostinger-storage-orchestration/pr8461-recovery-provider-contract.md",
+      "specs/014-governed-hostinger-storage-orchestration/work-map-integration.json",
+      "specs/014-retail-commerce-operations-growth-os/work-map-integration.json",
+      "specs/015-tenant-operating-system-studio/work-map-integration.json",
+      "specs/016-chatgpt-plugin-mcp-integration/work-map-integration.json",
+      "specs/017-remote-mcp-host-isolation-oauth-readiness/work-map-integration.json",
+      "specs/018-environment-promotion-runtime-integrity/work-map-integration.json",
+      "specs/019-governed-database-lifecycle-pressure-relief/work-map-integration.json",
+      "specs/020-platform-resource-identity-brand-governance/openapi-detail-closure-batch-full.json",
+      "specs/020-platform-resource-identity-brand-governance/openapi-detail-gap-classification.json",
+      "specs/020-platform-resource-identity-brand-governance/openapi-gap-closure-plan.json",
+      "specs/020-platform-resource-identity-brand-governance/work-map-integration.json",
+      "specs/021-portable-staging-autopilot/work-map-integration.json",
+      "specs/021-production-recovery-closure/work-map-integration.json"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Validate source-only device isolation, catalog schema diagnosis and Hostinger blocked-operation contracts; do not claim runtime deployment or operational recovery.",
+      "blockers": [],
+      "e2e_journeys": [
+        {
+          "id": "pr8461-source-recovery-regressions",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "repository_maintainer",
+          "entrypoint": "Source-only preflight and Hostinger adapter predicates",
+          "terminal_outcome": "Every unsafe or indeterminate state remains blocked without credentials, environment replacement, DDL, SSH dispatch, or Production deployment.",
+          "steps": [
+            "Verify signed connector and device identity source changes.",
+            "Run MCP and Hostinger negative and positive bounded tests.",
+            "Confirm host-specific provider capabilities remain only planned.",
+            "Preserve Staging and Production acceptance as separate unverified release gates."
+          ],
+          "assertions": [
+            "Wrong Runtime identity or inaccessible metadata cannot approve a migration.",
+            "Missing column requires an explicit read-only ER_BAD_FIELD_ERROR result.",
+            "Blocked provider evaluation cannot mean executed or execution allowed.",
+            "No Production provisioning, grants or secret values are dispatched.",
+            "Exact Staging canonical source seed replay is ordered identically across all entrypoints; Hostinger planned command catalog cannot depend on registered live connector rows."
+          ],
+          "tests": [
+            {
+              "id": "mcp-column-probe-regression",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-mcp-catalog-schema-guard.mjs",
+              "args": []
+            },
+            {
+              "id": "mcp-preflight-identity-regression",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-mcp-catalog-schema-preflight.mjs",
+              "args": []
+            },
+            {
+              "id": "hostinger-provider-safety-regression",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-hostinger-recovery-provider-safety.mjs",
+              "args": []
+            },
+            {
+              "id": "hostinger-discovery-regression",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-hostinger-recovery-capability-discovery.mjs",
+              "args": []
+            },
+            {
+              "id": "hostinger-canonical-seed-replay",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-hostinger-recovery-seed-replay.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/mcpCatalogSchemaGuard.js",
+            "http-generic-api/hostingerRecoveryProviderContract.js",
+            "http-generic-api/hostingerRecoveryCapabilityDiscovery.js",
+            "docs/runbooks/pr8461-comprehensive-delivery-report-20261009.md"
+          ]
+        }
+      ],
+      "tests": [
+        {
+          "id": "mcp-column-probe-regression",
+          "runner": "node",
+          "working_directory": ".",
+          "path": "http-generic-api/test-mcp-catalog-schema-guard.mjs",
+          "args": []
+        },
+        {
+          "id": "mcp-preflight-identity-regression",
+          "runner": "node",
+          "working_directory": ".",
+          "path": "http-generic-api/test-mcp-catalog-schema-preflight.mjs",
+          "args": []
+        },
+        {
+          "id": "hostinger-provider-safety-regression",
+          "runner": "node",
+          "working_directory": ".",
+          "path": "http-generic-api/test-hostinger-recovery-provider-safety.mjs",
+          "args": []
+        },
+        {
+          "id": "hostinger-discovery-regression",
+          "runner": "node",
+          "working_directory": ".",
+          "path": "http-generic-api/test-hostinger-recovery-capability-discovery.mjs",
+          "args": []
+        },
+        {
+          "id": "hostinger-canonical-seed-replay",
+          "runner": "node",
+          "working_directory": ".",
+          "path": "http-generic-api/test-hostinger-recovery-seed-replay.mjs",
+          "args": []
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}

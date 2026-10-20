@@ -86,7 +86,13 @@ const producerEvidence = readJson(evidenceFile ? path.resolve(evidenceFile) : nu
 const manualAuthorization = readJson(manualAuthorizationFile ? path.resolve(manualAuthorizationFile) : null, false);
 const candidateSha = governance?.candidate?.sha;
 if (!/^[0-9a-f]{40}$/u.test(candidateSha || "")) throw new Error("governance report candidate SHA missing or invalid");
-const sourceHeadSha = derived?.candidate?.source_head_sha || governance?.candidate?.source_head_sha || null;
+const declaredSourceHeadSha = arg("source-head-sha");
+const reportSourceHeadSha = derived?.candidate?.source_head_sha || governance?.candidate?.source_head_sha || null;
+if (declaredSourceHeadSha !== null) {
+  if (!/^[0-9a-f]{40}$/u.test(declaredSourceHeadSha)) throw new Error("source head SHA must be a full 40-character lowercase hex SHA");
+  if (reportSourceHeadSha && reportSourceHeadSha !== declaredSourceHeadSha) throw new Error("source head SHA does not match the canonical report");
+}
+const sourceHeadSha = declaredSourceHeadSha || reportSourceHeadSha;
 
 const policyById = new Map((registry.policies || []).map((entry) => [entry.id, entry]));
 const objections = [];

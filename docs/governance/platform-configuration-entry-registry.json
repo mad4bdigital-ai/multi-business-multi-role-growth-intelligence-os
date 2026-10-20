@@ -196,6 +196,42 @@
       "secrets_included": false
     },
     {
+      "config_key": "connector.config.id",
+      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
+      "owner": "local-connector",
+      "risk_class": "critical",
+      "scope_types": [
+        "platform",
+        "production",
+        "staging"
+      ],
+      "binding_ref": "local-connector/server.mjs",
+      "resolver_ref": "local-connector/server.mjs",
+      "readback_ref": "http-generic-api/test-admin-local-connector-target.mjs",
+      "shadow_evidence_ref": "docs/runbooks/admin-local-connector-stale-device-closure-20261008.md",
+      "classification": "runtime_setting",
+      "status": "shadow",
+      "secrets_included": false
+    },
+    {
+      "config_key": "connector.device.id",
+      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
+      "owner": "local-connector",
+      "risk_class": "critical",
+      "scope_types": [
+        "platform",
+        "production",
+        "staging"
+      ],
+      "binding_ref": "local-connector/server.mjs",
+      "resolver_ref": "local-connector/server.mjs",
+      "readback_ref": "http-generic-api/test-admin-local-connector-target.mjs",
+      "shadow_evidence_ref": "docs/runbooks/admin-local-connector-stale-device-closure-20261008.md",
+      "classification": "runtime_setting",
+      "status": "shadow",
+      "secrets_included": false
+    },
+    {
       "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
       "owner": "platform-governance",
       "scope_types": [
@@ -512,6 +548,24 @@
       "secrets_included": false
     },
     {
+      "config_key": "local.manager.write.db.environment",
+      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
+      "owner": "local-manager",
+      "risk_class": "high",
+      "scope_types": [
+        "platform",
+        "staging",
+        "production"
+      ],
+      "binding_ref": "http-generic-api/localManagerWriteAuthority.js",
+      "resolver_ref": "http-generic-api/runtimeEnvironmentResolver.js",
+      "readback_ref": "http-generic-api/test-local-manager-environment-recovery.mjs",
+      "shadow_evidence_ref": "docs/runbooks/local-manager-environment-recovery.md",
+      "classification": "runtime_setting",
+      "status": "shadow",
+      "secrets_included": false
+    },
+    {
       "config_key": "max.attestation.ttl.seconds",
       "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
       "owner": "platform-runtime",
@@ -578,6 +632,23 @@
       "resolver_ref": "http-generic-api/routes/gptToolsRoutes.js",
       "readback_ref": "http-generic-api/test-act-as-user-dispatch-hook.mjs",
       "shadow_evidence_ref": "docs/staging-oauth-and-admin-tenant-inspection-governance.md",
+      "classification": "runtime_setting",
+      "status": "shadow",
+      "secrets_included": false
+    },
+    {
+      "config_key": "max.ttl.ms",
+      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
+      "owner": "staging-recovery-governance",
+      "risk_class": "high",
+      "scope_types": [
+        "platform",
+        "staging"
+      ],
+      "binding_ref": "http-generic-api/recoveryExternalAcquisitionAuthority.js",
+      "resolver_ref": "http-generic-api/recoveryExternalAcquisitionAuthority.js",
+      "readback_ref": "http-generic-api/test-staging-recovery-external-acquisition-authority.mjs",
+      "shadow_evidence_ref": "docs/runbooks/staging-recovery-phase-b-certification.md",
       "classification": "runtime_setting",
       "status": "shadow",
       "secrets_included": false
@@ -759,6 +830,24 @@
       "config_key": "oauth.trusted.ingress.attestation",
       "risk_class": "critical",
       "binding_ref": "http-generic-api/.env.example"
+    },
+    {
+      "config_key": "plan.ttl.ms",
+      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
+      "owner": "recovery-governance",
+      "risk_class": "critical",
+      "scope_types": [
+        "platform",
+        "tenant",
+        "staging"
+      ],
+      "binding_ref": "http-generic-api/recoveryOrchestrator.js",
+      "resolver_ref": "http-generic-api/recoveryOrchestrator.js",
+      "readback_ref": "http-generic-api/test-recovery-orchestrator.mjs",
+      "shadow_evidence_ref": "specs/022-governed-recovery-orchestrator/contracts.md",
+      "classification": "runtime_setting",
+      "status": "shadow",
+      "secrets_included": false
     },
     {
       "config_key": "production.base.url",
@@ -1187,6 +1276,23 @@
       "secrets_included": false
     },
     {
+      "config_key": "session.ttl.ms",
+      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
+      "owner": "device-terminal-runtime",
+      "risk_class": "medium",
+      "scope_types": [
+        "platform",
+        "staging"
+      ],
+      "binding_ref": "local-connector/device-terminal-engine.mjs",
+      "resolver_ref": "local-connector/device-terminal-engine.mjs",
+      "readback_ref": "local-connector/test-device-terminal-engine.mjs",
+      "shadow_evidence_ref": "docs/runbooks/desktop-device-workspace-20261018.md",
+      "classification": "runtime_setting",
+      "status": "shadow",
+      "secrets_included": false
+    },
+    {
       "config_key": "session.ttl.seconds",
       "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
       "owner": "identity-platform",
@@ -1202,6 +1308,57 @@
       "shadow_evidence_ref": "docs/runbooks/managed-google-oauth-broker.md",
       "classification": "runtime_setting",
       "status": "staged",
+      "secrets_included": false
+    },
+    {
+      "config_key": "staging.apply.config.key",
+      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
+      "owner": "gateway-governance",
+      "risk_class": "critical",
+      "scope_types": [
+        "platform",
+        "staging"
+      ],
+      "binding_ref": "http-generic-api/stagingActivationGatewayApplyAdapter.js",
+      "resolver_ref": "http-generic-api/stagingActivationGatewayApplyAdapter.js",
+      "readback_ref": "http-generic-api/test-staging-smart-gateway-convergence-contract.mjs",
+      "shadow_evidence_ref": ".changes/e2e/staging-cloudflare-managed-authority-readiness-20261006.json",
+      "classification": "runtime_setting",
+      "status": "staged",
+      "secrets_included": false
+    },
+    {
+      "config_key": "staging.certification.ttl.seconds",
+      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
+      "owner": "gateway-governance",
+      "risk_class": "critical",
+      "scope_types": [
+        "platform",
+        "staging"
+      ],
+      "binding_ref": "http-generic-api/stagingActivationGatewayApplyAdapter.js",
+      "resolver_ref": "http-generic-api/stagingActivationGatewayApplyAdapter.js",
+      "readback_ref": "http-generic-api/test-staging-smart-gateway-convergence-contract.mjs",
+      "shadow_evidence_ref": ".changes/e2e/staging-gateway-transaction-certification-20261007.json",
+      "classification": "runtime_setting",
+      "status": "staged",
+      "secrets_included": false
+    },
+    {
+      "config_key": "staging.cloudflare.api.token.file",
+      "schema_ref": ".specify/schemas/platform-configuration-entry-registry.schema.json",
+      "owner": "gateway-governance",
+      "risk_class": "critical",
+      "scope_types": [
+        "platform",
+        "staging"
+      ],
+      "binding_ref": "http-generic-api/stagingActivationGatewayApplyAdapter.js",
+      "resolver_ref": "http-generic-api/stagingActivationGatewayApplyAdapter.js",
+      "readback_ref": "http-generic-api/test-staging-smart-gateway-convergence-contract.mjs",
+      "shadow_evidence_ref": "docs/governance/admin-recovery-chatgpt-connection.md",
+      "classification": "runtime_setting",
+      "status": "shadow",
       "secrets_included": false
     },
     {
@@ -1506,5 +1663,5 @@
     "production_activation_allowed": false
   },
   "$schema": "../../.specify/schemas/platform-configuration-entry-registry.schema.json",
-  "entry_count": 84
+  "entry_count": 93
 }

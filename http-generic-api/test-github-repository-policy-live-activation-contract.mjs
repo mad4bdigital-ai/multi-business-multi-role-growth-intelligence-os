@@ -149,6 +149,17 @@ assert.match(liveWorkflow, /VERIFY_GITHUB_PRODUCTION_POLICY/);
 assert.match(liveWorkflow, /TARGET_BRANCH:/);
 assert.match(liveWorkflow, /persist-credentials: false/);
 
+const productionEnvironmentBindings =
+  liveWorkflow.match(
+    /^\s{4}environment:\r?\n\s{6}name:\s*Production\r?\n\s{6}deployment:\s*false\s*$/gmu
+  ) || [];
+
+assert.equal(
+  productionEnvironmentBindings.length,
+  3,
+  "readiness, apply, and verify must all use the Production environment credential without creating deployments",
+);
+
 assert.match(publisherWorkflow, /^name: GitHub Review Policy Readiness Publisher/m);
 assert.match(publisherWorkflow, /workflow_run:/);
 assert.match(publisherWorkflow, /Governed GitHub Review Policy Live Activation/);

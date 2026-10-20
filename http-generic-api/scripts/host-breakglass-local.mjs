@@ -9,6 +9,7 @@ import { verifyHostBreakglassLocalRequest } from "../hostBreakglassLocalRequest.
 import { runBootstrap, sanitizeBootstrapError } from "../runtimeBootstrapContract.js";
 import { readStagingRuntimeBootstrapContract } from "../stagingRuntimeBootstrapContract.js";
 import { STAGING_ROLE_GRANT_POLICIES } from "../databasePrivilegeContracts.js";
+import { createStagingComposeBootstrapConnectionFactory } from "../stagingComposeBootstrapConnectionFactory.js";
 import { runSqlCapsule } from "./host-breakglass-capsule-executor.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -235,7 +236,7 @@ function stagingBootstrapAuthorityClient(env) {
   };
 }
 
-async function verifyPreservedRolesAfterSelectiveRebuild(result, env) {
+async function verifyPreservedRolesAfterSelectiveRebuild(result, env, connectionFactory) {
   if (result?.operation !== "database.rebuild_empty") return result;
   const selected = new Set(Array.isArray(result.selected_rebuild_roles) ? result.selected_rebuild_roles : []);
   const before = result?.role_rebuild_evidence?.role_object_count_fingerprints_before || {};
@@ -256,7 +257,7 @@ async function verifyPreservedRolesAfterSelectiveRebuild(result, env) {
     BOOTSTRAP_EXECUTION_TICKET_HASH: "",
     HOST_BREAKGLASS_OPERATION: "database.inspect",
   };
-  const readback = await runBootstrap({ env: postEnv, contract: stagingContract(), repoRoot: path.resolve(API_ROOT, "..") });
+  const readback = await runBootstrap({ env: postEnv, contract: stagingContract(), repoRoot: path.resolve(API_ROOT, ".."), connectionFactory });
   const after = readback?.role_database_object_count_fingerprints || {};
   const changed = preservedRoles.filter((role) => !before[role] || !after[role] || before[role] !== after[role]);
   if (changed.length) {
@@ -320,9 +321,17 @@ try {
     process.exit(0);
   }
   const env = localEnv();
+  const connectionFactory = plan.target_source === overlay.role_target_source
+    ? createStagingComposeBootstrapConnectionFactory({
+      apiRoot: API_ROOT,
+      composeFiles: overlay.compose_files,
+      composeEnvFile: overlay.compose_env_file,
+      service: overlay.database_bridge_service,
+    })
+    : undefined;
   const authority = stagingBootstrapAuthorityClient(env);
-  const initialResult = await runBootstrap({ env, contract: stagingContract(), repoRoot: path.resolve(API_ROOT, ".."), executionTicketVerifier: authority.executionTicketVerifier, partialReceiptStore: authority.partialReceiptStore });
-  const result = await verifyPreservedRolesAfterSelectiveRebuild(initialResult, env);
+  const initialResult = await runBootstrap({ env, contract: stagingContract(), repoRoot: path.resolve(API_ROOT, ".."), connectionFactory, executionTicketVerifier: authority.executionTicketVerifier, partialReceiptStore: authority.partialReceiptStore });
+  const result = await verifyPreservedRolesAfterSelectiveRebuild(initialResult, env, connectionFactory);
   if (["apply_migration", "apply_grants"].includes(plan.action)) await authority.finalize(result);
   process.stdout.write(`${JSON.stringify({ ...result, environment_key: plan.environment_key, execution_transport: "local_cli", authority_plan_hash: authorityPlanHash, transport_plan_sha256: plan.plan_sha256, execution_ticket_finalized: ["apply_migration", "apply_grants"].includes(plan.action), secrets_included: false })}\n`);
 } catch (error) {

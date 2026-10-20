@@ -40,6 +40,8 @@ on:
       - 'http-generic-api/test-host-breakglass-ssh-capsule-executor.mjs'
       - 'http-generic-api/runtimeBootstrapContract.js'
       - 'http-generic-api/runtimeBootstrapStatus.js'
+      - 'http-generic-api/runtimeEnvironmentPolicy.js'
+      - 'http-generic-api/runtimeEnvironmentResolver.js'
       - 'http-generic-api/scripts/hostinger-runtime-bootstrap.mjs'
       - 'http-generic-api/test-runtime-bootstrap-contract.mjs'
       - 'http-generic-api/test-runtime-gate-deployment-info-parity.mjs'
@@ -855,6 +857,7 @@ jobs:
           EXPECTED_SHA: ${{ inputs.expected_sha }}
           EXPECTED_BRANCH: Production
           AUTH_URL: https://auth.mad4b.com/version
+          DEPLOYMENT_INFO_URL: https://auth.mad4b.com/deployment-info
           PRODUCTION_RUNTIME_PARITY_EVIDENCE_DIR: ${{ runner.temp }}/production-runtime-parity-evidence
         run: |
           set -euo pipefail
@@ -862,6 +865,7 @@ jobs:
             --expected-sha "${EXPECTED_SHA}" \
             --expected-branch "${EXPECTED_BRANCH}" \
             --endpoint "auth=${AUTH_URL}" \
+            --endpoint "auth-deployment=${DEPLOYMENT_INFO_URL}" \
             --output-dir "${PRODUCTION_RUNTIME_PARITY_EVIDENCE_DIR}"
 
       - name: Upload structured live parity evidence
@@ -891,14 +895,24 @@ jobs:
             const effects = report.side_effects || {};
             const endpoints = Array.isArray(report.endpoints) ? report.endpoints : [];
             const auth = endpoints.find((endpoint) => endpoint.name === "auth");
+            const deployment = endpoints.find((endpoint) => endpoint.name === "auth-deployment");
             const valid =
               report.contract === "mad4b.production-runtime-parity-evidence.v1" &&
               report.identity?.expected_sha === process.env.EXPECTED_SHA &&
               report.identity?.expected_branch === "Production" &&
               report.identity?.tooling_sha === process.env.GITHUB_SHA &&
-              endpoints.length === 1 &&
+              endpoints.length === 2 &&
               auth?.required === true &&
               auth?.status === "passed" &&
+              deployment?.required === true &&
+              deployment?.status === "passed" &&
+              deployment?.runtime?.canonical_provenance_present === true &&
+              deployment?.runtime?.runtime_environment?.environment_key === "production" &&
+              deployment?.runtime?.runtime_environment?.runtime_variant === "production_hostinger_autodeploy" &&
+              deployment?.runtime?.runtime_environment?.canonical_runtime_variant === "production_hostinger_autodeploy" &&
+              deployment?.runtime?.runtime_environment?.runtime_class === "hostinger_autodeploy" &&
+              deployment?.runtime?.runtime_environment?.runtime_class_explicit === true &&
+              deployment?.runtime?.runtime_environment?.source_branch === "Production" &&
               report.first_failure === null &&
               report.secrets_included === false &&
               report.routing?.consult_job_logs === false &&

@@ -6,17 +6,17 @@
   "source": {
     "baseline_ref": "main",
     "dispatch_artifact": "http-generic-api/frontend-surface-dispatch.generated.json",
-    "dispatch_source_digest": "997e57b3a4740f8000e9d4fd8eba848941096f33978d6d1ecd917aaa4038246b",
-    "dispatch_artifact_sha256": "430f99e0652752cfbf752083f15661637d3b1110198db2acadf899b5e9547486"
+    "dispatch_source_digest": "d1f87cdcc2ffd7f7b7ceae43eb76f9bf16212b5ff2bfe3b88732233e727bdd4b",
+    "dispatch_artifact_sha256": "2fa27ee58417f4001af3e053916efb00a79cc6fd0d10cf5b913a39760f172aea"
   },
   "coverage": {
-    "operation_count": 1081,
-    "openapi_documented_count": 1065,
-    "openapi_canonical_documented_count": 742,
-    "openapi_generated_index_count": 323,
+    "operation_count": 1085,
+    "openapi_documented_count": 1069,
+    "openapi_canonical_documented_count": 743,
+    "openapi_generated_index_count": 326,
     "openapi_gap_count": 0,
     "auth_contract_gap_count": 0,
-    "openapi_detail_gap_count": 323,
+    "openapi_detail_gap_count": 326,
     "unresolved_surface_decision_count": 0,
     "coverage_complete": true
   },
@@ -46,7 +46,7 @@
     "detail_gap_entries_by_surface_decision": [
       {
         "decision": "internal_only",
-        "count": 279
+        "count": 282
       },
       {
         "decision": "api_only",
@@ -64,11 +64,11 @@
     "detail_gap_entries_by_method": [
       {
         "method": "POST",
-        "count": 150
+        "count": 151
       },
       {
         "method": "GET",
-        "count": 118
+        "count": 120
       },
       {
         "method": "PUT",
@@ -86,7 +86,7 @@
     "detail_gap_entries_by_path_first_segment": [
       {
         "path_first_segment": "admin",
-        "count": 42
+        "count": 43
       },
       {
         "path_first_segment": "dev-agent",
@@ -222,6 +222,10 @@
       },
       {
         "path_first_segment": "contacts",
+        "count": 2
+      },
+      {
+        "path_first_segment": "device",
         "count": 2
       },
       {
@@ -491,6 +495,10 @@
         "count": 2
       },
       {
+        "family_key": "device-tools",
+        "count": 2
+      },
+      {
         "family_key": "dispatch",
         "count": 2
       },
@@ -508,6 +516,10 @@
       },
       {
         "family_key": "member-google-oauth.admin",
+        "count": 2
+      },
+      {
+        "family_key": "repository-automation",
         "count": 2
       },
       {
@@ -552,10 +564,6 @@
       },
       {
         "family_key": "recovery-kernel",
-        "count": 1
-      },
-      {
-        "family_key": "repository-automation",
         "count": 1
       },
       {
@@ -659,7 +667,7 @@
   "priority_summary": {
     "blocking_contract_gap_count": 0,
     "surface_decision_required_family_count": 0,
-    "documentation_only_detail_gap_count": 323,
+    "documentation_only_detail_gap_count": 326,
     "top_surface_decision_families": []
   },
   "scope_boundary": {

@@ -26,6 +26,30 @@ Shell يعمل في Staging داخل خدمة Docker Compose المحددة في
 
 الكتالوج يفصل بيئتين: `staging_local_windows_docker` يعمل من Windows checkout محلي عبر Docker وlocal CLI ولا يملك Hostinger أو GitHub workflow authority، بينما `production_hostinger_autodeploy` يستخدم GitHub dispatch على `main` ثم يثبت رأس `Production` وHostinger Auto Deploy parity. أسماء credentials ووسيلة التنفيذ وbranch bindings منفصلة، وأي cross-environment dispatch مرفوض.
 
+### هوية بيئة التشغيل الصريحة
+
+هوية الفرع والـSHA لا تكفي وحدها لاعتماد Runtime. العقد التشغيلي يطلب أيضًا تصنيف deployment صريحًا:
+
+- Staging المحلية: `DEPLOYMENT_ENVIRONMENT=staging_local_windows_docker`.
+- Production على Hostinger Auto Deploy: `DEPLOYMENT_ENVIRONMENT=production_hostinger_autodeploy`.
+
+قيم `NODE_ENV=production` أو `REMOTE_MCP_ENVIRONMENT=production` تحدد عائلة Production فقط ولا تثبت Hostinger Auto Deploy. عند غياب القيمة الصريحة يبقى `resolveRuntimeEnvironmentStrict()` في حالة `runtime_class_ambiguous` وتفشل Recovery/activation/parity gates مغلقة. لا يجوز تحويل `production` أو `prod` إلى Hostinger authority تلقائيًا.
+
+يجب ضبط قيمة Production كإعداد Runtime غير سري داخل إعدادات Hostinger المحكومة، ثم إعادة deploy/restart فقط عبر مسار النشر المصرح به. المستودع لا يكتب إعداد Hostinger تلقائيًا ولا يعتبر merge بديلاً عن provider configuration.
+
+`/deployment-info` يعرض `runtime_environment` محدودًا يتضمن environment key والـvariant والـruntime class وexplicitness وسبب الفشل عند وجوده. لا يعرض القيم الخام لمتغيرات البيئة. Production certification تتطلب:
+
+```text
+environment_key=production
+runtime_variant=production_hostinger_autodeploy
+canonical_runtime_variant=production_hostinger_autodeploy
+runtime_class=hostinger_autodeploy
+runtime_class_explicit=true
+source_branch=Production
+```
+
+وبالمثل Staging certification المحلية تتطلب `staging_local_windows_docker / local_windows_docker / main`.
+
 هذا العقد يضيف مسارًا مستقلًا ومحدودًا لمعالجة قواعد runtime التي تكون ناقصة schema أو غير جاهزة للصلاحيات. وهو لا يضعف `/gpt/tools` أو `/gpt/tools/call` أو مسارات session-context؛ هذه المسارات تظل DB-backed ومحمية بطبقات authorization المعتادة.
 
 > **قاعدة أساسية:** تشغيل `npm start` أو `prestart` أو Docker لا يطبق migrations أو grants. حالة التطبيق التشخيصية لا تعني أن bootstrap حدث، ونجاح Auto Deploy لا يساوي نجاح SQL apply.
@@ -103,13 +127,13 @@ npm run runtime-bootstrap:apply-grants
 
 يوفر المستودع مسارًا يدويًا داخل workflow recovery القائم `.github/workflows/production-runtime-parity-evidence.yml` عبر مدخلات `bootstrap_mode` (`disabled|plan|dry_run|apply_migration|apply_grants|execute_sql_capsule|execute_shell_capsule`) و`bootstrap_target_key` و`bootstrap_migration` وconfirmation الخاصة بالمرحلة. يقرأ workflow target database من `RUNTIME_BOOTSTRAP_TARGETS_JSON` الموجود في GitHub Environment ولا يقبل اسم قاعدة من caller. تحمل عمليتا capsule مدخل JSON واحدًا محدودًا باسم `host_breakglass_capsule` يحوي المسار والبصمة وbackup evidence؛ ولا يوجد مدخل SQL أو shell inline. يبدأ `bootstrap_mode` معطّلًا؛ و`plan` لا يفتح اتصالًا بقاعدة البيانات، و`dry_run` للقراءة فقط، وكل mutation مشروطة بـEnvironment approval وconfirmation وallowlist مستقلة. لا يعمل هذا المسار ضمن `npm start` أو `prestart` أو Docker أو Hostinger Auto Deploy. يجب أن تظل القيم الفعلية للـtarget وcredentials في إعدادات GitHub المناسبة، مع عدم تضمينها في PR أو logs.
 
-يجب أن يمر مسار bootstrap داخل workflow بالترتيب التالي: يثبت أن `expected_sha` هو رأس `Production`، يعمل checkout لنفس الـSHA، يتحقق من بصمة عقد الأدوات والـcapsule من ذلك checkout، ويشغّل contract tests، ثم ينفذ الوضع الصريح فقط. قبل `dry_run` أو أي mutation ينفذ الـworkflow فحصًا GET-only محدودًا إلى `https://auth.mad4b.com/version` و`https://auth.mad4b.com/deployment-info`. يجب أن يعيد كلاهما SHA المنشور المطابقًا تمامًا لـ`expected_sha`، ويجب أن يثبت `/deployment-info` فرع `Production`. بعد SQL أو SSH capsule يعاد فحص Hostinger للتأكد من بقاء النشر على الـSHA نفسها. أي HTTP failure أو JSON غير صالح أو SHA فارغ أو mismatch أو فرع مختلف يوقف المسار fail-closed قبل فتح اتصال bootstrap أو SSH. لا يصنف أي 502 من Hostinger أو غياب route كنجاح؛ direct bootstrap path لا يعتمد على `/gpt/tools/call`.
+يجب أن يمر مسار bootstrap داخل workflow بالترتيب التالي: يثبت أن `expected_sha` هو رأس `Production`، يعمل checkout لنفس الـSHA، يتحقق من بصمة عقد الأدوات والـcapsule من ذلك checkout، ويشغّل contract tests، ثم ينفذ الوضع الصريح فقط. قبل `dry_run` أو أي mutation ينفذ الـworkflow فحصًا GET-only محدودًا إلى `https://auth.mad4b.com/version` و`https://auth.mad4b.com/deployment-info`. يجب أن يعيد كلاهما SHA المنشور المطابقًا تمامًا لـ`expected_sha`، ويجب أن يثبت `/deployment-info` فرع `Production`. بالإضافة إلى ذلك يجب أن يثبت `/deployment-info.runtime_environment` التصنيف الصريح `production_hostinger_autodeploy`; نجاح SHA/branch مع `runtime_class_ambiguous` يظل فشلًا مغلقًا ولا يسمح ببدء Recovery أو bootstrap. بعد SQL أو SSH capsule يعاد فحص Hostinger للتأكد من بقاء النشر على الـSHA نفسها. أي HTTP failure أو JSON غير صالح أو SHA فارغ أو mismatch أو فرع مختلف يوقف المسار fail-closed قبل فتح اتصال bootstrap أو SSH. لا يصنف أي 502 من Hostinger أو غياب route كنجاح؛ direct bootstrap path لا يعتمد على `/gpt/tools/call`.
 
 يشغّل job العقد مباشرةً `test-runtime-bootstrap-contract.mjs` و`test-runtime-gate-deployment-info-parity.mjs` و`hostinger-runtime-bootstrap.mjs --plan`، حتى لا يبقى اختبار parity مجرد ملف موثق غير منفذ. تُحفظ نتيجة parity التشغيلية في evidence محدود، مع `read_only=true` و`mutation_performed=false` و`provider_mutation_performed=false` و`secrets_included=false`. في حالات الفشل بعد بدء العملية، يتضمن evidence `mutation_evidence` بعدّاد statements/tables المكتملة وحالة `partial_possible`، ولا يُعاد إنشاء ledger بعد migration إلا بعملية separate, explicit write.
 
 ## القراءة من startup و/deployment-info
 
-يعرض startup event و`/deployment-info` كائن `runtime_bootstrap_status` DB-independent. الحالات الأساسية هي `bootstrap_not_configured` عند غياب hook صريح، و`bootstrap_required` عند وجود hook غير مكتمل، و`bootstrap_ready_for_explicit_invocation` عندما تكون metadata والـcredentials configured. حتى الحالة الأخيرة لا تعني أن apply حدث؛ `auto_apply`, `startup_apply`, `prestart_apply`, و`docker_start_apply` تظل `false`، وتظل mutation fields `false` في status.
+`/deployment-info` يعرض أيضًا `runtime_environment` DB-independent من الـstrict resolver؛ هذا الكائن جزء من deployment identity readback ولا يمنح أي write authority. يعرض startup event و`/deployment-info` كائن `runtime_bootstrap_status` DB-independent. الحالات الأساسية هي `bootstrap_not_configured` عند غياب hook صريح، و`bootstrap_required` عند وجود hook غير مكتمل، و`bootstrap_ready_for_explicit_invocation` عندما تكون metadata والـcredentials configured. حتى الحالة الأخيرة لا تعني أن apply حدث؛ `auto_apply`, `startup_apply`, `prestart_apply`, و`docker_start_apply` تظل `false`، وتظل mutation fields `false` في status.
 
 ## Verification checklist بعد التشغيل
 

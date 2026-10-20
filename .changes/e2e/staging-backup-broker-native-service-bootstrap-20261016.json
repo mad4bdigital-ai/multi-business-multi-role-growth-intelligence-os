@@ -1,0 +1,332 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-backup-broker-native-service-bootstrap-20261016",
+  "title": "Native Windows Staging broker host bootstrap with fail-closed installation authority",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-backup-broker-native-service-bootstrap-20261016.json",
+      ".github/derived-state-governance.json",
+      "autopilot-portable-staging/Build-StagingBackupBrokerHostService.ps1",
+      "autopilot-portable-staging/Install-StagingBackupBrokerHostService.ps1",
+      "docs/runbooks/staging-backup-broker-native-host-service-20261016.md",
+      "http-generic-api/config/repository-governance-constitution.json",
+      "local-connector/staging-backup-db-broker-host-service.cs",
+      "local-connector/test-staging-backup-db-broker-native-host-service.mjs",
+      "autopilot-portable-staging/Inspect-StagingBackupBrokerOsEvidence.ps1",
+      "local-connector/test-staging-backup-broker-os-evidence.mjs",
+      "local-connector/staging-backup-broker-signed-os-evidence.mjs",
+      "local-connector/test-staging-backup-broker-signed-os-evidence.mjs",
+      "local-connector/staging-backup-broker-witness-receipt.mjs",
+      "local-connector/test-staging-backup-broker-witness-receipt.mjs",
+      "local-connector/staging-backup-broker-challenge-ledger.mjs",
+      "local-connector/test-staging-backup-broker-challenge-ledger.mjs",
+      "local-connector/staging-backup-broker-pinned-key-registry.mjs",
+      "local-connector/test-staging-backup-broker-pinned-key-registry.mjs",
+      "autopilot-portable-staging/Inspect-StagingBackupBrokerTrustReadiness.ps1",
+      "local-connector/staging-backup-db-broker-trust-readiness.mjs",
+      "local-connector/test-staging-backup-db-broker-trust-readiness.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Provide a native Windows SCM service skeleton and bounded Staging-only installation plan that cannot grant DBA authority.",
+      "e2e_journeys": [
+        {
+          "id": "native-windows-staging-service-build-plan-denial",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Staging OS Operator",
+          "entrypoint": "Build a credential-free ServiceBase host and verify the elevated-only installer guards.",
+          "terminal_outcome": "Native host compiles and selftests; non-admin installation stops before any OS mutation; no DBA or Production authority is generated.",
+          "steps": [
+            "Compile native ServiceBase host with built-in Windows compiler, without a third-party unsigned wrapper.",
+            "Verify signed-out source SHA, executable hash, default read-only installer and exact deployment certification.",
+            "Reject unauthorized interactive execution and unprivileged Windows service installation.",
+            "Require explicit Staging-only inert service scope and protected virtual service identity for future admin operation.",
+            "Do not open database, network or cryptographic operations in the inert ServiceBase class."
+          ],
+          "assertions": [
+            "Native code contains no network/DB/filesystem writes or handler for signed operation tickets.",
+            "Installer checks exact main/source/deployed in-container SHA, binary digest and elevation before modifying the OS.",
+            "No automatic GitHub source code approval can authorize a DBA operation or backup/restore.",
+            "Staging service bootstrap and tests cannot mutate Production or grant DBA."
+          ],
+          "tests": [
+            {
+              "id": "native-host-negative-authority-contract",
+              "runner": "node",
+              "path": "local-connector/test-staging-backup-db-broker-native-host-service.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "autopilot-portable-staging/Install-StagingBackupBrokerHostService.ps1",
+            "docs/runbooks/staging-backup-broker-native-host-service-20261016.md"
+          ]
+        },
+        {
+          "id": "native-windows-staging-scm-registration-recovery",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Authorized Staging Windows Operator",
+          "entrypoint": "Detect an interrupted virtual-service registration and run exact-source, no-DB recovery guards.",
+          "terminal_outcome": "Omit the empty native password argument, report sanitized SCM registration failure codes, require explicitly authorized single-binary recovery, and reject all non-admin execution before OS writes.",
+          "steps": [
+            "Omit PowerShell 5.1 password= empty argument when registering the NT SERVICE virtual account.",
+            "Preserve native SCM failure exit and sanitized Win32 status.",
+            "Refuse recovery unless a separate explicit switch and exact copied EXE SHA-256, one-file content and protected SYSTEM/Administrators ACL agree.",
+            "Enforce exact GitHub main, deployed Staging source, in-container manifest, OS elevation, inert-only operation scope before changes.",
+            "Keep all DBA, backup/restore and Production operations out of the inert service host."
+          ],
+          "assertions": [
+            "No empty password= native argument is passed to sc.exe on Windows PowerShell 5.1.",
+            "Interrupted registration fails closed for unverified content, ACL or binary hash.",
+            "Unprivileged apply cannot mutate service or installation directory.",
+            "No SQL or Production mutation authorization is introduced."
+          ],
+          "tests": [
+            {
+              "id": "native-host-negative-authority-contract",
+              "runner": "node",
+              "path": "local-connector/test-staging-backup-db-broker-native-host-service.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "autopilot-portable-staging/Install-StagingBackupBrokerHostService.ps1",
+            "docs/runbooks/staging-backup-broker-native-host-service-20261016.md",
+            "local-connector/test-staging-backup-db-broker-native-host-service.mjs"
+          ]
+        },
+        {
+          "id": "staging-windows-broker-elevated-os-evidence-no-dba",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Staging Windows operator and offline CI auditor",
+          "entrypoint": "Read-only elevated inspect of already registered inert Broker service on the exact certified Staging release.",
+          "terminal_outcome": "Exact OS path, SHA256, PID, virtual identity, SID type and protected three-principal ACL are measured without grants; independently signed and operational authority remain false.",
+          "steps": [
+            "Check actual Administrator token and exact Staging source certification before protected reads.",
+            "Read service and process identity from Windows CIM and reject mismatched SCM binary path, reparse points and SHA-256.",
+            "Require protected directory DACL and exact SYSTEM/Admin full control plus virtual service RX; inspect file DACL.",
+            "Report only bounded, unsigned noncredential evidence and retain explicit denial of independent signing, DBA, backup, restore and Production privileges."
+          ],
+          "assertions": [
+            "Non-elevated execution is denied before accessing protected installed binary or ACL.",
+            "No service, filesystem, Docker, database or credential mutation occurs.",
+            "Unsigned OS readback is never treated as operational certification or an independent signed attestation.",
+            "Existing deployed/certified Staging exact source remains an explicit prerequisite."
+          ],
+          "tests": [
+            {
+              "id": "native-broker-elevated-os-evidence-static",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "local-connector/test-staging-backup-broker-os-evidence.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "autopilot-portable-staging/Inspect-StagingBackupBrokerOsEvidence.ps1",
+            "local-connector/test-staging-backup-broker-os-evidence.mjs"
+          ]
+        },
+        {
+          "id": "staging-broker-ed25519-cryptographic-evidence-verification-no-authority",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Staging audit-verifier developer without trusted signer custody",
+          "entrypoint": "Validate detached Ed25519 evidence using in-memory ephemeral test keys and a trusted-expectations argument.",
+          "terminal_outcome": "Cryptographic signature and exact evidence-bound assertions validate, but independent pinned-key custody, replay registry, immutable audit and operational grant all remain denied.",
+          "steps": [
+            "Generate an ephemeral Ed25519 test key in CI memory without persisting a private key.",
+            "Sign canonical domain-separated payload bound to Staging exact SHA, installed executable digest, nonce and OS evidence.",
+            "Reject substitutions to key, signature, schema, timestamp, nonce, host, account, hash, ACL and false authority flags.",
+            "Report successful cryptographic verification with blocked external trust/custody and immutable-audit gates.",
+            "Never create credentials, authorize one-shot DBA operations, execute Backup/Restore or mutate Production."
+          ],
+          "assertions": [
+            "Signed payload bytes must be canonical and Ed25519 SPKI pin fingerprint must match.",
+            "No caller-controlled pin or JSON field can independently certify Broker or authorize DBA.",
+            "Unissued nonce, replay, stale or future timestamps are refused as cryptographic binding failures.",
+            "Even a syntactically and cryptographically valid signature is not an externally custodied trusted attestation."
+          ],
+          "tests": [
+            {
+              "id": "staging-broker-ed25519-offline-verifier",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "local-connector/test-staging-backup-broker-signed-os-evidence.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "local-connector/staging-backup-broker-signed-os-evidence.mjs",
+            "local-connector/test-staging-backup-broker-signed-os-evidence.mjs"
+          ]
+        },
+        {
+          "id": "staging-broker-witness-dual-ed25519-receipt-rejection-no-trust-promotion",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "offline Staging audit verifier without independent custodian",
+          "entrypoint": "Validate signed OS evidence and a separately signed, domain-separated audit witness receipt using in-memory synthetic keys.",
+          "terminal_outcome": "Both mathematical signatures and exact source/executable/nonce/digest bindings verified with 21 adversarial cases; no external custody, replay, immutable audit or operational authority declared.",
+          "steps": [
+            "Generate two distinct ephemeral Ed25519 test keys in memory without persisting signing secrets.",
+            "Check domain-separated canonical OS evidence with exact Staging SHA, executable digest and challenge nonce.",
+            "Independently verify witness receipt signature with second key against signer digest, OS-evidence hash, nonce and staging SHA.",
+            "Reject forged authority, incorrect key, swapped hash, stale/future timestamps, altered receipts and noncanonical signed bytes.",
+            "Report cryptographic consistency while retaining all independent authority/replay/audit/DBA/Backup/Restore/Production blockers."
+          ],
+          "assertions": [
+            "Two signatures must be distinct, valid and unambiguously bound to the same Staging OS evidence.",
+            "Extra fields claiming independently custodied audit or operational DBA authority must fail closed.",
+            "Synthetic verification must never clear live Trust Readiness blockers or authorize data operations.",
+            "No key or secret persistence, network access or database mutation by the receipt verifier."
+          ],
+          "tests": [
+            {
+              "id": "staging-broker-witness-receipt-offline-ci",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "local-connector/test-staging-backup-broker-witness-receipt.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "local-connector/staging-backup-broker-witness-receipt.mjs",
+            "local-connector/test-staging-backup-broker-witness-receipt.mjs"
+          ]
+        },
+        {
+          "id": "staging-broker-private-atomic-nonce-issuance-and-consumption",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Local Windows/Staging isolated OS challenge coordinator",
+          "entrypoint": "Open separately protected directory and issue random 256-bit Staging-only challenge, then consume exactly once.",
+          "terminal_outcome": "One process claims nonce; seven concurrent processes and post-restart replay are blocked by atomic persistent file markers. External independent challenge ownership is still unverified.",
+          "steps": [
+            "Require preprovisioned private Staging-only directory and separately measured ACL, revalidating before every issue/consume.",
+            "Generate 256-bit random challenge bound to exact certified Git SHA, executable SHA256, expiry.",
+            "Atomically write+fsync issued challenge, then validate exact issue record and create consumed marker with exclusive creation and fsync.",
+            "Race eight separate OS Node processes, simulate restart, deny reused/expired/forged and out-of-scope challenges.",
+            "Never authorize operational service or database changes merely from a successful local replay check."
+          ],
+          "assertions": [
+            "Exactly one concurrent process consumes challenge, even across isolated process boundaries.",
+            "Consumed marker persists and is rejected on restart; no deletion/rewinding of records.",
+            "Changing expected Staging SHA, measured binary hash, expiry, issued nonce, or scope fails closed.",
+            "Local ledger cannot be represented as externally immutable audit or independent custody."
+          ],
+          "tests": [
+            {
+              "id": "staging-broker-atomic-durable-challenge-ledger",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "local-connector/test-staging-backup-broker-challenge-ledger.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "local-connector/staging-backup-broker-challenge-ledger.mjs",
+            "local-connector/test-staging-backup-broker-challenge-ledger.mjs"
+          ]
+        },
+        {
+          "id": "staging-broker-protected-external-key-anchor-import",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Staging isolated OS key verifier without independent out-of-band owner anchor",
+          "entrypoint": "Read pre-existing protected Staging registry of two public Ed25519 keys using a separately supplied SHA256 digest.",
+          "terminal_outcome": "Canonical owner and witness public keys read only if file hash, scope, key type, identities, directory/file permissions match. Independent root custody remains denied.",
+          "steps": [
+            "Require an exact protected Staging registry path and an expected digest obtained via independent channel.",
+            "Verify hash of full bytes and strict schema, exact Staging environment and device.",
+            "Verify two distinct Ed25519 SPKI public keys and their fingerprints; reject swapped, duplicate, tampered, Production and overprivileged manifests.",
+            "Never create private signing keys, install an Operator authority or grant DBA based only on a caller-provided registry digest."
+          ],
+          "assertions": [
+            "Public key readback rejects tampered files and mismatched expected hash.",
+            "Two distinct signer roles required, with no private keys persisted.",
+            "Missing independently approved anchor, external immutable storage and owner one-shot permission remain hard blocked."
+          ],
+          "tests": [
+            {
+              "id": "staging-broker-protected-key-registry",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "local-connector/test-staging-backup-broker-pinned-key-registry.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "local-connector/staging-backup-broker-pinned-key-registry.mjs",
+            "local-connector/test-staging-backup-broker-pinned-key-registry.mjs"
+          ]
+        },
+        {
+          "id": "staging-broker-os-process-image-measurement-status-fail-closed",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Staging read-only OS inventory without admin elevation",
+          "entrypoint": "Run the Win32_Process ExecutablePath measurement for the SCM service PID, report sanitized reason when the protected path is not disclosed.",
+          "terminal_outcome": "Provide exact access-denial/not-disclosed reason but never substitute the SCM path or a build digest; retain all independent trust/DBA/WORM/Production gates.",
+          "steps": [
+            "Discover the exact Staging-certified runtime source and dedicated running SCM Broker service.",
+            "Request executable path from Win32_Process using the actual SCM PID, attempt read-only SHA256 only when actual process path is disclosed.",
+            "Report sanitized status process_path_not_disclosed, os_access_denied, metadata unavailable or measured_from_process_path.",
+            "Reject caller self-approval, spoofed source/digest or status as authority; never execute SQL or change host permissions."
+          ],
+          "assertions": [
+            "Non-elevated/blocked process path leaves process digest unmeasured and the existing blocker present.",
+            "A synthetically supplied hash cannot make service_identity_independently_attested or broker_operationally_certified true.",
+            "Status is a fixed enum, not raw executable path, error text or filesystem secret.",
+            "No fallback to SCM ImagePath, no file modification, no DBA, Backup/Restore or Production operations."
+          ],
+          "tests": [
+            {
+              "id": "staging-broker-os-process-image-diagnostic-failclosed",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "local-connector/test-staging-backup-db-broker-trust-readiness.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "autopilot-portable-staging/Inspect-StagingBackupBrokerTrustReadiness.ps1",
+            "local-connector/staging-backup-db-broker-trust-readiness.mjs",
+            "local-connector/test-staging-backup-db-broker-trust-readiness.mjs"
+          ]
+        }
+      ],
+      "tests": [
+        {
+          "id": "native-host-negative-authority-contract",
+          "runner": "node",
+          "path": "local-connector/test-staging-backup-db-broker-native-host-service.mjs",
+          "args": []
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}

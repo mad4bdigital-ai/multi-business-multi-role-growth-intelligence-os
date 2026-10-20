@@ -1,0 +1,110 @@
+{
+  "contract": "mad4b.pr8471-windows-coldboot-scenarios.v1",
+  "schema_version": 1,
+  "environment": "staging",
+  "authority": "source_contract_only",
+  "native_reboot_certificate": "missing",
+  "scenarios": [
+    {
+      "id": "windows_boot.docker_engine_start_delay",
+      "trigger": "Docker Desktop starts after delayed WSL2 initialization",
+      "expected_state": "retry_later",
+      "required_evidence": "docker info confirms local context and server",
+      "source_coverage": "negative_or_static",
+      "live_certified": false,
+      "production_mutation_allowed": false,
+      "secrets_included": false
+    },
+    {
+      "id": "windows_boot.git_dns_unresolved",
+      "trigger": "Windows DNS cannot resolve github.com immediately after user logon",
+      "expected_state": "retry_later",
+      "required_evidence": "watcher remains alive without stale SHA reuse",
+      "source_coverage": "negative_or_static",
+      "live_certified": false,
+      "production_mutation_allowed": false,
+      "secrets_included": false
+    },
+    {
+      "id": "windows_boot.auth_dns_unresolved",
+      "trigger": "Windows DNS cannot resolve auth.mad4b.com during device polling",
+      "expected_state": "retry_later",
+      "required_evidence": "backoff then authenticated native reconnect",
+      "source_coverage": "negative_or_static",
+      "live_certified": false,
+      "production_mutation_allowed": false,
+      "secrets_included": false
+    },
+    {
+      "id": "windows_boot.supervisor_missing",
+      "trigger": "Autonomous supervisor Scheduled Task does not exist",
+      "expected_state": "blocked",
+      "required_evidence": "additive installer exact-principal task readback",
+      "source_coverage": "negative_or_static",
+      "live_certified": false,
+      "production_mutation_allowed": false,
+      "secrets_included": false
+    },
+    {
+      "id": "windows_boot.last_run_failed",
+      "trigger": "Auto Deploy and Docker Bootstrap last result is 1 while Health Monitor reports 267009",
+      "expected_state": "blocked",
+      "required_evidence": "current task process, Engine and container-health readback",
+      "source_coverage": "negative_or_static",
+      "live_certified": false,
+      "production_mutation_allowed": false,
+      "secrets_included": false
+    },
+    {
+      "id": "windows_boot.stale_certification_after_reboot",
+      "trigger": "Persisted certified SHA matches but Docker Compose containers stopped",
+      "expected_state": "blocked",
+      "required_evidence": "new local Compose service readback and exact-SHA certification",
+      "source_coverage": "negative_or_static",
+      "live_certified": false,
+      "production_mutation_allowed": false,
+      "secrets_included": false
+    },
+    {
+      "id": "windows_boot.external_drive_offline",
+      "trigger": "Repository resides on disconnected removable NTFS volume at logon",
+      "expected_state": "blocked",
+      "required_evidence": "verified mount and identical trusted checkout, no stale deployment",
+      "source_coverage": "negative_or_static",
+      "live_certified": false,
+      "production_mutation_allowed": false,
+      "secrets_included": false
+    },
+    {
+      "id": "windows_boot.watcher_overlap_and_recovery",
+      "trigger": "Restart and concurrent logon tasks race after network reappears",
+      "expected_state": "blocked",
+      "required_evidence": "single-process lock, IgnoreNew, two clean poll/sleep cycles and signed acceptance",
+      "source_coverage": "negative_or_static",
+      "live_certified": false,
+      "production_mutation_allowed": false,
+      "secrets_included": false
+    },
+    {
+      "id": "windows_boot.execution_policy_blocks_direct_ps1",
+      "trigger": "Windows PowerShell rejects direct installer invocation with PSSecurityException because running scripts is disabled",
+      "expected_state": "blocked",
+      "required_evidence": "PowerShell 5.1 child process with per-process ExecutionPolicy argument, exact trusted source, nonzero-exit handling and independent Scheduled Task readback",
+      "source_coverage": "negative_or_static",
+      "live_certified": false,
+      "production_mutation_allowed": false,
+      "secrets_included": false
+    },
+    {
+      "id": "windows_boot.watcher_principal_or_actions_drift",
+      "trigger": "Existing Auto Deploy task belongs to another Windows SID or contains zero/multiple Actions, causing the additive supervisor installer to block",
+      "expected_state": "blocked",
+      "required_evidence": "native SID-normalized principal identity, exactly one canonical approved scheduled action, interactive logon, read-only diagnosis, and independent root task readback",
+      "source_coverage": "negative_or_static",
+      "live_certified": false,
+      "production_mutation_allowed": false,
+      "secrets_included": false
+    }
+  ],
+  "production_promotion_authorized": false
+}

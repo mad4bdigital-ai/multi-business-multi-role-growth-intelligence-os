@@ -1,0 +1,236 @@
+{
+  "contract": "mad4b.reference.business-context.personalization.v1",
+  "status": "TEMPLATE_ONLY",
+  "dynamic_axes": [
+    {
+      "key": "tenant_brand",
+      "meaning": "exact scoped organization and brand",
+      "binding": "identity_strict",
+      "optional_by_business": true,
+      "extension_mode": "REVIEWED_ADD_ONLY",
+      "unbound_is_not_permission": true
+    },
+    {
+      "key": "business_activity",
+      "meaning": "business model and industry characteristics",
+      "binding": "registry_evidence",
+      "optional_by_business": true,
+      "extension_mode": "REVIEWED_ADD_ONLY",
+      "unbound_is_not_permission": true
+    },
+    {
+      "key": "offer_type",
+      "meaning": "product/service and capability",
+      "binding": "verified_catalog",
+      "optional_by_business": true,
+      "extension_mode": "REVIEWED_ADD_ONLY",
+      "unbound_is_not_permission": true
+    },
+    {
+      "key": "market_locale",
+      "meaning": "region/language/script/dialect",
+      "binding": "approved_locale",
+      "optional_by_business": true,
+      "extension_mode": "REVIEWED_ADD_ONLY",
+      "unbound_is_not_permission": true
+    },
+    {
+      "key": "persona",
+      "meaning": "audience role and pain/need",
+      "binding": "segment_evidence",
+      "optional_by_business": true,
+      "extension_mode": "REVIEWED_ADD_ONLY",
+      "unbound_is_not_permission": true
+    },
+    {
+      "key": "decision_role",
+      "meaning": "economic/technical/user champion",
+      "binding": "role_evidence",
+      "optional_by_business": true,
+      "extension_mode": "REVIEWED_ADD_ONLY",
+      "unbound_is_not_permission": true
+    },
+    {
+      "key": "job_to_be_done",
+      "meaning": "task customer seeks to complete",
+      "binding": "needs_evidence",
+      "optional_by_business": true,
+      "extension_mode": "REVIEWED_ADD_ONLY",
+      "unbound_is_not_permission": true
+    },
+    {
+      "key": "buyer_stage",
+      "meaning": "funnel and journey milestone",
+      "binding": "status_evidence",
+      "optional_by_business": true,
+      "extension_mode": "REVIEWED_ADD_ONLY",
+      "unbound_is_not_permission": true
+    },
+    {
+      "key": "purchase_intent",
+      "meaning": "observed intent category",
+      "binding": "aggregate_non_sensitive",
+      "optional_by_business": true,
+      "extension_mode": "REVIEWED_ADD_ONLY",
+      "unbound_is_not_permission": true
+    },
+    {
+      "key": "content_goal",
+      "meaning": "metric and action objective",
+      "binding": "owner_approval",
+      "optional_by_business": true,
+      "extension_mode": "REVIEWED_ADD_ONLY",
+      "unbound_is_not_permission": true
+    },
+    {
+      "key": "content_pillar",
+      "meaning": "editorial thematic area",
+      "binding": "strategy_approval",
+      "optional_by_business": true,
+      "extension_mode": "REVIEWED_ADD_ONLY",
+      "unbound_is_not_permission": true
+    },
+    {
+      "key": "tactic",
+      "meaning": "inbound/outbound/retarget/ugc etc",
+      "binding": "policy_applicability",
+      "optional_by_business": true,
+      "extension_mode": "REVIEWED_ADD_ONLY",
+      "unbound_is_not_permission": true
+    },
+    {
+      "key": "channel",
+      "meaning": "distribution medium",
+      "binding": "channel_policy",
+      "optional_by_business": true,
+      "extension_mode": "REVIEWED_ADD_ONLY",
+      "unbound_is_not_permission": true
+    },
+    {
+      "key": "format",
+      "meaning": "article/ad/short video etc",
+      "binding": "production_template",
+      "optional_by_business": true,
+      "extension_mode": "REVIEWED_ADD_ONLY",
+      "unbound_is_not_permission": true
+    },
+    {
+      "key": "voice",
+      "meaning": "approved brand character",
+      "binding": "brand_policy",
+      "optional_by_business": true,
+      "extension_mode": "REVIEWED_ADD_ONLY",
+      "unbound_is_not_permission": true
+    },
+    {
+      "key": "style",
+      "meaning": "approved stylistic archetype",
+      "binding": "editorial_policy",
+      "optional_by_business": true,
+      "extension_mode": "REVIEWED_ADD_ONLY",
+      "unbound_is_not_permission": true
+    },
+    {
+      "key": "visual",
+      "meaning": "design/motion/camera rules",
+      "binding": "creative_policy",
+      "optional_by_business": true,
+      "extension_mode": "REVIEWED_ADD_ONLY",
+      "unbound_is_not_permission": true
+    },
+    {
+      "key": "audio",
+      "meaning": "voice/music/sound rights",
+      "binding": "rights_policy",
+      "optional_by_business": true,
+      "extension_mode": "REVIEWED_ADD_ONLY",
+      "unbound_is_not_permission": true
+    },
+    {
+      "key": "time",
+      "meaning": "time window and campaign expiry",
+      "binding": "active_revalidation",
+      "optional_by_business": true,
+      "extension_mode": "REVIEWED_ADD_ONLY",
+      "unbound_is_not_permission": true
+    },
+    {
+      "key": "customer_relationship",
+      "meaning": "existing/new/consented segment",
+      "binding": "privacy_scope",
+      "optional_by_business": true,
+      "extension_mode": "REVIEWED_ADD_ONLY",
+      "unbound_is_not_permission": true
+    },
+    {
+      "key": "accessibility",
+      "meaning": "assistive reader/contrast/captions",
+      "binding": "baseline_mandatory",
+      "optional_by_business": true,
+      "extension_mode": "REVIEWED_ADD_ONLY",
+      "unbound_is_not_permission": true
+    },
+    {
+      "key": "experiment",
+      "meaning": "variant and randomization policy",
+      "binding": "consented_measurement",
+      "optional_by_business": true,
+      "extension_mode": "REVIEWED_ADD_ONLY",
+      "unbound_is_not_permission": true
+    }
+  ],
+  "precedence": [
+    {
+      "rank": 1,
+      "policy": "privacy_regulatory_brand_legal_and_platform_bans",
+      "can_relax": false
+    },
+    {
+      "rank": 2,
+      "policy": "approved_product_claims_and_verified_evidence",
+      "can_relax": false
+    },
+    {
+      "rank": 3,
+      "policy": "approved_brand_voice_and_editorial_style",
+      "can_relax": false
+    },
+    {
+      "rank": 4,
+      "policy": "approved_market_locale_and_channel_constraints",
+      "can_relax": false
+    },
+    {
+      "rank": 5,
+      "policy": "persona_role_journey_tactic_and_campaign_overlays",
+      "can_relax": false
+    },
+    {
+      "rank": 6,
+      "policy": "experiment_variants_without_policy_escape",
+      "can_relax": false
+    }
+  ],
+  "input_policy": {
+    "individual_tracking_default": false,
+    "third_party_segment_discovery_requires_purpose_and_consent": true,
+    "lead_contact_data_disallowed_in_seed": true,
+    "child_or_sensitive_categories_need_stricter_review": true
+  },
+  "conflict_policy": {
+    "equal_rank_conflicts": "BLOCK_AND_REQUEST_OWNER",
+    "unknown_content_claim": "OMIT_OR_QUALIFY",
+    "source_changed_during_render": "INVALIDATE_OUTPUT",
+    "unapproved_personalization": "FALLBACK_TO_NONPERSONAL_PUBLIC_CONTEXT"
+  },
+  "output_contract": {
+    "effective_policy_digest": "REQUIRED_AT_RUNTIME",
+    "locale": "EXPLICIT",
+    "audience_ref": "SCOPED",
+    "source_claim_refs": "REQUIRED_WHEN_CLAIMED",
+    "risk_flagging": true,
+    "approval": "REQUIRED_BEFORE_PUBLICATION",
+    "renderer_receipt": "INDEPENDENT_AT_RUNTIME",
+    "execution_enabled": false
+  }
+}

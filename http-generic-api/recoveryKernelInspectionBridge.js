@@ -10,10 +10,10 @@ function unavailable(name) {
   });
 }
 
-export function deriveCanonicalRecoveryFindingsFromInspection(inspection = {}) {
+export function deriveCanonicalRecoveryFindingsFromInspection(inspection = {}, { trustedRoleInventoryVerifier = null } = {}) {
   const primitive = _testingRecoveryKernel?.findingsFromInspection;
   if (typeof primitive !== "function") unavailable("findingsFromInspection");
-  return structuredClone(primitive(structuredClone(inspection)));
+  return structuredClone(primitive(structuredClone(inspection), { trustedRoleInventoryVerifier }));
 }
 
 export function classifyCanonicalRecoveryFinding(finding = {}) {

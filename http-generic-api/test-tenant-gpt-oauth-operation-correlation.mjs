@@ -4,8 +4,10 @@ import {
   TENANT_GPT_OAUTH_CORRELATION_STAGES,
   advanceTenantGptOAuthOperationCorrelation,
   createTenantGptOAuthOperationCorrelation,
+  issueTenantGptOAuthCorrelationTicket,
   safeTenantGptOAuthOperationCorrelationEvidence,
   tenantGptOAuthOperationCorrelationClaim,
+  verifyTenantGptOAuthCorrelationTicket,
   verifyTenantGptOAuthOperationCorrelation,
 } from "./tenantGptOAuthOperationCorrelation.js";
 
@@ -16,6 +18,9 @@ const USER_ID = "user-sensitive-123";
 const TENANT_ID = "tenant-sensitive-456";
 const CODE_JTI = "oauth-code-jti-sensitive";
 const ACCESS_JTI = "access-token-jti-sensitive";
+const JWT_SECRET = "tenant-gpt-oauth-correlation-ticket-test-secret-0123456789";
+const REDIRECT_URI = "https://chatgpt.com/aip/g-correlation/oauth/callback";
+const STATE = "oauth-state-sensitive";
 const ids = [
   "11111111-1111-4111-8111-111111111111",
   "22222222-2222-4222-8222-222222222222",
@@ -40,6 +45,80 @@ assert.equal(authorize.secrets_included, false);
 assert.equal(Object.isFrozen(authorize), true);
 assert.match(authorize.client_id_sha256, /^[0-9a-f]{64}$/);
 assert.match(authorize.stage_request_id_sha256, /^[0-9a-f]{64}$/);
+
+const correlationTicket = issueTenantGptOAuthCorrelationTicket(authorize, {
+  jwtSecret: JWT_SECRET,
+  redirect_uri: REDIRECT_URI,
+  state: STATE,
+  expiresInSeconds: 120,
+});
+assert.equal(typeof correlationTicket, "string");
+assert.equal(correlationTicket.includes(CLIENT_ID), false);
+assert.equal(correlationTicket.includes(STATE), false);
+assert.deepEqual(
+  verifyTenantGptOAuthCorrelationTicket(correlationTicket, {
+    jwtSecret: JWT_SECRET,
+    expected_client_id: CLIENT_ID,
+    expected_resource: RESOURCE,
+    expected_redirect_uri: REDIRECT_URI,
+    expected_state: STATE,
+    nowMs: Date.now(),
+  }),
+  authorize,
+);
+assert.throws(
+  () => verifyTenantGptOAuthCorrelationTicket(
+    `${correlationTicket.slice(0, -1)}${correlationTicket.endsWith("a") ? "b" : "a"}`,
+    {
+      jwtSecret: JWT_SECRET,
+      expected_client_id: CLIENT_ID,
+      expected_resource: RESOURCE,
+      expected_redirect_uri: REDIRECT_URI,
+      expected_state: STATE,
+    },
+  ),
+  error => error?.code === "oauth_correlation_ticket_invalid",
+);
+assert.throws(
+  () => verifyTenantGptOAuthCorrelationTicket(correlationTicket, {
+    jwtSecret: JWT_SECRET,
+    expected_client_id: "different-client",
+    expected_resource: RESOURCE,
+    expected_redirect_uri: REDIRECT_URI,
+    expected_state: STATE,
+  }),
+  error => error?.code === "oauth_correlation_client_drift",
+);
+assert.throws(
+  () => verifyTenantGptOAuthCorrelationTicket(correlationTicket, {
+    jwtSecret: JWT_SECRET,
+    expected_client_id: CLIENT_ID,
+    expected_resource: "https://auth.mad4b.com",
+    expected_redirect_uri: REDIRECT_URI,
+    expected_state: STATE,
+  }),
+  error => error?.code === "oauth_correlation_resource_mismatch",
+);
+assert.throws(
+  () => verifyTenantGptOAuthCorrelationTicket(correlationTicket, {
+    jwtSecret: JWT_SECRET,
+    expected_client_id: CLIENT_ID,
+    expected_resource: RESOURCE,
+    expected_redirect_uri: `${REDIRECT_URI}?drift=1`,
+    expected_state: STATE,
+  }),
+  error => error?.code === "oauth_correlation_ticket_redirect_drift",
+);
+assert.throws(
+  () => verifyTenantGptOAuthCorrelationTicket(correlationTicket, {
+    jwtSecret: JWT_SECRET,
+    expected_client_id: CLIENT_ID,
+    expected_resource: RESOURCE,
+    expected_redirect_uri: REDIRECT_URI,
+    expected_state: "different-state",
+  }),
+  error => error?.code === "oauth_correlation_ticket_state_drift",
+);
 
 const identity = advanceTenantGptOAuthOperationCorrelation(
   authorize,
@@ -151,6 +230,7 @@ for (const sensitiveValue of [
   "code-request",
   "token-request",
   "gateway-request",
+  STATE,
 ]) {
   assert.equal(serialized.includes(sensitiveValue), false, `${sensitiveValue} must not be retained`);
 }

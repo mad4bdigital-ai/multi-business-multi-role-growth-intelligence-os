@@ -1159,13 +1159,25 @@ export async function readLedgerApplyRecord(connection, database, migration, che
   return match ? { found: true, run_id: match.run_id || null, applied_at: match.applied_at || null } : { found: false, run_id: null, applied_at: null };
 }
 
-function migrationFilePath(repoRoot, file) {
+function migrationFilePath(repoRoot, file, { artifactScope = "canonical", contract = null } = {}) {
   const normalized = String(file || "").replaceAll("\\", "/");
   if (!/^[A-Za-z0-9_.-]+\.sql$/u.test(normalized)) throw bootstrapError("bootstrap_migration_path_invalid", "Migration file name is unsafe", { file: normalized });
-  const root = path.resolve(repoRoot, "http-generic-api", "migrations");
+  const scope = String(artifactScope || "canonical").trim();
+  let rootName = null;
+  if (scope === "canonical") {
+    rootName = "migrations";
+  } else if (scope === "staging_recovery_only") {
+    const declared = Array.isArray(contract?.staging_readiness_remediation?.schema_repair_migrations)
+      && contract.staging_readiness_remediation.schema_repair_migrations.some((entry) => entry?.file === normalized && String(entry?.artifact_scope || "").trim() === "staging_recovery_only");
+    if (!declared) throw bootstrapError("bootstrap_migration_artifact_scope_denied", "Recovery-only migration artifacts require the matching Staging remediation declaration", { file: normalized, artifact_scope: scope });
+    rootName = "staging-recovery-migrations";
+  } else {
+    throw bootstrapError("bootstrap_migration_artifact_scope_invalid", "Migration artifact scope is not registered", { file: normalized, artifact_scope: scope });
+  }
+  const root = path.resolve(repoRoot, "http-generic-api", rootName);
   const absolute = path.resolve(root, normalized);
-  if (!absolute.startsWith(`${root}${path.sep}`)) throw bootstrapError("bootstrap_migration_path_invalid", "Migration path escaped repository migrations root", { file: normalized });
-  if (!fs.existsSync(absolute)) throw bootstrapError("bootstrap_migration_missing", "Allowlisted migration artifact is missing", { file: normalized });
+  if (!absolute.startsWith(`${root}${path.sep}`)) throw bootstrapError("bootstrap_migration_path_invalid", "Migration path escaped repository-owned migration root", { file: normalized, artifact_scope: scope });
+  if (!fs.existsSync(absolute)) throw bootstrapError("bootstrap_migration_missing", "Allowlisted migration artifact is missing", { file: normalized, artifact_scope: scope });
   return absolute;
 }
 
@@ -1374,8 +1386,8 @@ async function applySeedFile(connection, repoRoot, entry, mutationEvidence) {
   return { file, sha256: checksum, statement_count: statements.length, status: "seed_applied" };
 }
 
-async function applyIncidentMigration(connection, repoRoot, migration, spec, database, mutationEvidence) {
-  const absolute = migrationFilePath(repoRoot, migration);
+async function applyIncidentMigration(connection, repoRoot, migration, spec, database, mutationEvidence, contract) {
+  const absolute = migrationFilePath(repoRoot, migration, { artifactScope: spec.artifact_scope || "canonical", contract });
   const sql = fs.readFileSync(absolute, "utf8");
   const checksum = crypto.createHash("sha256").update(sql).digest("hex");
   if (checksum !== String(spec.sha256).toLowerCase()) throw bootstrapError("bootstrap_migration_checksum_mismatch", "Canonical migration checksum differs from contract", { migration });
@@ -1874,11 +1886,11 @@ export async function runBootstrap({ env = process.env, contract = readRuntimeBo
     }
     let sqlApplied = false;
     if (!ledger.found) {
-      const migrationSql = fs.readFileSync(migrationFilePath(repoRoot, migration), "utf8");
+      const migrationSql = fs.readFileSync(migrationFilePath(repoRoot, migration, { artifactScope: spec.artifact_scope || "canonical", contract }), "utf8");
       const ddlPreflight = await assertDdlPrivilegePreflight(connection, target.database, migrationSql, spec.requires_tables || [], { kind: "incident_migration", migration });
       mutationEvidence.ddl_privilege_preflight.push(ddlPreflight);
       mutationEvidence.migration.statement_count = spec.statement_count;
-      migrationResults.push(await applyIncidentMigration(connection, repoRoot, migration, spec, target.database, mutationEvidence));
+      migrationResults.push(await applyIncidentMigration(connection, repoRoot, migration, spec, target.database, mutationEvidence, contract));
       sqlApplied = true;
       const postconditionsAfter = await readIncidentPostconditions(connection, target.database, contract, migration);
       if (!postconditionsAfter.ready) throw bootstrapError("bootstrap_postcondition_failed", "Migration completed but postconditions are not ready", { migration });

@@ -35,7 +35,8 @@ const shaB = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
   });
   assert.equal(integrity.state, "degraded");
   assert.equal(integrity.verified, false);
-  assert.equal(integrity.local_application_code_mutation_detected, true);
+  assert.equal(integrity.tracked_file_mutation_detected, true);
+  assert.equal(integrity.local_application_code_mutation_detected, null);
   assert.equal(integrity.dirty_tracked_file_count, 2);
   assert.deepEqual(integrity.reason_codes, ["unapproved_dirty_runtime"]);
 }
@@ -78,13 +79,16 @@ const shaB = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
     provenanceSource: "/app/deployment-manifest.json",
     dirtyTrackedFileCount: 0,
   });
-  assert.equal(integrity.state, "verified");
-  assert.equal(integrity.verified, true);
+  assert.equal(integrity.state, "degraded");
+  assert.equal(integrity.verified, false);
   assert.equal(integrity.provenance_verified, true);
   assert.equal(integrity.provenance_source, "/app/deployment-manifest.json");
   assert.equal(integrity.commit_matches, true);
-  assert.equal(integrity.readback_available, true);
-  assert.deepEqual(integrity.reason_codes, []);
+  assert.equal(integrity.readback_available, false);
+  assert.deepEqual(integrity.reason_codes, ["runtime_artifact_content_unverified"]);
+  assert.equal(integrity.identity_verified,true);
+  assert.equal(integrity.content_verified,false);
+  assert.equal(integrity.tracked_checkout_clean,null);
 }
 
 {

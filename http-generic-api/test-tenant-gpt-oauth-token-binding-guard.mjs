@@ -7,19 +7,49 @@ import {
   validateTenantGptOAuthAuthorizationCodeBindings,
 } from "./tenantGptOAuthTokenExchangeBindingGuard.js";
 import { buildTenantGptOAuthMetadataRoutes } from "./routes/tenantGptOAuthMetadataRoutes.js";
+import {
+  advanceTenantGptOAuthOperationCorrelation,
+  createTenantGptOAuthOperationCorrelation,
+} from "./tenantGptOAuthOperationCorrelation.js";
 
 const RESOURCE = "https://activation.mad4b.com";
 const CALLBACK = "https://chatgpt.com/aip/g-binding-test/oauth/callback";
 const CLIENT_SECRET = "binding-test-client-secret";
+const CODE_JTI = "binding-test-code-jti";
+const AUTHORIZE_CORRELATION = createTenantGptOAuthOperationCorrelation({
+  protected_resource: RESOURCE,
+  client_id: TENANT_GPT_OAUTH_CLIENT_ID,
+  request_id: "binding-authorize-request",
+}, { nowMs: Date.parse("2026-08-04T00:00:00.000Z") });
+const IDENTITY_CORRELATION = advanceTenantGptOAuthOperationCorrelation(
+  AUTHORIZE_CORRELATION,
+  {
+    stage: "identity_verify",
+    user_id: "binding-user-1",
+    tenant_id: "binding-tenant-1",
+    request_id: "binding-identity-request",
+  },
+  { nowMs: Date.parse("2026-08-04T00:00:01.000Z") },
+);
+const CODE_CORRELATION = advanceTenantGptOAuthOperationCorrelation(
+  IDENTITY_CORRELATION,
+  {
+    stage: "oauth_code_issue",
+    oauth_code_jti: CODE_JTI,
+    request_id: "binding-code-request",
+  },
+  { nowMs: Date.parse("2026-08-04T00:00:02.000Z") },
+);
 const CODE_PAYLOAD = Object.freeze({
   purpose: "custom_gpt_oauth_code",
-  jti: "binding-test-code-jti",
+  jti: CODE_JTI,
   user_id: "binding-user-1",
   tenant_id: "binding-tenant-1",
   redirect_uri: CALLBACK,
   client_id: TENANT_GPT_OAUTH_CLIENT_ID,
   resource: RESOURCE,
   scope: "https://auth.mad4b.com/scopes/tenant.activation",
+  oauth_correlation: CODE_CORRELATION,
 });
 const BASE_BODY = Object.freeze({
   grant_type: "authorization_code",
@@ -110,6 +140,7 @@ function createHarness(codePayload = CODE_PAYLOAD) {
         outcome: "consumed",
         replay_allowed: false,
         table_recovered: false,
+        request_correlation_ref: CODE_CORRELATION.operation_id,
         secrets_included: false,
       };
     },

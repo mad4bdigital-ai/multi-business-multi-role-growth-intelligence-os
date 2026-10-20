@@ -1,0 +1,78 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-gateway-plan-expiry-mariadb-20261007",
+  "title": "Make Staging Gateway execution-plan expiry MariaDB-compatible",
+  "delivery_mode": "single_pr",
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-gateway-plan-expiry-mariadb-20261007.json",
+      ".github/derived-state-governance.json",
+      "http-generic-api/config/repository-governance-constitution.json",
+      "http-generic-api/stagingGatewayExecutionPlanStore.js",
+      "http-generic-api/test-staging-smart-gateway-convergence-contract.mjs"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "production",
+      "staging"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Persist exact Staging Gateway execution-plan expiry timestamps in a MariaDB-compatible bind type without changing the signed plan-body instant or digest.",
+      "e2e_journeys": [
+        {
+          "id": "staging-gateway-plan-expiry-persistence",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Server-governed Staging Gateway plan store",
+          "entrypoint": "Persist a prepared transaction-certification execution plan whose plan body carries an ISO-8601 expiry.",
+          "terminal_outcome": "MariaDB receives a valid Date bind for expires_at while the plan body retains the exact ISO instant and the same execution-plan digest.",
+          "steps": [
+            "Build the governed Staging Gateway transaction-certification plan.",
+            "Validate the ISO expiry instant before persistence.",
+            "Bind expires_at to MariaDB as a Date value rather than an ISO string.",
+            "Preserve the original ISO expiry in plan_body_json so plan identity remains unchanged.",
+            "Read the saved synthetic plan back through the existing execution-plan lifecycle."
+          ],
+          "assertions": [
+            "The MariaDB expires_at bind is a valid Date instance.",
+            "The SQL bind resolves to the same ISO instant recorded in plan_body_json.",
+            "No schema migration is introduced.",
+            "No provider, DNS, custom-domain or Production mutation occurs.",
+            "No secret value is returned and secrets_included remains false."
+          ],
+          "tests": [
+            {
+              "id": "staging-gateway-plan-expiry-mariadb-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-smart-gateway-convergence-contract.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/staging-gateway-plan-expiry-mariadb-20261007.json",
+            ".github/derived-state-governance.json",
+            "http-generic-api/config/repository-governance-constitution.json",
+            "http-generic-api/stagingGatewayExecutionPlanStore.js",
+            "http-generic-api/test-staging-smart-gateway-convergence-contract.mjs"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}

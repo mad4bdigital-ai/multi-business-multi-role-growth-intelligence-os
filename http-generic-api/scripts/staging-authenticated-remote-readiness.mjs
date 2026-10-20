@@ -58,6 +58,17 @@ function form(values) {
   return out;
 }
 
+function tenantCorrelationTicketFromHtml(html) {
+  // The Tenant OAuth authorization page issues a signed, request-specific
+  // correlation ticket. No client may mint or guess a replacement.
+  const match = String(html || "").match(/const CORRELATION_TICKET\s*=\s*("(?:\\.|[^"\\])*");/u);
+  if (!match) fail("tenant_oauth_correlation_ticket_missing", "Tenant authorization did not provide a server-issued correlation ticket.");
+  let ticket = "";
+  try { ticket = String(JSON.parse(match[1]) || "").trim(); } catch {}
+  if (!ticket || ticket.length > 8192) fail("tenant_oauth_correlation_ticket_invalid", "Tenant authorization returned an invalid correlation ticket.");
+  return ticket;
+}
+
 function tenantCallback() {
   const callback = TENANT_GPT_CALLBACK_URLS_TO_ALLOW.find((value) => !String(value).includes("{"));
   if (!callback) fail("tenant_callback_unavailable", "No concrete governed Tenant GPT callback is available.");
@@ -119,12 +130,13 @@ async function tenantOAuthRead(principal, userJwt) {
   const pkce = pkcePair();
   const authorize = new URL(`${TENANT_BASE}/auth/oauth/authorize`);
   for (const [key, value] of Object.entries({ client_id: clientId, response_type: "code", redirect_uri: redirectUri, state, scope: TENANT_STATUS_SCOPE, resource: TENANT_RESOURCE, code_challenge: pkce.challenge, code_challenge_method: "S256", prompt: "login" })) authorize.searchParams.set(key, value);
-  await fetchBody(authorize, {}, [200]);
+  const authorizePage = await fetchBody(authorize, {}, [200]);
+  const correlationTicket = tenantCorrelationTicketFromHtml(authorizePage.body);
 
   const codeResult = await fetchBody(`${TENANT_BASE}/auth/oauth/code`, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ token: userJwt, redirect_uri: redirectUri, state, scope: TENANT_STATUS_SCOPE, oauth_client_id: clientId, oauth_resource: TENANT_RESOURCE, code_challenge: pkce.challenge, code_challenge_method: "S256" }),
+    body: JSON.stringify({ token: userJwt, redirect_uri: redirectUri, state, correlation_ticket: correlationTicket, scope: TENANT_STATUS_SCOPE, oauth_client_id: clientId, oauth_resource: TENANT_RESOURCE, code_challenge: pkce.challenge, code_challenge_method: "S256" }),
   });
   artifacts.tenant.sso_sid = ssoSidFromHeader(codeResult.response.headers.get("set-cookie"));
   const code = text(codeResult.body?.code, 8192);
@@ -200,48 +212,74 @@ async function remoteMcpOAuthRead(pool, principal, userJwt) {
   return { remote_mcp_oauth_ready: true, remote_mcp_read_ready: true };
 }
 
+async function queryCleanupSurface(pool, { name, sql, params }) {
+  try {
+    return { skipped_missing_optional_table: false, result: await pool.query(sql, params) };
+  } catch (error) {
+    // The activation context store is optional on minimal Staging schemas.
+    // Only a proven missing table may be skipped. Permission denials and other
+    // database failures must remain fatal and cannot silently certify cleanup.
+    if (name === "tenant_activation_context" && error?.code === "ER_NO_SUCH_TABLE") {
+      return { skipped_missing_optional_table: true, result: null };
+    }
+    throw error;
+  }
+}
+
 async function cleanup(pool) {
   const tasks = [];
   if (artifacts.tenant.access_jti) {
-    tasks.push(pool.query("DELETE FROM tenant_gpt_activation_contexts WHERE access_jti=?", [artifacts.tenant.access_jti]));
-    tasks.push(pool.query("DELETE FROM tenant_gpt_oauth_grants WHERE access_jti=?", [artifacts.tenant.access_jti]));
+    // No activation_context is sent in this bounded probe, so it does not
+    // create an activation-context row and must not assume that optional table exists.
+    tasks.push({ name: "tenant_oauth_grant", sql: "DELETE FROM tenant_gpt_oauth_grants WHERE access_jti=?", params: [artifacts.tenant.access_jti] });
   }
-  if (artifacts.tenant.code_jti) tasks.push(pool.query("DELETE FROM tenant_gpt_oauth_authorization_codes WHERE code_jti_hash=?", [sha256(artifacts.tenant.code_jti)]));
-  if (artifacts.tenant.sso_sid) tasks.push(pool.query("DELETE FROM tenant_gpt_sso_sessions WHERE sid=?", [artifacts.tenant.sso_sid]));
-  if (artifacts.tenant.token_request_id) tasks.push(pool.query(`DELETE FROM execution_log WHERE JSON_UNQUOTE(JSON_EXTRACT(runtime_evidence_json,'$.request_id'))=? AND action_key IN ('tenant_gpt_oauth_token_exchange','tenant_gpt_oauth_token_exchange_v2')`, [artifacts.tenant.token_request_id]));
-  if (artifacts.mcp.code_hash) tasks.push(pool.query("DELETE FROM remote_mcp_oauth_authorization_codes WHERE code_hash=?", [artifacts.mcp.code_hash]));
-  if (artifacts.mcp.access_jti) tasks.push(pool.query("DELETE FROM remote_mcp_oauth_grants WHERE access_jti=?", [artifacts.mcp.access_jti]));
-  await Promise.all(tasks);
+  if (artifacts.tenant.code_jti) tasks.push({ name: "tenant_oauth_code", sql: "DELETE FROM tenant_gpt_oauth_authorization_codes WHERE code_jti_hash=?", params: [sha256(artifacts.tenant.code_jti)] });
+  if (artifacts.tenant.sso_sid) tasks.push({ name: "tenant_sso", sql: "DELETE FROM tenant_gpt_sso_sessions WHERE sid=?", params: [artifacts.tenant.sso_sid] });
+  if (artifacts.tenant.token_request_id) tasks.push({ name: "tenant_oauth_diagnostic", sql: `DELETE FROM execution_log WHERE JSON_UNQUOTE(JSON_EXTRACT(runtime_evidence_json,'$.request_id'))=? AND action_key IN ('tenant_gpt_oauth_token_exchange','tenant_gpt_oauth_token_exchange_v2')`, params: [artifacts.tenant.token_request_id] });
+  if (artifacts.mcp.code_hash) tasks.push({ name: "mcp_oauth_code", sql: "DELETE FROM remote_mcp_oauth_authorization_codes WHERE code_hash=?", params: [artifacts.mcp.code_hash] });
+  if (artifacts.mcp.access_jti) tasks.push({ name: "mcp_oauth_grant", sql: "DELETE FROM remote_mcp_oauth_grants WHERE access_jti=?", params: [artifacts.mcp.access_jti] });
+  const errors = [];
+  for (const task of tasks) {
+    try {
+      await queryCleanupSurface(pool, task);
+    } catch (error) {
+      errors.push({ name: task.name, code: text(error?.code || "cleanup_query_failed", 64) });
+    }
+  }
+  if (errors.length) {
+    const error = new Error(`Cleanup failed on ${errors.map((item) => item.name + ":" + item.code).join(",")}`);
+    error.code = "staging_probe_cleanup_failed";
+    throw error;
+  }
 }
 
 async function residueCount(pool) {
   const checks = [];
   if (artifacts.tenant.access_jti) {
-    checks.push(["tenant_activation_context", "SELECT COUNT(*) AS n FROM tenant_gpt_activation_contexts WHERE access_jti=?", [artifacts.tenant.access_jti]]);
-    checks.push(["tenant_oauth_grant", "SELECT COUNT(*) AS n FROM tenant_gpt_oauth_grants WHERE access_jti=?", [artifacts.tenant.access_jti]]);
+    checks.push({ name: "tenant_oauth_grant", sql: "SELECT COUNT(*) AS n FROM tenant_gpt_oauth_grants WHERE access_jti=?", params: [artifacts.tenant.access_jti] });
   }
-  if (artifacts.tenant.code_jti) checks.push(["tenant_oauth_code", "SELECT COUNT(*) AS n FROM tenant_gpt_oauth_authorization_codes WHERE code_jti_hash=?", [sha256(artifacts.tenant.code_jti)]]);
-  if (artifacts.tenant.sso_sid) checks.push(["tenant_sso", "SELECT COUNT(*) AS n FROM tenant_gpt_sso_sessions WHERE sid=?", [artifacts.tenant.sso_sid]]);
-  if (artifacts.tenant.token_request_id) checks.push(["tenant_oauth_diagnostic", `SELECT COUNT(*) AS n FROM execution_log WHERE JSON_UNQUOTE(JSON_EXTRACT(runtime_evidence_json,'$.request_id'))=? AND action_key IN ('tenant_gpt_oauth_token_exchange','tenant_gpt_oauth_token_exchange_v2')`, [artifacts.tenant.token_request_id]]);
-  if (artifacts.mcp.code_hash) checks.push(["mcp_oauth_code", "SELECT COUNT(*) AS n FROM remote_mcp_oauth_authorization_codes WHERE code_hash=?", [artifacts.mcp.code_hash]]);
-  if (artifacts.mcp.access_jti) checks.push(["mcp_oauth_grant", "SELECT COUNT(*) AS n FROM remote_mcp_oauth_grants WHERE access_jti=?", [artifacts.mcp.access_jti]]);
+  if (artifacts.tenant.code_jti) checks.push({ name: "tenant_oauth_code", sql: "SELECT COUNT(*) AS n FROM tenant_gpt_oauth_authorization_codes WHERE code_jti_hash=?", params: [sha256(artifacts.tenant.code_jti)] });
+  if (artifacts.tenant.sso_sid) checks.push({ name: "tenant_sso", sql: "SELECT COUNT(*) AS n FROM tenant_gpt_sso_sessions WHERE sid=?", params: [artifacts.tenant.sso_sid] });
+  if (artifacts.tenant.token_request_id) checks.push({ name: "tenant_oauth_diagnostic", sql: `SELECT COUNT(*) AS n FROM execution_log WHERE JSON_UNQUOTE(JSON_EXTRACT(runtime_evidence_json,'$.request_id'))=? AND action_key IN ('tenant_gpt_oauth_token_exchange','tenant_gpt_oauth_token_exchange_v2')`, params: [artifacts.tenant.token_request_id] });
+  if (artifacts.mcp.code_hash) checks.push({ name: "mcp_oauth_code", sql: "SELECT COUNT(*) AS n FROM remote_mcp_oauth_authorization_codes WHERE code_hash=?", params: [artifacts.mcp.code_hash] });
+  if (artifacts.mcp.access_jti) checks.push({ name: "mcp_oauth_grant", sql: "SELECT COUNT(*) AS n FROM remote_mcp_oauth_grants WHERE access_jti=?", params: [artifacts.mcp.access_jti] });
   const details = {};
   let total = 0;
-  for (const [name, sql, params] of checks) {
-    const [rows] = await pool.query(sql, params);
-    const count = Number(rows?.[0]?.n || 0);
-    details[name] = count;
+  for (const task of checks) {
+    const checked = await queryCleanupSurface(pool, task);
+    const count = checked.skipped_missing_optional_table ? 0 : Number(checked.result?.[0]?.[0]?.n || 0);
+    details[task.name] = count;
     total += count;
   }
   return { total, details };
 }
-
 const pool = getPool();
 let principal = null;
 let tenant = null;
 let mcp = null;
 let failure = null;
 let residue = { total: null, details: {} };
+let cleanupFailure = null;
 try {
   assertStagingBoundary();
   principal = await probePrincipal(pool);
@@ -255,7 +293,8 @@ try {
     await cleanup(pool);
     residue = await residueCount(pool);
   } catch (error) {
-    failure = failure || { code: "staging_probe_cleanup_failed", message: text(error?.message || "Staging readiness cleanup failed.", 320) };
+    cleanupFailure = { code: text(error?.code || "staging_probe_cleanup_failed", 128), message: text(error?.message || "Staging readiness cleanup failed.", 320) };
+    failure = failure || cleanupFailure;
     residue = { total: null, details: { cleanup_failed: 1 } };
   }
   await pool.end();
@@ -278,5 +317,6 @@ console.log(JSON.stringify({
   provider_mutation: false,
   secrets_included: false,
   ...(failure ? { failure } : {}),
+  ...(cleanupFailure ? { cleanup_failure: cleanupFailure } : {}),
 }));
 process.exitCode = ready ? 0 : 1;
