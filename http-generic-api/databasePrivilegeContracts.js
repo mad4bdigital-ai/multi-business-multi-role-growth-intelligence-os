@@ -71,6 +71,10 @@ const STAGING_RUNTIME_READ_ONLY_TABLES = Object.freeze([
   "role_assignments",
   "workspace_registry",
   "connected_systems",
+  // Governed Staging Hostinger discovery reads these Runtime registries through
+  // DB_USER. Do not grant INSERT/UPDATE/DELETE or propagate to Production.
+  "remote_runtime_targets",
+  "remote_runtime_command_allowlists",
   "installations",
   "permission_grants",
   "activation_authorized_surface_registry",
