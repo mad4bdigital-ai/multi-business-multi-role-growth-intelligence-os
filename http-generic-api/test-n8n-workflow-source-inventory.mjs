@@ -6,7 +6,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { inspectWorkflowSources } from "../local-connector/n8n-workflows/inspect-workflow-sources.mjs";
+import { inspectWorkflowSources, compareWorkflowBindingSnapshot } from "../local-connector/n8n-workflows/inspect-workflow-sources.mjs";
 import { createReleaseManifest } from "./scripts/staging-connector-release-contract.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -18,6 +18,24 @@ assert.equal(audit.connector_package_inclusion, false);
 assert.equal(audit.restore_scripts_executed, false);
 assert.equal(audit.database_mutation_performed, false);
 assert.equal(audit.secrets_included, false);
+// A sanitized runtime-binding snapshot can be compared without querying the DB
+// or accidentally executing the state-changing n8n restore scripts.
+const bindingRows = audit.workflows.map((item) => ({
+  binding_key: item.binding_key,
+  workflow_key: item.workflow_key,
+  runtime_type: "n8n",
+  status: "active",
+}));
+const compared = compareWorkflowBindingSnapshot(audit, { bindings: bindingRows });
+assert(compared.assessment.every((x) => x.state === "metadata_match_live_not_verified"));
+assert.equal(compared.may_apply, false);
+assert.equal(compared.restore_scripts_executed, false);
+assert(compared.assessment.every((x) => x.restore_approval_required && x.requires_live_readback));
+const wrongBinding = bindingRows.map((x, i) => i === 0 ? { ...x, workflow_key: "incorrect_workflow" } : x);
+const comparisonWithDrift = compareWorkflowBindingSnapshot(audit, { bindings: wrongBinding });
+assert(comparisonWithDrift.assessment.some((x) => x.state === "metadata_mismatch"));
+const missingBinding = compareWorkflowBindingSnapshot(audit, { bindings: [] });
+assert(missingBinding.assessment.every((x) => x.state === "not_in_snapshot"));
 const registry = createReleaseManifest(root);
 assert(!registry.files.some((file) => file.path.startsWith("local-connector/n8n-workflows/")),
   "n8n_source_must_never_be_merged_into_connector_release");
