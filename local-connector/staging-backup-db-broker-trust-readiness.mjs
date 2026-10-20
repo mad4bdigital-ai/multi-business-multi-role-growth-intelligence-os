@@ -17,7 +17,12 @@ export function assessStagingBrokerTrustReadiness(e={}){
   if(!exactSha)blockers.add("BROKER_STAGING_EXACT_RUNTIME_SHA_REQUIRED");
   if(e.device_id!==DEVICE||e.topology_observed!==true)
     blockers.add("BROKER_INDEPENDENT_HOST_TOPOLOGY_UNVERIFIED");
-  if(e.broker_candidate_running===true)
+  const candidateFound=e.broker_candidate_found===true||
+    e.windows_service_present===true;
+  // Inert bootstrap is never an operational broker, even if stopped. Running
+  // is separately reported from read-only discovery, not an authority grant.
+  const candidateRunning=candidateFound&&e.broker_candidate_running===true;
+  if(candidateFound)
     blockers.add("BROKER_INERT_CANDIDATE_NOT_OPERATIONAL_SERVICE");
   if(e.windows_service_present!==true)
     blockers.add("BROKER_DEDICATED_WINDOWS_SERVICE_NOT_FOUND");
@@ -48,6 +53,9 @@ export function assessStagingBrokerTrustReadiness(e={}){
     device_id:e.device_id===DEVICE?DEVICE:null,
     observed_exact_staging_release:exactSha,
     host_topology_observed:e.topology_observed===true,
+    broker_candidate_found:candidateFound,
+    broker_candidate_running:candidateRunning,
+    candidate_is_operational_broker:false,
     dedicated_service_observed:e.windows_service_present===true,
     dedicated_service_running:e.windows_service_present===true&&
       e.windows_service_running===true,
