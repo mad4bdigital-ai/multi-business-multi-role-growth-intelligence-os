@@ -69,7 +69,9 @@
       "scripts/repository-governance-closure.mjs",
       "scripts/repository-governance-evidence-finalizer.mjs",
       "scripts/repository-governance-objection-gate.mjs",
-      "specs/**/work-map-integration.json"
+      "specs/**/work-map-integration.json",
+      "specs/020-platform-resource-identity-brand-governance/e2e-phases.json",
+      "specs/020-platform-resource-identity-brand-governance/openapi-projection-readiness.json"
     ]
   },
   "merge_contract": {
