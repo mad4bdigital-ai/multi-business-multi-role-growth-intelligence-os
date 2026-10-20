@@ -5,6 +5,7 @@ const passingReadback = (branch, sha) => ({
   target: { owner: "mad4bdigital-ai", repo: "growth", default_branch: branch },
   branch_sha: sha,
   branch_protected: true,
+  repository_auto_merge_allowed: false,
   required_checks: branch === "main" ? ["Derived State Closure"] : ["Governed Production Promotion"],
   observed_required_checks: branch === "main" ? ["Derived State Closure"] : ["Governed Production Promotion"],
   ruleset_details: [],
@@ -89,6 +90,33 @@ assert.ok(weakenedMain.confirmed_policy_gaps.includes("stale_review_dismissal_di
 assert.ok(weakenedMain.confirmed_policy_gaps.includes("review_thread_resolution_disabled"));
 assert.ok(weakenedMain.confirmed_policy_gaps.includes("strict_required_checks_disabled"));
 assert.ok(weakenedMain.residual_risks.includes("any_source_requires_independent_trusted_status_readback"));
+
+// A repository GET can succeed while omitting allow_auto_merge under a
+// least-privileged Actions token. Do not report an enabled setting from null.
+const unknownAutoMerge = triagePolicyReadback({
+  ...passingReadback("main", mainSha),
+  repository_auto_merge_allowed: null,
+  proof: { ...passingReadback("main", mainSha).proof, auto_merge_disabled: false },
+});
+assert.ok(unknownAutoMerge.visibility_blockers.includes("repository_auto_merge_setting_unverified"));
+assert.ok(!unknownAutoMerge.confirmed_policy_gaps.includes("repository_auto_merge_enabled"));
+assert.equal(unknownAutoMerge.remediation.policy_apply_authorized, false);
+
+// An explicit enabled value is still a confirmed gap, even with other missing evidence.
+const enabledAutoMerge = triagePolicyReadback({
+  ...passingReadback("main", mainSha),
+  repository_auto_merge_allowed: true,
+  proof: { ...passingReadback("main", mainSha).proof, auto_merge_disabled: false },
+});
+assert.ok(enabledAutoMerge.confirmed_policy_gaps.includes("repository_auto_merge_enabled"));
+
+const disabledAutoMerge = triagePolicyReadback({
+  ...passingReadback("main", mainSha),
+  repository_auto_merge_allowed: false,
+  proof: { ...passingReadback("main", mainSha).proof, auto_merge_disabled: true },
+});
+assert.ok(!disabledAutoMerge.confirmed_policy_gaps.includes("repository_auto_merge_enabled"));
+assert.ok(!disabledAutoMerge.visibility_blockers.includes("repository_auto_merge_setting_unverified"));
 
 console.log(JSON.stringify({
   ok: true,

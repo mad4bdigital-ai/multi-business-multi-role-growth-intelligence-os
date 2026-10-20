@@ -51,7 +51,13 @@ export function triagePolicyReadback(readback = {}) {
   if (readback?.required_check_source_mode === "any_source_with_independent_finalizer_readback" &&
       readback?.required_check_source_unrestricted === true)
     add(residual, "any_source_requires_independent_trusted_status_readback");
-  if (proof.auto_merge_disabled === false) add(confirmed, "repository_auto_merge_enabled");
+  // The Actions read token can return a successful repository response with
+  // allow_auto_merge omitted. Treat that as missing evidence, not proof that
+  // auto-merge is enabled. Only an explicit true establishes the policy gap.
+  if (readback?.repository_auto_merge_allowed === true)
+    add(confirmed, "repository_auto_merge_enabled");
+  else if (readback?.repository_auto_merge_allowed !== false)
+    add(unknown, "repository_auto_merge_setting_unverified");
 
   const exactBranchSha = /^[0-9a-f]{40}$/i.test(String(readback?.branch_sha || ""));
   if (!exactBranchSha) add(unknown, "branch_sha_unverified");
