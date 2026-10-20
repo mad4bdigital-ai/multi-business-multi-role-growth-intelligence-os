@@ -1,0 +1,87 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "staging-remote-runtime-catalog-read-grants-20261020",
+  "title": "Staging Remote Runtime catalog read-only privileges",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "secrets_included": false,
+  "scope": {
+    "include": [
+      ".changes/e2e/staging-remote-runtime-catalog-read-grants-20261020.json",
+      "http-generic-api/databasePrivilegeContracts.js",
+      "http-generic-api/test-staging-database-readiness-repair.mjs"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Restore only SELECT privileges in Staging for Remote Runtime catalog and Hostinger allowlist discovery without changing Production bootstrap roles or broadening database authority.",
+      "e2e_journeys": [
+        {
+          "id": "remote-runtime-staging-catalog-read-authority",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Local Staging Runtime database operator",
+          "entrypoint": "http-generic-api/scripts/staging-role-grant-plan.mjs",
+          "terminal_outcome": "Exact Staging runtime grant contract and its generated plan include exactly SELECT for both Remote Runtime tables, while Production/bootstrap plans remain unchanged. Live grant application and runtime readback require a separate Staging-only operator action.",
+          "steps": [
+            "Confirm the runtime app executes catalog queries using DB_USER/getPool() against growth_runtime on isolated Staging.",
+            "Include remote_runtime_targets and remote_runtime_command_allowlists in STAGING_RUNTIME_READ_ONLY_TABLES only.",
+            "Verify table operations are strictly SELECT and required in the generated Staging runtime grant plan.",
+            "Reject Production/bootstrap role expansion, GRANT OPTION, schema-wide privileges, credential output and cross-environment operations.",
+            "Keep the existing exact-main global repair flow separate from this unmerged PR-head patch; do not use REVOKE ALL to repair these two tables.",
+            "After independent Staging approval and table/identity preflight, require two exact table-level GRANT SELECT changes with same-cycle runtime identity/readback."
+          ],
+          "assertions": [
+            "Staging grants include both Remote Runtime catalog tables once each with SELECT only.",
+            "Staging Remote Runtime discovery must not require any runtime INSERT, UPDATE, DELETE, schema-wide GRANT, GRANT OPTION, or arbitrary shell authority.",
+            "Production bootstrap grants remain unchanged.",
+            "No Hostinger provider, Production host, Cloudflare or database mutation is executed by this source-only change.",
+            "CI test outcome is not evidence of live Staging MariaDB privilege repair."
+          ],
+          "tests": [
+            {
+              "id": "staging-runtime-catalog-read-grant-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-staging-database-readiness-repair.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/staging-remote-runtime-catalog-read-grants-20261020.json",
+            "http-generic-api/databasePrivilegeContracts.js",
+            "http-generic-api/test-staging-database-readiness-repair.mjs",
+            "http-generic-api/remoteRuntime.js",
+            "http-generic-api/hostingerRecoveryCapabilityDiscovery.js",
+            "http-generic-api/scripts/staging-role-grant-plan.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "production",
+      "status": "blocked",
+      "objective": "Do not grant or modify Production role privileges as part of this isolated Staging remediation.",
+      "blockers": [
+        "Production bootstrap grant contracts remain unchanged.",
+        "Production runtime and deploy need independently approved governance and attested readback."
+      ]
+    }
+  ]
+}
