@@ -1,0 +1,127 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "r7-trusted-attestor-dual-blocker-recovery-20261020",
+  "title": "Fail-closed trusted Attestor v4 preflight and concurrent R7 Production diagnostics",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "secrets_included": false,
+  "scope": {
+    "include": [
+      ".changes/e2e/r7-trusted-attestor-dual-blocker-recovery-20261020.json",
+      ".github/workflows/derived-state-converged-automerge.yml",
+      ".github/workflows/hostinger-production-runtime-readback-r7.yml",
+      ".github/scripts/production-r7-decision.mjs",
+      "http-generic-api/githubRepositoryGovernanceAttestation.js",
+      "http-generic-api/routes/repositoryAutomationRoutes.js",
+      "http-generic-api/test-github-repository-governance-attestation.mjs",
+      "http-generic-api/test-derived-state-converged-automerge-source-event.mjs",
+      "http-generic-api/test-hostinger-production-runtime-readback-r7.mjs"
+    ]
+  },
+  "environment_impact": {
+    "source_of_truth": "http-generic-api/config/deployment-branch-policy.json",
+    "declared_targets": [
+      "staging",
+      "production"
+    ],
+    "cross_environment_reviewed": true,
+    "live_staging_certification_required": true,
+    "production_mutation_allowed": false
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Reject obsolete candidate-only backend attestation before mutating trusted GitHub statuses and retain concurrent runtime-environment and signed-ingress blockers in GET-only R7 output.",
+      "e2e_journeys": [
+        {
+          "id": "attestor-v4-preflight-before-any-status-publish",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "GitHub Governance Finalizer",
+          "entrypoint": ".github/workflows/derived-state-converged-automerge.yml",
+          "terminal_outcome": "Only a verified, authenticated, nonmutating v4 capability response supporting main exact-HEAD status can precede a governed attestation POST; v3 or missing capability fails closed.",
+          "steps": [
+            "Keep Production Environment credential isolation",
+            "Resolve exact source/base/candidate evidence and owner attestation",
+            "Issue read-only authenticated v4 capability probe before any attestation POST",
+            "Reject missing, legacy or malformed capability without publishing status",
+            "Keep original same-cycle status ID and creator readbacks as mandatory acceptance checks"
+          ],
+          "assertions": [
+            "The probe is before the mutating policy-controller POST",
+            "The capability must confirm main HEAD status support, installed GitHub App provider and nonmutating mode",
+            "No secrets or raw authenticated responses enter logs"
+          ],
+          "tests": [
+            {
+              "id": "trusted-attestor-v4-workflow-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-derived-state-converged-automerge-source-event.mjs",
+              "args": []
+            },
+            {
+              "id": "trusted-attestor-v4-native-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-github-repository-governance-attestation.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/workflows/derived-state-converged-automerge.yml",
+            "http-generic-api/githubRepositoryGovernanceAttestation.js",
+            "http-generic-api/test-github-repository-governance-attestation.mjs"
+          ]
+        },
+        {
+          "id": "r7-concurrent-runtime-readiness-blockers",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Owner-authorized public GET-only R7 diagnostics",
+          "entrypoint": ".github/workflows/hostinger-production-runtime-readback-r7.yml",
+          "terminal_outcome": "R7 reports absent runtime_environment and TRUSTED_INGRESS_ATTESTATION_REQUIRED concurrently without masking either behind a primary classification or claiming a SHA mismatch.",
+          "steps": [
+            "Preserve public GET-only and bounded redacted header capture",
+            "Record identity HTTP success and canonical branch/SHA independently",
+            "Return a bounded machine-readable list of simultaneous readiness blockers",
+            "Never assert Production current while required OAuth metadata or runtime environment identity is absent"
+          ],
+          "assertions": [
+            "Simultaneous blockers are represented when both missing environment metadata and signed trusted ingress exist",
+            "HTTP 429 remains not proof of SHA mismatch",
+            "No hosting/Cloudflare/database/secret or protected branch mutation"
+          ],
+          "tests": [
+            {
+              "id": "r7-concurrent-blockers-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-hostinger-production-runtime-readback-r7.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/scripts/production-r7-decision.mjs",
+            ".github/workflows/hostinger-production-runtime-readback-r7.yml"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "production",
+      "status": "blocked",
+      "objective": "Separate Production activation: audited runtime deployment exposing runtime_environment, signed Hostinger/Cloudflare trusted ingress, GitHub Ruleset/App required-check reconciliation, rollback proof and independent release authority.",
+      "blockers": [
+        "Production ref/runtime deployment not authorized by this PR",
+        "Canonical GitHub App binding and server ruleset policy drift remain unresolved",
+        "Production signed ingress configuration and origin proof require independently authorized operations"
+      ]
+    }
+  ]
+}
