@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { validateEvidence, validateReview, validateChecks, validateCandidate, statusTarget } from "../.github/scripts/github-direct-attestor.mjs";
+import { validateEvidence, validateReview, validateChecks, validateCandidate, statusTarget, validateCreatedStatus } from "../.github/scripts/github-direct-attestor.mjs";
 import { GOVERNANCE_ATTESTATION_CONTEXTS, GITHUB_REPOSITORY_GOVERNANCE_ATTESTATION_VERSION, readGithubRepositoryGovernanceAttestationContract, runGithubRepositoryGovernanceAttestation } from "./githubRepositoryGovernanceAttestation.js";
 const OWNER = "mad4bdigital-ai", REPO = "multi-business-multi-role-growth-intelligence-os";
 const HEAD = "a".repeat(40), BASE = "b".repeat(40), CANDIDATE = "c".repeat(40), TREE = "e".repeat(40), EVIDENCE = "d".repeat(64), CREATOR = 991, RUN_ID = 321;
@@ -152,6 +152,28 @@ assert.equal(validateEvidence(evidence, exact), true);
 }
 assert.equal(statusTarget("main", head, candidate), head);
 assert.equal(statusTarget("Production", head, candidate), candidate);
+
+// The real REST create-commit-status response omits the commit sha. Verify
+// its exact URL target plus issued id and creator, then the live readback.
+const createdStatus = {
+  url: "https://api.github.com/repos/" + OWNER + "/" + REPO + "/statuses/" + head,
+  state: "success", context: "Derived State Closure",
+  id: 2345, creator: { id: CREATOR },
+};
+assert.equal(validateCreatedStatus(createdStatus, OWNER + "/" + REPO, head), true);
+assert.equal(validateCreatedStatus({ ...createdStatus, sha: head }, OWNER + "/" + REPO, head), true);
+for (const forged of [
+  { url: "https://api.github.com/repos/" + OWNER + "/" + REPO + "/statuses/" + base },
+  { url: "https://api.github.com/repos/" + OWNER + "/other-repo/statuses/" + head },
+  { sha: candidate }, { state: "failure" }, { context: "other" },
+  { id: 0 }, { creator: { id: 0 } },
+]) rejected(() => validateCreatedStatus({ ...createdStatus, ...forged },
+  OWNER + "/" + REPO, head), "created_status_identity_invalid");
+rejected(() => validateCreatedStatus(createdStatus, OWNER + "/" + REPO, base),
+  "created_status_identity_invalid");
+rejected(() => validateCreatedStatus(createdStatus, OWNER + "/" + REPO, "invalid"),
+  "invalid_status_target");
+
 for (const [file, field, value] of [
   ["identity", "source_head_sha", "f".repeat(40)],
   ["identity", "base_sha", "f".repeat(40)],
