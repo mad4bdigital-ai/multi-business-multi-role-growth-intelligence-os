@@ -514,7 +514,8 @@ jobs:
           [[ "$(wc -c < "${raw_file}")" -le 131072 ]]
           jq -e '
             (.secrets_included == false) and
-            ([.. | objects | keys[] | select(test("secret|password|access_token|refresh_token|private_key|credential_value"; "i"))] | length == 0)
+            ([.. | objects | select(has("secrets_included")) | .secrets_included] | all(. == false)) and
+            ([.. | objects | keys[] | select(. != "secrets_included" and test("secret|password|access_token|refresh_token|private_key|credential_value"; "i"))] | length == 0)
           ' "${raw_file}" >/dev/null
           [[ "${http_status}" == "200" ]]
           if [[ "${CONTROL_STORE_MODE}" == "control_store_apply_schema" ]]; then

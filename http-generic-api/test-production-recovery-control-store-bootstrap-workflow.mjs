@@ -83,3 +83,99 @@ assert.match(bridgeSource, /provider_mutation_performed/u);
 assert.match(bridgeSource, /production_runtime_mutation_performed/u);
 assert.doesNotMatch(bridgeSource, /RECOVERY_CONTROL_DB_PASSWORD:/u);
 assert.doesNotMatch(bridgeSource, /control_store_raw_sql/u);
+
+
+// The immutable plan has the safe flag secrets_included:false. Do not reject
+// that field's name, but continue rejecting actual secrets and nested non-false flags.
+import { spawnSync } from "node:child_process";
+
+const planValidator = bridgeSource.match(
+  /jq -e --arg sha "\$\{expected_sha\}" '([\s\S]*?)' "\$\{plan_file\}" >\/dev\/null/u,
+);
+assert.ok(planValidator, "Missing exact Production Recovery plan validator");
+const receiptEnd = bridgeSource.indexOf("' \"" + "$" + "{result_file}\" >/dev/null");
+const receiptStart = bridgeSource.lastIndexOf("jq -e '", receiptEnd);
+assert.ok(receiptEnd > 0 && receiptStart >= 0, "Missing exact apply-receipt validator");
+
+const parityBootstrapStart = source.indexOf("- name: Run bounded Recovery Control Store bootstrap surface");
+const parityBootstrapEnd = source.indexOf("- name: Deny repository bootstrap execution without an injected host-side role executor", parityBootstrapStart);
+assert.ok(parityBootstrapStart >= 0 && parityBootstrapEnd > parityBootstrapStart,
+  "Missing bounded Recovery Control Store bootstrap step");
+const parityBootstrapStep = source.slice(parityBootstrapStart, parityBootstrapEnd);
+assert.match(parityBootstrapStep, /if: startsWith\(inputs\.bootstrap_mode, 'control_store_'\)/u);
+assert.match(parityBootstrapStep, /control_store_apply_schema\)/u);
+assert.match(parityBootstrapStep, /same_cycle_readback_performed/u);
+const parityReceiptValidator = parityBootstrapStep.match(
+  /jq -e '([\s\S]*?)' "\$\{raw_file\}" >\/dev\/null/u,
+);
+assert.ok(parityReceiptValidator, "Missing exact parity bootstrap response validator");
+
+const validators = [
+  {
+    name: "plan",
+    expression: planValidator[1],
+    argv: ["--arg", "sha", "6dbb8760dc7ee1b7fa69ce2fdc3a58889c09a12b"],
+    fixture: {
+      contract: "mad4b.production-recovery-control-store-bootstrap-plan.v1",
+      expected_sha: "6dbb8760dc7ee1b7fa69ce2fdc3a58889c09a12b",
+      secrets_included: false,
+      execution_allowed: false,
+      action: "blocked_control_store_configuration",
+      control_store: { ready: false, secrets_included: false },
+    },
+  },
+  {
+    name: "apply receipt",
+    expression: bridgeSource.slice(receiptStart + "jq -e '".length, receiptEnd),
+    argv: [],
+    fixture: { secrets_included: false, status: "control_store_schema_ready",
+      control_store: { secrets_included: false } },
+  },
+  {
+    name: "parity bootstrap response (status, plan and apply)",
+    expression: parityReceiptValidator[1],
+    argv: [],
+    fixture: { ok: true, status: "control_store_schema_ready",
+      secrets_included: false,
+      control_store: { secrets_included: false },
+      effects: { provider_mutation_performed: false, secrets_included: false } },
+  },
+];
+for (const { name, expression } of validators) {
+  assert.match(expression, /select\(has\("secrets_included"\)\) \| \.secrets_included/u,
+    name + ": nested safe flag must be verified");
+  assert.match(expression, /select\(\. != "secrets_included" and test\(/u,
+    name + ": exclude only the exact harmless evidence field");
+}
+const jq = spawnSync("jq", ["--version"], { encoding: "utf8" });
+if (!jq.error && jq.status === 0) {
+  for (const { name, expression, argv, fixture } of validators) {
+    const run = (obj) => spawnSync("jq", ["-e", ...argv, expression], {
+      input: JSON.stringify(obj), encoding: "utf8", timeout: 5000,
+    });
+    assert.equal(run(fixture).status, 0, name + ": rejects safe false flag");
+    const rejected = [
+      { ...fixture, secrets_included: true },
+      { ...fixture, control_store: { secrets_included: true } },
+      { ...fixture, control_store: { secrets_included: null } },
+      { ...fixture, control_store: { secrets_included: "false" } },
+      { ...fixture, nested: [{ secrets_included: null }] },
+      { ...fixture, private_key: "never-publish" },
+      { ...fixture, credential_value: "never-publish" },
+      { ...fixture, control_store: { password: "never-publish" } },
+    ];
+    for (const unsafe of rejected) {
+      assert.notEqual(run(unsafe).status, 0, name + ": accepted secret-bearing evidence");
+    }
+  }
+  const plan = validators[0];
+  assert.notEqual(
+    spawnSync("jq", ["-e", ...plan.argv, plan.expression], {
+      input: JSON.stringify({ ...plan.fixture, expected_sha: "f".repeat(40) }),
+      encoding: "utf8", timeout: 5000,
+    }).status,
+    0, "Production Control Store plan must reject a stale SHA",
+  );
+} else {
+  console.log("jq unavailable; source-only validator assertions passed");
+}

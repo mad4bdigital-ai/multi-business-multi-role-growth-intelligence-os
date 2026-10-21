@@ -434,7 +434,8 @@ jobs:
             (.contract == "mad4b.production-recovery-control-store-bootstrap-plan.v1") and
             (.expected_sha == $sha) and
             (.secrets_included == false) and
-            ([.. | objects | keys[] | select(test("secret|password|access_token|refresh_token|private_key|credential_value"; "i"))] | length == 0)
+            ([.. | objects | select(has("secrets_included")) | .secrets_included] | all(. == false)) and
+            ([.. | objects | keys[] | select(. != "secrets_included" and test("secret|password|access_token|refresh_token|private_key|credential_value"; "i"))] | length == 0)
           ' "${plan_file}" >/dev/null
           jq -e '
             (.secrets_included == false) and
@@ -562,7 +563,8 @@ jobs:
           [[ "$(wc -c < "${result_file}")" -le 131072 ]]
           jq -e '
             (.secrets_included == false) and
-            ([.. | objects | keys[] | select(test("secret|password|access_token|refresh_token|private_key|credential_value"; "i"))] | length == 0)
+            ([.. | objects | select(has("secrets_included")) | .secrets_included] | all(. == false)) and
+            ([.. | objects | keys[] | select(. != "secrets_included" and test("secret|password|access_token|refresh_token|private_key|credential_value"; "i"))] | length == 0)
           ' "${result_file}" >/dev/null
           [[ "${http_status}" == "200" ]]
           jq -e --arg sha "${expected_sha}" --arg plan "${plan_sha}" '
