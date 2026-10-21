@@ -2,7 +2,7 @@
   "$schema": "../../.specify/schemas/e2e-phases.schema.json",
   "schema_version": 1,
   "feature_key": "github-server-policy-convergence-20260818",
-  "title": "Repository semantic, evidence, and GitHub server-policy governance closure",
+  "title": "Repository semantic, evidence, and GitHub server-policy governance closure with SHA-less App status readback",
   "delivery_mode": "single_pr",
   "secrets_included": false,
   "current_phase": "mvp",

@@ -54,9 +54,12 @@ export function validateEvidence(e, x) {
     e.environment?.expected_head_sha === x.head && e.environment?.base_sha === x.base, "environment_impact_unresolved");
   return true;
 }
-export function validateReview(reviews, ownerLogin, authorLogin, head) {
+export function validateReview(reviews, ownerLogin, authorLogin, head, prNumber) {
   requireValid(ownerLogin === authorLogin, "single_owner_author_eligibility_missing");
-  const body = "OWNER_ATTEST_SINGLE_OWNER\nexact_head_sha: " + head;
+  // Exact owner review must bind both the immutable HEAD and the PR to merge.
+  requireValid(Number.isSafeInteger(prNumber) && prNumber > 0, "review_pr_number_invalid");
+  const body = "OWNER_ATTEST_SINGLE_OWNER\nexact_head_sha: " + head +
+    "\napprove_merge: PR #" + prNumber;
   requireValid(reviews.some(v => v.state === "COMMENTED" &&
     v.commit_id === head && v.user?.login === ownerLogin &&
     String(v.body || "").trim() === body), "exact_head_owner_review_missing");
@@ -194,7 +197,7 @@ async function execute() {
   requireValid(artifacts?.artifacts?.filter(a => a.name === "derived-state-closure-" + run &&
     !a.expired).length === 1, "source_artifact_not_unique");
   const reviews = await api(readToken, "/repos/" + repo + "/pulls/" + pr + "/reviews?per_page=100");
-  validateReview(reviews, parts[0], prLive?.user?.login, head);
+  validateReview(reviews, parts[0], prLive?.user?.login, head, pr);
   const checks = await api(readToken, "/repos/" + repo + "/commits/" + head + "/check-runs?per_page=100");
   validateChecks(checks?.check_runs || []);
   const [statuses, candChecks, headStatuses] = await Promise.all([
