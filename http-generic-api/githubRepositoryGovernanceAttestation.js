@@ -91,7 +91,11 @@ async function publishExactAppStatus({ base, sha, token, context, description, f
     method: "POST", path: `${base}/statuses/${sha}`, token, fetchImpl,
     body: { state: "success", context, description },
   }), "github_governance_attestation_status_create_failed", "Unable to publish trusted exact-SHA status.");
-  if (created?.sha !== sha || created?.state !== "success" || created?.context !== context
+  // GitHub's create-status REST response identifies its target by URL, not by
+  // a mandatory `sha` field. Bind the status to this exact repo/commit URL.
+  const expectedStatusUrl = `https://api.github.com${base}/statuses/${sha}`;
+  if (created?.url !== expectedStatusUrl || (created?.sha !== undefined && created.sha !== sha)
+      || created?.state !== "success" || created?.context !== context
       || !Number.isSafeInteger(Number(created?.id)) || Number(created.id) <= 0
       || !Number.isSafeInteger(Number(created?.creator?.id)) || Number(created.creator.id) <= 0) {
     throw error(409, "github_governance_attestation_status_response_mismatch", "Published status identity does not match the requested SHA/context/creator.");
@@ -101,7 +105,8 @@ async function publishExactAppStatus({ base, sha, token, context, description, f
   }), "github_governance_attestation_status_readback_failed", "Unable to read back trusted exact-SHA status.");
   const newest = (Array.isArray(statuses) ? statuses : []).find((status) => status?.context === context);
   if (Number(newest?.id) !== Number(created.id) || Number(newest?.creator?.id) !== Number(created.creator.id)
-      || newest?.state !== "success" || newest?.sha !== sha) {
+      || newest?.state !== "success" || newest?.url !== expectedStatusUrl
+      || (newest?.sha !== undefined && newest.sha !== sha)) {
     throw error(409, "github_governance_attestation_same_cycle_readback_failed", "The newest exact-SHA status is not the same-cycle trusted App publication.");
   }
   return created;
