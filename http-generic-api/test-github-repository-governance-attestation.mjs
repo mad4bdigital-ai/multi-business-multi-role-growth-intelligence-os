@@ -15,6 +15,7 @@ assert.equal(GITHUB_REPOSITORY_GOVERNANCE_ATTESTATION_VERSION, "github-repositor
 assert.equal(preflight.contract, GITHUB_REPOSITORY_GOVERNANCE_ATTESTATION_VERSION);
 assert.equal(preflight.mode, "preflight");
 assert.equal(preflight.candidate_same_cycle_readback_supported, true);
+assert.equal(preflight.status_response_identity_version, "github-rest-url-bound-v2");
 assert.equal(preflight.main_exact_head_status_supported, true);
 assert.equal(preflight.native_status_provider, "installed_github_app");
 assert.deepEqual(preflight.supported_branches, ["main", "Production"]);
@@ -200,16 +201,20 @@ for (const [file, field, value] of [
 }
 const owner = "mad4bdigital-ai";
 const review = { state: "COMMENTED", commit_id: head, user: { login: owner },
-  body: "OWNER_ATTEST_SINGLE_OWNER\nexact_head_sha: " + head };
-assert.equal(validateReview([review], owner, owner, head), true);
+  body: "OWNER_ATTEST_SINGLE_OWNER\nexact_head_sha: " + head + "\napprove_merge: PR #8493" };
+assert.equal(validateReview([review], owner, owner, head, 8493), true);
+rejected(() => validateReview([review], owner, owner, head, 0), "review_pr_number_invalid");
+rejected(() => validateReview([review], owner, owner, head, 8494), "exact_head_owner_review_missing");
 for (const bad of [
   { body: "NOT APPROVED\nOWNER_ATTEST_SINGLE_OWNER\nexact_head_sha: " + head },
-  { body: "OWNER_ATTEST_SINGLE_OWNER\nexact_head_sha: " + base },
+  { body: "OWNER_ATTEST_SINGLE_OWNER\nexact_head_sha: " + base + "\napprove_merge: PR #8493" },
+  { body: "OWNER_ATTEST_SINGLE_OWNER\nexact_head_sha: " + head },
+  { body: "OWNER_ATTEST_SINGLE_OWNER\nexact_head_sha: " + head + "\napprove_merge: PR #8494" },
   { commit_id: base },
   { state: "DISMISSED" },
   { user: { login: "attacker" } }
-]) rejected(() => validateReview([{ ...review, ...bad }], owner, owner, head), "exact_head_owner_review_missing");
-rejected(() => validateReview([review], owner, "different-author", head), "single_owner_author_eligibility_missing");
+]) rejected(() => validateReview([{ ...review, ...bad }], owner, owner, head, 8493), "exact_head_owner_review_missing");
+rejected(() => validateReview([review], owner, "different-author", head, 8493), "single_owner_author_eligibility_missing");
 const checks = ["Syntax Check","Unit & Integration Tests","Policy Objection Gate","Single Owner Review Gate"]
   .map(name => ({ name, status: "completed", conclusion: "success", app: { slug: "github-actions" } }));
 assert.equal(validateChecks(checks), true);
@@ -225,6 +230,7 @@ const wf = readFileSync(new URL("../.github/workflows/derived-state-converged-au
 assert.match(wf, /attestor_runtime_contract_unverified/);
 assert.match(wf, /attestor-preflight-response[.]json/);
 assert.match(wf, /github-repository-governance-attestation-v4/);
+assert.match(wf, /status_response_identity_version == "github-rest-url-bound-v2"/);
 assert.ok(wf.indexOf("attestor_runtime_contract_unverified") < wf.indexOf('response="$RUNNER_TEMP/attestation-response.json"'));
 
 assert.match(wf, /workflow_dispatch:/);

@@ -15,6 +15,9 @@ export function readGithubRepositoryGovernanceAttestationContract() {
     mode: "preflight",
     supported_branches: Object.keys(GOVERNANCE_ATTESTATION_CONTEXTS),
     candidate_same_cycle_readback_supported: true,
+    // Verify the deployed implementation before any status POST. Earlier v4
+    // builds erroneously rejected GitHub's SHA-less create-status response.
+    status_response_identity_version: "github-rest-url-bound-v2",
     main_exact_head_status_supported: true,
     native_status_provider: "installed_github_app",
     mutation_executed: false,

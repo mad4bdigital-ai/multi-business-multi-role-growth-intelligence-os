@@ -179,6 +179,7 @@ jobs:
             .contract == "github-repository-governance-attestation-v4"
             and .mode == "preflight"
             and .candidate_same_cycle_readback_supported == true
+            and .status_response_identity_version == "github-rest-url-bound-v2"
             and .native_status_provider == "installed_github_app"
             and .mutation_executed == false
             and .secrets_included == false
