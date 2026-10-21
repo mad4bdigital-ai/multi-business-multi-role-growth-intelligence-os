@@ -26,7 +26,7 @@ assert.match(protectedRoutes, /router\.get\("\/admin\/repository-automation\/att
 assert.match(protectedRoutes, /readGithubRepositoryGovernanceAttestationContract\(\)/);
 
 function response(status, payload) { return { ok: status >= 200 && status < 300, status, async json() { return payload; } }; }
-function mockFetch({ branch = "main", candidate = CANDIDATE, tree = TREE, runConclusion = "success", sourcePath = SOURCE[branch].path, sourceEvent = SOURCE[branch].event, artifactDigest = EVIDENCE, artifactName = SOURCE[branch].artifact, runPr = 7437, runRepository = `${OWNER}/${REPO}`, headStatusSpoof = false, headWriteReject = false, headPrDriftBefore = false, headPrDriftAfter = false } = {}) {
+function mockFetch({ branch = "main", candidate = CANDIDATE, tree = TREE, runConclusion = "success", sourcePath = SOURCE[branch].path, sourceEvent = SOURCE[branch].event, artifactDigest = EVIDENCE, artifactName = SOURCE[branch].artifact, runPr = 7437, runRepository = `${OWNER}/${REPO}`, headStatusSpoof = false, headWriteReject = false, headPrDriftBefore = false, headPrDriftAfter = false, createdStatusWrongUrl = false, readbackStatusWrongUrl = false, createdStatusWrongSha = false, readbackStatusWrongSha = false } = {}) {
   const calls = [];
   let pullReads = 0;
   let headPublished = false;
@@ -52,15 +52,15 @@ function mockFetch({ branch = "main", candidate = CANDIDATE, tree = TREE, runCon
     }
     if (branch === "Production" && path === `/repos/${OWNER}/${REPO}/git/commits/${CANDIDATE}` && method === "GET") return response(200, { sha: CANDIDATE, tree: { sha: tree } });
     if (branch === "Production" && path === `/repos/${OWNER}/${REPO}/git/commits/${HEAD}` && method === "GET") return response(200, { sha: HEAD, tree: { sha: TREE } });
-    if (path === `/repos/${OWNER}/${REPO}/statuses/${CANDIDATE}` && method === "POST") { const body = JSON.parse(options.body || "{}"); return response(201, { id: 1234, sha: CANDIDATE, state: body.state, context: body.context, creator: { id: CREATOR } }); }
-    if (path === `/repos/${OWNER}/${REPO}/commits/${CANDIDATE}/statuses?per_page=100` && method === "GET") return response(200, [{ id: 1234, sha: CANDIDATE, state: "success", context: GOVERNANCE_ATTESTATION_CONTEXTS[branch].context, creator: { id: CREATOR } }]);
+    if (path === `/repos/${OWNER}/${REPO}/statuses/${CANDIDATE}` && method === "POST") { const body = JSON.parse(options.body || "{}"); return response(201, { id: 1234, url: `https://api.github.com/repos/${OWNER}/${REPO}/statuses/${createdStatusWrongUrl ? BASE : CANDIDATE}`, ...(createdStatusWrongSha ? { sha: BASE } : {}), state: body.state, context: body.context, creator: { id: CREATOR } }); }
+    if (path === `/repos/${OWNER}/${REPO}/commits/${CANDIDATE}/statuses?per_page=100` && method === "GET") return response(200, [{ id: 1234, url: `https://api.github.com/repos/${OWNER}/${REPO}/statuses/${readbackStatusWrongUrl ? BASE : CANDIDATE}`, ...(readbackStatusWrongSha ? { sha: BASE } : {}), state: "success", context: GOVERNANCE_ATTESTATION_CONTEXTS[branch].context, creator: { id: CREATOR } }]);
     if (branch === "main" && path === `/repos/${OWNER}/${REPO}/statuses/${HEAD}` && method === "POST") {
       if (headWriteReject) return response(403, { message: "Forbidden" });
       headPublished = true;
       const body = JSON.parse(options.body || "{}");
-      return response(201, { id: 2345, sha: HEAD, state: body.state, context: body.context, creator: { id: CREATOR } });
+      return response(201, { id: 2345, url: `https://api.github.com/repos/${OWNER}/${REPO}/statuses/${createdStatusWrongUrl ? BASE : HEAD}`, ...(createdStatusWrongSha ? { sha: BASE } : {}), state: body.state, context: body.context, creator: { id: CREATOR } });
     }
-    if (branch === "main" && path === `/repos/${OWNER}/${REPO}/commits/${HEAD}/statuses?per_page=100` && method === "GET") return response(200, [{ id: headStatusSpoof ? 9999 : 2345, sha: HEAD, state: "success", context: GOVERNANCE_ATTESTATION_CONTEXTS[branch].context, creator: { id: CREATOR } }]);
+    if (branch === "main" && path === `/repos/${OWNER}/${REPO}/commits/${HEAD}/statuses?per_page=100` && method === "GET") return response(200, [{ id: headStatusSpoof ? 9999 : 2345, url: `https://api.github.com/repos/${OWNER}/${REPO}/statuses/${readbackStatusWrongUrl ? BASE : HEAD}`, ...(readbackStatusWrongSha ? { sha: BASE } : {}), state: "success", context: GOVERNANCE_ATTESTATION_CONTEXTS[branch].context, creator: { id: CREATOR } }]);
     throw new Error(`Unhandled ${method} ${path}`);
   };
   return { fetchImpl, calls };
@@ -95,6 +95,18 @@ try {
   { const mock = mockFetch({ artifactName: "untrusted-artifact" }); await expectCode(runGithubRepositoryGovernanceAttestation(input("main"), deps(mock.fetchImpl)), "github_governance_attestation_source_artifact_ambiguous"); assert.equal(mock.calls.some((call) => call.method === "POST"), false); }
   { const mock = mockFetch({ candidate: "f".repeat(40) }); await expectCode(runGithubRepositoryGovernanceAttestation(input("main"), deps(mock.fetchImpl)), "github_governance_attestation_merge_candidate_drift"); assert.equal(mock.calls.some((call) => call.method === "POST"), false); }
   { const mock = mockFetch({ branch: "Production", tree: "f".repeat(40) }); await expectCode(runGithubRepositoryGovernanceAttestation(input("Production"), deps(mock.fetchImpl)), "github_governance_attestation_candidate_tree_mismatch"); assert.equal(mock.calls.some((call) => call.method === "POST"), false); }
+  // Real GitHub REST status responses omit `sha`. Both main and Production
+  // success fixtures above exercise authentic URL-targeted sha-less responses.
+  for (const variant of ["createdStatusWrongUrl", "createdStatusWrongSha"]) {
+    const mock = mockFetch({ [variant]: true });
+    await expectCode(runGithubRepositoryGovernanceAttestation(input("main"), deps(mock.fetchImpl)), "github_governance_attestation_status_response_mismatch");
+    assert.equal(mock.calls.filter(c => c.method === "POST").length, 1);
+  }
+  for (const variant of ["readbackStatusWrongUrl", "readbackStatusWrongSha"]) {
+    const mock = mockFetch({ [variant]: true });
+    await expectCode(runGithubRepositoryGovernanceAttestation(input("main"), deps(mock.fetchImpl)), "github_governance_attestation_same_cycle_readback_failed");
+    assert.equal(mock.calls.filter(c => c.method === "POST").length, 1);
+  }
   { const mock = mockFetch({ headStatusSpoof: true }); await expectCode(runGithubRepositoryGovernanceAttestation(input("main"), deps(mock.fetchImpl)), "github_governance_attestation_same_cycle_readback_failed"); assert.equal(mock.calls.filter(c => c.method === "POST").length, 2); }
   { const mock = mockFetch({ headWriteReject: true }); await expectCode(runGithubRepositoryGovernanceAttestation(input("main"), deps(mock.fetchImpl)), "github_governance_attestation_status_create_failed"); assert.equal(mock.calls.filter(c => c.method === "POST").length, 2); }
   { const mock = mockFetch({ headPrDriftBefore: true }); await expectCode(runGithubRepositoryGovernanceAttestation(input("main"), deps(mock.fetchImpl)), "github_governance_attestation_head_status_pr_drift"); assert.equal(mock.calls.filter(c => c.method === "POST").length, 1); }
