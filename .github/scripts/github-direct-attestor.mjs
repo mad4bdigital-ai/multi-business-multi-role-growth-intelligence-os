@@ -80,6 +80,19 @@ export function statusTarget(branch, head, candidate) {
   requireValid(SHA.test(head) && SHA.test(candidate), "invalid_sha");
   return branch === "main" ? head : candidate;
 }
+// GitHub's REST create-commit-status response has no required `sha` field.
+// Bind the returned status URL to the exact repository/head, then independently
+// prove the same status id and App creator using the GET statuses readback.
+export function validateCreatedStatus(created, repo, head) {
+  requireValid(SHA.test(head) && /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repo),
+    "invalid_status_target");
+  requireValid(created?.url === "https://api.github.com/repos/" + repo + "/statuses/" + head &&
+    (created?.sha === undefined || created.sha === head) &&
+    created?.state === "success" && created?.context === CONTEXT &&
+    digits(created?.id) && digits(created?.creator?.id),
+    "created_status_identity_invalid");
+  return true;
+}
 function encode(v) { return Buffer.from(v).toString("base64url"); }
 function pem(v) { return String(v || "").replace(/\\n/g, "\n").trim(); }
 function githubAppJwt(id, key) {
@@ -212,9 +225,7 @@ async function execute() {
     state: "success", context: CONTEXT,
     description: ("GitHub Direct trusted exact-head run " + run).slice(0, 140)
   });
-  requireValid(created?.sha === head && created?.state === "success" &&
-    created?.context === CONTEXT && digits(created?.id) && digits(created?.creator?.id),
-    "created_status_identity_invalid");
+  validateCreatedStatus(created, repo, head);
   const published = await api(appToken, "/repos/" + repo + "/commits/" + head + "/statuses?per_page=100");
   const newest = published.find(s => s.context === CONTEXT);
   requireValid(newest?.id === created.id && newest?.creator?.id === created.creator.id &&
