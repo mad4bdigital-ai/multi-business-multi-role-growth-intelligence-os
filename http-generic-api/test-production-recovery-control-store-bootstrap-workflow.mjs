@@ -86,7 +86,7 @@ assert.doesNotMatch(bridgeSource, /control_store_raw_sql/u);
 
 
 // The immutable plan has the safe flag secrets_included:false. Do not reject
-// that field's name, but continue rejecting actual secrets and nested true flags.
+// that field's name, but continue rejecting actual secrets and nested non-false flags.
 import { spawnSync } from "node:child_process";
 
 const planValidator = bridgeSource.match(
@@ -120,7 +120,7 @@ const validators = [
   },
 ];
 for (const { name, expression } of validators) {
-  assert.match(expression, /\.secrets_included\? \| select\(\. != null\)/u,
+  assert.match(expression, /select\(has\("secrets_included"\)\) \| \.secrets_included/u,
     name + ": nested safe flag must be verified");
   assert.match(expression, /select\(\. != "secrets_included" and test\(/u,
     name + ": exclude only the exact harmless evidence field");
@@ -135,6 +135,9 @@ if (!jq.error && jq.status === 0) {
     const rejected = [
       { ...fixture, secrets_included: true },
       { ...fixture, control_store: { secrets_included: true } },
+      { ...fixture, control_store: { secrets_included: null } },
+      { ...fixture, control_store: { secrets_included: "false" } },
+      { ...fixture, nested: [{ secrets_included: null }] },
       { ...fixture, private_key: "never-publish" },
       { ...fixture, credential_value: "never-publish" },
       { ...fixture, control_store: { password: "never-publish" } },
