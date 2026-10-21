@@ -97,6 +97,19 @@ const receiptEnd = bridgeSource.indexOf("' \"" + "$" + "{result_file}\" >/dev/nu
 const receiptStart = bridgeSource.lastIndexOf("jq -e '", receiptEnd);
 assert.ok(receiptEnd > 0 && receiptStart >= 0, "Missing exact apply-receipt validator");
 
+const parityBootstrapStart = source.indexOf("- name: Run bounded Recovery Control Store bootstrap surface");
+const parityBootstrapEnd = source.indexOf("- name: Deny repository bootstrap execution without an injected host-side role executor", parityBootstrapStart);
+assert.ok(parityBootstrapStart >= 0 && parityBootstrapEnd > parityBootstrapStart,
+  "Missing bounded Recovery Control Store bootstrap step");
+const parityBootstrapStep = source.slice(parityBootstrapStart, parityBootstrapEnd);
+assert.match(parityBootstrapStep, /if: startsWith\(inputs\.bootstrap_mode, 'control_store_'\)/u);
+assert.match(parityBootstrapStep, /control_store_apply_schema\)/u);
+assert.match(parityBootstrapStep, /same_cycle_readback_performed/u);
+const parityReceiptValidator = parityBootstrapStep.match(
+  /jq -e '([\s\S]*?)' "\$\{raw_file\}" >\/dev\/null/u,
+);
+assert.ok(parityReceiptValidator, "Missing exact parity bootstrap response validator");
+
 const validators = [
   {
     name: "plan",
@@ -117,6 +130,15 @@ const validators = [
     argv: [],
     fixture: { secrets_included: false, status: "control_store_schema_ready",
       control_store: { secrets_included: false } },
+  },
+  {
+    name: "parity bootstrap response (status, plan and apply)",
+    expression: parityReceiptValidator[1],
+    argv: [],
+    fixture: { ok: true, status: "control_store_schema_ready",
+      secrets_included: false,
+      control_store: { secrets_included: false },
+      effects: { provider_mutation_performed: false, secrets_included: false } },
   },
 ];
 for (const { name, expression } of validators) {
