@@ -49,20 +49,22 @@ assert(
 );
 const connectorDockerignore = readFileSync('../.dockerignore', 'utf8');
 const connectorStagingDockerfile = readFileSync('Dockerfile.staging', 'utf8');
-const connectorReleaseRegistry = connectorAgent.match(/const FILES = \{([\s\S]*?)\n\};/);
-assert(connectorReleaseRegistry, 'Connector Agent release registry must be inspectable');
-const connectorAssetPaths = [...connectorReleaseRegistry[1].matchAll(/relativePath: "(local-connector\/[^"]+)"/g)].map((m) => m[1]);
-assert(connectorAssetPaths.length >= 14, 'Connector Agent release registry unexpectedly incomplete');
-const connectorIgnoreRules = new Set(connectorDockerignore.split(/\r?\n/));
-assert(connectorIgnoreRules.has('!local-connector/'), 'Staging image must include allowlisted Connector directory');
-assert(!connectorIgnoreRules.has('!local-connector/**'), 'Staging image must not include arbitrary Connector files');
-const includedConnectorRules = [...connectorIgnoreRules].filter((x) => x.startsWith('!local-connector/') && x !== '!local-connector/');
-assert.deepEqual(includedConnectorRules.sort(), connectorAssetPaths.map((x) => `!${x}`).sort(), 'Staging Connector release allowlist must exactly match the API manifest');
-for (const file of connectorAssetPaths) {
-  assert(readFileSync(`../${file}`).length > 0, `Connector release file missing or empty: ${file}`);
-}
-assert(connectorStagingDockerfile.includes('COPY . /app/repo-inspect/'), 'Staging Dockerfile must copy exact-commit source snapshot');
-assert(connectorStagingDockerfile.includes('RUN node scripts/verify-staging-connector-assets.mjs --image'), 'Staging Dockerfile must enforce Connector manifest asset verification');
+const connectorContextGenerator = readFileSync('scripts/prepare-staging-build-context.mjs', 'utf8');
+const connectorReleaseBuilder = readFileSync('scripts/build-staging-connector-release.mjs', 'utf8');
+const connectorAssetVerifier = readFileSync('scripts/verify-staging-connector-assets.mjs', 'utf8');
+const connectorAssetPaths = [...connectorAgent.match(/const FILES = \{([\s\S]*?)\n\};/)[1]
+  .matchAll(/relativePath: "(local-connector\/[^"]+)"/g)].map((m) => m[1]);
+assert(connectorAssetPaths.length >= 14, 'Connector Agent source registry unexpectedly incomplete');
+assert(connectorDockerignore.includes('!.staging-connector-release/'), 'Generated release parent must enter Docker context');
+assert(connectorDockerignore.includes('!.staging-connector-release/**'), 'Generated release bundle must enter Docker context');
+assert(!connectorDockerignore.split(/\r?\n/).some((s) => s.startsWith('!local-connector')), 'Raw Connector content must never be allowed by Docker');
+assert(connectorContextGenerator.includes('build-staging-connector-release.mjs'), 'Exact Git context must generate release from FILES manifest');
+assert(connectorReleaseBuilder.includes('createReleaseManifest'), 'Connector release package must be derived from registry');
+assert(connectorStagingDockerfile.includes('COPY .staging-connector-release/local-connector/ /app/repo-inspect/local-connector/'), 'Staging Dockerfile must copy generated release files');
+assert(connectorStagingDockerfile.includes('COPY .staging-connector-release/manifest.json /app/connector-release-manifest.json'), 'Staging image must include release manifest');
+assert(connectorStagingDockerfile.includes('RUN node scripts/verify-staging-connector-assets.mjs --image'), 'Staging image must fail closed on manifest mismatch');
+assert(connectorAssetVerifier.includes('assertReleaseManifest'), 'Image build must validate bundled release hashes');
+assert(connectorAssetVerifier.includes('connector_release_provenance_digest_mismatch'), 'Image build must bind release checksum to Git-archive provenance');
 
 assert(connectorAgent.includes('$Root = Split-Path -Parent $MyInvocation.MyCommand.Path'), 'canonical installer must remain in the Local Manager owned update root across UAC identity changes');
 assert(connectorAgent.includes("contract='mad4b.local-connector-installer-state.v1'"), 'canonical installer must emit structured secret-safe failure evidence');

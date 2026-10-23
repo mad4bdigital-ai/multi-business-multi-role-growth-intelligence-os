@@ -145,7 +145,9 @@
           "http-generic-api/scripts/build-staging-remote-mcp-openapi.mjs",
           "http-generic-api/test-staging-*.mjs",
           "STAGING-*.md",
-          "http-generic-api/staging-recovery-migrations/**"
+          "http-generic-api/staging-recovery-migrations/**",
+          "http-generic-api/scripts/build-staging-connector-release.mjs",
+          "http-generic-api/scripts/staging-connector-release-contract.mjs"
         ],
         "environments": [
           "staging"
@@ -371,7 +373,8 @@
           "docs/branch-hygiene.md",
           "http-generic-api/scripts/maintenance-tools/branch-hygiene-policy.mjs",
           "http-generic-api/scripts/maintenance-tools/governed-refresh-idempotency.mjs",
-          "http-generic-api/scripts/test-governed-refresh-idempotency.mjs"
+          "http-generic-api/scripts/test-governed-refresh-idempotency.mjs",
+          "docs/n8n-workflow-runtime.md"
         ],
         "environments": [
           "repository"

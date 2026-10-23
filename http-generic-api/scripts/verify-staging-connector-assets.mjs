@@ -1,43 +1,45 @@
 #!/usr/bin/env node
-// Build-time and source-time verification; no credentials or DB access.
+// Source and final-image verifier for exact-manifest Connector Agent releases.
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { readDeclaredAssets, assertReleaseManifest, digest, RELEASE_DIRECTORY } from "./staging-connector-release-contract.mjs";
 
 const imageMode = process.argv.includes("--image");
 const repoRoot = imageMode
   ? "/app/repo-inspect"
   : path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
-const routes = fs.readFileSync(path.join(repoRoot, "http-generic-api/routes/connectorAgentRoutes.js"), "utf8");
-const registry = routes.match(/const FILES = \{([\s\S]*?)\n\};/);
-assert(registry, "connector_asset_registry_missing");
-assert(routes.includes("const ROOT = PACKAGED_REPO_ROOT"), "connector_asset_snapshot_binding_missing");
-const assets = [...registry[1].matchAll(/relativePath: "([^"]+)"/g)].map((m) => m[1]);
-const local = assets.filter((p) => p.startsWith("local-connector/"));
-assert(assets.length >= 15 && local.length >= 14, "connector_asset_manifest_incomplete");
-assert.equal(new Set(assets).size, assets.length, "connector_asset_duplicate_path");
-assert(assets.includes("http-generic-api/openapi/openapi.gpt-action.local-connector.yaml"), "connector_asset_openapi_missing");
-for (const file of assets) {
-  assert(/^(?:local-connector\/[a-z0-9-]+\.(?:mjs|ps1)|http-generic-api\/openapi\/openapi\.gpt-action\.local-connector\.yaml)$/u.test(file), "connector_asset_path_not_allowlisted");
-  const absolute = path.join(repoRoot, file);
-  assert(fs.statSync(absolute).isFile() && fs.statSync(absolute).size > 0, `connector_asset_missing_or_empty:${file}`);
-}
-// .dockerignore governs the sent build context but is not itself copied into the image.
+const { paths } = readDeclaredAssets(repoRoot);
+const local = paths.filter((item) => item.startsWith("local-connector/"));
+
 if (!imageMode) {
-  const ignoreRules = new Set(fs.readFileSync(path.join(repoRoot, ".dockerignore"), "utf8").split(/\r?\n/));
-  assert(ignoreRules.has("!local-connector/"), "connector_asset_parent_excluded");
-  assert(!ignoreRules.has("!local-connector/**"), "connector_asset_directory_wildcard_forbidden");
-  const includedPaths = [...ignoreRules].filter((r) => r.startsWith("!local-connector/") && r !== "!local-connector/");
-  assert.deepEqual(includedPaths.sort(), local.map((f) => `!${f}`).sort(), "connector_asset_allowlist_mismatch");
-}
-if (imageMode) {
+  const lines = fs.readFileSync(path.join(repoRoot, ".dockerignore"), "utf8")
+    .split(/\r?\n/).map((s) => s.trim()).filter((s) => s && !s.startsWith("#"));
+  assert(lines.includes("**"), "connector_release_context_must_be_deny_by_default");
+  assert(lines.includes(`!${RELEASE_DIRECTORY}/`), "connector_release_parent_exception_missing");
+  assert(lines.includes(`!${RELEASE_DIRECTORY}/**`), "connector_release_bundle_exception_missing");
+  assert(!lines.some((s) => s.startsWith("!local-connector")), "connector_release_raw_sources_must_be_excluded");
+  assert(!lines.includes("!**"), "connector_release_wildcard_source_exception_forbidden");
+  console.log(JSON.stringify({ ok: true, contract: "mad4b.staging-connector-asset-bundle.v2",
+    mode: "source", manifest_authority: "connectorAgentRoutes.FILES",
+    asset_count: paths.length, connector_file_count: local.length, secrets_included: false }));
+} else {
+  const manifestFile = "/app/connector-release-manifest.json";
+  const actualText = fs.readFileSync(manifestFile, "utf8");
+  const manifest = JSON.parse(actualText);
+  const localFiles = assertReleaseManifest(repoRoot, manifest);
+  const provenance = JSON.parse(fs.readFileSync("/staging-build-context.json", "utf8"));
+  assert(provenance?.source === "git_archive_exact_commit" &&
+    provenance?.secrets_included === false, "connector_release_untrusted_image_provenance");
+  assert(provenance.connector_release_manifest_sha256 === digest(actualText),
+    "connector_release_provenance_digest_mismatch");
   const entries = fs.readdirSync(path.join(repoRoot, "local-connector"), { withFileTypes: true });
-  assert(entries.every((e) => e.isFile()), "connector_asset_image_unexpected_directory");
-  assert.deepEqual(entries.map((e) => e.name).sort(), local.map((f) => path.basename(f)).sort(), "connector_asset_image_file_set_mismatch");
+  assert(entries.every((entry) => entry.isFile()), "connector_asset_image_unexpected_directory");
+  assert.deepEqual(entries.map((entry) => entry.name).sort(),
+    localFiles.map((file) => path.basename(file.path)).sort(), "connector_asset_image_file_set_mismatch");
+  console.log(JSON.stringify({ ok: true, contract: "mad4b.staging-connector-asset-bundle.v2",
+    mode: "image", manifest_authority: "connectorAgentRoutes.FILES",
+    asset_count: paths.length, connector_file_count: local.length,
+    manifest_sha256: digest(actualText), secrets_included: false }));
 }
-console.log(JSON.stringify({
-  ok: true, contract: "mad4b.staging-connector-asset-bundle.v1",
-  mode: imageMode ? "image" : "source", asset_count: assets.length,
-  connector_file_count: local.length, secrets_included: false
-}));
