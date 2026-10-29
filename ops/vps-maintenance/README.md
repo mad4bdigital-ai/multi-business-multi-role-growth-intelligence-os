@@ -10,6 +10,18 @@ This package introduces a **report-only maintenance mechanism** for shared VPS h
 - Coolify has its own daily cleanup configuration (threshold 80%, force enabled, unused-volume deletion disabled). The Linux host also has systemd-tmpfiles, logrotate and APT maintenance. Avoid duplicate cleaners.
 - Root disk ~79% full; RAM ~17 GiB available; swap 4/4 GiB occupied but memory PSI and sampled swap I/O low. Swap fullness alone must not trigger \`swapoff\` or process termination.
 
+## GitHub as source of truth — removable local checkout policy
+
+User decision (2026-10-29): **a Git checkout on this VPS does not need to be retained when its full recoverable state is already published to GitHub**. This is a recoverability condition, not permission to delete all directories whose `origin` contains `github.com`.
+
+Before removing a local checkout, verify the exact local HEAD **and every local branch tip** are ancestors of a current published GitHub branch (using current remote evidence, not stale `origin/*` refs). Check `git status --porcelain --untracked-files=all` plus ignored files. Ordinary generated Python `__pycache__/*.pyc` may be discarded when corresponding source is published; other untracked, ignored, modified, staged or unpushed files are not recoverable by default. Refuse on linked Git worktrees, subprocesses holding CWD/file descriptors, nested mounts, non-GitHub remotes, deleted branches without a confirmed reachable ancestor, or unresolved private-repository verification.
+
+**Never equate "GitHub repository exists" with "the entire local checkout has a copy."** Verification failure => keep and report. For now the unattended timer remains **report-only**. An eventual controlled reclaimer must operate only on explicit, verified candidates with per-action evidence and a reversible GitHub source receipt.
+
+### Executed one-time cleanup (documented evidence)
+
+Two standalone temporary Git clones, `/tmp/mad4b-pr507-final` and `/tmp/mad4b-runner-current-check`, were proven redundant against live `mad4bdigital-ai/WordPress` `master` using GitHub compare evidence covering local HEAD and branch tips. Their only untracked files were reproducible `.pyc`, no linked worktrees or active process handles existed. Both were removed after revalidation, reclaiming **1,197,330,432 bytes**; Docker remained at 50 running containers with no unhealthy containers. No Git checkout with unpushed source code or unique artifacts was removed.
+
 ## Contract
 
 The reporter inventories configurable top-level temporary roots, ages, file sizes, and whether an entry appears to be a Git checkout. It skips protected system paths, symlinks and files on other filesystems. It always sets \`eligible_for_automatic_deletion=false\`. It does **not** open file contents, remove data, edit permissions, stop containers, clear memory, or invoke Docker pruning. It writes only one mode-0600 JSON report into its own state directory.
