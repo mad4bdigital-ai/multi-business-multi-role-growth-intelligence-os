@@ -1,0 +1,42 @@
+name: Host Hygiene Report-Only Contract
+
+on:
+  pull_request:
+    paths:
+      - "ops/vps-maintenance/**"
+      - ".github/workflows/host-hygiene-contract.yml"
+  push:
+    branches: [main]
+    paths:
+      - "ops/vps-maintenance/**"
+      - ".github/workflows/host-hygiene-contract.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - name: Compile and test non-destructive policy
+        run: |
+          python3 -m py_compile ops/vps-maintenance/guardian.py
+          python3 -m unittest discover -s ops/vps-maintenance/tests -v
+      - name: Check metadata and no destructive entrypoints
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path("ops/vps-maintenance")
+          policy=json.loads((p/"policy.json").read_text())
+          assert policy["mode"]=="report_only"
+          for f in ("host-hygiene.service", "host-hygiene.timer"):
+              assert (p/f).is_file()
+          s=(p/"guardian.py").read_text()
+          assert "docker system prune" not in s and "shutil.rmtree" not in s
+          assert "rm -rf" not in s and "swapoff" not in s
+          PY

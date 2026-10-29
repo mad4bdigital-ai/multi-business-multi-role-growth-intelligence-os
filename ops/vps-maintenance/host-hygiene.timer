@@ -1,0 +1,11 @@
+[Unit]
+Description=Schedule read-only host hygiene report
+
+[Timer]
+OnCalendar=*-*-* 03:10:00 UTC
+RandomizedDelaySec=45min
+Persistent=true
+Unit=host-hygiene.service
+
+[Install]
+WantedBy=timers.target

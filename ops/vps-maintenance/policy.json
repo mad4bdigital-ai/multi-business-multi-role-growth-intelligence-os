@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "mode": "report_only",
+  "temporary_roots": [
+    "/tmp",
+    "/var/tmp"
+  ],
+  "minimum_age_days": 3,
+  "max_entries_per_root": 250,
+  "max_reported_candidates": 70,
+  "size_probe_timeout_seconds": 4,
+  "disk_warning_percent": 80,
+  "swap_warning_percent": 90,
+  "prohibited_prefixes": [
+    "systemd-private-",
+    "snap-private-tmp-"
+  ],
+  "protected_names": [
+    ".X11-unix",
+    ".ICE-unix",
+    ".font-unix",
+    ".Test-unix",
+    ".XIM-unix"
+  ]
+}
