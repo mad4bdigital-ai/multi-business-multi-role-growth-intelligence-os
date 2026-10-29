@@ -239,6 +239,11 @@ def publish(checkout: Path, branch: str, receipt: Path, *, reviewed=False):
     return result
 
 
+def require_root_deletion() -> None:
+    if os.geteuid() != 0:
+        raise GuardError('cleanup --apply requires root to inspect all process handles')
+
+
 def cleanup(checkout: Path, branch: str, receipt: Path, apply: bool):
     check_receipt_location(receipt)
     result = inspect(checkout, branch, require_remote=True)
@@ -251,8 +256,7 @@ def cleanup(checkout: Path, branch: str, receipt: Path, apply: bool):
         raise GuardError('receipt mismatch; publish and verify current source first')
     if not apply:
         return {**result, 'deleted': False, 'reason': 'dry-run only; --apply needed'}
-    if os.geteuid() != 0:
-        raise GuardError('cleanup --apply requires root to inspect all process handles')
+    require_root_deletion()
     inspect(checkout, branch, require_remote=True)
     shutil.rmtree(checkout)
     return {**result, 'deleted': True, 'reason': 'exact GitHub archived branch verified'}
