@@ -53,7 +53,7 @@ class LifecycleTests(unittest.TestCase):
         dry = lifecycle.cleanup(self.checkout, self.branch, self.receipt, apply=False)
         self.assertFalse(dry['deleted'])
         self.assertTrue(self.checkout.exists())
-        with mock.patch.object(lifecycle.os, 'geteuid', return_value=0):
+        with mock.patch.object(lifecycle, 'require_root_deletion'):
             applied = lifecycle.cleanup(self.checkout, self.branch, self.receipt, apply=True)
         self.assertTrue(applied['deleted'])
         self.assertFalse(self.checkout.exists())
