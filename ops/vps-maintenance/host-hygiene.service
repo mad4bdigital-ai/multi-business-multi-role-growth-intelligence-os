@@ -9,6 +9,7 @@ UMask=0077
 StateDirectory=host-hygiene
 StateDirectoryMode=0700
 ExecStart=/usr/bin/python3 /opt/host-hygiene/guardian.py --policy /etc/host-hygiene/policy.json --output /var/lib/host-hygiene/report.json
+ExecStart=/usr/bin/python3 /opt/host-hygiene/docker_qa_inventory.py --output /var/lib/host-hygiene/docker-qa-report.json
 Nice=15
 IOSchedulingClass=idle
 CPUQuota=25%
