@@ -21,5 +21,18 @@
     ".font-unix",
     ".Test-unix",
     ".XIM-unix"
-  ]
+  ],
+  "git_worktree_cleanup_policy": {
+    "source_of_truth": "github_remote",
+    "local_checkouts_are_disposable_only_when_exact_contents_are_recoverable": true,
+    "allow_reproducible_untracked_bytecode_only": true,
+    "require_verified_remote_commit_ancestry": true,
+    "require_all_local_branch_commits_remote_recoverable": true,
+    "require_no_uncommitted_source_changes": true,
+    "require_no_nonreproducible_untracked_or_ignored_files": true,
+    "require_no_linked_worktrees": true,
+    "require_no_active_process_handles": true,
+    "require_independent_redundancy_proof_before_removal": true,
+    "unattended_deletion_enabled": false
+  }
 }
