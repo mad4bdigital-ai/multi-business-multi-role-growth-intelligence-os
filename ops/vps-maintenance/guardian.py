@@ -74,7 +74,17 @@ def inspect_root(path: Path, policy: dict, now: float):
         root_stat = path.lstat()
         if not path.is_dir() or path.is_symlink():
             return found, {"error": "root missing, symlinked, or not a directory"}
-        children = sorted(path.iterdir(), key=lambda p: p.name)
+        # Sort directories oldest-first; alphabetic truncation would miss
+        # abandoned checkouts among thousands of recent /tmp file entries.
+        children = []
+        for child in path.iterdir():
+            try:
+                if not child.is_symlink() and child.is_dir():
+                    children.append((child.lstat().st_mtime, child))
+            except OSError:
+                counts["skipped"] += 1
+        children.sort(key=lambda item: item[0])
+        children = [child for _, child in children]
     except OSError as exc:
         return found, {"error": type(exc).__name__}
     maximum = int(policy["max_entries_per_root"])
