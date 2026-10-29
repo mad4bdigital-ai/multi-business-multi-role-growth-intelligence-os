@@ -25,6 +25,7 @@ jobs:
       - name: Compile and test non-destructive policy
         run: |
           python3 -m py_compile ops/vps-maintenance/guardian.py
+          python3 -m py_compile ops/vps-maintenance/branch_lifecycle.py
           python3 -m unittest discover -s ops/vps-maintenance/tests -v
       - name: Check metadata and no destructive entrypoints
         run: |
@@ -34,6 +35,17 @@ jobs:
           p=Path("ops/vps-maintenance")
           policy=json.loads((p/"policy.json").read_text())
           assert policy["mode"]=="report_only"
+          b=policy["branch_lifecycle"]
+          assert b["method"]=="github_first_then_verified_cleanup"
+          assert b["no_force_push"] and b["require_exact_remote_tip_sha"]
+          assert b["automatic_push_enabled"] is False
+          assert b["unattended_deletion_enabled"] is False
+          lifecycle=(p/"branch_lifecycle.py").read_text()
+          assert "'--reviewed'" in lifecycle and "'--apply'" in lifecycle
+          assert "push', '--porcelain'" in lifecycle
+          assert "shutil.rmtree(checkout)" in lifecycle
+          assert "push', '--force'" not in lifecycle
+
           for f in ("host-hygiene.service", "host-hygiene.timer"):
               assert (p/f).is_file()
           s=(p/"guardian.py").read_text()

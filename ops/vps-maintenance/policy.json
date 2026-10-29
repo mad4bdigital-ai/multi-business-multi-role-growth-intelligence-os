@@ -34,5 +34,23 @@
     "require_no_active_process_handles": true,
     "require_independent_redundancy_proof_before_removal": true,
     "unattended_deletion_enabled": false
+  },
+  "branch_lifecycle": {
+    "method": "github_first_then_verified_cleanup",
+    "staging_branch_prefix": "archive/",
+    "owner": "mad4bdigital-ai",
+    "no_force_push": true,
+    "no_automatic_staging_or_commits": true,
+    "require_explicit_review_before_publish": true,
+    "require_exact_remote_tip_sha": true,
+    "require_durable_private_receipt_outside_checkout": true,
+    "require_no_uncommitted_untracked_ignored_source": true,
+    "require_only_one_local_branch_and_worktree": true,
+    "exclude_submodules_and_lfs_without_independent_validation": true,
+    "cleanup_only_one_named_standalone_temp_checkout": true,
+    "deletion_requires_explicit_apply_and_root": true,
+    "must_preserve_published_archive_branch": true,
+    "automatic_push_enabled": false,
+    "unattended_deletion_enabled": false
   }
 }
