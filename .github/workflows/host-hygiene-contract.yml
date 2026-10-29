@@ -1,0 +1,64 @@
+name: Host Hygiene Report-Only Contract
+
+on:
+  pull_request:
+    paths:
+      - "ops/vps-maintenance/**"
+      - ".github/workflows/host-hygiene-contract.yml"
+  push:
+    branches: [main]
+    paths:
+      - "ops/vps-maintenance/**"
+      - ".github/workflows/host-hygiene-contract.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - name: Compile and test non-destructive policy
+        run: |
+          python3 -m py_compile ops/vps-maintenance/guardian.py
+          python3 -m py_compile ops/vps-maintenance/branch_lifecycle.py
+          python3 -m py_compile ops/vps-maintenance/docker_qa_inventory.py
+          python3 -m unittest discover -s ops/vps-maintenance/tests -v
+      - name: Check metadata and no destructive entrypoints
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path("ops/vps-maintenance")
+          policy=json.loads((p/"policy.json").read_text())
+          assert policy["mode"]=="report_only"
+          qa=(p/"docker_qa_inventory.py").read_text()
+          assert "docker_snapshot" in qa
+          assert "cleanup_authorized" in qa
+          assert '"docker", "inspect"' in qa
+          assert '"docker", "ps"' in qa
+          assert '"docker", "rm"' not in qa
+          assert '"docker", "stop"' not in qa
+          assert '"docker", "prune"' not in qa
+
+          b=policy["branch_lifecycle"]
+          assert b["method"]=="github_first_then_verified_cleanup"
+          assert b["no_force_push"] and b["require_exact_remote_tip_sha"]
+          assert b["automatic_push_enabled"] is False
+          assert b["unattended_deletion_enabled"] is False
+          lifecycle=(p/"branch_lifecycle.py").read_text()
+          assert "'--reviewed'" in lifecycle and "'--apply'" in lifecycle
+          assert "push', '--porcelain'" in lifecycle
+          assert "shutil.rmtree(checkout)" in lifecycle
+          assert "push', '--force'" not in lifecycle
+
+          for f in ("host-hygiene.service", "host-hygiene.timer"):
+              assert (p/f).is_file()
+          s=(p/"guardian.py").read_text()
+          assert "docker system prune" not in s and "shutil.rmtree" not in s
+          assert "rm -rf" not in s and "swapoff" not in s
+          PY

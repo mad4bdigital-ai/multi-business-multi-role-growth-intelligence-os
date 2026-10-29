@@ -1,0 +1,28 @@
+[Unit]
+Description=Read-only host hygiene inventory (no deletes, no Docker prune)
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+UMask=0077
+StateDirectory=host-hygiene
+StateDirectoryMode=0700
+ExecStart=/usr/bin/python3 /opt/host-hygiene/guardian.py --policy /etc/host-hygiene/policy.json --output /var/lib/host-hygiene/report.json
+ExecStart=/usr/bin/python3 /opt/host-hygiene/docker_qa_inventory.py --output /var/lib/host-hygiene/docker-qa-report.json
+Nice=15
+IOSchedulingClass=idle
+CPUQuota=25%
+MemoryMax=192M
+TimeoutStartSec=12min
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=read-only
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+PrivateDevices=yes
+PrivateTmp=no
+RestrictAddressFamilies=AF_UNIX
+IPAddressDeny=any
+ReadWritePaths=/var/lib/host-hygiene

@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "mode": "report_only",
+  "temporary_roots": [
+    "/tmp",
+    "/var/tmp"
+  ],
+  "minimum_age_days": 3,
+  "max_entries_per_root": 500,
+  "max_reported_candidates": 70,
+  "size_probe_timeout_seconds": 4,
+  "disk_warning_percent": 80,
+  "swap_warning_percent": 90,
+  "prohibited_prefixes": [
+    "systemd-private-",
+    "snap-private-tmp-"
+  ],
+  "protected_names": [
+    ".X11-unix",
+    ".ICE-unix",
+    ".font-unix",
+    ".Test-unix",
+    ".XIM-unix"
+  ],
+  "git_worktree_cleanup_policy": {
+    "source_of_truth": "github_remote",
+    "local_checkouts_are_disposable_only_when_exact_contents_are_recoverable": true,
+    "allow_reproducible_untracked_bytecode_only": true,
+    "require_verified_remote_commit_ancestry": true,
+    "require_all_local_branch_commits_remote_recoverable": true,
+    "require_no_uncommitted_source_changes": true,
+    "require_no_nonreproducible_untracked_or_ignored_files": true,
+    "require_no_linked_worktrees": true,
+    "require_no_active_process_handles": true,
+    "require_independent_redundancy_proof_before_removal": true,
+    "unattended_deletion_enabled": false
+  },
+  "branch_lifecycle": {
+    "method": "github_first_then_verified_cleanup",
+    "staging_branch_prefix": "archive/",
+    "owner": "mad4bdigital-ai",
+    "no_force_push": true,
+    "no_automatic_staging_or_commits": true,
+    "require_explicit_review_before_publish": true,
+    "require_exact_remote_tip_sha": true,
+    "require_durable_private_receipt_outside_checkout": true,
+    "require_no_uncommitted_untracked_ignored_source": true,
+    "require_only_one_local_branch_and_worktree": true,
+    "exclude_submodules_and_lfs_without_independent_validation": true,
+    "cleanup_only_one_named_standalone_temp_checkout": true,
+    "deletion_requires_explicit_apply_and_root": true,
+    "must_preserve_published_archive_branch": true,
+    "automatic_push_enabled": false,
+    "unattended_deletion_enabled": false
+  }
+}
