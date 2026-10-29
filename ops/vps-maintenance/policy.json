@@ -6,7 +6,7 @@
     "/var/tmp"
   ],
   "minimum_age_days": 3,
-  "max_entries_per_root": 250,
+  "max_entries_per_root": 500,
   "max_reported_candidates": 70,
   "size_probe_timeout_seconds": 4,
   "disk_warning_percent": 80,
