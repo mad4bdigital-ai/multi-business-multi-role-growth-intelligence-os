@@ -38,6 +38,20 @@ def describe(obj, now):
     owner = labels.get("ops.owner")
     owner_ok = isinstance(owner, str) and bool(re.fullmatch(r"[A-Za-z0-9._-]{2,80}", owner))
     configured = any(k in labels for k in REQUIRED)
+    qa_hint = bool(SUGGEST.search(name) or SUGGEST.search(project)
+                   or name.endswith("-restore-cert") or name.endswith("-local-open-model"))
+    review_blockers = []
+    if managed:
+        review_blockers.append("managed_by_orchestrator")
+    if persistent:
+        review_blockers.append("persistent_mounts")
+    if CRITICAL.search(name):
+        review_blockers.append("critical_service")
+    if restart in ("always", "unless-stopped", "on-failure"):
+        review_blockers.append("restart_enabled")
+    if bool(host.get("PortBindings")):
+        review_blockers.append("published_port")
+
     if managed or name in ("coolify", "coolify-db", "coolify-redis", "coolify-proxy", "coolify-sentinel"):
         decision = "protected_managed"
     elif CRITICAL.search(name) or persistent:
@@ -57,6 +71,7 @@ def describe(obj, now):
         "has_persistent_mounts": persistent,
         "has_host_port_bindings": bool(host.get("PortBindings")),
         "coolify_managed": managed, "lifecycle": decision,
+        "qa_review_hint": qa_hint, "review_blockers": review_blockers,
         "expiry_utc": labels.get("ops.expires_at") if explicit else None,
         "cleanup_authorized": False
     }
@@ -70,7 +85,10 @@ def inventory(containers, now):
     return {"schema_version": 1, "mode": "report_only",
             "timestamp_utc": now.isoformat(), "total": len(records),
             "running": sum(x["state"] == "running" for x in records),
-            "classification": counts, "containers": sorted(records, key=lambda x: x["name"]),
+            "classification": counts,
+        "qa_review_hint_count": sum(x["qa_review_hint"] for x in records),
+        "qa_review_queue": sorted([x["name"] for x in records if x["qa_review_hint"]]),
+        "containers": sorted(records, key=lambda x: x["name"]),
             "operations_performed": [], "automatic_stop": False, "automatic_removal": False}
 
 
