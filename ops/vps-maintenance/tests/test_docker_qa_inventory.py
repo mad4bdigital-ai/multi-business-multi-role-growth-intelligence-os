@@ -37,6 +37,14 @@ class ContainerLifecycleTests(unittest.TestCase):
         for x in cases:
             self.assertTrue(describe(x, NOW)["lifecycle"].startswith("protected"))
 
+    def test_qa_review_hint_preserves_persistent_qa(self):
+        x = describe(sample("mad4b-tenant-qa02-db",
+                            mounts=[{"Type": "bind"}]), NOW)
+        self.assertTrue(x["qa_review_hint"])
+        self.assertEqual(x["lifecycle"], "protected_data_or_critical")
+        self.assertIn("persistent_mounts", x["review_blockers"])
+        self.assertFalse(x["cleanup_authorized"])
+
     def test_legacy_qa_is_only_possible(self):
         self.assertEqual(describe(sample("mad4b-tenant-qa02-php"), NOW)["lifecycle"],
                          "possible_qa_manual_review")
@@ -55,6 +63,8 @@ class ContainerLifecycleTests(unittest.TestCase):
     def test_aggregate_excludes_secrets_and_never_mutates(self):
         result = inventory([sample(labels=labels()), sample("coolify-db")], NOW)
         self.assertEqual(result["running"], 2)
+        self.assertEqual(result["qa_review_hint_count"], 1)
+        self.assertEqual(result["qa_review_queue"], ["qa-temp"])
         self.assertEqual(result["total"], 2)
         self.assertEqual(result["operations_performed"], [])
         self.assertFalse(result["automatic_stop"])
